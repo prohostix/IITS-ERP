@@ -1,0 +1,53 @@
+import express from 'express';
+import {
+  getLeads,
+  getLead,
+  createLead,
+  updateLead,
+  convertLead,
+  deleteLead,
+  getTargets,
+  getTarget,
+  createTarget,
+  updateTarget,
+  deleteTarget,
+  generateInvite,
+  listMyInvites,
+  regenerateInvite,
+  getTeamPerformance,
+  getMyCenters,
+  getMyCenterAdmissions,
+  getMyCenterDetail,
+  getProgramsByUniversity,
+} from '../controllers/salesController.js';
+import { protect, authorize } from '../middleware/auth.js';
+
+const router = express.Router();
+
+router.use(protect);
+
+// Lead routes
+router.route('/leads').get(getLeads).post(createLead);
+router.route('/leads/:id').get(getLead).put(updateLead).delete(deleteLead);
+router.put('/leads/:id/convert', convertLead);
+
+// Target routes
+router.route('/targets').get(getTargets).post(authorize('sales_admin', 'ceo'), createTarget);
+router.route('/targets/:id').get(getTarget).put(authorize('sales_admin', 'ceo'), updateTarget).delete(authorize('sales_admin', 'ceo'), deleteTarget);
+
+// Invite routes — available to all sales department employees
+router.route('/invites').get(listMyInvites).post(generateInvite);
+router.patch('/invites/:id/regenerate', regenerateInvite);
+
+// Programs by university (for invite creation)
+router.get('/programs-by-university', getProgramsByUniversity);
+
+// Team performance
+router.get('/team-performance', getTeamPerformance);
+
+// My study centers (via invite links — self + subordinates)
+router.get('/my-centers', getMyCenters);
+router.get('/my-centers/admissions', getMyCenterAdmissions);
+router.get('/my-centers/:centerId', getMyCenterDetail);
+
+export default router;
