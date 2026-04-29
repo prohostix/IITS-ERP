@@ -22,7 +22,6 @@ import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 
 interface User {
-  _id?: string;
   id?: string;
   name: string;
   email: string;
@@ -32,15 +31,14 @@ interface User {
   additionalDepartmentIds?: string[];
   subDepartmentId?: string;
   reportingTo?: string;
-  department?: { name: string; _id?: string; id?: string };
-  additionalDepartments?: { _id: string; name: string }[];
+  department?: { name: string; id?: string };
+  additionalDepartments?: { id: string; name: string }[];
   subDepartment?: { name: string };
   reportingToUser?: { name: string };
   status?: string;
 }
 
 interface Department {
-  _id?: string;
   id?: string;
   name: string;
   type: string;
@@ -49,16 +47,15 @@ interface Department {
 }
 
 interface SubDepartment {
-  _id?: string;
   id?: string;
   name: string;
   parentDeptId: string;
 }
 
 interface DesignationOption {
-  _id: string;
+  id: string;
   title: string;
-  departmentId?: { _id: string; name: string };
+  departmentId?: { id: string; name: string };
   maxHeadcount: number;
   filledBy: any[];
 }
@@ -186,7 +183,7 @@ export function HRUsersPanel() {
     try {
       const additionalDepts = formData.additionalDepartmentIds.filter(id => id && id !== formData.departmentId);
       if (editingUser) {
-        const userId = editingUser._id || editingUser.id;
+        const userId = editingUser.id || editingUser.id;
         await api.put(`/users/${userId}`, {
           name: formData.name,
           email: formData.email,
@@ -221,7 +218,7 @@ export function HRUsersPanel() {
     if (!selectedUser) return;
 
     try {
-      const userId = selectedUser._id || selectedUser.id;
+      const userId = selectedUser.id || selectedUser.id;
       await api.put(`/users/${userId}`, {
         departmentId: (transferData.departmentId && transferData.departmentId !== 'none') ? transferData.departmentId : undefined,
         subDepartmentId: (transferData.subDepartmentId && transferData.subDepartmentId !== 'none') ? transferData.subDepartmentId : undefined,
@@ -244,7 +241,7 @@ export function HRUsersPanel() {
     if (!selectedUser) return;
 
     try {
-      const userId = selectedUser._id || selectedUser.id;
+      const userId = selectedUser.id || selectedUser.id;
       await api.put(`/users/${userId}`, {
         designation: promotionData.newDesignation,
         role: promotionData.newRole,
@@ -304,16 +301,16 @@ export function HRUsersPanel() {
   const openEditDialog = (user: User) => {
     setEditingUser(user);
     const deptId = typeof user.departmentId === 'object' && user.departmentId !== null
-      ? ((user.departmentId as any)._id || (user.departmentId as any).id)
+      ? ((user.departmentId as any).id || (user.departmentId as any).id)
       : user.departmentId;
     const subDeptId = typeof user.subDepartmentId === 'object' && user.subDepartmentId !== null
-      ? ((user.subDepartmentId as any)._id || (user.subDepartmentId as any).id)
+      ? ((user.subDepartmentId as any).id || (user.subDepartmentId as any).id)
       : user.subDepartmentId;
     const reportingToId = typeof user.reportingTo === 'object' && user.reportingTo !== null
-      ? ((user.reportingTo as any)._id || (user.reportingTo as any).id)
+      ? ((user.reportingTo as any).id || (user.reportingTo as any).id)
       : user.reportingTo;
     const additionalIds = (user.additionalDepartments || []).map((d: any) =>
-      typeof d === 'object' ? (d._id || d.id) : d
+      typeof d === 'object' ? (d.id || d.id) : d
     ).filter(Boolean);
     setFormData({
       name: user.name,
@@ -466,7 +463,7 @@ export function HRUsersPanel() {
                       setFormData({
                         ...formData,
                         designation: value,
-                        departmentId: desig?.departmentId?._id || formData.departmentId,
+                        departmentId: desig?.departmentId?.id || formData.departmentId,
                       });
                     }}
                   >
@@ -478,7 +475,7 @@ export function HRUsersPanel() {
                         const filled = d.filledBy?.length || 0;
                         const vacant = d.maxHeadcount - filled;
                         return (
-                          <SelectItem key={d._id} value={d.title} disabled={vacant <= 0}>
+                          <SelectItem key={d.id} value={d.title} disabled={vacant <= 0}>
                             {d.title}
                             {d.departmentId ? ` — ${d.departmentId.name}` : ''}
                             {vacant <= 0 ? ' (Full)' : ` (${vacant} open)`}
@@ -537,7 +534,7 @@ export function HRUsersPanel() {
                   <SelectContent>
                     <SelectItem value="none">No Department</SelectItem>
                     {departments.map((dept) => (
-                      <SelectItem key={dept._id || dept.id} value={(dept._id || dept.id)!}>
+                      <SelectItem key={dept.id || dept.id} value={(dept.id || dept.id)!}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -549,9 +546,9 @@ export function HRUsersPanel() {
                 <Label>Additional Departments <span className="text-xs text-muted-foreground font-normal">(for branch managers with multi-dept access)</span></Label>
                 <div className="mt-2 border rounded-lg p-3 space-y-2 max-h-36 overflow-y-auto bg-muted/30">
                   {departments
-                    .filter(d => (d._id || d.id) !== formData.departmentId && (d._id || d.id) !== 'none')
+                    .filter(d => (d.id || d.id) !== formData.departmentId && (d.id || d.id) !== 'none')
                     .map(dept => {
-                      const deptId = (dept._id || dept.id)!;
+                      const deptId = (dept.id || dept.id)!;
                       const checked = formData.additionalDepartmentIds.includes(deptId);
                       return (
                         <label key={deptId} className="flex items-center gap-2 cursor-pointer text-sm">
@@ -587,7 +584,7 @@ export function HRUsersPanel() {
                     <SelectContent>
                       <SelectItem value="none">No Sub-Department</SelectItem>
                       {subDepartments.map((subDept) => (
-                        <SelectItem key={subDept._id || subDept.id} value={(subDept._id || subDept.id)!}>
+                        <SelectItem key={subDept.id || subDept.id} value={(subDept.id || subDept.id)!}>
                           {subDept.name}
                         </SelectItem>
                       ))}
@@ -606,8 +603,8 @@ export function HRUsersPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
-                    {users.filter(u => (u._id || u.id) !== (editingUser?._id || editingUser?.id)).map((user) => (
-                      <SelectItem key={user._id || user.id} value={(user._id || user.id)!}>
+                    {users.filter(u => (u.id || u.id) !== (editingUser?.id || editingUser?.id)).map((user) => (
+                      <SelectItem key={user.id || user.id} value={(user.id || user.id)!}>
                         {user.name} {user.designation ? `(${user.designation})` : ''}
                       </SelectItem>
                     ))}
@@ -643,7 +640,7 @@ export function HRUsersPanel() {
         ) : (
           <div className="space-y-4">
             {users.map((user) => {
-              const userId = user._id || user.id || '';
+              const userId = user.id || user.id || '';
               return (
                 <div
                   key={userId}
@@ -816,7 +813,7 @@ export function HRUsersPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map((dept) => (
-                    <SelectItem key={dept._id || dept.id} value={(dept._id || dept.id)!}>
+                    <SelectItem key={dept.id || dept.id} value={(dept.id || dept.id)!}>
                       {dept.name}
                     </SelectItem>
                   ))}
@@ -836,7 +833,7 @@ export function HRUsersPanel() {
                   <SelectContent>
                     <SelectItem value="none">No Sub-Department</SelectItem>
                     {subDepartments.map((subDept) => (
-                      <SelectItem key={subDept._id || subDept.id} value={(subDept._id || subDept.id)!}>
+                      <SelectItem key={subDept.id || subDept.id} value={(subDept.id || subDept.id)!}>
                         {subDept.name}
                       </SelectItem>
                     ))}
@@ -902,7 +899,7 @@ export function HRUsersPanel() {
                       const filled = d.filledBy?.length || 0;
                       const vacant = d.maxHeadcount - filled;
                       return (
-                        <SelectItem key={d._id} value={d.title}>
+                        <SelectItem key={d.id} value={d.title}>
                           {d.title}
                           {d.departmentId ? ` — ${d.departmentId.name}` : ''}
                           {vacant <= 0 ? ' (Full)' : ` (${vacant} open)`}
@@ -947,8 +944,8 @@ export function HRUsersPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Manager</SelectItem>
-                  {users.filter(u => (u._id || u.id) !== (selectedUser?._id || selectedUser?.id)).map((user) => (
-                    <SelectItem key={user._id || user.id} value={(user._id || user.id)!}>
+                  {users.filter(u => (u.id || u.id) !== (selectedUser?.id || selectedUser?.id)).map((user) => (
+                    <SelectItem key={user.id || user.id} value={(user.id || user.id)!}>
                       {user.name} {user.designation ? `(${user.designation})` : ''}
                     </SelectItem>
                   ))}

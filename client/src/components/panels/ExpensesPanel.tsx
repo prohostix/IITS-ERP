@@ -56,7 +56,7 @@ export function ExpensesPanel() {
   };
 
   const handleEdit = (expense: any) => {
-    const expenseId = expense.id || expense._id;
+    const expenseId = expense.id || expense.id;
     setEditingId(expenseId);
     setFormData({
       amount: expense.amount?.toString() || '',
@@ -158,8 +158,8 @@ export function ExpensesPanel() {
             <div className="text-center py-8 text-muted-foreground">No expenses found</div>
           ) : (
             <div className="space-y-2">
-              {expenses.filter(expense => expense && (expense.id || expense._id)).map((expense) => {
-                const expenseId = expense.id || expense._id;
+              {expenses.filter(expense => expense && (expense.id || expense.id)).map((expense) => {
+                const expenseId = expense.id || expense.id;
                 return (
                   <div key={expenseId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">

@@ -97,7 +97,7 @@ export function LeadsPanel() {
   };
 
   const handleEdit = (lead: any) => {
-    const leadId = lead.id || lead._id;
+    const leadId = lead.id || lead.id;
     setEditingId(leadId);
     setFormData({
       centerName: lead.centerName || '',
@@ -149,7 +149,7 @@ export function LeadsPanel() {
     e.preventDefault();
     try {
       await api.post('/operations/centers', centerFormData);
-      const leadId = selectedLead.id || selectedLead._id;
+      const leadId = selectedLead.id || selectedLead.id;
       await api.put(`/sales/leads/${leadId}`, { status: 'converted' });
       setConvertDialogOpen(false);
       fetchLeads();
@@ -214,7 +214,7 @@ export function LeadsPanel() {
           {referralLinks.length > 0 ? (
             <div className="space-y-3">
               {referralLinks.map((link: any) => (
-                <div key={link._id || link.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                <div key={link.id || link.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
                   <div className="flex-1">
                     <p className="font-mono text-sm">{link.fullUrl}</p>
                     <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
@@ -339,8 +339,8 @@ export function LeadsPanel() {
             <div className="text-center py-8 text-muted-foreground">No leads found</div>
           ) : (
             <div className="space-y-2">
-              {leads.filter(lead => lead && (lead.id || lead._id)).map((lead) => {
-                const leadId = lead.id || lead._id;
+              {leads.filter(lead => lead && (lead.id || lead.id)).map((lead) => {
+                const leadId = lead.id || lead.id;
                 return (
                   <div key={leadId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">

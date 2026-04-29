@@ -309,7 +309,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
               </div>
             ) : (
               hotLeads.map((lead: any) => (
-                <div key={lead._id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                <div key={lead.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
                       {(lead.name || lead.contactName || '?')[0].toUpperCase()}
@@ -347,7 +347,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
                     : typeof t.departmentId === 'object' ? t.departmentId?.name
                     : t.type || 'Target';
                   return (
-                  <div key={t._id} className="space-y-1">
+                  <div key={t.id} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="font-medium truncate max-w-[180px]">{label} ({t.period})</span>
                       <span className="font-bold text-primary">{pct}%</span>
@@ -425,13 +425,13 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
     : user?.designation || 'Sales';
 
   const myLeads = leads.filter((l: any) => {
-    const refId = typeof l.referredBy === 'object' ? l.referredBy?._id : l.referredBy;
-    return refId?.toString() === (user?._id || user?.id)?.toString();
+    const refId = typeof l.referredBy === 'object' ? l.referredBy?.id : l.referredBy;
+    return refId?.toString() === (user?.id || user?.id)?.toString();
   });
 
   const myTargets = targets.filter((t: any) => {
-    const empId = typeof t.employeeId === 'object' ? t.employeeId?._id : t.employeeId;
-    return empId?.toString() === (user?._id || user?.id)?.toString();
+    const empId = typeof t.employeeId === 'object' ? t.employeeId?.id : t.employeeId;
+    return empId?.toString() === (user?.id || user?.id)?.toString();
   });
 
   return (
@@ -489,7 +489,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
                   {loading ? [1,2,3].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />) :
                     myLeads.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No leads yet</p> :
                     myLeads.slice(0, 4).map((l: any) => (
-                      <div key={l._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div key={l.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                         <div>
                           <p className="text-sm font-medium">{l.centerName || l.contactName || 'Lead'}</p>
                           <p className="text-[10px] text-muted-foreground">{l.source} · {new Date(l.createdAt).toLocaleDateString()}</p>
@@ -514,7 +514,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
                       myTargets.slice(0, 3).map((t: any) => {
                         const pct = t.target > 0 ? Math.min(100, Math.round((t.achieved / t.target) * 100)) : 0;
                         return (
-                          <div key={t._id} className="space-y-1">
+                          <div key={t.id} className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="font-medium">{t.type} · {t.period}</span>
                               <span className="font-bold text-primary">{pct}%</span>

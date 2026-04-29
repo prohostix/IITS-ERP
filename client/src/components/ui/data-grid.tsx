@@ -106,7 +106,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
                   className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedRows(new Set(data.map(row => row._id || row.id)));
+                      setSelectedRows(new Set(data.map(row => row.id || row.id)));
                     } else {
                       setSelectedRows(new Set());
                     }
@@ -134,7 +134,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
           </thead>
           <tbody className="divide-y divide-border/50">
             {data.map((row, rowIndex) => {
-              const rowId = row._id || row.id || rowIndex;
+              const rowId = row.id || row.id || rowIndex;
               const isSelected = selectedRows.has(rowId);
               return (
                 <tr

@@ -95,10 +95,10 @@ export function InvoicesPanel() {
 
   const handleEdit = (inv: any) => {
     const centerId = typeof inv.centerId === 'object'
-      ? (inv.centerId?._id || inv.centerId?.id)
+      ? (inv.centerId?.id || inv.centerId?.id)
       : inv.centerId;
     const firstItem = inv.items?.[0] || {};
-    setEditingId(inv._id || inv.id);
+    setEditingId(inv.id || inv.id);
     setFormData({
       centerId: centerId?.toString() || '',
       invoiceNo: inv.invoiceNo || '',
@@ -152,8 +152,8 @@ export function InvoicesPanel() {
                 <Select value={formData.centerId} onValueChange={(v) => setFormData({ ...formData, centerId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select center" /></SelectTrigger>
                   <SelectContent>
-                    {centers.filter(c => c && (c._id || c.id)).map((c) => (
-                      <SelectItem key={c._id || c.id} value={(c._id || c.id).toString()}>
+                    {centers.filter(c => c && (c.id || c.id)).map((c) => (
+                      <SelectItem key={c.id || c.id} value={(c.id || c.id).toString()}>
                         {c.name}
                       </SelectItem>
                     ))}
@@ -223,8 +223,8 @@ export function InvoicesPanel() {
             <div className="text-center py-8 text-muted-foreground">No invoices found</div>
           ) : (
             <div className="space-y-2">
-              {invoices.filter(inv => inv && (inv._id || inv.id)).map((inv) => {
-                const invId = inv._id || inv.id;
+              {invoices.filter(inv => inv && (inv.id || inv.id)).map((inv) => {
+                const invId = inv.id || inv.id;
                 const centerName = typeof inv.centerId === 'object' ? inv.centerId?.name : '';
                 return (
                   <div key={invId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">

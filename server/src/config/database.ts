@@ -1,23 +1,13 @@
-import mongoose from 'mongoose';
+import prisma from '../lib/prisma.js';
+
+export { prisma };
 
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/erp_system';
-    
-    await mongoose.connect(mongoUri);
-    
-    console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
-    
-    mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️  MongoDB disconnected');
-    });
-    
+    await prisma.$connect();
+    console.log('✅ PostgreSQL Connected via Prisma');
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
+    console.error('❌ PostgreSQL connection failed:', error);
     process.exit(1);
   }
 };

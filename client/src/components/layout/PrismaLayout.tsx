@@ -203,8 +203,8 @@ export function PrismaLayout({
             <Database className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-sm tracking-tight text-sidebar-foreground">UniERP</span>
-            <span className="text-[10px] text-sidebar-foreground/50 uppercase font-bold tracking-widest">ERP Studio</span>
+            <span className="font-bold text-sm tracking-tight text-sidebar-foreground">PYPE ERP</span>
+            <span className="text-[10px] text-sidebar-foreground/50 uppercase font-bold tracking-widest">PYPE ERP</span>
           </div>
           {/* Mobile Close Button */}
           <Button 

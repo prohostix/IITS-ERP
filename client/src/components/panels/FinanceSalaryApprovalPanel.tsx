@@ -11,8 +11,8 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface SalaryConfig {
-  _id: string;
-  userId: { _id: string; name: string; email: string; designation?: string; role: string; departmentId?: { name: string } };
+  id: string;
+  userId: { id: string; name: string; email: string; designation?: string; role: string; departmentId?: { name: string } };
   basicSalary: number;
   allowances: { hra: number; transport: number; medical: number; other: number };
   deductions: { pf: number; tax: number; insurance: number; other: number };
@@ -182,7 +182,7 @@ export function FinanceSalaryApprovalPanel() {
             const grossAmt = gross(config);
             const netAmt = net(config);
             return (
-              <Card key={config._id} className="hover:border-primary/30 transition-colors">
+              <Card key={config.id} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex-1 min-w-0">
@@ -244,10 +244,10 @@ export function FinanceSalaryApprovalPanel() {
                       </Button>
                       {config.approvalStatus === 'pending_approval' && (
                         <>
-                          <Button size="sm" variant="outline" className="text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleApprove(config._id)}>
+                          <Button size="sm" variant="outline" className="text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleApprove(config.id)}>
                             <CheckCircle className="w-3.5 h-3.5 mr-1" />Approve
                           </Button>
-                          <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setRejectDialog({ open: true, id: config._id }); setRemarks(''); }}>
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setRejectDialog({ open: true, id: config.id }); setRemarks(''); }}>
                             <XCircle className="w-3.5 h-3.5 mr-1" />Reject
                           </Button>
                         </>

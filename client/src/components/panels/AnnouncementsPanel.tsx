@@ -69,7 +69,7 @@ export function AnnouncementsPanel() {
   };
 
   const handleEdit = (a: any) => {
-    setEditingId(a._id || a.id);
+    setEditingId(a.id || a.id);
     setForm({
       title: a.title || '',
       content: a.content || '',
@@ -126,7 +126,7 @@ export function AnnouncementsPanel() {
           ) : (
             <div className="space-y-3">
               {announcements.map(a => {
-                const aid = a._id || a.id;
+                const aid = a.id || a.id;
                 return (
                   <div key={aid} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

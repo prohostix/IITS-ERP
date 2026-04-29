@@ -17,7 +17,7 @@ interface PollOption {
 }
 
 interface Poll {
-  _id: string;
+  id: string;
   question: string;
   options: PollOption[];
   createdBy?: { name: string };
@@ -86,14 +86,14 @@ export function PollsPanel() {
 
   const handleToggleActive = async (poll: Poll) => {
     try {
-      await api.put(`/hr/polls/${poll._id}`, { isActive: !poll.isActive });
+      await api.put(`/hr/polls/${poll.id}`, { isActive: !poll.isActive });
       fetchPolls();
     } catch { toast.error('Failed to update'); }
   };
 
   const handleVote = async (pollId: string, optionIndex: number) => {
     const current = votedPolls[pollId] || [];
-    const poll = polls.find(p => p._id === pollId);
+    const poll = polls.find(p => p.id === pollId);
     if (!poll) return;
 
     let newIndexes: number[];
@@ -117,11 +117,11 @@ export function PollsPanel() {
   const totalVotes = (poll: Poll) => poll.options.reduce((s, o) => s + o.votes.length, 0);
   const pct = (votes: number, total: number) => total === 0 ? 0 : Math.round((votes / total) * 100);
   const hasVoted = (poll: Poll) => {
-    const uid = user?._id || (user as any)?.id;
+    const uid = user?.id || (user as any)?.id;
     return poll.options.some(o => o.votes.includes(uid));
   };
   const myVotes = (poll: Poll) => {
-    const uid = user?._id || (user as any)?.id;
+    const uid = user?.id || (user as any)?.id;
     return poll.options.map((o, i) => o.votes.includes(uid) ? i : -1).filter(i => i >= 0);
   };
 
@@ -166,7 +166,7 @@ export function PollsPanel() {
             const canVote = poll.isActive && !expired;
 
             return (
-              <Card key={poll._id} className={!poll.isActive || expired ? 'opacity-60' : ''}>
+              <Card key={poll.id} className={!poll.isActive || expired ? 'opacity-60' : ''}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -187,7 +187,7 @@ export function PollsPanel() {
                     {isHR && (
                       <div className="flex items-center gap-2 shrink-0">
                         <Switch checked={poll.isActive} onCheckedChange={() => handleToggleActive(poll)} />
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(poll._id)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(poll.id)}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </div>
@@ -208,7 +208,7 @@ export function PollsPanel() {
                               ? 'hover:border-primary/50 hover:bg-muted/50'
                               : 'cursor-default'
                           }`}
-                          onClick={() => canVote ? handleVote(poll._id, idx) : undefined}
+                          onClick={() => canVote ? handleVote(poll.id, idx) : undefined}
                           disabled={!canVote && !voted}
                         >
                           {/* Progress bar background */}

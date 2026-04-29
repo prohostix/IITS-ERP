@@ -11,24 +11,24 @@ import { Plus, RefreshCw, Edit2, Trash2, UserPlus, MapPin, Building2, TrendingUp
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
-interface Dept { _id: string; name: string; type: string; }
+interface Dept { id: string; name: string; type: string; }
 
 interface Branch {
-  _id: string;
+  id: string;
   name: string;
   branchCode: string;
   location: string;
   city?: string;
   state?: string;
   status: 'active' | 'inactive';
-  branchManagerId?: { _id: string; name: string; email: string; role: string; userId?: string; designation?: string };
+  branchManagerId?: { id: string; name: string; email: string; role: string; userId?: string; designation?: string };
   salesDeptId?: Dept;
   operationsDeptId?: Dept;
   additionalDeptIds?: Dept[];
 }
 
 interface OrgUser {
-  _id: string; name: string; email: string; role: string; userId?: string; designation?: string;
+  id: string; name: string; email: string; role: string; userId?: string; designation?: string;
 }
 
 const DEPT_TYPE_COLORS: Record<string, string> = {
@@ -87,12 +87,12 @@ export function BranchesPanel() {
   const getAvailableExtraDepts = (branch: Branch | null) => {
     const autoIds = new Set<string>();
     branches.forEach(b => {
-      if (b.salesDeptId) autoIds.add(b.salesDeptId._id);
-      if (b.operationsDeptId) autoIds.add(b.operationsDeptId._id);
+      if (b.salesDeptId) autoIds.add(b.salesDeptId.id);
+      if (b.operationsDeptId) autoIds.add(b.operationsDeptId.id);
     });
-    if (branch?.salesDeptId) autoIds.add(branch.salesDeptId._id);
-    if (branch?.operationsDeptId) autoIds.add(branch.operationsDeptId._id);
-    return allDepts.filter(d => !autoIds.has(d._id) && !RESTRICTED_TYPES.has(d.type));
+    if (branch?.salesDeptId) autoIds.add(branch.salesDeptId.id);
+    if (branch?.operationsDeptId) autoIds.add(branch.operationsDeptId.id);
+    return allDepts.filter(d => !autoIds.has(d.id) && !RESTRICTED_TYPES.has(d.type));
   };
 
   const toggleDept = (id: string, list: string[], setList: (v: string[]) => void) => {
@@ -119,7 +119,7 @@ export function BranchesPanel() {
     setSaving(true);
     try {
       if (editingBranch) {
-        await api.patch(`/org/branches/${editingBranch._id}`, {
+        await api.patch(`/org/branches/${editingBranch.id}`, {
           name: form.name, location: form.location, city: form.city, state: form.state,
         });
       } else {
@@ -142,7 +142,7 @@ export function BranchesPanel() {
   const handleDelete = async (b: Branch) => {
     if (!confirm(`Delete branch "${b.name}"? This will also remove its Sales and Operations departments.`)) return;
     try {
-      await api.delete(`/org/branches/${b._id}`);
+      await api.delete(`/org/branches/${b.id}`);
       toast.success('Branch deleted');
       fetchAll();
     } catch (e: any) {
@@ -153,8 +153,8 @@ export function BranchesPanel() {
   // ── Assign Manager ──
   const openAssignManager = (b: Branch) => {
     setManagerTarget(b);
-    setManagerUserId(b.branchManagerId?._id || '');
-    setSelectedDeptIds((b.additionalDeptIds || []).map(d => d._id));
+    setManagerUserId(b.branchManagerId?.id || '');
+    setSelectedDeptIds((b.additionalDeptIds || []).map(d => d.id));
     setManagerDialog(true);
   };
 
@@ -162,7 +162,7 @@ export function BranchesPanel() {
     if (!managerTarget) return;
     setSaving(true);
     try {
-      await api.patch(`/org/branches/${managerTarget._id}/manager`, {
+      await api.patch(`/org/branches/${managerTarget.id}/manager`, {
         userId: managerUserId || null,
         additionalDeptIds: selectedDeptIds,
       });
@@ -179,7 +179,7 @@ export function BranchesPanel() {
   // ── Manage Departments (no manager change) ──
   const openManageDepts = (b: Branch) => {
     setDeptTarget(b);
-    setDeptSelection((b.additionalDeptIds || []).map(d => d._id));
+    setDeptSelection((b.additionalDeptIds || []).map(d => d.id));
     setDeptDialog(true);
   };
 
@@ -187,7 +187,7 @@ export function BranchesPanel() {
     if (!deptTarget) return;
     setSaving(true);
     try {
-      await api.patch(`/org/branches/${deptTarget._id}/departments`, {
+      await api.patch(`/org/branches/${deptTarget.id}/departments`, {
         additionalDeptIds: deptSelection,
       });
       toast.success('Branch departments updated');
@@ -202,7 +202,7 @@ export function BranchesPanel() {
 
   const toggleStatus = async (b: Branch) => {
     try {
-      await api.patch(`/org/branches/${b._id}`, { status: b.status === 'active' ? 'inactive' : 'active' });
+      await api.patch(`/org/branches/${b.id}`, { status: b.status === 'active' ? 'inactive' : 'active' });
       fetchAll();
     } catch { toast.error('Failed to update status'); }
   };
@@ -237,7 +237,7 @@ export function BranchesPanel() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {branches.map(b => (
-            <div key={b._id}
+            <div key={b.id}
               className={`border rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow ${b.status === 'inactive' ? 'opacity-60' : ''}`}>
               {/* Header */}
               <div className="flex items-start justify-between mb-3">
@@ -322,7 +322,7 @@ export function BranchesPanel() {
                 {(b.additionalDeptIds || []).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {(b.additionalDeptIds || []).map(d => (
-                      <span key={d._id} className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+                      <span key={d.id} className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
                         style={{
                           borderColor: (DEPT_TYPE_COLORS[d.type] || '#6366f1') + '55',
                           background: (DEPT_TYPE_COLORS[d.type] || '#6366f1') + '11',
@@ -388,7 +388,7 @@ export function BranchesPanel() {
                     <SelectContent>
                       <SelectItem value="__none__">Assign later</SelectItem>
                       {allUsers.map(u => (
-                        <SelectItem key={u._id} value={u._id}>
+                        <SelectItem key={u.id} value={u.id}>
                           {u.name} — {u.role.replace(/_/g, ' ')} {u.userId ? `(${u.userId})` : ''}
                         </SelectItem>
                       ))}
@@ -425,7 +425,7 @@ export function BranchesPanel() {
                 <SelectContent>
                   <SelectItem value="__none__">Remove manager</SelectItem>
                   {allUsers.map(u => (
-                    <SelectItem key={u._id} value={u._id}>
+                    <SelectItem key={u.id} value={u.id}>
                       {u.name} — {u.role.replace(/_/g, ' ')} {u.userId ? `(${u.userId})` : ''}
                     </SelectItem>
                   ))}
@@ -458,10 +458,10 @@ export function BranchesPanel() {
                   )}
                   {/* Selectable extra depts */}
                   {getAvailableExtraDepts(managerTarget).map(d => (
-                    <div key={d._id} className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => toggleDept(d._id, selectedDeptIds, setSelectedDeptIds)}>
-                      <Checkbox checked={selectedDeptIds.includes(d._id)}
-                        onCheckedChange={() => toggleDept(d._id, selectedDeptIds, setSelectedDeptIds)} />
+                    <div key={d.id} className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => toggleDept(d.id, selectedDeptIds, setSelectedDeptIds)}>
+                      <Checkbox checked={selectedDeptIds.includes(d.id)}
+                        onCheckedChange={() => toggleDept(d.id, selectedDeptIds, setSelectedDeptIds)} />
                       <span className="text-sm">{d.name}</span>
                       <span className="text-xs text-muted-foreground capitalize">{d.type}</span>
                     </div>
@@ -509,10 +509,10 @@ export function BranchesPanel() {
                   </div>
                 )}
                 {getAvailableExtraDepts(deptTarget).map(d => (
-                  <div key={d._id} className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => toggleDept(d._id, deptSelection, setDeptSelection)}>
-                    <Checkbox checked={deptSelection.includes(d._id)}
-                      onCheckedChange={() => toggleDept(d._id, deptSelection, setDeptSelection)} />
+                  <div key={d.id} className="flex items-center gap-2 cursor-pointer"
+                    onClick={() => toggleDept(d.id, deptSelection, setDeptSelection)}>
+                    <Checkbox checked={deptSelection.includes(d.id)}
+                      onCheckedChange={() => toggleDept(d.id, deptSelection, setDeptSelection)} />
                     <span className="text-sm">{d.name}</span>
                     <span className="text-xs text-muted-foreground capitalize">{d.type}</span>
                   </div>

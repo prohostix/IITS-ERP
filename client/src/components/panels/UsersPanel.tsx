@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -35,12 +35,12 @@ interface User {
 }
 
 interface Organization {
-  _id: string;
+  id: string;
   name: string;
 }
 
 interface Department {
-  _id: string;
+  id: string;
   name: string;
 }
 
@@ -105,8 +105,8 @@ export function UsersPanel() {
       email: user.email,
       password: '',
       role: user.role,
-      organizationId: user.organizationId?._id || user.organizationId || '',
-      departmentId: user.departmentId?._id || user.departmentId || '',
+      organizationId: user.organizationId?.id || user.organizationId || '',
+      departmentId: user.departmentId?.id || user.departmentId || '',
     });
     setIsDialogOpen(true);
   };
@@ -135,7 +135,7 @@ export function UsersPanel() {
       console.log('Submitting user data:', payload);
 
       if (editingUser) {
-        await api.put(`/users/${editingUser._id}`, payload);
+        await api.put(`/users/${editingUser.id}`, payload);
         toast.success('User updated successfully');
       } else {
         await api.post('/users', payload);
@@ -156,7 +156,7 @@ export function UsersPanel() {
     if (!deletingUser) return;
 
     try {
-      await api.delete(`/users/${deletingUser._id}`);
+      await api.delete(`/users/${deletingUser.id}`);
       toast.success('User deleted successfully');
       setIsDeleteDialogOpen(false);
       fetchData();
@@ -205,7 +205,7 @@ export function UsersPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {users.map((user) => (
-          <Card key={user._id} className="hover:shadow-lg transition-shadow">
+          <Card key={user.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -359,7 +359,7 @@ export function UsersPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     {organizations.map((org) => (
-                      <SelectItem key={org._id} value={org._id}>
+                      <SelectItem key={org.id} value={org.id}>
                         {org.name}
                       </SelectItem>
                     ))}
@@ -403,7 +403,7 @@ export function UsersPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((dept) => (
-                      <SelectItem key={dept._id} value={dept._id}>
+                      <SelectItem key={dept.id} value={dept.id}>
                         {dept.name}
                       </SelectItem>
                     ))}

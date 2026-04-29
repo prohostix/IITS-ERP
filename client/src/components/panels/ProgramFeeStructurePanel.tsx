@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,8 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface ProgramFee {
-  _id: string;
-  programId: { _id: string; name: string; code: string } | string;
+  id: string;
+  programId: { id: string; name: string; code: string } | string;
   baseFee: number;
   additionalFees: { label: string; amount: number }[];
   currency: string;
@@ -19,7 +19,7 @@ interface ProgramFee {
 }
 
 interface Program {
-  _id: string;
+  id: string;
   name: string;
   code: string;
 }
@@ -58,7 +58,7 @@ export function ProgramFeeStructurePanel() {
 
   const openEdit = (fee: ProgramFee) => {
     setEditing(fee);
-    const progId = typeof fee.programId === 'object' ? fee.programId._id : fee.programId;
+    const progId = typeof fee.programId === 'object' ? fee.programId.id : fee.programId;
     setForm({
       programId: progId,
       baseFee: String(fee.baseFee),
@@ -89,7 +89,7 @@ export function ProgramFeeStructurePanel() {
       };
 
       if (editing) {
-        await api.put(`/finance/program-fees/${editing._id}`, payload);
+        await api.put(`/finance/program-fees/${editing.id}`, payload);
         toast.success('Fee structure updated');
       } else {
         await api.post('/finance/program-fees', payload);
@@ -140,7 +140,7 @@ export function ProgramFeeStructurePanel() {
       ) : (
         <div className="grid gap-4">
           {fees.map(fee => (
-            <Card key={fee._id} className="hover:border-primary/30 transition-colors">
+            <Card key={fee.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold">{getProgramName(fee)}</h4>
@@ -156,7 +156,7 @@ export function ProgramFeeStructurePanel() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(fee)}><Pencil className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(fee._id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(fee.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                 </div>
               </CardContent>
             </Card>
@@ -178,7 +178,7 @@ export function ProgramFeeStructurePanel() {
                 onChange={e => setForm(f => ({ ...f, programId: e.target.value }))}
               >
                 <option value="">Select program...</option>
-                {programs.map(p => <option key={p._id} value={p._id}>{p.name} ({p.code})</option>)}
+                {programs.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </select>
             </div>
             <div className="space-y-1">

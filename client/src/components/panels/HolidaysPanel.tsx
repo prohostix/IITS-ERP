@@ -51,7 +51,7 @@ export function HolidaysPanel() {
   };
 
   const handleEdit = (h: any) => {
-    setEditingId(h._id || h.id);
+    setEditingId(h.id || h.id);
     setFormData({
       name: h.name || '',
       date: h.date ? new Date(h.date).toISOString().split('T')[0] : '',
@@ -142,8 +142,8 @@ export function HolidaysPanel() {
             <div className="text-center py-8 text-muted-foreground">No holidays found</div>
           ) : (
             <div className="space-y-2">
-              {holidays.filter(h => h && (h._id || h.id)).map((h) => {
-                const hid = h._id || h.id;
+              {holidays.filter(h => h && (h.id || h.id)).map((h) => {
+                const hid = h.id || h.id;
                 const d = new Date(h.date);
                 const isUpcoming = d >= new Date();
                 return (

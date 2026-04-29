@@ -27,9 +27,9 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 
 interface LeaveRequest {
-  _id: string;
-  employeeId: { _id: string; name: string; email: string; designation?: string } | null;
-  departmentId?: { _id: string; name: string } | null;
+  id: string;
+  employeeId: { id: string; name: string; email: string; designation?: string } | null;
+  departmentId?: { id: string; name: string } | null;
   type: string;
   startDate: string;
   endDate: string;
@@ -79,7 +79,7 @@ export function LeavesPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const role = user?.role || '';
-  const userId = user?._id?.toString() || '';
+  const userId = user?.id?.toString() || '';
   const isBranchManager = Boolean((user as any)?.branchId);
   const isDeptManager = DEPT_MANAGER_ROLES.includes(role) || isBranchManager;
   const isHR = role === 'hr_admin';
@@ -134,8 +134,8 @@ export function LeavesPanel() {
     setActionSubmitting(true);
     try {
       const endpoint = actionType === 'dept'
-        ? `/hr/leaves/${actionLeave._id}/dept-approve`
-        : `/hr/leaves/${actionLeave._id}/hr-approve`;
+        ? `/hr/leaves/${actionLeave.id}/dept-approve`
+        : `/hr/leaves/${actionLeave.id}/hr-approve`;
       await api.patch(endpoint, { action: actionMode, remarks });
       toast.success(actionMode === 'approve' ? 'Leave approved' : 'Leave rejected');
       setActionDialog(false);
@@ -150,7 +150,7 @@ export function LeavesPanel() {
   const handleDelete = async () => {
     if (!deleteLeave) return;
     try {
-      await api.delete(`/hr/leaves/${deleteLeave._id}`);
+      await api.delete(`/hr/leaves/${deleteLeave.id}`);
       toast.success('Leave request deleted');
       setDeleteOpen(false);
       fetchLeaves();
@@ -162,7 +162,7 @@ export function LeavesPanel() {
   // Filter tabs
   const filtered = leaves.filter(l => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'mine') return l.employeeId?._id === userId;
+    if (activeTab === 'mine') return l.employeeId?.id === userId;
     return l.status === activeTab;
   });
 
@@ -247,13 +247,13 @@ export function LeavesPanel() {
             <div className="space-y-3">
               {filtered.map(leave => {
                 const cfg = STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
-                const isExpanded = expanded === leave._id;
-                const isOwner = leave.employeeId?._id === userId;
+                const isExpanded = expanded === leave.id;
+                const isOwner = leave.employeeId?.id === userId;
                 const canDeptAct = isDeptManager && leave.status === 'pending';
                 const canHRAct = isHR && leave.status === 'dept_approved';
 
                 return (
-                  <Card key={leave._id} className="hover:border-primary/30 transition-colors">
+                  <Card key={leave.id} className="hover:border-primary/30 transition-colors">
                     <CardContent className="p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -286,7 +286,7 @@ export function LeavesPanel() {
                           {(leave.deptAdminRemarks || leave.hrRemarks) && (
                             <button
                               className="flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
-                              onClick={() => setExpanded(isExpanded ? null : leave._id)}
+                              onClick={() => setExpanded(isExpanded ? null : leave.id)}
                             >
                               {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                               {isExpanded ? 'Hide remarks' : 'View remarks'}

@@ -18,7 +18,7 @@ L.Icon.Default.mergeOptions({
 });
 
 interface TodayAttendance {
-  _id?: string;
+  id?: string;
   checkIn?: string;
   checkOut?: string;
   status?: string;

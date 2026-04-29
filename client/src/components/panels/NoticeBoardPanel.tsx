@@ -54,7 +54,7 @@ export function NoticeBoardPanel() {
   };
 
   const handleVote = async (pollId: string, optionIndex: number) => {
-    const poll = polls.find(p => p._id === pollId);
+    const poll = polls.find(p => p.id === pollId);
     if (!poll) return;
     const current = votedPolls[pollId] || [];
     let newIndexes: number[];
@@ -77,11 +77,11 @@ export function NoticeBoardPanel() {
   const totalVotes = (poll: any) => poll.options.reduce((s: number, o: any) => s + o.votes.length, 0);
   const pct = (votes: number, total: number) => total === 0 ? 0 : Math.round((votes / total) * 100);
   const hasVoted = (poll: any) => {
-    const uid = user?._id || (user as any)?.id;
+    const uid = user?.id || (user as any)?.id;
     return poll.options.some((o: any) => o.votes.includes(uid));
   };
   const myVotes = (poll: any) => {
-    const uid = user?._id || (user as any)?.id;
+    const uid = user?.id || (user as any)?.id;
     return poll.options.map((o: any, i: number) => o.votes.includes(uid) ? i : -1).filter((i: number) => i >= 0);
   };
 
@@ -129,7 +129,7 @@ export function NoticeBoardPanel() {
           ) : (
             <div className="space-y-3">
               {announcements.map(a => (
-                <Card key={a._id} className={a.priority === 'high' ? 'border-red-200' : ''}>
+                <Card key={a.id} className={a.priority === 'high' ? 'border-red-200' : ''}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -173,7 +173,7 @@ export function NoticeBoardPanel() {
                       const d = new Date(h.date);
                       const isToday = d.toDateString() === new Date().toDateString();
                       return (
-                        <Card key={h._id} className={isToday ? 'border-primary' : ''}>
+                        <Card key={h.id} className={isToday ? 'border-primary' : ''}>
                           <CardContent className="p-3 flex items-center gap-4">
                             <div className="flex flex-col items-center justify-center w-12 h-12 bg-primary/10 rounded-lg shrink-0">
                               <span className="text-lg font-bold leading-none">{d.getDate()}</span>
@@ -200,7 +200,7 @@ export function NoticeBoardPanel() {
                     {holidays.filter(h => new Date(h.date) < new Date()).map(h => {
                       const d = new Date(h.date);
                       return (
-                        <div key={h._id} className="flex items-center gap-4 p-3 border rounded-lg">
+                        <div key={h.id} className="flex items-center gap-4 p-3 border rounded-lg">
                           <div className="flex flex-col items-center justify-center w-12 h-12 bg-muted rounded-lg shrink-0">
                             <span className="text-lg font-bold leading-none">{d.getDate()}</span>
                             <span className="text-xs text-muted-foreground uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</span>
@@ -239,7 +239,7 @@ export function NoticeBoardPanel() {
                 const canVote = !expired;
 
                 return (
-                  <Card key={poll._id}>
+                  <Card key={poll.id}>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">{poll.question}</CardTitle>
                       <div className="flex flex-wrap gap-2">
@@ -258,7 +258,7 @@ export function NoticeBoardPanel() {
                             className={`w-full text-left p-3 rounded-lg border transition-colors relative overflow-hidden ${
                               isMyVote ? 'border-primary bg-primary/5' : canVote && !voted ? 'hover:border-primary/50 hover:bg-muted/50' : 'cursor-default'
                             }`}
-                            onClick={() => canVote ? handleVote(poll._id, idx) : undefined}
+                            onClick={() => canVote ? handleVote(poll.id, idx) : undefined}
                           >
                             {(voted || !canVote) && (
                               <div className="absolute inset-0 bg-primary/10 rounded-lg" style={{ width: `${optPct}%` }} />

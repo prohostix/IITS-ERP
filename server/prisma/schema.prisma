@@ -1,0 +1,1138 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                 String                @id @default(uuid())
+  name               String
+  slug               String                @unique
+  logo               String?
+  address            String?
+  contactEmail       String?
+  contactPhone       String?
+  contactName        String?
+  status             String                @default("active")
+  plan               String                @default("basic")
+  licenseId          String?
+  licenseExpiry      DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  admissionSessions  AdmissionSession[]
+  announcements      Announcement[]
+  auditLogs          AuditLog[]
+  branches           Branch[]
+  ceoPanels          CeoPanel[]
+  complaints         Complaint[]
+  departments        Department[]
+  designations       Designation[]
+  editDeleteRequests EditDeleteRequest[]
+  escalations        Escalation[]
+  expenseClaims      ExpenseClaim[]
+  feeStructures      FeeStructure[]
+  gstSettings        GSTSetting[]
+  settings           HRSettings?
+  holidays           Holiday[]
+  internalMarks      InternalMark[]
+  invoices           Invoice[]
+  leads              Lead[]
+  leaveAllocations   LeaveAllocation[]
+  notifications      Notification[]
+  payments           PaymentEntry[]
+  payrollBatches     PayrollBatch[]
+  programs           Program[]
+  programAllocations ProgramAllocation[]
+  programFees        ProgramFeeStructure[]
+  referralLinks      ReferralLink[]
+  salaryConfigs      SalaryConfig[]
+  studyCenters       StudyCenter[]
+  invites            StudyCenterInvite[]
+  subDepartments     SubDepartment[]
+  targets            Target[]
+  universities       University[]
+  authFees           UniversityAuthFee[]
+  users              User[]
+  vacancies          Vacancy[]
+  walletTopUps       WalletTopUp[]
+  licenses           License[]             @relation("LicenseToOrganization")
+  EmployeeProfile    EmployeeProfile[]
+  CredentialRequest  CredentialRequest[]
+  IncentiveStructure IncentiveStructure[]
+  Poll               Poll[]
+  ProgramMaterial    ProgramMaterial[]
+  ReregRule          ReregRule?
+  SessionRequest     SessionRequest[]
+  Task               Task[]
+}
+
+model User {
+  id                      String                @id @default(uuid())
+  userId                  String                @unique
+  organizationId          String
+  departmentId            String?
+  additionalDepartmentIds String[]
+  branchId                String?
+  subDepartmentId         String?
+  ceoPanelId              String?
+  studyCenterId           String?
+  email                   String                @unique
+  password                String
+  name                    String
+  role                    String
+  avatar                  String?
+  phone                   String?
+  designation             String?
+  reportingTo             String?
+  status                  String                @default("active")
+  lastLogin               DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  designationId           String?
+  approvedSessions        AdmissionSession[]    @relation("SessionApprover")
+  postedAnnouncements     Announcement[]        @relation("AnnouncementAuthor")
+  attendances             Attendance[]
+  auditLogs               AuditLog[]
+  ceoPanel                CeoPanel?             @relation("CeoPanelUser")
+  createdCeoPanels        CeoPanel[]            @relation("CeoPanelCreator")
+  complaints              Complaint[]
+  managedDepartments      Department[]          @relation("DeptManager")
+  editRequests            EditDeleteRequest[]   @relation("EditDeleteRequester")
+  responseRequests        EditDeleteRequest[]   @relation("EditDeleteResponder")
+  raisedEscalations       Escalation[]          @relation("EscalationRaiser")
+  resolvedEscalations     Escalation[]          @relation("EscalationResolver")
+  approvedExpenses        ExpenseClaim[]        @relation("ExpenseApprover")
+  claimedExpenses         ExpenseClaim[]        @relation("ExpenseEmployee")
+  gstSettings             GSTSetting[]
+  enteredMarks            InternalMark[]        @relation("MarkEntry")
+  referredLeads           Lead[]                @relation("LeadReferrer")
+  leaveAllocations        LeaveAllocation[]
+  leaveRequests           LeaveRequest[]
+  notifications           Notification[]
+  receivedPayments        PaymentEntry[]
+  payrollRecords          Payroll[]
+  approvedBatches         PayrollBatch[]        @relation("BatchApprover")
+  transferredBatches      PayrollBatch[]        @relation("BatchTransferrer")
+  authoredAllocations     ProgramAllocation[]   @relation("AllocationAuthor")
+  createdFees             ProgramFeeStructure[] @relation("FeeCreator")
+  referralLinks           ReferralLink[]
+  salaryConfig            SalaryConfig?
+  invites                 StudyCenterInvite[]
+  createdSubDepts         SubDepartment[]       @relation("SubDeptCreator")
+  managedSubDepts         SubDepartment[]       @relation("SubDeptManager")
+  targets                 Target[]
+  assignedTasks           Task[]                @relation("AssignedTasks")
+  createdTasks            Task[]                @relation("CreatedTasks")
+  escalatedTasks          Task[]                @relation("EscalatedTasks")
+  configuredFees          UniversityAuthFee[]
+  branch                  Branch?               @relation(fields: [branchId], references: [id])
+  department              Department?           @relation("UserDepartment", fields: [departmentId], references: [id])
+  assignedDesignation     Designation?          @relation(fields: [designationId], references: [id])
+  organization            Organization          @relation(fields: [organizationId], references: [id])
+  studyCenter             StudyCenter?          @relation(fields: [studyCenterId], references: [id])
+  subDepartment           SubDepartment?        @relation(fields: [subDepartmentId], references: [id])
+  employeeProfile         EmployeeProfile?
+  verifiedTopUps          WalletTopUp[]         @relation("TopUpVerifier")
+  CredentialRequest       CredentialRequest[]
+  ReregRule               ReregRule[]
+  SessionRequest          SessionRequest[]
+  ProgramMaterial         ProgramMaterial[]
+  Poll                    Poll[]
+}
+
+model Department {
+  id                  String             @id @default(uuid())
+  organizationId      String
+  name                String
+  type                String
+  subType             String?
+  parentDepartmentId  String?
+  managerId           String?
+  assistantManagerIds String[]
+  features            String[]
+  permissions         Json?
+  status              String             @default("active")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  admissionSessions   AdmissionSession[]
+  announcements       Announcement[]
+  manager             User?              @relation("DeptManager", fields: [managerId], references: [id])
+  organization        Organization       @relation(fields: [organizationId], references: [id])
+  parentDepartment    Department?        @relation("SubDepartments", fields: [parentDepartmentId], references: [id])
+  subDepartments      Department[]       @relation("SubDepartments")
+  designations        Designation[]
+  subDeptRelations    SubDepartment[]
+  targets             Target[]
+  users               User[]             @relation("UserDepartment")
+  vacancies           Vacancy[]
+  Task                Task[]
+}
+
+model SubDepartment {
+  id             String        @id @default(uuid())
+  organizationId String
+  name           String
+  parentDeptId   String
+  managerId      String?
+  features       String[]
+  status         String        @default("active")
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  designations   Designation[]
+  creator        User          @relation("SubDeptCreator", fields: [createdBy], references: [id])
+  manager        User?         @relation("SubDeptManager", fields: [managerId], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  parentDept     Department    @relation(fields: [parentDeptId], references: [id])
+  users          User[]
+  programs       Program[]     @relation("ProgramToSubDepartment")
+  studyCenters   StudyCenter[] @relation("StudyCenterToSubDepartment")
+  universities   University[]  @relation("SubDepartmentToUniversity")
+
+  @@unique([organizationId, parentDeptId, name])
+}
+
+model Branch {
+  id             String              @id @default(uuid())
+  organizationId String
+  name           String
+  code           String
+  address        String?
+  city           String?
+  state          String?
+  status         String              @default("active")
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  invites        StudyCenterInvite[]
+  users          User[]
+}
+
+model StudyCenter {
+  id                   String              @id @default(uuid())
+  organizationId       String
+  name                 String
+  code                 String              @unique
+  address              String?
+  city                 String?
+  state                String?
+  contactPerson        String?
+  contactEmail         String?
+  contactPhone         String?
+  status               String              @default("pending")
+  assignedUniversities String[]
+  assignedPrograms     String[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  verifiedBy           String?
+  verifiedAt           DateTime?
+  opsRemarks           String?
+  financeApprovedBy    String?
+  financeApprovedAt    DateTime?
+  paymentRemarks       String?
+  paymentProof         Json?
+  referredById         String?
+  enrollments          Enrollment[]
+  internalMarks        InternalMark[]
+  invoices             Invoice[]
+  programAllocations   ProgramAllocation[]
+  organization         Organization        @relation(fields: [organizationId], references: [id])
+  wallet               StudyCenterWallet?
+  targets              Target[]
+  users                User[]
+  walletTopUps         WalletTopUp[]
+  subDepartments       SubDepartment[]     @relation("StudyCenterToSubDepartment")
+  SessionRequest       SessionRequest[]
+}
+
+model University {
+  id               String              @id @default(uuid())
+  organizationId   String
+  subDepartmentId  String?
+  name             String
+  code             String
+  address          String?
+  contact          String?
+  status           String              @default("active")
+  allowedBranchIds String[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  enrollments      Enrollment[]
+  programs         Program[]
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  authFees         UniversityAuthFee[]
+  subDepartments   SubDepartment[]     @relation("SubDepartmentToUniversity")
+}
+
+model Program {
+  id              String               @id @default(uuid())
+  universityId    String
+  organizationId  String
+  subDepartmentId String?
+  name            String
+  code            String
+  courseType      String               @default("Online Degree")
+  duration        Int
+  hasSemesters    Boolean              @default(false)
+  semesters       Json?
+  status          String               @default("active")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  enrollments     Enrollment[]
+  universityFees  FeeStructure?
+  organization    Organization         @relation(fields: [organizationId], references: [id])
+  university      University           @relation(fields: [universityId], references: [id])
+  allocations     ProgramAllocation[]
+  programPricing  ProgramFeeStructure?
+  subDepartments  SubDepartment[]      @relation("ProgramToSubDepartment")
+}
+
+model License {
+  id             String         @id @default(uuid())
+  name           String
+  type           String
+  features       String[]
+  maxUsers       Int            @default(10)
+  maxStorage     Int            @default(1024)
+  durationMonths Int            @default(12)
+  price          Float
+  status         String         @default("active")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organizations  Organization[] @relation("LicenseToOrganization")
+}
+
+model HRSettings {
+  id                        String       @id @default(uuid())
+  organizationId            String       @unique
+  officeHours               Json?
+  latePolicy                Json?
+  location                  Json?
+  locations                 Json?
+  requireLocationForCheckIn Boolean      @default(true)
+  biometric                 Json?
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+  organization              Organization @relation(fields: [organizationId], references: [id])
+}
+
+model FeeStructure {
+  id              String       @id @default(uuid())
+  programId       String       @unique
+  organizationId  String
+  registrationFee Float        @default(0)
+  tuitionFee      Float        @default(0)
+  examFee         Float        @default(0)
+  otherCharges    Json?
+  gstPercentage   Float        @default(18)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  program         Program      @relation(fields: [programId], references: [id])
+}
+
+model SalaryConfig {
+  id                     String       @id @default(uuid())
+  organizationId         String
+  userId                 String       @unique
+  basicSalary            Float        @default(0)
+  allowances             Json?
+  deductions             Json?
+  lateDeductionPerMinute Float        @default(0)
+  effectiveFrom          DateTime     @default(now())
+  createdBy              String
+  approvalStatus         String       @default("pending_approval")
+  approvedBy             String?
+  approvedAt             DateTime?
+  rejectedRemarks        String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  organization           Organization @relation(fields: [organizationId], references: [id])
+  user                   User         @relation(fields: [userId], references: [id])
+}
+
+model Task {
+  id               String       @id @default(uuid())
+  title            String
+  description      String
+  status           String       @default("pending")
+  priority         String       @default("medium")
+  dueDate          DateTime?
+  completedAt      DateTime?
+  remarks          String?
+  evidence         String[]
+  escalationStatus String       @default("none")
+  escalatedAt      DateTime?
+  escalatedToId    String?
+  gracePeriodEnd   DateTime?
+  creatorId        String
+  assigneeId       String
+  orgId            String
+  departmentId     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  assignee         User         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  creator          User         @relation("CreatedTasks", fields: [creatorId], references: [id])
+  escalatedTo      User?        @relation("EscalatedTasks", fields: [escalatedToId], references: [id])
+  department       Department?  @relation(fields: [departmentId], references: [id])
+  organization     Organization @relation(fields: [orgId], references: [id])
+}
+
+model Attendance {
+  id        String    @id @default(uuid())
+  userId    String
+  date      DateTime  @db.Date
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String
+  orgId     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model LeaveRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    String   @default("pending")
+  orgId     String
+  statusRemarks String?
+  approvedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Enrollment {
+  id                     String              @id @default(uuid())
+  enrollmentNumber       String?             @unique
+  studentId              String
+  universityId           String
+  programId              String
+  studyCenterId          String?
+  status                 String              @default("pending")
+  orgId                  String
+  deptReviewedBy         String?
+  deptReviewedAt         DateTime?
+  deptRemarks            String?
+  financeReviewedBy      String?
+  financeReviewedAt      DateTime?
+  financeRemarks         String?
+  admissionSessionId     String?
+  enrolledBy             String?
+  enrolledAt             DateTime?
+  transferredToFinance   Boolean             @default(false)
+  transferredToFinanceAt DateTime?
+  financeApprovedBy      String?
+  financeApprovedAt      DateTime?
+  paymentDate            DateTime?
+  paymentMethod          String?
+  paymentReference       String?
+  processedBy            String?
+  processedAt            DateTime?
+  remarks                String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  program                Program             @relation(fields: [programId], references: [id])
+  student                Student             @relation(fields: [studentId], references: [id])
+  center                 StudyCenter?        @relation(fields: [studyCenterId], references: [id])
+  university             University          @relation(fields: [universityId], references: [id])
+  payments               EnrollmentPayment[]
+}
+
+model Student {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  phone         String?
+  orgId         String
+  status        String         @default("pending")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  enrollments   Enrollment[]
+  internalMarks InternalMark[]
+  invoices      Invoice[]
+}
+
+model EnrollmentPayment {
+  id           String     @id @default(uuid())
+  enrollmentId String
+  amount       Float
+  type         String
+  status       String     @default("pending")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
+}
+
+model Payroll {
+  id                     String    @id @default(uuid())
+  userId                 String
+  month                  Int
+  year                   Int
+  basicSalary            Float
+  allowances             Float     @default(0)
+  deductions             Float     @default(0)
+  netSalary              Float     @default(0)
+  status                 String    @default("draft")
+  orgId                  String
+  transferredToFinance   Boolean   @default(false)
+  transferredToFinanceAt DateTime?
+  financeApprovedBy      String?
+  financeApprovedAt      DateTime?
+  paymentDate            DateTime?
+  paymentMethod          String?
+  paymentReference       String?
+  processedBy            String?
+  processedAt            DateTime?
+  remarks                String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, month, year])
+}
+
+model StudyCenterWallet {
+  id        String      @id @default(uuid())
+  centerId  String      @unique
+  balance   Float       @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  center    StudyCenter @relation(fields: [centerId], references: [id])
+}
+
+model ReferralLink {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  employeeName   String
+  slug           String       @unique
+  fullUrl        String
+  status         String       @default("active")
+  metrics        Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+}
+
+model AdmissionSession {
+  id              String       @id @default(uuid())
+  organizationId  String
+  subDepartmentId String
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  examDate        DateTime?
+  status          String       @default("pending")
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  approver        User?        @relation("SessionApprover", fields: [approvedBy], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  subDepartment   Department   @relation(fields: [subDepartmentId], references: [id])
+}
+
+model InternalMark {
+  id             String       @id @default(uuid())
+  organizationId String
+  studentId      String
+  subjectId      String
+  subjectName    String?
+  marks          Float
+  maxMarks       Float
+  examType       String
+  enteredBy      String
+  enteredAt      DateTime     @default(now())
+  studyCenterId  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  author         User         @relation("MarkEntry", fields: [enteredBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  student        Student      @relation(fields: [studentId], references: [id])
+  center         StudyCenter? @relation(fields: [studyCenterId], references: [id])
+}
+
+model Announcement {
+  id             String       @id @default(uuid())
+  organizationId String
+  departmentId   String?
+  title          String
+  content        String
+  type           String       @default("general")
+  priority       String       @default("medium")
+  postedBy       String
+  postedAt       DateTime     @default(now())
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  department     Department?  @relation(fields: [departmentId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  author         User         @relation("AnnouncementAuthor", fields: [postedBy], references: [id])
+}
+
+model ProgramAllocation {
+  id             String       @id @default(uuid())
+  organizationId String
+  studyCenterId  String
+  programId      String
+  allocatedBy    String
+  allocatedAt    DateTime     @default(now())
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  author         User         @relation("AllocationAuthor", fields: [allocatedBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  program        Program      @relation(fields: [programId], references: [id])
+  center         StudyCenter  @relation(fields: [studyCenterId], references: [id])
+
+  @@unique([organizationId, studyCenterId, programId])
+}
+
+model WalletTopUp {
+  id              String       @id @default(uuid())
+  studyCenterId   String
+  organizationId  String
+  amount          Float
+  paymentMethod   String
+  referenceNumber String?
+  proofDocument   String?
+  status          String       @default("pending")
+  remarks         String?
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  center          StudyCenter  @relation(fields: [studyCenterId], references: [id])
+  verifier        User?        @relation("TopUpVerifier", fields: [verifiedBy], references: [id])
+}
+
+model ProgramFeeStructure {
+  id             String       @id @default(uuid())
+  programId      String       @unique
+  organizationId String
+  billingCycle   String
+  baseFee        Float        @default(0)
+  additionalFees Json?
+  createdBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  creator        User         @relation("FeeCreator", fields: [createdBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  program        Program      @relation(fields: [programId], references: [id])
+}
+
+model Invoice {
+  id             String         @id @default(uuid())
+  organizationId String
+  centerId       String?
+  studentId      String?
+  amount         Float
+  gstPercentage  Float?
+  gstAmount      Float?
+  total          Float
+  status         String         @default("pending")
+  paidAt         DateTime?
+  period         String?
+  type           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  center         StudyCenter?   @relation(fields: [centerId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  student        Student?       @relation(fields: [studentId], references: [id])
+  payments       PaymentEntry[]
+}
+
+model PaymentEntry {
+  id              String       @id @default(uuid())
+  organizationId  String
+  invoiceId       String
+  amount          Float
+  paymentMethod   String
+  referenceNumber String?
+  receivedBy      String
+  receivedAt      DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  invoice         Invoice      @relation(fields: [invoiceId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  author          User         @relation(fields: [receivedBy], references: [id])
+}
+
+model ExpenseClaim {
+  id             String       @id @default(uuid())
+  organizationId String
+  employeeId     String
+  category       String
+  amount         Float
+  description    String?
+  receipts       Json?
+  status         String       @default("pending")
+  approvedBy     String?
+  approvedAt     DateTime?
+  remarks        String?
+  submittedAt    DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  approver       User?        @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  employee       User         @relation("ExpenseEmployee", fields: [employeeId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Target {
+  id             String       @id @default(uuid())
+  organizationId String
+  departmentId   String?
+  employeeId     String?
+  centerId       String?
+  type           String
+  period         String
+  target         Float
+  achieved       Float        @default(0)
+  incentive      Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  center         StudyCenter? @relation(fields: [centerId], references: [id])
+  department     Department?  @relation(fields: [departmentId], references: [id])
+  employee       User?        @relation(fields: [employeeId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model GSTSetting {
+  id             String       @id @default(uuid())
+  organizationId String
+  feeType        String
+  gstPercentage  Float
+  hsnCode        String?
+  sacCode        String?
+  applicableFrom DateTime
+  applicableTo   DateTime?
+  allowOverride  Boolean      @default(false)
+  status         String       @default("active")
+  createdBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  creator        User         @relation(fields: [createdBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  action         String
+  entityType     String
+  entityId       String
+  oldValue       Json?
+  newValue       Json?
+  ipAddress      String?
+  timestamp      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+}
+
+model UniversityAuthFee {
+  id             String       @id @default(uuid())
+  organizationId String
+  universityId   String
+  amount         Float
+  currency       String       @default("INR")
+  configuredBy   String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  author         User         @relation(fields: [configuredBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  university     University   @relation(fields: [universityId], references: [id])
+}
+
+model PayrollBatch {
+  id              String       @id @default(uuid())
+  organizationId  String
+  batchNumber     String       @unique
+  month           String
+  payrollIds      String[]
+  totalAmount     Float
+  employeeCount   Int
+  status          String       @default("pending_finance_approval")
+  transferredBy   String
+  transferredAt   DateTime     @default(now())
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  completedAt     DateTime?
+  remarks         String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  approver        User?        @relation("BatchApprover", fields: [approvedBy], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  author          User         @relation("BatchTransferrer", fields: [transferredBy], references: [id])
+}
+
+model Vacancy {
+  id             String       @id @default(uuid())
+  organizationId String
+  departmentId   String
+  designation    String
+  count          Int
+  filled         Int          @default(0)
+  status         String       @default("open")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  department     Department   @relation(fields: [departmentId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Complaint {
+  id             String       @id @default(uuid())
+  organizationId String
+  employeeId     String
+  subject        String
+  description    String
+  category       String
+  status         String       @default("open")
+  priority       String       @default("medium")
+  submittedAt    DateTime     @default(now())
+  resolvedAt     DateTime?
+  resolution     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  employee       User         @relation(fields: [employeeId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Holiday {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  date           DateTime
+  type           String       @default("company")
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Notification {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  title          String
+  message        String
+  type           String?
+  data           Json?
+  priority       String       @default("medium")
+  read           Boolean      @default(false)
+  link           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  recipient      User         @relation(fields: [userId], references: [id])
+}
+
+model CeoPanel {
+  id             String       @id @default(uuid())
+  organizationId String
+  assignedUserId String       @unique
+  name           String
+  dataScope      String[]     @default(["all"])
+  status         String       @default("active")
+  createdBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  assignedUser   User         @relation("CeoPanelUser", fields: [assignedUserId], references: [id])
+  creator        User         @relation("CeoPanelCreator", fields: [createdBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Designation {
+  id                  String         @id @default(uuid())
+  organizationId      String
+  departmentId        String?
+  subDepartmentId     String?
+  branchId            String?
+  title               String
+  level               Int            @default(1)
+  parentDesignationId String?
+  maxHeadcount        Int            @default(1)
+  status              String         @default("active")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  department          Department?    @relation(fields: [departmentId], references: [id])
+  organization        Organization   @relation(fields: [organizationId], references: [id])
+  parentDesignation   Designation?   @relation("DesignationHierarchy", fields: [parentDesignationId], references: [id])
+  childDesignations   Designation[]  @relation("DesignationHierarchy")
+  subDepartment       SubDepartment? @relation(fields: [subDepartmentId], references: [id])
+  users               User[]
+}
+
+model StudyCenterInvite {
+  id             String       @id @default(uuid())
+  organizationId String
+  token          String       @unique
+  universityIds  String[]
+  programIds     String[]
+  referredBy     String
+  branchId       String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  branch         Branch?      @relation(fields: [branchId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  referrer       User         @relation(fields: [referredBy], references: [id])
+}
+
+model Escalation {
+  id             String       @id @default(uuid())
+  organizationId String
+  type           String
+  entityId       String
+  entityType     String
+  raisedById     String
+  raisedAt       DateTime     @default(now())
+  currentLevel   Int          @default(1)
+  maxLevel       Int          @default(3)
+  status         String       @default("active")
+  description    String
+  impact         String       @default("medium")
+  chain          Json?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  raisedBy       User         @relation("EscalationRaiser", fields: [raisedById], references: [id])
+  resolver       User?        @relation("EscalationResolver", fields: [resolvedById], references: [id])
+}
+
+model Lead {
+  id             String       @id @default(uuid())
+  organizationId String
+  centerName     String
+  contactName    String
+  email          String
+  phone          String
+  address        String
+  source         String
+  referredById   String?
+  status         String       @default("new")
+  notes          String       @default("")
+  convertedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  referredBy     User?        @relation("LeadReferrer", fields: [referredById], references: [id])
+}
+
+model LeaveAllocation {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  userId             String
+  year               Int
+  sickLeave          Int          @default(12)
+  casualLeave        Int          @default(12)
+  earnedLeave        Int          @default(15)
+  complementaryLeave Int          @default(0)
+  usedSick           Int          @default(0)
+  usedCasual         Int          @default(0)
+  usedEarned         Int          @default(0)
+  usedComplementary  Int          @default(0)
+  createdBy          String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  user               User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId, year])
+}
+
+model EditDeleteRequest {
+  id               String       @id @default(uuid())
+  organizationId   String
+  requesterId      String
+  requesterName    String
+  targetCollection String
+  targetId         String
+  requestType      String
+  message          String
+  proposedChanges  Json?
+  currentData      Json?
+  status           String       @default("pending")
+  respondedById    String?
+  respondedAt      DateTime?
+  responseRemarks  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  requester        User         @relation("EditDeleteRequester", fields: [requesterId], references: [id])
+  respondedBy      User?        @relation("EditDeleteResponder", fields: [respondedById], references: [id])
+}
+
+model EmployeeProfile {
+  id               String       @id @default(uuid())
+  userId           String       @unique
+  organizationId   String
+  dateOfBirth      DateTime?
+  gender           String?
+  bloodGroup       String?
+  address          String?
+  city             String?
+  state            String?
+  pincode          String?
+  emergencyContact Json?
+  employeeCode     String?
+  joinDate         DateTime?
+  confirmationDate DateTime?
+  probationEndDate DateTime?
+  employmentType   String       @default("full_time")
+  workLocation     String?
+  ctc              Float?
+  basicSalary      Float?
+  bankName         String?
+  bankAccountNo    String?
+  ifscCode         String?
+  panNumber        String?
+  documents        Json?
+  kpis             Json?
+  kras             Json?
+  lastReviewDate   DateTime?
+  nextReviewDate   DateTime?
+  overallRating    Float?
+  reviewRemarks    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User         @relation(fields: [userId], references: [id])
+  organization     Organization @relation(fields: [organizationId], references: [id])
+}
+
+model CredentialRequest {
+  id               String       @id @default(uuid())
+  organizationId   String
+  requesterId      String
+  requesterName    String
+  requesterRole    String
+  ipAddress        String
+  targetCredential String
+  targetCollection String
+  targetId         String
+  remarks          String
+  status           String       @default("pending")
+  respondedById    String?
+  respondedAt      DateTime?
+  responseRemarks  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  requester        User         @relation(fields: [requesterId], references: [id])
+}
+
+model IncentiveStructure {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  targetType     String
+  applicableTo   String
+  tiers          Json
+  period         String
+  status         String       @default("draft")
+  approvedBy     String?
+  approvedAt     DateTime?
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  createdBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Poll {
+  id             String       @id @default(uuid())
+  organizationId String
+  question       String
+  options        Json
+  createdBy      String
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  allowMultiple  Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  creator        User         @relation(fields: [createdBy], references: [id])
+}
+
+model ProgramMaterial {
+  id             String       @id @default(uuid())
+  programId      String
+  organizationId String
+  title          String
+  description    String?
+  category       String       @default("study_material")
+  fileUrl        String
+  fileName       String
+  fileSize       Float
+  mimeType       String
+  semesterNumber Int?
+  uploadedBy     String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  uploader       User         @relation(fields: [uploadedBy], references: [id])
+}
+
+model ReregRule {
+  id                   String       @id @default(uuid())
+  organizationId       String       @unique
+  carryForwardEnabled  Boolean      @default(true)
+  autoApproveThreshold Float        @default(0)
+  notifyFinanceOnMiss  Boolean      @default(true)
+  gracePeriodDays      Int          @default(7)
+  penaltyAmount        Float?
+  escalationRules      Json?
+  createdBy            String
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  creator              User         @relation(fields: [createdBy], references: [id])
+}
+
+model Reregistration {
+  id             String   @id @default(uuid())
+  organizationId String
+  studentId      String
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SessionRequest {
+  id              String       @id @default(uuid())
+  organizationId  String
+  centerId        String
+  centerName      String
+  requestedBy     String
+  sessionDetails  Json
+  status          String       @default("pending")
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  center          StudyCenter  @relation(fields: [centerId], references: [id])
+  requester       User         @relation(fields: [requestedBy], references: [id])
+}

@@ -1,8 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import User from '../models/User.js';
+import prisma from '../lib/prisma.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { hashPassword, comparePassword, generateUserId } from '../utils/authUtils.js';
 
 // @desc    Register user
 // @route   POST /api/v1/auth/register
@@ -22,35 +23,43 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response) => 
   } = req.body;
 
   // Check if user exists
-  const userExists = await User.findOne({ email });
+  const userExists = await prisma.user.findUnique({ where: { email } });
   if (userExists) {
     res.status(400).json({ success: false, message: 'User already exists' });
     return;
   }
 
+  // Generate userId and hash password
+  const userId = await generateUserId();
+  const hashedPassword = await hashPassword(password);
+
   // Create user
-  const user = await User.create({
-    organizationId,
-    departmentId,
-    subDepartmentId,
-    email,
-    password,
-    name,
-    role,
-    phone,
-    designation,
-    reportingTo,
+  const user = await prisma.user.create({
+    data: {
+      userId,
+      organizationId,
+      departmentId,
+      subDepartmentId,
+      email,
+      password: hashedPassword,
+      name,
+      role,
+      phone,
+      designation,
+      reportingTo,
+      status: 'active',
+    },
   });
 
   if (user) {
     res.status(201).json({
       success: true,
       data: {
-        _id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id.toString()),
+        token: generateToken(user.id),
       },
     });
   } else {
@@ -73,11 +82,14 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   }
 
   // Check for user
-  const user = await User.findOne({ email })
-    .select('+password')
-    .populate('organizationId')
-    .populate('departmentId')
-    .populate('subDepartmentId', 'name parentDeptId assignedUniversities assignedPrograms assignedCenters');
+  const user = await prisma.user.findUnique({ 
+    where: { email },
+    include: {
+      organization: true,
+      department: true,
+      subDepartment: true,
+    }
+  });
 
   if (!user) {
     res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -85,7 +97,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   }
 
   // Check if password matches
-  const isMatch = await user.comparePassword(password);
+  const isMatch = await comparePassword(password, user.password);
 
   if (!isMatch) {
     res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -93,17 +105,21 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   }
 
   // Update last login
-  user.lastLogin = new Date();
-  await user.save();
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLogin: new Date() }
+  });
 
-  const token = generateToken(user._id.toString());
-  const refreshToken = generateRefreshToken(user._id.toString());
+  const token = generateToken(user.id);
+  const refreshToken = generateRefreshToken(user.id);
 
   // For center_admin, include center status so frontend can gate the dashboard
   let centerStatus: string | null = null;
   if (user.role === 'center_admin' && user.studyCenterId) {
-    const StudyCenter = (await import('../models/StudyCenter.js')).default;
-    const center = await StudyCenter.findById(user.studyCenterId).select('status');
+    const center = await prisma.studyCenter.findUnique({
+      where: { id: user.studyCenterId },
+      select: { status: true }
+    });
     centerStatus = center?.status ?? null;
   }
 
@@ -111,7 +127,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     success: true,
     data: {
       user: {
-        _id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -133,11 +149,14 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
 // @route   GET /api/v1/auth/me
 // @access  Private
 export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = await User.findById(req.user._id)
-    .populate('organizationId')
-    .populate('departmentId')
-    .populate('subDepartmentId', 'name parentDeptId assignedUniversities assignedPrograms assignedCenters')
-    .populate('reportingTo', 'name email designation');
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: {
+      organization: true,
+      department: true,
+      subDepartment: true,
+    }
+  });
 
   res.status(200).json({
     success: true,
@@ -149,15 +168,11 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
 // @route   PUT /api/v1/auth/updatedetails
 // @access  Private
 export const updateDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const fieldsToUpdate = {
-    name: req.body.name,
-    email: req.body.email,
-    phone: req.body.phone,
-  };
+  const { name, email, phone } = req.body;
 
-  const user = await User.findByIdAndUpdate(req.user._id, fieldsToUpdate, {
-    new: true,
-    runValidators: true,
+  const user = await prisma.user.update({
+    where: { id: req.user.id },
+    data: { name, email, phone }
   });
 
   res.status(200).json({
@@ -170,7 +185,9 @@ export const updateDetails = asyncHandler(async (req: AuthRequest, res: Response
 // @route   PUT /api/v1/auth/updatepassword
 // @access  Private
 export const updatePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = await User.findById(req.user._id).select('+password');
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id }
+  });
 
   if (!user) {
     res.status(404).json({ success: false, message: 'User not found' });
@@ -178,17 +195,21 @@ export const updatePassword = asyncHandler(async (req: AuthRequest, res: Respons
   }
 
   // Check current password
-  const isMatch = await user.comparePassword(req.body.currentPassword);
+  const isMatch = await comparePassword(req.body.currentPassword, user.password);
 
   if (!isMatch) {
     res.status(401).json({ success: false, message: 'Password is incorrect' });
     return;
   }
 
-  user.password = req.body.newPassword;
-  await user.save();
+  const hashedPassword = await hashPassword(req.body.newPassword);
+  
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword }
+  });
 
-  const token = generateToken(user._id.toString());
+  const token = generateToken(user.id);
 
   res.status(200).json({
     success: true,

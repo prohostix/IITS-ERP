@@ -16,7 +16,7 @@ const SERVER_BASE = 'http://localhost:4009';
 interface AuthFeeEntry { universityId: string; universityName: string; amount: number | null; }
 interface PaymentProof { url: string; uploadedAt: string; remarks?: string; }
 interface Center {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   email: string;
@@ -60,7 +60,7 @@ export function FinanceCenterVerificationPanel() {
     }
     setSubmitting(true);
     try {
-      const res = await api.put(`/finance/centers/${dialog.center._id}/finance-verify`, {
+      const res = await api.put(`/finance/centers/${dialog.center.id}/finance-verify`, {
         action: dialog.action,
         remarks,
       });
@@ -104,7 +104,7 @@ export function FinanceCenterVerificationPanel() {
       ) : (
         <div className="space-y-4">
           {centers.map(c => (
-            <Card key={c._id} className="hover:border-primary/30 transition-colors">
+            <Card key={c.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
-  User, Mail, Phone, MapPin, Briefcase, Building2, Calendar,
+  User, Mail, Phone, Briefcase, Building2, Calendar,
   DollarSign, Target, TrendingUp, Star, Plus, Trash2, Edit,
-  Save, RefreshCw, Award, FileText, AlertCircle,
+  Save, RefreshCw, Award, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface KPI {
-  _id?: string;
+  id?: string;
   title: string;
   description?: string;
   target: number;
@@ -31,7 +31,7 @@ interface KPI {
 }
 
 interface KRA {
-  _id?: string;
+  id?: string;
   area: string;
   description?: string;
   weightage: number;

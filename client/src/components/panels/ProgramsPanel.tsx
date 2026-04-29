@@ -36,9 +36,9 @@ const DURATION_OPTIONS = [
 ];
 
 interface Semester { number: number; name: string; durationMonths: number; }
-interface SubDepartment { _id: string; name: string; }
+interface SubDepartment { id: string; name: string; }
 interface Program {
-  _id: string; name: string; code: string; courseType: CourseType;
+  id: string; name: string; code: string; courseType: CourseType;
   duration: number; hasSemesters: boolean; semesters: Semester[];
   status: string; universityId: any; subDepartmentId?: any;
 }
@@ -156,9 +156,9 @@ export function ProgramsPanel() {
   };
 
   const handleEdit = (p: Program) => {
-    const uniId = typeof p.universityId === 'object' ? (p.universityId?._id || p.universityId?.id) : p.universityId;
-    const subDeptId = typeof p.subDepartmentId === 'object' ? (p.subDepartmentId?._id || p.subDepartmentId?.id) : p.subDepartmentId;
-    setEditingId(p._id);
+    const uniId = typeof p.universityId === 'object' ? (p.universityId?.id || p.universityId?.id) : p.universityId;
+    const subDeptId = typeof p.subDepartmentId === 'object' ? (p.subDepartmentId?.id || p.subDepartmentId?.id) : p.subDepartmentId;
+    setEditingId(p.id);
     setForm({
       name: p.name, code: p.code,
       universityId: uniId?.toString() || '',
@@ -217,9 +217,9 @@ export function ProgramsPanel() {
               {programs.map((p) => {
                 const meta = getCourseTypeMeta(p.courseType);
                 const uniName = typeof p.universityId === 'object' ? p.universityId?.name : '';
-                const isExpanded = expandedId === p._id;
+                const isExpanded = expandedId === p.id;
                 return (
-                  <div key={p._id} className="border rounded-xl overflow-hidden">
+                  <div key={p.id} className="border rounded-xl overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -257,7 +257,7 @@ export function ProgramsPanel() {
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge variant={p.status === 'active' ? 'default' : 'secondary'} className="text-xs">{p.status}</Badge>
                         {p.hasSemesters && p.semesters?.length > 0 && (
-                          <button onClick={() => setExpandedId(isExpanded ? null : p._id)}
+                          <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
                             className="text-muted-foreground hover:text-foreground">
                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </button>
@@ -265,10 +265,10 @@ export function ProgramsPanel() {
                         {isOrgAdmin && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(p)}><Edit className="w-3.5 h-3.5" /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(p._id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                           </>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedProgramId(p._id)} title="View details & materials">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedProgramId(p.id)} title="View details & materials">
                           <Eye className="w-3.5 h-3.5" />
                         </Button>
                       </div>
@@ -321,7 +321,7 @@ export function ProgramsPanel() {
                 <SelectTrigger><SelectValue placeholder="Select university" /></SelectTrigger>
                 <SelectContent>
                   {universities.map(u => (
-                    <SelectItem key={u._id || u.id} value={(u._id || u.id).toString()}>{u.name}</SelectItem>
+                    <SelectItem key={u.id || u.id} value={(u.id || u.id).toString()}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -334,7 +334,7 @@ export function ProgramsPanel() {
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   {subDepartments.map(sd => (
-                    <SelectItem key={sd._id} value={sd._id}>{sd.name}</SelectItem>
+                    <SelectItem key={sd.id} value={sd.id}>{sd.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

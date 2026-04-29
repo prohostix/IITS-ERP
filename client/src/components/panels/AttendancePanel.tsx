@@ -88,8 +88,8 @@ export function AttendancePanel() {
   };
 
   const handleEdit = (record: any) => {
-    const recId = record._id || record.id;
-    const empId = record.employeeId?._id || record.employeeId?.id || record.employeeId || '';
+    const recId = record.id || record.id;
+    const empId = record.employeeId?.id || record.employeeId?.id || record.employeeId || '';
     setEditingId(recId);
     setFormData({
       employeeId: empId?.toString() || '',
@@ -158,8 +158,8 @@ export function AttendancePanel() {
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.filter(emp => emp && (emp.id || emp._id)).map((emp) => (
-                      <SelectItem key={emp.id || emp._id} value={(emp.id || emp._id).toString()}>
+                    {employees.filter(emp => emp && (emp.id || emp.id)).map((emp) => (
+                      <SelectItem key={emp.id || emp.id} value={(emp.id || emp.id).toString()}>
                         {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim()}
                       </SelectItem>
                     ))}
@@ -220,8 +220,8 @@ export function AttendancePanel() {
             <div className="text-center py-8 text-muted-foreground">No attendance records found</div>
           ) : (
             <div className="space-y-2">
-              {attendance.filter(rec => rec && (rec.id || rec._id)).map((record) => {
-                const recId = record.id || record._id;
+              {attendance.filter(rec => rec && (rec.id || rec.id)).map((record) => {
+                const recId = record.id || record.id;
                 return (
                 <div key={recId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                   <div className="flex-1">

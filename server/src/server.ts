@@ -145,7 +145,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Start cron jobs
 if (process.env.NODE_ENV !== 'test') {
-  startEscalationCron();
   startAllCronJobs();
 }
 

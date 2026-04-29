@@ -72,7 +72,6 @@ export interface Permission {
 
 export interface User {
   id: string;
-  _id?: string;
   organizationId: string;
   departmentId?: string;
   subDepartmentId?: string;

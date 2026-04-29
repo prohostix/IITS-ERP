@@ -13,7 +13,7 @@ interface CenterStatus {
   paymentProof: { url: string; uploadedAt: string; remarks?: string } | null;
   opsRemarks: string | null;
   paymentRemarks: string | null;
-  universities: { _id: string; name: string; code: string; fee: number | null }[];
+  universities: { id: string; name: string; code: string; fee: number | null }[];
   totalFee: number;
 }
 
@@ -161,7 +161,7 @@ export function CenterOnboardingGate({ children }: Props) {
                       </thead>
                       <tbody>
                         {data?.universities.map(u => (
-                          <tr key={u._id} className="border-t border-border">
+                          <tr key={u.id} className="border-t border-border">
                             <td className="p-3">{u.name} <span className="text-muted-foreground">({u.code})</span></td>
                             <td className="p-3 text-right">
                               {u.fee !== null ? `₹${u.fee.toLocaleString()}` : <span className="text-muted-foreground">TBD</span>}

@@ -341,9 +341,9 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
             ) : (
               recentInvoices.map((inv: any) => (
                 <TransactionItem
-                  key={inv._id}
+                  key={inv.id}
                   name={inv.studentId?.name || inv.centerId?.name || 'Invoice'}
-                  id={`#${inv._id?.slice(-8).toUpperCase()}`}
+                  id={`#${inv.id?.slice(-8).toUpperCase()}`}
                   amount={`₹${(inv.total || inv.amount || 0).toLocaleString()}`}
                   status={inv.status}
                   type="revenue"
@@ -492,7 +492,7 @@ function TransactionItem({ name, id, amount, status, type }: any) {
 // ─── Finance Escalations Panel ────────────────────────────────────────────────
 
 interface Escalation {
-  _id: string;
+  id: string;
   title?: string;
   description?: string;
   type?: string;
@@ -591,7 +591,7 @@ function FinanceEscalationsPanel() {
       ) : (
         <div className="space-y-3">
           {escalations.map(esc => (
-            <Card key={esc._id} className="hover:border-primary/30 transition-colors">
+            <Card key={esc.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -610,7 +610,7 @@ function FinanceEscalationsPanel() {
                     </div>
                   </div>
                   {esc.status === 'open' && (
-                    <Button size="sm" variant="outline" onClick={() => handleResolve(esc._id)}>Resolve</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleResolve(esc.id)}>Resolve</Button>
                   )}
                 </div>
               </CardContent>

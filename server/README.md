@@ -1,6 +1,6 @@
 # ERP System Backend
 
-Multi-tenant ERP system backend built with Node.js, Express, TypeScript, and MongoDB.
+Multi-tenant ERP system backend built with Node.js, Express, TypeScript, and PostgreSQL (via Prisma).
 
 ## Features
 
@@ -18,7 +18,7 @@ Multi-tenant ERP system backend built with Node.js, Express, TypeScript, and Mon
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
+- **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT (JSON Web Tokens)
 - **Security**: Helmet, CORS, bcryptjs
 - **File Upload**: Multer
@@ -28,7 +28,7 @@ Multi-tenant ERP system backend built with Node.js, Express, TypeScript, and Mon
 ## Prerequisites
 
 - Node.js >= 18.x
-- MongoDB >= 6.x
+- PostgreSQL >= 14.x
 - npm or yarn
 
 ## Installation
@@ -52,16 +52,16 @@ cp .env.example .env
 ```env
 NODE_ENV=development
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/erp_system
+DATABASE_URL="postgresql://user:password@localhost:5432/erp_system?schema=public"
 JWT_SECRET=your-secret-key
 CORS_ORIGIN=http://localhost:5173
 ```
 
 ## Database Setup
 
-1. Start MongoDB:
+1. Start PostgreSQL:
 ```bash
-mongod
+# Depends on your OS, e.g. brew services start postgresql
 ```
 
 2. Seed the database:
@@ -244,12 +244,12 @@ server/
 │   ├── config/          # Configuration files
 │   ├── controllers/     # Route controllers
 │   ├── middleware/      # Custom middleware
-│   ├── models/          # Mongoose models
 │   ├── routes/          # API routes
 │   ├── scripts/         # Utility scripts
 │   ├── services/        # Business logic
 │   ├── utils/           # Helper functions
 │   └── server.ts        # Entry point
+├── prisma/              # Prisma schema and migrations
 ├── uploads/             # File uploads
 ├── .env.example         # Environment template
 ├── package.json

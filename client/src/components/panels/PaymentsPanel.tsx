@@ -65,10 +65,10 @@ export function PaymentsPanel() {
   };
 
   const handleEdit = (payment: any) => {
-    const paymentId = payment.id || payment._id;
+    const paymentId = payment.id || payment.id;
     const rawInvoice = payment.invoiceId;
     const invoiceId = typeof rawInvoice === 'object' && rawInvoice !== null
-      ? (rawInvoice._id || rawInvoice.id)
+      ? (rawInvoice.id || rawInvoice.id)
       : rawInvoice;
     setEditingId(paymentId);
     setFormData({
@@ -124,9 +124,9 @@ export function PaymentsPanel() {
                     <SelectValue placeholder="Select invoice" />
                   </SelectTrigger>
                   <SelectContent>
-                    {invoices.filter(inv => inv && (inv.id || inv._id)).map((inv) => (
-                      <SelectItem key={inv.id || inv._id} value={(inv.id || inv._id).toString()}>
-                        {inv.invoiceNo || inv._id} - ${inv.total || inv.amount}
+                    {invoices.filter(inv => inv && (inv.id || inv.id)).map((inv) => (
+                      <SelectItem key={inv.id || inv.id} value={(inv.id || inv.id).toString()}>
+                        {inv.invoiceNo || inv.id} - ${inv.total || inv.amount}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -177,8 +177,8 @@ export function PaymentsPanel() {
             <div className="text-center py-8 text-muted-foreground">No payments found</div>
           ) : (
             <div className="space-y-2">
-              {payments.filter(payment => payment && (payment.id || payment._id)).map((payment) => {
-                const paymentId = payment.id || payment._id;
+              {payments.filter(payment => payment && (payment.id || payment.id)).map((payment) => {
+                const paymentId = payment.id || payment.id;
                 return (
                   <div key={paymentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">
