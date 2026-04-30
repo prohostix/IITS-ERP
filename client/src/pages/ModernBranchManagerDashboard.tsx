@@ -156,7 +156,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="font-mono">{branch.branchCode}</Badge>
+              <Badge variant="outline" className="font-mono">{branch.code}</Badge>
               <Badge className={cn(branch.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground')}>
                 {branch.status}
               </Badge>

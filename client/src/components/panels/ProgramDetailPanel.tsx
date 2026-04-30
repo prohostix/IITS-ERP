@@ -16,7 +16,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4009/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface Program {
   id: string; name: string; code: string; courseType: string;

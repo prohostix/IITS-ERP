@@ -93,6 +93,7 @@ model User {
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   designationId           String?
+  managedBranch           Branch?               @relation("BranchManager")
   approvedSessions        AdmissionSession[]    @relation("SessionApprover")
   postedAnnouncements     Announcement[]        @relation("AnnouncementAuthor")
   attendances             Attendance[]
@@ -132,7 +133,7 @@ model User {
   branch                  Branch?               @relation(fields: [branchId], references: [id])
   department              Department?           @relation("UserDepartment", fields: [departmentId], references: [id])
   assignedDesignation     Designation?          @relation(fields: [designationId], references: [id])
-  organization            Organization          @relation(fields: [organizationId], references: [id])
+  organization            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   studyCenter             StudyCenter?          @relation(fields: [studyCenterId], references: [id])
   subDepartment           SubDepartment?        @relation(fields: [subDepartmentId], references: [id])
   employeeProfile         EmployeeProfile?
@@ -160,8 +161,8 @@ model Department {
   updatedAt           DateTime           @updatedAt
   admissionSessions   AdmissionSession[]
   announcements       Announcement[]
-  manager             User?              @relation("DeptManager", fields: [managerId], references: [id])
-  organization        Organization       @relation(fields: [organizationId], references: [id])
+  manager             User?              @relation("DeptManager", fields: [managerId], references: [id], onDelete: SetNull)
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDepartment    Department?        @relation("SubDepartments", fields: [parentDepartmentId], references: [id])
   subDepartments      Department[]       @relation("SubDepartments")
   designations        Designation[]
@@ -170,6 +171,9 @@ model Department {
   users               User[]             @relation("UserDepartment")
   vacancies           Vacancy[]
   Task                Task[]
+  salesBranch         Branch[]           @relation("BranchSalesDept")
+  opsBranch           Branch[]           @relation("BranchOpsDept")
+  additionalBranches  Branch[]           @relation("BranchAdditionalDepts")
 }
 
 model SubDepartment {
@@ -184,9 +188,9 @@ model SubDepartment {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   designations   Designation[]
-  creator        User          @relation("SubDeptCreator", fields: [createdBy], references: [id])
-  manager        User?         @relation("SubDeptManager", fields: [managerId], references: [id])
-  organization   Organization  @relation(fields: [organizationId], references: [id])
+  creator        User          @relation("SubDeptCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  manager        User?         @relation("SubDeptManager", fields: [managerId], references: [id], onDelete: SetNull)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDept     Department    @relation(fields: [parentDeptId], references: [id])
   users          User[]
   programs       Program[]     @relation("ProgramToSubDepartment")
@@ -197,19 +201,27 @@ model SubDepartment {
 }
 
 model Branch {
-  id             String              @id @default(uuid())
-  organizationId String
-  name           String
-  code           String
-  address        String?
-  city           String?
-  state          String?
-  status         String              @default("active")
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  organization   Organization        @relation(fields: [organizationId], references: [id])
-  invites        StudyCenterInvite[]
-  users          User[]
+  id               String              @id @default(uuid())
+  organizationId   String
+  name             String
+  code             String
+  address          String?
+  city             String?
+  state            String?
+  status           String              @default("active")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invites          StudyCenterInvite[]
+  users            User[]
+  designations     Designation[]
+  branchManagerId  String?             @unique
+  branchManager    User?               @relation("BranchManager", fields: [branchManagerId], references: [id])
+  salesDeptId      String?
+  operationsDeptId String?
+  salesDept        Department?         @relation("BranchSalesDept", fields: [salesDeptId], references: [id])
+  operationsDept   Department?         @relation("BranchOpsDept", fields: [operationsDeptId], references: [id])
+  additionalDepts  Department[]        @relation("BranchAdditionalDepts")
 }
 
 model StudyCenter {
@@ -240,7 +252,7 @@ model StudyCenter {
   internalMarks        InternalMark[]
   invoices             Invoice[]
   programAllocations   ProgramAllocation[]
-  organization         Organization        @relation(fields: [organizationId], references: [id])
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   wallet               StudyCenterWallet?
   targets              Target[]
   users                User[]
@@ -263,7 +275,7 @@ model University {
   updatedAt        DateTime            @updatedAt
   enrollments      Enrollment[]
   programs         Program[]
-  organization     Organization        @relation(fields: [organizationId], references: [id])
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   authFees         UniversityAuthFee[]
   subDepartments   SubDepartment[]     @relation("SubDepartmentToUniversity")
 }
@@ -284,7 +296,7 @@ model Program {
   updatedAt       DateTime             @updatedAt
   enrollments     Enrollment[]
   universityFees  FeeStructure?
-  organization    Organization         @relation(fields: [organizationId], references: [id])
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   university      University           @relation(fields: [universityId], references: [id])
   allocations     ProgramAllocation[]
   programPricing  ProgramFeeStructure?
@@ -317,7 +329,7 @@ model HRSettings {
   biometric                 Json?
   createdAt                 DateTime     @default(now())
   updatedAt                 DateTime     @updatedAt
-  organization              Organization @relation(fields: [organizationId], references: [id])
+  organization              Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model FeeStructure {
@@ -331,7 +343,7 @@ model FeeStructure {
   gstPercentage   Float        @default(18)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   program         Program      @relation(fields: [programId], references: [id])
 }
 
@@ -351,8 +363,8 @@ model SalaryConfig {
   rejectedRemarks        String?
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
-  organization           Organization @relation(fields: [organizationId], references: [id])
-  user                   User         @relation(fields: [userId], references: [id])
+  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Task {
@@ -375,11 +387,11 @@ model Task {
   departmentId     String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  assignee         User         @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  creator          User         @relation("CreatedTasks", fields: [creatorId], references: [id])
-  escalatedTo      User?        @relation("EscalatedTasks", fields: [escalatedToId], references: [id])
+  assignee         User         @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: Cascade)
+  creator          User         @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
+  escalatedTo      User?        @relation("EscalatedTasks", fields: [escalatedToId], references: [id], onDelete: SetNull)
   department       Department?  @relation(fields: [departmentId], references: [id])
-  organization     Organization @relation(fields: [orgId], references: [id])
+  organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {
@@ -392,7 +404,7 @@ model Attendance {
   orgId     String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LeaveRequest {
@@ -408,7 +420,7 @@ model LeaveRequest {
   approvedBy    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Enrollment {
@@ -496,7 +508,7 @@ model Payroll {
   remarks                String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
-  user                   User      @relation(fields: [userId], references: [id])
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month, year])
 }
@@ -521,8 +533,8 @@ model ReferralLink {
   metrics        Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AdmissionSession {
@@ -538,8 +550,8 @@ model AdmissionSession {
   approvedAt      DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  approver        User?        @relation("SessionApprover", fields: [approvedBy], references: [id])
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  approver        User?        @relation("SessionApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subDepartment   Department   @relation(fields: [subDepartmentId], references: [id])
 }
 
@@ -557,8 +569,8 @@ model InternalMark {
   studyCenterId  String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  author         User         @relation("MarkEntry", fields: [enteredBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  author         User         @relation("MarkEntry", fields: [enteredBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   student        Student      @relation(fields: [studentId], references: [id])
   center         StudyCenter? @relation(fields: [studyCenterId], references: [id])
 }
@@ -577,8 +589,8 @@ model Announcement {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   department     Department?  @relation(fields: [departmentId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  author         User         @relation("AnnouncementAuthor", fields: [postedBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author         User         @relation("AnnouncementAuthor", fields: [postedBy], references: [id], onDelete: Cascade)
 }
 
 model ProgramAllocation {
@@ -591,8 +603,8 @@ model ProgramAllocation {
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  author         User         @relation("AllocationAuthor", fields: [allocatedBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  author         User         @relation("AllocationAuthor", fields: [allocatedBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   program        Program      @relation(fields: [programId], references: [id])
   center         StudyCenter  @relation(fields: [studyCenterId], references: [id])
 
@@ -613,9 +625,9 @@ model WalletTopUp {
   verifiedAt      DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   center          StudyCenter  @relation(fields: [studyCenterId], references: [id])
-  verifier        User?        @relation("TopUpVerifier", fields: [verifiedBy], references: [id])
+  verifier        User?        @relation("TopUpVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
 }
 
 model ProgramFeeStructure {
@@ -628,8 +640,8 @@ model ProgramFeeStructure {
   createdBy      String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  creator        User         @relation("FeeCreator", fields: [createdBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  creator        User         @relation("FeeCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   program        Program      @relation(fields: [programId], references: [id])
 }
 
@@ -649,7 +661,7 @@ model Invoice {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   center         StudyCenter?   @relation(fields: [centerId], references: [id])
-  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   student        Student?       @relation(fields: [studentId], references: [id])
   payments       PaymentEntry[]
 }
@@ -666,8 +678,8 @@ model PaymentEntry {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   invoice         Invoice      @relation(fields: [invoiceId], references: [id])
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  author          User         @relation(fields: [receivedBy], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author          User         @relation(fields: [receivedBy], references: [id], onDelete: Cascade)
 }
 
 model ExpenseClaim {
@@ -685,9 +697,9 @@ model ExpenseClaim {
   submittedAt    DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  approver       User?        @relation("ExpenseApprover", fields: [approvedBy], references: [id])
-  employee       User         @relation("ExpenseEmployee", fields: [employeeId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  approver       User?        @relation("ExpenseApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  employee       User         @relation("ExpenseEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Target {
@@ -705,8 +717,8 @@ model Target {
   updatedAt      DateTime     @updatedAt
   center         StudyCenter? @relation(fields: [centerId], references: [id])
   department     Department?  @relation(fields: [departmentId], references: [id])
-  employee       User?        @relation(fields: [employeeId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  employee       User?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model GSTSetting {
@@ -723,8 +735,8 @@ model GSTSetting {
   createdBy      String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  creator        User         @relation(fields: [createdBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  creator        User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
@@ -738,8 +750,8 @@ model AuditLog {
   newValue       Json?
   ipAddress      String?
   timestamp      DateTime     @default(now())
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UniversityAuthFee {
@@ -751,8 +763,8 @@ model UniversityAuthFee {
   configuredBy   String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  author         User         @relation(fields: [configuredBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  author         User         @relation(fields: [configuredBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   university     University   @relation(fields: [universityId], references: [id])
 }
 
@@ -776,9 +788,9 @@ model PayrollBatch {
   remarks         String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  approver        User?        @relation("BatchApprover", fields: [approvedBy], references: [id])
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  author          User         @relation("BatchTransferrer", fields: [transferredBy], references: [id])
+  approver        User?        @relation("BatchApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author          User         @relation("BatchTransferrer", fields: [transferredBy], references: [id], onDelete: Cascade)
 }
 
 model Vacancy {
@@ -792,7 +804,7 @@ model Vacancy {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   department     Department   @relation(fields: [departmentId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Complaint {
@@ -809,8 +821,8 @@ model Complaint {
   resolution     String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  employee       User         @relation(fields: [employeeId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  employee       User         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Holiday {
@@ -822,7 +834,7 @@ model Holiday {
   description    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
@@ -838,8 +850,8 @@ model Notification {
   link           String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  recipient      User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipient      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CeoPanel {
@@ -852,9 +864,9 @@ model CeoPanel {
   createdBy      String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  assignedUser   User         @relation("CeoPanelUser", fields: [assignedUserId], references: [id])
-  creator        User         @relation("CeoPanelCreator", fields: [createdBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  assignedUser   User         @relation("CeoPanelUser", fields: [assignedUserId], references: [id], onDelete: Cascade)
+  creator        User         @relation("CeoPanelCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Designation {
@@ -871,11 +883,12 @@ model Designation {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   department          Department?    @relation(fields: [departmentId], references: [id])
-  organization        Organization   @relation(fields: [organizationId], references: [id])
+  organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDesignation   Designation?   @relation("DesignationHierarchy", fields: [parentDesignationId], references: [id])
   childDesignations   Designation[]  @relation("DesignationHierarchy")
   subDepartment       SubDepartment? @relation(fields: [subDepartmentId], references: [id])
   users               User[]
+  branch              Branch?        @relation(fields: [branchId], references: [id])
 }
 
 model StudyCenterInvite {
@@ -892,7 +905,7 @@ model StudyCenterInvite {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   branch         Branch?      @relation(fields: [branchId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   referrer       User         @relation(fields: [referredBy], references: [id])
 }
 
@@ -914,9 +927,9 @@ model Escalation {
   resolvedById   String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  raisedBy       User         @relation("EscalationRaiser", fields: [raisedById], references: [id])
-  resolver       User?        @relation("EscalationResolver", fields: [resolvedById], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  raisedBy       User         @relation("EscalationRaiser", fields: [raisedById], references: [id], onDelete: Cascade)
+  resolver       User?        @relation("EscalationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 }
 
 model Lead {
@@ -934,8 +947,8 @@ model Lead {
   convertedAt    DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  referredBy     User?        @relation("LeadReferrer", fields: [referredById], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referredBy     User?        @relation("LeadReferrer", fields: [referredById], references: [id], onDelete: SetNull)
 }
 
 model LeaveAllocation {
@@ -954,8 +967,8 @@ model LeaveAllocation {
   createdBy          String
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
-  organization       Organization @relation(fields: [organizationId], references: [id])
-  user               User         @relation(fields: [userId], references: [id])
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId, year])
 }
@@ -977,9 +990,9 @@ model EditDeleteRequest {
   responseRemarks  String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  requester        User         @relation("EditDeleteRequester", fields: [requesterId], references: [id])
-  respondedBy      User?        @relation("EditDeleteResponder", fields: [respondedById], references: [id])
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester        User         @relation("EditDeleteRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  respondedBy      User?        @relation("EditDeleteResponder", fields: [respondedById], references: [id], onDelete: SetNull)
 }
 
 model EmployeeProfile {
@@ -1015,8 +1028,8 @@ model EmployeeProfile {
   reviewRemarks    String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  user             User         @relation(fields: [userId], references: [id])
-  organization     Organization @relation(fields: [organizationId], references: [id])
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model CredentialRequest {
@@ -1036,8 +1049,8 @@ model CredentialRequest {
   responseRemarks  String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  requester        User         @relation(fields: [requesterId], references: [id])
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester        User         @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 }
 
 model IncentiveStructure {
@@ -1056,7 +1069,7 @@ model IncentiveStructure {
   createdBy      String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Poll {
@@ -1070,8 +1083,8 @@ model Poll {
   allowMultiple  Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  creator        User         @relation(fields: [createdBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator        User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 }
 
 model ProgramMaterial {
@@ -1090,8 +1103,8 @@ model ProgramMaterial {
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  uploader       User         @relation(fields: [uploadedBy], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader       User         @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
 }
 
 model ReregRule {
@@ -1106,8 +1119,8 @@ model ReregRule {
   createdBy            String
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
-  organization         Organization @relation(fields: [organizationId], references: [id])
-  creator              User         @relation(fields: [createdBy], references: [id])
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator              User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 }
 
 model Reregistration {
@@ -1132,7 +1145,7 @@ model SessionRequest {
   rejectionReason String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   center          StudyCenter  @relation(fields: [centerId], references: [id])
-  requester       User         @relation(fields: [requestedBy], references: [id])
+  requester       User         @relation(fields: [requestedBy], references: [id], onDelete: Cascade)
 }

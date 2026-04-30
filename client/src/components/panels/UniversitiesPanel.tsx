@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 
-interface Branch { id: string; name: string; branchCode: string; }
+interface Branch { id: string; name: string; code: string; }
 interface University {
   id: string; name: string; code: string; address?: string;
   contact?: string; status: string;
@@ -231,7 +231,7 @@ export function UniversitiesPanel() {
                           <SelectItem value="__none__">— Choose a branch —</SelectItem>
                           {branches.map(b => (
                             <SelectItem key={b.id} value={b.id}>
-                              {b.name} [{b.branchCode}]
+                              {b.name} [{b.code}]
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -267,7 +267,7 @@ export function UniversitiesPanel() {
                                 {checked && <span className="text-white text-[10px] font-bold">✓</span>}
                               </div>
                               <span className="text-sm font-medium">{b.name}</span>
-                              <span className="text-xs font-mono text-muted-foreground ml-auto">[{b.branchCode}]</span>
+                              <span className="text-xs font-mono text-muted-foreground ml-auto">[{b.code}]</span>
                             </label>
                           );
                         })}
@@ -368,7 +368,7 @@ export function UniversitiesPanel() {
                     <GitBranch className="h-3.5 w-3.5 text-white" />
                   </div>
                   <span className="text-sm font-semibold text-cyan-900">{branch.name}</span>
-                  <span className="text-xs font-mono text-cyan-600 bg-cyan-100 px-1.5 py-0.5 rounded">{branch.branchCode}</span>
+                  <span className="text-xs font-mono text-cyan-600 bg-cyan-100 px-1.5 py-0.5 rounded">{branch.code}</span>
                   {unis.length === 1 && unis[0].allowedBranchIds.length === 1 && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full ml-1">
                       <Lock className="h-2.5 w-2.5" /> Exclusive

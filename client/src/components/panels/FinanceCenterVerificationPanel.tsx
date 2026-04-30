@@ -11,7 +11,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const SERVER_BASE = 'http://localhost:4009';
+const SERVER_BASE = '';
 
 interface AuthFeeEntry { universityId: string; universityName: string; amount: number | null; }
 interface PaymentProof { url: string; uploadedAt: string; remarks?: string; }

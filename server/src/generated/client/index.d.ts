@@ -6201,6 +6201,9 @@ export namespace Prisma {
     users: number
     vacancies: number
     Task: number
+    salesBranch: number
+    opsBranch: number
+    additionalBranches: number
   }
 
   export type DepartmentCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -6213,6 +6216,9 @@ export namespace Prisma {
     users?: boolean | DepartmentCountOutputTypeCountUsersArgs
     vacancies?: boolean | DepartmentCountOutputTypeCountVacanciesArgs
     Task?: boolean | DepartmentCountOutputTypeCountTaskArgs
+    salesBranch?: boolean | DepartmentCountOutputTypeCountSalesBranchArgs
+    opsBranch?: boolean | DepartmentCountOutputTypeCountOpsBranchArgs
+    additionalBranches?: boolean | DepartmentCountOutputTypeCountAdditionalBranchesArgs
   }
 
   // Custom InputTypes
@@ -6287,6 +6293,27 @@ export namespace Prisma {
    */
   export type DepartmentCountOutputTypeCountTaskArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TaskWhereInput
+  }
+
+  /**
+   * DepartmentCountOutputType without action
+   */
+  export type DepartmentCountOutputTypeCountSalesBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BranchWhereInput
+  }
+
+  /**
+   * DepartmentCountOutputType without action
+   */
+  export type DepartmentCountOutputTypeCountOpsBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BranchWhereInput
+  }
+
+  /**
+   * DepartmentCountOutputType without action
+   */
+  export type DepartmentCountOutputTypeCountAdditionalBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BranchWhereInput
   }
 
 
@@ -6364,11 +6391,15 @@ export namespace Prisma {
   export type BranchCountOutputType = {
     invites: number
     users: number
+    designations: number
+    additionalDepts: number
   }
 
   export type BranchCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     invites?: boolean | BranchCountOutputTypeCountInvitesArgs
     users?: boolean | BranchCountOutputTypeCountUsersArgs
+    designations?: boolean | BranchCountOutputTypeCountDesignationsArgs
+    additionalDepts?: boolean | BranchCountOutputTypeCountAdditionalDeptsArgs
   }
 
   // Custom InputTypes
@@ -6394,6 +6425,20 @@ export namespace Prisma {
    */
   export type BranchCountOutputTypeCountUsersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: UserWhereInput
+  }
+
+  /**
+   * BranchCountOutputType without action
+   */
+  export type BranchCountOutputTypeCountDesignationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DesignationWhereInput
+  }
+
+  /**
+   * BranchCountOutputType without action
+   */
+  export type BranchCountOutputTypeCountAdditionalDeptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DepartmentWhereInput
   }
 
 
@@ -9191,6 +9236,7 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     designationId?: boolean
+    managedBranch?: boolean | User$managedBranchArgs<ExtArgs>
     approvedSessions?: boolean | User$approvedSessionsArgs<ExtArgs>
     postedAnnouncements?: boolean | User$postedAnnouncementsArgs<ExtArgs>
     attendances?: boolean | User$attendancesArgs<ExtArgs>
@@ -9300,6 +9346,7 @@ export namespace Prisma {
   }
 
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    managedBranch?: boolean | User$managedBranchArgs<ExtArgs>
     approvedSessions?: boolean | User$approvedSessionsArgs<ExtArgs>
     postedAnnouncements?: boolean | User$postedAnnouncementsArgs<ExtArgs>
     attendances?: boolean | User$attendancesArgs<ExtArgs>
@@ -9363,6 +9410,7 @@ export namespace Prisma {
   export type $UserPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "User"
     objects: {
+      managedBranch: Prisma.$BranchPayload<ExtArgs> | null
       approvedSessions: Prisma.$AdmissionSessionPayload<ExtArgs>[]
       postedAnnouncements: Prisma.$AnnouncementPayload<ExtArgs>[]
       attendances: Prisma.$AttendancePayload<ExtArgs>[]
@@ -9800,6 +9848,7 @@ export namespace Prisma {
    */
   export interface Prisma__UserClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    managedBranch<T extends User$managedBranchArgs<ExtArgs> = {}>(args?: Subset<T, User$managedBranchArgs<ExtArgs>>): Prisma__BranchClient<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     approvedSessions<T extends User$approvedSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$approvedSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AdmissionSessionPayload<ExtArgs>, T, "findMany"> | Null>
     postedAnnouncements<T extends User$postedAnnouncementsArgs<ExtArgs> = {}>(args?: Subset<T, User$postedAnnouncementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnnouncementPayload<ExtArgs>, T, "findMany"> | Null>
     attendances<T extends User$attendancesArgs<ExtArgs> = {}>(args?: Subset<T, User$attendancesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AttendancePayload<ExtArgs>, T, "findMany"> | Null>
@@ -10215,6 +10264,21 @@ export namespace Prisma {
      * Filter which Users to delete
      */
     where?: UserWhereInput
+  }
+
+  /**
+   * User.managedBranch
+   */
+  export type User$managedBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Branch
+     */
+    select?: BranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BranchInclude<ExtArgs> | null
+    where?: BranchWhereInput
   }
 
   /**
@@ -11380,6 +11444,9 @@ export namespace Prisma {
     users?: boolean | Department$usersArgs<ExtArgs>
     vacancies?: boolean | Department$vacanciesArgs<ExtArgs>
     Task?: boolean | Department$TaskArgs<ExtArgs>
+    salesBranch?: boolean | Department$salesBranchArgs<ExtArgs>
+    opsBranch?: boolean | Department$opsBranchArgs<ExtArgs>
+    additionalBranches?: boolean | Department$additionalBranchesArgs<ExtArgs>
     _count?: boolean | DepartmentCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["department"]>
 
@@ -11431,6 +11498,9 @@ export namespace Prisma {
     users?: boolean | Department$usersArgs<ExtArgs>
     vacancies?: boolean | Department$vacanciesArgs<ExtArgs>
     Task?: boolean | Department$TaskArgs<ExtArgs>
+    salesBranch?: boolean | Department$salesBranchArgs<ExtArgs>
+    opsBranch?: boolean | Department$opsBranchArgs<ExtArgs>
+    additionalBranches?: boolean | Department$additionalBranchesArgs<ExtArgs>
     _count?: boolean | DepartmentCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type DepartmentIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -11454,6 +11524,9 @@ export namespace Prisma {
       users: Prisma.$UserPayload<ExtArgs>[]
       vacancies: Prisma.$VacancyPayload<ExtArgs>[]
       Task: Prisma.$TaskPayload<ExtArgs>[]
+      salesBranch: Prisma.$BranchPayload<ExtArgs>[]
+      opsBranch: Prisma.$BranchPayload<ExtArgs>[]
+      additionalBranches: Prisma.$BranchPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -11845,6 +11918,9 @@ export namespace Prisma {
     users<T extends Department$usersArgs<ExtArgs> = {}>(args?: Subset<T, Department$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany"> | Null>
     vacancies<T extends Department$vacanciesArgs<ExtArgs> = {}>(args?: Subset<T, Department$vacanciesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$VacancyPayload<ExtArgs>, T, "findMany"> | Null>
     Task<T extends Department$TaskArgs<ExtArgs> = {}>(args?: Subset<T, Department$TaskArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findMany"> | Null>
+    salesBranch<T extends Department$salesBranchArgs<ExtArgs> = {}>(args?: Subset<T, Department$salesBranchArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findMany"> | Null>
+    opsBranch<T extends Department$opsBranchArgs<ExtArgs> = {}>(args?: Subset<T, Department$opsBranchArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findMany"> | Null>
+    additionalBranches<T extends Department$additionalBranchesArgs<ExtArgs> = {}>(args?: Subset<T, Department$additionalBranchesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -12412,6 +12488,66 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: TaskScalarFieldEnum | TaskScalarFieldEnum[]
+  }
+
+  /**
+   * Department.salesBranch
+   */
+  export type Department$salesBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Branch
+     */
+    select?: BranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BranchInclude<ExtArgs> | null
+    where?: BranchWhereInput
+    orderBy?: BranchOrderByWithRelationInput | BranchOrderByWithRelationInput[]
+    cursor?: BranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BranchScalarFieldEnum | BranchScalarFieldEnum[]
+  }
+
+  /**
+   * Department.opsBranch
+   */
+  export type Department$opsBranchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Branch
+     */
+    select?: BranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BranchInclude<ExtArgs> | null
+    where?: BranchWhereInput
+    orderBy?: BranchOrderByWithRelationInput | BranchOrderByWithRelationInput[]
+    cursor?: BranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BranchScalarFieldEnum | BranchScalarFieldEnum[]
+  }
+
+  /**
+   * Department.additionalBranches
+   */
+  export type Department$additionalBranchesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Branch
+     */
+    select?: BranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BranchInclude<ExtArgs> | null
+    where?: BranchWhereInput
+    orderBy?: BranchOrderByWithRelationInput | BranchOrderByWithRelationInput[]
+    cursor?: BranchWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BranchScalarFieldEnum | BranchScalarFieldEnum[]
   }
 
   /**
@@ -13594,6 +13730,9 @@ export namespace Prisma {
     status: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    branchManagerId: string | null
+    salesDeptId: string | null
+    operationsDeptId: string | null
   }
 
   export type BranchMaxAggregateOutputType = {
@@ -13607,6 +13746,9 @@ export namespace Prisma {
     status: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    branchManagerId: string | null
+    salesDeptId: string | null
+    operationsDeptId: string | null
   }
 
   export type BranchCountAggregateOutputType = {
@@ -13620,6 +13762,9 @@ export namespace Prisma {
     status: number
     createdAt: number
     updatedAt: number
+    branchManagerId: number
+    salesDeptId: number
+    operationsDeptId: number
     _all: number
   }
 
@@ -13635,6 +13780,9 @@ export namespace Prisma {
     status?: true
     createdAt?: true
     updatedAt?: true
+    branchManagerId?: true
+    salesDeptId?: true
+    operationsDeptId?: true
   }
 
   export type BranchMaxAggregateInputType = {
@@ -13648,6 +13796,9 @@ export namespace Prisma {
     status?: true
     createdAt?: true
     updatedAt?: true
+    branchManagerId?: true
+    salesDeptId?: true
+    operationsDeptId?: true
   }
 
   export type BranchCountAggregateInputType = {
@@ -13661,6 +13812,9 @@ export namespace Prisma {
     status?: true
     createdAt?: true
     updatedAt?: true
+    branchManagerId?: true
+    salesDeptId?: true
+    operationsDeptId?: true
     _all?: true
   }
 
@@ -13747,6 +13901,9 @@ export namespace Prisma {
     status: string
     createdAt: Date
     updatedAt: Date
+    branchManagerId: string | null
+    salesDeptId: string | null
+    operationsDeptId: string | null
     _count: BranchCountAggregateOutputType | null
     _min: BranchMinAggregateOutputType | null
     _max: BranchMaxAggregateOutputType | null
@@ -13777,9 +13934,17 @@ export namespace Prisma {
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    branchManagerId?: boolean
+    salesDeptId?: boolean
+    operationsDeptId?: boolean
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     invites?: boolean | Branch$invitesArgs<ExtArgs>
     users?: boolean | Branch$usersArgs<ExtArgs>
+    designations?: boolean | Branch$designationsArgs<ExtArgs>
+    branchManager?: boolean | Branch$branchManagerArgs<ExtArgs>
+    salesDept?: boolean | Branch$salesDeptArgs<ExtArgs>
+    operationsDept?: boolean | Branch$operationsDeptArgs<ExtArgs>
+    additionalDepts?: boolean | Branch$additionalDeptsArgs<ExtArgs>
     _count?: boolean | BranchCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["branch"]>
 
@@ -13794,7 +13959,13 @@ export namespace Prisma {
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    branchManagerId?: boolean
+    salesDeptId?: boolean
+    operationsDeptId?: boolean
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+    branchManager?: boolean | Branch$branchManagerArgs<ExtArgs>
+    salesDept?: boolean | Branch$salesDeptArgs<ExtArgs>
+    operationsDept?: boolean | Branch$operationsDeptArgs<ExtArgs>
   }, ExtArgs["result"]["branch"]>
 
   export type BranchSelectScalar = {
@@ -13808,16 +13979,27 @@ export namespace Prisma {
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    branchManagerId?: boolean
+    salesDeptId?: boolean
+    operationsDeptId?: boolean
   }
 
   export type BranchInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     invites?: boolean | Branch$invitesArgs<ExtArgs>
     users?: boolean | Branch$usersArgs<ExtArgs>
+    designations?: boolean | Branch$designationsArgs<ExtArgs>
+    branchManager?: boolean | Branch$branchManagerArgs<ExtArgs>
+    salesDept?: boolean | Branch$salesDeptArgs<ExtArgs>
+    operationsDept?: boolean | Branch$operationsDeptArgs<ExtArgs>
+    additionalDepts?: boolean | Branch$additionalDeptsArgs<ExtArgs>
     _count?: boolean | BranchCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type BranchIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+    branchManager?: boolean | Branch$branchManagerArgs<ExtArgs>
+    salesDept?: boolean | Branch$salesDeptArgs<ExtArgs>
+    operationsDept?: boolean | Branch$operationsDeptArgs<ExtArgs>
   }
 
   export type $BranchPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -13826,6 +14008,11 @@ export namespace Prisma {
       organization: Prisma.$OrganizationPayload<ExtArgs>
       invites: Prisma.$StudyCenterInvitePayload<ExtArgs>[]
       users: Prisma.$UserPayload<ExtArgs>[]
+      designations: Prisma.$DesignationPayload<ExtArgs>[]
+      branchManager: Prisma.$UserPayload<ExtArgs> | null
+      salesDept: Prisma.$DepartmentPayload<ExtArgs> | null
+      operationsDept: Prisma.$DepartmentPayload<ExtArgs> | null
+      additionalDepts: Prisma.$DepartmentPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -13838,6 +14025,9 @@ export namespace Prisma {
       status: string
       createdAt: Date
       updatedAt: Date
+      branchManagerId: string | null
+      salesDeptId: string | null
+      operationsDeptId: string | null
     }, ExtArgs["result"]["branch"]>
     composites: {}
   }
@@ -14205,6 +14395,11 @@ export namespace Prisma {
     organization<T extends OrganizationDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrganizationDefaultArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     invites<T extends Branch$invitesArgs<ExtArgs> = {}>(args?: Subset<T, Branch$invitesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StudyCenterInvitePayload<ExtArgs>, T, "findMany"> | Null>
     users<T extends Branch$usersArgs<ExtArgs> = {}>(args?: Subset<T, Branch$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany"> | Null>
+    designations<T extends Branch$designationsArgs<ExtArgs> = {}>(args?: Subset<T, Branch$designationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DesignationPayload<ExtArgs>, T, "findMany"> | Null>
+    branchManager<T extends Branch$branchManagerArgs<ExtArgs> = {}>(args?: Subset<T, Branch$branchManagerArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    salesDept<T extends Branch$salesDeptArgs<ExtArgs> = {}>(args?: Subset<T, Branch$salesDeptArgs<ExtArgs>>): Prisma__DepartmentClient<$Result.GetResult<Prisma.$DepartmentPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    operationsDept<T extends Branch$operationsDeptArgs<ExtArgs> = {}>(args?: Subset<T, Branch$operationsDeptArgs<ExtArgs>>): Prisma__DepartmentClient<$Result.GetResult<Prisma.$DepartmentPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    additionalDepts<T extends Branch$additionalDeptsArgs<ExtArgs> = {}>(args?: Subset<T, Branch$additionalDeptsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DepartmentPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -14244,6 +14439,9 @@ export namespace Prisma {
     readonly status: FieldRef<"Branch", 'String'>
     readonly createdAt: FieldRef<"Branch", 'DateTime'>
     readonly updatedAt: FieldRef<"Branch", 'DateTime'>
+    readonly branchManagerId: FieldRef<"Branch", 'String'>
+    readonly salesDeptId: FieldRef<"Branch", 'String'>
+    readonly operationsDeptId: FieldRef<"Branch", 'String'>
   }
     
 
@@ -14599,6 +14797,91 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+  }
+
+  /**
+   * Branch.designations
+   */
+  export type Branch$designationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Designation
+     */
+    select?: DesignationSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DesignationInclude<ExtArgs> | null
+    where?: DesignationWhereInput
+    orderBy?: DesignationOrderByWithRelationInput | DesignationOrderByWithRelationInput[]
+    cursor?: DesignationWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: DesignationScalarFieldEnum | DesignationScalarFieldEnum[]
+  }
+
+  /**
+   * Branch.branchManager
+   */
+  export type Branch$branchManagerArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the User
+     */
+    select?: UserSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserInclude<ExtArgs> | null
+    where?: UserWhereInput
+  }
+
+  /**
+   * Branch.salesDept
+   */
+  export type Branch$salesDeptArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Department
+     */
+    select?: DepartmentSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DepartmentInclude<ExtArgs> | null
+    where?: DepartmentWhereInput
+  }
+
+  /**
+   * Branch.operationsDept
+   */
+  export type Branch$operationsDeptArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Department
+     */
+    select?: DepartmentSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DepartmentInclude<ExtArgs> | null
+    where?: DepartmentWhereInput
+  }
+
+  /**
+   * Branch.additionalDepts
+   */
+  export type Branch$additionalDeptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Department
+     */
+    select?: DepartmentSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DepartmentInclude<ExtArgs> | null
+    where?: DepartmentWhereInput
+    orderBy?: DepartmentOrderByWithRelationInput | DepartmentOrderByWithRelationInput[]
+    cursor?: DepartmentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: DepartmentScalarFieldEnum | DepartmentScalarFieldEnum[]
   }
 
   /**
@@ -52288,6 +52571,7 @@ export namespace Prisma {
     childDesignations?: boolean | Designation$childDesignationsArgs<ExtArgs>
     subDepartment?: boolean | Designation$subDepartmentArgs<ExtArgs>
     users?: boolean | Designation$usersArgs<ExtArgs>
+    branch?: boolean | Designation$branchArgs<ExtArgs>
     _count?: boolean | DesignationCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["designation"]>
 
@@ -52308,6 +52592,7 @@ export namespace Prisma {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     parentDesignation?: boolean | Designation$parentDesignationArgs<ExtArgs>
     subDepartment?: boolean | Designation$subDepartmentArgs<ExtArgs>
+    branch?: boolean | Designation$branchArgs<ExtArgs>
   }, ExtArgs["result"]["designation"]>
 
   export type DesignationSelectScalar = {
@@ -52332,6 +52617,7 @@ export namespace Prisma {
     childDesignations?: boolean | Designation$childDesignationsArgs<ExtArgs>
     subDepartment?: boolean | Designation$subDepartmentArgs<ExtArgs>
     users?: boolean | Designation$usersArgs<ExtArgs>
+    branch?: boolean | Designation$branchArgs<ExtArgs>
     _count?: boolean | DesignationCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type DesignationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -52339,6 +52625,7 @@ export namespace Prisma {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     parentDesignation?: boolean | Designation$parentDesignationArgs<ExtArgs>
     subDepartment?: boolean | Designation$subDepartmentArgs<ExtArgs>
+    branch?: boolean | Designation$branchArgs<ExtArgs>
   }
 
   export type $DesignationPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -52350,6 +52637,7 @@ export namespace Prisma {
       childDesignations: Prisma.$DesignationPayload<ExtArgs>[]
       subDepartment: Prisma.$SubDepartmentPayload<ExtArgs> | null
       users: Prisma.$UserPayload<ExtArgs>[]
+      branch: Prisma.$BranchPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -52734,6 +53022,7 @@ export namespace Prisma {
     childDesignations<T extends Designation$childDesignationsArgs<ExtArgs> = {}>(args?: Subset<T, Designation$childDesignationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DesignationPayload<ExtArgs>, T, "findMany"> | Null>
     subDepartment<T extends Designation$subDepartmentArgs<ExtArgs> = {}>(args?: Subset<T, Designation$subDepartmentArgs<ExtArgs>>): Prisma__SubDepartmentClient<$Result.GetResult<Prisma.$SubDepartmentPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     users<T extends Designation$usersArgs<ExtArgs> = {}>(args?: Subset<T, Designation$usersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany"> | Null>
+    branch<T extends Designation$branchArgs<ExtArgs> = {}>(args?: Subset<T, Designation$branchArgs<ExtArgs>>): Prisma__BranchClient<$Result.GetResult<Prisma.$BranchPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -53175,6 +53464,21 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+  }
+
+  /**
+   * Designation.branch
+   */
+  export type Designation$branchArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Branch
+     */
+    select?: BranchSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BranchInclude<ExtArgs> | null
+    where?: BranchWhereInput
   }
 
   /**
@@ -67209,7 +67513,10 @@ export namespace Prisma {
     state: 'state',
     status: 'status',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    branchManagerId: 'branchManagerId',
+    salesDeptId: 'salesDeptId',
+    operationsDeptId: 'operationsDeptId'
   };
 
   export type BranchScalarFieldEnum = (typeof BranchScalarFieldEnum)[keyof typeof BranchScalarFieldEnum]
@@ -68529,6 +68836,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     designationId?: StringNullableFilter<"User"> | string | null
+    managedBranch?: XOR<BranchNullableRelationFilter, BranchWhereInput> | null
     approvedSessions?: AdmissionSessionListRelationFilter
     postedAnnouncements?: AnnouncementListRelationFilter
     attendances?: AttendanceListRelationFilter
@@ -68603,6 +68911,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     designationId?: SortOrderInput | SortOrder
+    managedBranch?: BranchOrderByWithRelationInput
     approvedSessions?: AdmissionSessionOrderByRelationAggregateInput
     postedAnnouncements?: AnnouncementOrderByRelationAggregateInput
     attendances?: AttendanceOrderByRelationAggregateInput
@@ -68680,6 +68989,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     designationId?: StringNullableFilter<"User"> | string | null
+    managedBranch?: XOR<BranchNullableRelationFilter, BranchWhereInput> | null
     approvedSessions?: AdmissionSessionListRelationFilter
     postedAnnouncements?: AnnouncementListRelationFilter
     attendances?: AttendanceListRelationFilter
@@ -68816,6 +69126,9 @@ export namespace Prisma {
     users?: UserListRelationFilter
     vacancies?: VacancyListRelationFilter
     Task?: TaskListRelationFilter
+    salesBranch?: BranchListRelationFilter
+    opsBranch?: BranchListRelationFilter
+    additionalBranches?: BranchListRelationFilter
   }
 
   export type DepartmentOrderByWithRelationInput = {
@@ -68844,6 +69157,9 @@ export namespace Prisma {
     users?: UserOrderByRelationAggregateInput
     vacancies?: VacancyOrderByRelationAggregateInput
     Task?: TaskOrderByRelationAggregateInput
+    salesBranch?: BranchOrderByRelationAggregateInput
+    opsBranch?: BranchOrderByRelationAggregateInput
+    additionalBranches?: BranchOrderByRelationAggregateInput
   }
 
   export type DepartmentWhereUniqueInput = Prisma.AtLeast<{
@@ -68875,6 +69191,9 @@ export namespace Prisma {
     users?: UserListRelationFilter
     vacancies?: VacancyListRelationFilter
     Task?: TaskListRelationFilter
+    salesBranch?: BranchListRelationFilter
+    opsBranch?: BranchListRelationFilter
+    additionalBranches?: BranchListRelationFilter
   }, "id">
 
   export type DepartmentOrderByWithAggregationInput = {
@@ -69034,9 +69353,17 @@ export namespace Prisma {
     status?: StringFilter<"Branch"> | string
     createdAt?: DateTimeFilter<"Branch"> | Date | string
     updatedAt?: DateTimeFilter<"Branch"> | Date | string
+    branchManagerId?: StringNullableFilter<"Branch"> | string | null
+    salesDeptId?: StringNullableFilter<"Branch"> | string | null
+    operationsDeptId?: StringNullableFilter<"Branch"> | string | null
     organization?: XOR<OrganizationRelationFilter, OrganizationWhereInput>
     invites?: StudyCenterInviteListRelationFilter
     users?: UserListRelationFilter
+    designations?: DesignationListRelationFilter
+    branchManager?: XOR<UserNullableRelationFilter, UserWhereInput> | null
+    salesDept?: XOR<DepartmentNullableRelationFilter, DepartmentWhereInput> | null
+    operationsDept?: XOR<DepartmentNullableRelationFilter, DepartmentWhereInput> | null
+    additionalDepts?: DepartmentListRelationFilter
   }
 
   export type BranchOrderByWithRelationInput = {
@@ -69050,13 +69377,22 @@ export namespace Prisma {
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    branchManagerId?: SortOrderInput | SortOrder
+    salesDeptId?: SortOrderInput | SortOrder
+    operationsDeptId?: SortOrderInput | SortOrder
     organization?: OrganizationOrderByWithRelationInput
     invites?: StudyCenterInviteOrderByRelationAggregateInput
     users?: UserOrderByRelationAggregateInput
+    designations?: DesignationOrderByRelationAggregateInput
+    branchManager?: UserOrderByWithRelationInput
+    salesDept?: DepartmentOrderByWithRelationInput
+    operationsDept?: DepartmentOrderByWithRelationInput
+    additionalDepts?: DepartmentOrderByRelationAggregateInput
   }
 
   export type BranchWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    branchManagerId?: string
     AND?: BranchWhereInput | BranchWhereInput[]
     OR?: BranchWhereInput[]
     NOT?: BranchWhereInput | BranchWhereInput[]
@@ -69069,10 +69405,17 @@ export namespace Prisma {
     status?: StringFilter<"Branch"> | string
     createdAt?: DateTimeFilter<"Branch"> | Date | string
     updatedAt?: DateTimeFilter<"Branch"> | Date | string
+    salesDeptId?: StringNullableFilter<"Branch"> | string | null
+    operationsDeptId?: StringNullableFilter<"Branch"> | string | null
     organization?: XOR<OrganizationRelationFilter, OrganizationWhereInput>
     invites?: StudyCenterInviteListRelationFilter
     users?: UserListRelationFilter
-  }, "id">
+    designations?: DesignationListRelationFilter
+    branchManager?: XOR<UserNullableRelationFilter, UserWhereInput> | null
+    salesDept?: XOR<DepartmentNullableRelationFilter, DepartmentWhereInput> | null
+    operationsDept?: XOR<DepartmentNullableRelationFilter, DepartmentWhereInput> | null
+    additionalDepts?: DepartmentListRelationFilter
+  }, "id" | "branchManagerId">
 
   export type BranchOrderByWithAggregationInput = {
     id?: SortOrder
@@ -69085,6 +69428,9 @@ export namespace Prisma {
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    branchManagerId?: SortOrderInput | SortOrder
+    salesDeptId?: SortOrderInput | SortOrder
+    operationsDeptId?: SortOrderInput | SortOrder
     _count?: BranchCountOrderByAggregateInput
     _max?: BranchMaxOrderByAggregateInput
     _min?: BranchMinOrderByAggregateInput
@@ -69104,6 +69450,9 @@ export namespace Prisma {
     status?: StringWithAggregatesFilter<"Branch"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Branch"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Branch"> | Date | string
+    branchManagerId?: StringNullableWithAggregatesFilter<"Branch"> | string | null
+    salesDeptId?: StringNullableWithAggregatesFilter<"Branch"> | string | null
+    operationsDeptId?: StringNullableWithAggregatesFilter<"Branch"> | string | null
   }
 
   export type StudyCenterWhereInput = {
@@ -72585,6 +72934,7 @@ export namespace Prisma {
     childDesignations?: DesignationListRelationFilter
     subDepartment?: XOR<SubDepartmentNullableRelationFilter, SubDepartmentWhereInput> | null
     users?: UserListRelationFilter
+    branch?: XOR<BranchNullableRelationFilter, BranchWhereInput> | null
   }
 
   export type DesignationOrderByWithRelationInput = {
@@ -72606,6 +72956,7 @@ export namespace Prisma {
     childDesignations?: DesignationOrderByRelationAggregateInput
     subDepartment?: SubDepartmentOrderByWithRelationInput
     users?: UserOrderByRelationAggregateInput
+    branch?: BranchOrderByWithRelationInput
   }
 
   export type DesignationWhereUniqueInput = Prisma.AtLeast<{
@@ -72630,6 +72981,7 @@ export namespace Prisma {
     childDesignations?: DesignationListRelationFilter
     subDepartment?: XOR<SubDepartmentNullableRelationFilter, SubDepartmentWhereInput> | null
     users?: UserListRelationFilter
+    branch?: XOR<BranchNullableRelationFilter, BranchWhereInput> | null
   }, "id">
 
   export type DesignationOrderByWithAggregationInput = {
@@ -74384,6 +74736,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -74458,6 +74811,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -74520,6 +74874,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -74594,6 +74949,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -74731,6 +75087,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateInput = {
@@ -74756,6 +75115,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUpdateInput = {
@@ -74781,6 +75143,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateInput = {
@@ -74806,6 +75171,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentCreateManyInput = {
@@ -74973,6 +75341,11 @@ export namespace Prisma {
     organization: OrganizationCreateNestedOneWithoutBranchesInput
     invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
     users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchUncheckedCreateInput = {
@@ -74986,8 +75359,13 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
     invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
     users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchUpdateInput = {
@@ -75003,6 +75381,11 @@ export namespace Prisma {
     organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
     invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
     users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchUncheckedUpdateInput = {
@@ -75016,8 +75399,13 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
     invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
     users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchCreateManyInput = {
@@ -75031,6 +75419,9 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
   }
 
   export type BranchUpdateManyMutationInput = {
@@ -75056,6 +75447,9 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type StudyCenterCreateInput = {
@@ -78848,7 +79242,6 @@ export namespace Prisma {
 
   export type DesignationCreateInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -78861,6 +79254,7 @@ export namespace Prisma {
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateInput = {
@@ -78882,7 +79276,6 @@ export namespace Prisma {
 
   export type DesignationUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -78895,6 +79288,7 @@ export namespace Prisma {
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateInput = {
@@ -78931,7 +79325,6 @@ export namespace Prisma {
 
   export type DesignationUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -81158,6 +81551,11 @@ export namespace Prisma {
     isEmpty?: boolean
   }
 
+  export type BranchNullableRelationFilter = {
+    is?: BranchWhereInput | null
+    isNot?: BranchWhereInput | null
+  }
+
   export type AttendanceListRelationFilter = {
     every?: AttendanceWhereInput
     some?: AttendanceWhereInput
@@ -81184,11 +81582,6 @@ export namespace Prisma {
   export type SalaryConfigNullableRelationFilter = {
     is?: SalaryConfigWhereInput | null
     isNot?: SalaryConfigWhereInput | null
-  }
-
-  export type BranchNullableRelationFilter = {
-    is?: BranchWhereInput | null
-    isNot?: BranchWhereInput | null
   }
 
   export type DepartmentNullableRelationFilter = {
@@ -81474,6 +81867,9 @@ export namespace Prisma {
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    branchManagerId?: SortOrder
+    salesDeptId?: SortOrder
+    operationsDeptId?: SortOrder
   }
 
   export type BranchMaxOrderByAggregateInput = {
@@ -81487,6 +81883,9 @@ export namespace Prisma {
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    branchManagerId?: SortOrder
+    salesDeptId?: SortOrder
+    operationsDeptId?: SortOrder
   }
 
   export type BranchMinOrderByAggregateInput = {
@@ -81500,6 +81899,9 @@ export namespace Prisma {
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    branchManagerId?: SortOrder
+    salesDeptId?: SortOrder
+    operationsDeptId?: SortOrder
   }
 
   export type EnrollmentListRelationFilter = {
@@ -86193,6 +86595,12 @@ export namespace Prisma {
     set: string[]
   }
 
+  export type BranchCreateNestedOneWithoutBranchManagerInput = {
+    create?: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutBranchManagerInput
+    connect?: BranchWhereUniqueInput
+  }
+
   export type AdmissionSessionCreateNestedManyWithoutApproverInput = {
     create?: XOR<AdmissionSessionCreateWithoutApproverInput, AdmissionSessionUncheckedCreateWithoutApproverInput> | AdmissionSessionCreateWithoutApproverInput[] | AdmissionSessionUncheckedCreateWithoutApproverInput[]
     connectOrCreate?: AdmissionSessionCreateOrConnectWithoutApproverInput | AdmissionSessionCreateOrConnectWithoutApproverInput[]
@@ -86527,6 +86935,12 @@ export namespace Prisma {
     connect?: PollWhereUniqueInput | PollWhereUniqueInput[]
   }
 
+  export type BranchUncheckedCreateNestedOneWithoutBranchManagerInput = {
+    create?: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutBranchManagerInput
+    connect?: BranchWhereUniqueInput
+  }
+
   export type AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput = {
     create?: XOR<AdmissionSessionCreateWithoutApproverInput, AdmissionSessionUncheckedCreateWithoutApproverInput> | AdmissionSessionCreateWithoutApproverInput[] | AdmissionSessionUncheckedCreateWithoutApproverInput[]
     connectOrCreate?: AdmissionSessionCreateOrConnectWithoutApproverInput | AdmissionSessionCreateOrConnectWithoutApproverInput[]
@@ -86828,6 +87242,16 @@ export namespace Prisma {
   export type UserUpdateadditionalDepartmentIdsInput = {
     set?: string[]
     push?: string | string[]
+  }
+
+  export type BranchUpdateOneWithoutBranchManagerNestedInput = {
+    create?: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutBranchManagerInput
+    upsert?: BranchUpsertWithoutBranchManagerInput
+    disconnect?: BranchWhereInput | boolean
+    delete?: BranchWhereInput | boolean
+    connect?: BranchWhereUniqueInput
+    update?: XOR<XOR<BranchUpdateToOneWithWhereWithoutBranchManagerInput, BranchUpdateWithoutBranchManagerInput>, BranchUncheckedUpdateWithoutBranchManagerInput>
   }
 
   export type AdmissionSessionUpdateManyWithoutApproverNestedInput = {
@@ -87476,6 +87900,16 @@ export namespace Prisma {
     update?: PollUpdateWithWhereUniqueWithoutCreatorInput | PollUpdateWithWhereUniqueWithoutCreatorInput[]
     updateMany?: PollUpdateManyWithWhereWithoutCreatorInput | PollUpdateManyWithWhereWithoutCreatorInput[]
     deleteMany?: PollScalarWhereInput | PollScalarWhereInput[]
+  }
+
+  export type BranchUncheckedUpdateOneWithoutBranchManagerNestedInput = {
+    create?: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutBranchManagerInput
+    upsert?: BranchUpsertWithoutBranchManagerInput
+    disconnect?: BranchWhereInput | boolean
+    delete?: BranchWhereInput | boolean
+    connect?: BranchWhereUniqueInput
+    update?: XOR<XOR<BranchUpdateToOneWithWhereWithoutBranchManagerInput, BranchUpdateWithoutBranchManagerInput>, BranchUncheckedUpdateWithoutBranchManagerInput>
   }
 
   export type AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput = {
@@ -88157,6 +88591,26 @@ export namespace Prisma {
     connect?: TaskWhereUniqueInput | TaskWhereUniqueInput[]
   }
 
+  export type BranchCreateNestedManyWithoutSalesDeptInput = {
+    create?: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput> | BranchCreateWithoutSalesDeptInput[] | BranchUncheckedCreateWithoutSalesDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutSalesDeptInput | BranchCreateOrConnectWithoutSalesDeptInput[]
+    createMany?: BranchCreateManySalesDeptInputEnvelope
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+  }
+
+  export type BranchCreateNestedManyWithoutOperationsDeptInput = {
+    create?: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput> | BranchCreateWithoutOperationsDeptInput[] | BranchUncheckedCreateWithoutOperationsDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutOperationsDeptInput | BranchCreateOrConnectWithoutOperationsDeptInput[]
+    createMany?: BranchCreateManyOperationsDeptInputEnvelope
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+  }
+
+  export type BranchCreateNestedManyWithoutAdditionalDeptsInput = {
+    create?: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput> | BranchCreateWithoutAdditionalDeptsInput[] | BranchUncheckedCreateWithoutAdditionalDeptsInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutAdditionalDeptsInput | BranchCreateOrConnectWithoutAdditionalDeptsInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+  }
+
   export type AdmissionSessionUncheckedCreateNestedManyWithoutSubDepartmentInput = {
     create?: XOR<AdmissionSessionCreateWithoutSubDepartmentInput, AdmissionSessionUncheckedCreateWithoutSubDepartmentInput> | AdmissionSessionCreateWithoutSubDepartmentInput[] | AdmissionSessionUncheckedCreateWithoutSubDepartmentInput[]
     connectOrCreate?: AdmissionSessionCreateOrConnectWithoutSubDepartmentInput | AdmissionSessionCreateOrConnectWithoutSubDepartmentInput[]
@@ -88218,6 +88672,26 @@ export namespace Prisma {
     connectOrCreate?: TaskCreateOrConnectWithoutDepartmentInput | TaskCreateOrConnectWithoutDepartmentInput[]
     createMany?: TaskCreateManyDepartmentInputEnvelope
     connect?: TaskWhereUniqueInput | TaskWhereUniqueInput[]
+  }
+
+  export type BranchUncheckedCreateNestedManyWithoutSalesDeptInput = {
+    create?: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput> | BranchCreateWithoutSalesDeptInput[] | BranchUncheckedCreateWithoutSalesDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutSalesDeptInput | BranchCreateOrConnectWithoutSalesDeptInput[]
+    createMany?: BranchCreateManySalesDeptInputEnvelope
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+  }
+
+  export type BranchUncheckedCreateNestedManyWithoutOperationsDeptInput = {
+    create?: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput> | BranchCreateWithoutOperationsDeptInput[] | BranchUncheckedCreateWithoutOperationsDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutOperationsDeptInput | BranchCreateOrConnectWithoutOperationsDeptInput[]
+    createMany?: BranchCreateManyOperationsDeptInputEnvelope
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+  }
+
+  export type BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput = {
+    create?: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput> | BranchCreateWithoutAdditionalDeptsInput[] | BranchUncheckedCreateWithoutAdditionalDeptsInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutAdditionalDeptsInput | BranchCreateOrConnectWithoutAdditionalDeptsInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
   }
 
   export type DepartmentUpdateassistantManagerIdsInput = {
@@ -88384,6 +88858,47 @@ export namespace Prisma {
     deleteMany?: TaskScalarWhereInput | TaskScalarWhereInput[]
   }
 
+  export type BranchUpdateManyWithoutSalesDeptNestedInput = {
+    create?: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput> | BranchCreateWithoutSalesDeptInput[] | BranchUncheckedCreateWithoutSalesDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutSalesDeptInput | BranchCreateOrConnectWithoutSalesDeptInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutSalesDeptInput | BranchUpsertWithWhereUniqueWithoutSalesDeptInput[]
+    createMany?: BranchCreateManySalesDeptInputEnvelope
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutSalesDeptInput | BranchUpdateWithWhereUniqueWithoutSalesDeptInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutSalesDeptInput | BranchUpdateManyWithWhereWithoutSalesDeptInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
+  }
+
+  export type BranchUpdateManyWithoutOperationsDeptNestedInput = {
+    create?: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput> | BranchCreateWithoutOperationsDeptInput[] | BranchUncheckedCreateWithoutOperationsDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutOperationsDeptInput | BranchCreateOrConnectWithoutOperationsDeptInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutOperationsDeptInput | BranchUpsertWithWhereUniqueWithoutOperationsDeptInput[]
+    createMany?: BranchCreateManyOperationsDeptInputEnvelope
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutOperationsDeptInput | BranchUpdateWithWhereUniqueWithoutOperationsDeptInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutOperationsDeptInput | BranchUpdateManyWithWhereWithoutOperationsDeptInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
+  }
+
+  export type BranchUpdateManyWithoutAdditionalDeptsNestedInput = {
+    create?: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput> | BranchCreateWithoutAdditionalDeptsInput[] | BranchUncheckedCreateWithoutAdditionalDeptsInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutAdditionalDeptsInput | BranchCreateOrConnectWithoutAdditionalDeptsInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutAdditionalDeptsInput | BranchUpsertWithWhereUniqueWithoutAdditionalDeptsInput[]
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutAdditionalDeptsInput | BranchUpdateWithWhereUniqueWithoutAdditionalDeptsInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutAdditionalDeptsInput | BranchUpdateManyWithWhereWithoutAdditionalDeptsInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
+  }
+
   export type AdmissionSessionUncheckedUpdateManyWithoutSubDepartmentNestedInput = {
     create?: XOR<AdmissionSessionCreateWithoutSubDepartmentInput, AdmissionSessionUncheckedCreateWithoutSubDepartmentInput> | AdmissionSessionCreateWithoutSubDepartmentInput[] | AdmissionSessionUncheckedCreateWithoutSubDepartmentInput[]
     connectOrCreate?: AdmissionSessionCreateOrConnectWithoutSubDepartmentInput | AdmissionSessionCreateOrConnectWithoutSubDepartmentInput[]
@@ -88508,6 +89023,47 @@ export namespace Prisma {
     update?: TaskUpdateWithWhereUniqueWithoutDepartmentInput | TaskUpdateWithWhereUniqueWithoutDepartmentInput[]
     updateMany?: TaskUpdateManyWithWhereWithoutDepartmentInput | TaskUpdateManyWithWhereWithoutDepartmentInput[]
     deleteMany?: TaskScalarWhereInput | TaskScalarWhereInput[]
+  }
+
+  export type BranchUncheckedUpdateManyWithoutSalesDeptNestedInput = {
+    create?: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput> | BranchCreateWithoutSalesDeptInput[] | BranchUncheckedCreateWithoutSalesDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutSalesDeptInput | BranchCreateOrConnectWithoutSalesDeptInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutSalesDeptInput | BranchUpsertWithWhereUniqueWithoutSalesDeptInput[]
+    createMany?: BranchCreateManySalesDeptInputEnvelope
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutSalesDeptInput | BranchUpdateWithWhereUniqueWithoutSalesDeptInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutSalesDeptInput | BranchUpdateManyWithWhereWithoutSalesDeptInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
+  }
+
+  export type BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput = {
+    create?: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput> | BranchCreateWithoutOperationsDeptInput[] | BranchUncheckedCreateWithoutOperationsDeptInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutOperationsDeptInput | BranchCreateOrConnectWithoutOperationsDeptInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutOperationsDeptInput | BranchUpsertWithWhereUniqueWithoutOperationsDeptInput[]
+    createMany?: BranchCreateManyOperationsDeptInputEnvelope
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutOperationsDeptInput | BranchUpdateWithWhereUniqueWithoutOperationsDeptInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutOperationsDeptInput | BranchUpdateManyWithWhereWithoutOperationsDeptInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
+  }
+
+  export type BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput = {
+    create?: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput> | BranchCreateWithoutAdditionalDeptsInput[] | BranchUncheckedCreateWithoutAdditionalDeptsInput[]
+    connectOrCreate?: BranchCreateOrConnectWithoutAdditionalDeptsInput | BranchCreateOrConnectWithoutAdditionalDeptsInput[]
+    upsert?: BranchUpsertWithWhereUniqueWithoutAdditionalDeptsInput | BranchUpsertWithWhereUniqueWithoutAdditionalDeptsInput[]
+    set?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    disconnect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    delete?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    connect?: BranchWhereUniqueInput | BranchWhereUniqueInput[]
+    update?: BranchUpdateWithWhereUniqueWithoutAdditionalDeptsInput | BranchUpdateWithWhereUniqueWithoutAdditionalDeptsInput[]
+    updateMany?: BranchUpdateManyWithWhereWithoutAdditionalDeptsInput | BranchUpdateManyWithWhereWithoutAdditionalDeptsInput[]
+    deleteMany?: BranchScalarWhereInput | BranchScalarWhereInput[]
   }
 
   export type SubDepartmentCreatefeaturesInput = {
@@ -88795,6 +89351,37 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
+  export type DesignationCreateNestedManyWithoutBranchInput = {
+    create?: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput> | DesignationCreateWithoutBranchInput[] | DesignationUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: DesignationCreateOrConnectWithoutBranchInput | DesignationCreateOrConnectWithoutBranchInput[]
+    createMany?: DesignationCreateManyBranchInputEnvelope
+    connect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+  }
+
+  export type UserCreateNestedOneWithoutManagedBranchInput = {
+    create?: XOR<UserCreateWithoutManagedBranchInput, UserUncheckedCreateWithoutManagedBranchInput>
+    connectOrCreate?: UserCreateOrConnectWithoutManagedBranchInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type DepartmentCreateNestedOneWithoutSalesBranchInput = {
+    create?: XOR<DepartmentCreateWithoutSalesBranchInput, DepartmentUncheckedCreateWithoutSalesBranchInput>
+    connectOrCreate?: DepartmentCreateOrConnectWithoutSalesBranchInput
+    connect?: DepartmentWhereUniqueInput
+  }
+
+  export type DepartmentCreateNestedOneWithoutOpsBranchInput = {
+    create?: XOR<DepartmentCreateWithoutOpsBranchInput, DepartmentUncheckedCreateWithoutOpsBranchInput>
+    connectOrCreate?: DepartmentCreateOrConnectWithoutOpsBranchInput
+    connect?: DepartmentWhereUniqueInput
+  }
+
+  export type DepartmentCreateNestedManyWithoutAdditionalBranchesInput = {
+    create?: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput> | DepartmentCreateWithoutAdditionalBranchesInput[] | DepartmentUncheckedCreateWithoutAdditionalBranchesInput[]
+    connectOrCreate?: DepartmentCreateOrConnectWithoutAdditionalBranchesInput | DepartmentCreateOrConnectWithoutAdditionalBranchesInput[]
+    connect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+  }
+
   export type StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput = {
     create?: XOR<StudyCenterInviteCreateWithoutBranchInput, StudyCenterInviteUncheckedCreateWithoutBranchInput> | StudyCenterInviteCreateWithoutBranchInput[] | StudyCenterInviteUncheckedCreateWithoutBranchInput[]
     connectOrCreate?: StudyCenterInviteCreateOrConnectWithoutBranchInput | StudyCenterInviteCreateOrConnectWithoutBranchInput[]
@@ -88807,6 +89394,19 @@ export namespace Prisma {
     connectOrCreate?: UserCreateOrConnectWithoutBranchInput | UserCreateOrConnectWithoutBranchInput[]
     createMany?: UserCreateManyBranchInputEnvelope
     connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
+  }
+
+  export type DesignationUncheckedCreateNestedManyWithoutBranchInput = {
+    create?: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput> | DesignationCreateWithoutBranchInput[] | DesignationUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: DesignationCreateOrConnectWithoutBranchInput | DesignationCreateOrConnectWithoutBranchInput[]
+    createMany?: DesignationCreateManyBranchInputEnvelope
+    connect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+  }
+
+  export type DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput = {
+    create?: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput> | DepartmentCreateWithoutAdditionalBranchesInput[] | DepartmentUncheckedCreateWithoutAdditionalBranchesInput[]
+    connectOrCreate?: DepartmentCreateOrConnectWithoutAdditionalBranchesInput | DepartmentCreateOrConnectWithoutAdditionalBranchesInput[]
+    connect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
   }
 
   export type OrganizationUpdateOneRequiredWithoutBranchesNestedInput = {
@@ -88845,6 +89445,63 @@ export namespace Prisma {
     deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
   }
 
+  export type DesignationUpdateManyWithoutBranchNestedInput = {
+    create?: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput> | DesignationCreateWithoutBranchInput[] | DesignationUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: DesignationCreateOrConnectWithoutBranchInput | DesignationCreateOrConnectWithoutBranchInput[]
+    upsert?: DesignationUpsertWithWhereUniqueWithoutBranchInput | DesignationUpsertWithWhereUniqueWithoutBranchInput[]
+    createMany?: DesignationCreateManyBranchInputEnvelope
+    set?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    disconnect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    delete?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    connect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    update?: DesignationUpdateWithWhereUniqueWithoutBranchInput | DesignationUpdateWithWhereUniqueWithoutBranchInput[]
+    updateMany?: DesignationUpdateManyWithWhereWithoutBranchInput | DesignationUpdateManyWithWhereWithoutBranchInput[]
+    deleteMany?: DesignationScalarWhereInput | DesignationScalarWhereInput[]
+  }
+
+  export type UserUpdateOneWithoutManagedBranchNestedInput = {
+    create?: XOR<UserCreateWithoutManagedBranchInput, UserUncheckedCreateWithoutManagedBranchInput>
+    connectOrCreate?: UserCreateOrConnectWithoutManagedBranchInput
+    upsert?: UserUpsertWithoutManagedBranchInput
+    disconnect?: UserWhereInput | boolean
+    delete?: UserWhereInput | boolean
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutManagedBranchInput, UserUpdateWithoutManagedBranchInput>, UserUncheckedUpdateWithoutManagedBranchInput>
+  }
+
+  export type DepartmentUpdateOneWithoutSalesBranchNestedInput = {
+    create?: XOR<DepartmentCreateWithoutSalesBranchInput, DepartmentUncheckedCreateWithoutSalesBranchInput>
+    connectOrCreate?: DepartmentCreateOrConnectWithoutSalesBranchInput
+    upsert?: DepartmentUpsertWithoutSalesBranchInput
+    disconnect?: DepartmentWhereInput | boolean
+    delete?: DepartmentWhereInput | boolean
+    connect?: DepartmentWhereUniqueInput
+    update?: XOR<XOR<DepartmentUpdateToOneWithWhereWithoutSalesBranchInput, DepartmentUpdateWithoutSalesBranchInput>, DepartmentUncheckedUpdateWithoutSalesBranchInput>
+  }
+
+  export type DepartmentUpdateOneWithoutOpsBranchNestedInput = {
+    create?: XOR<DepartmentCreateWithoutOpsBranchInput, DepartmentUncheckedCreateWithoutOpsBranchInput>
+    connectOrCreate?: DepartmentCreateOrConnectWithoutOpsBranchInput
+    upsert?: DepartmentUpsertWithoutOpsBranchInput
+    disconnect?: DepartmentWhereInput | boolean
+    delete?: DepartmentWhereInput | boolean
+    connect?: DepartmentWhereUniqueInput
+    update?: XOR<XOR<DepartmentUpdateToOneWithWhereWithoutOpsBranchInput, DepartmentUpdateWithoutOpsBranchInput>, DepartmentUncheckedUpdateWithoutOpsBranchInput>
+  }
+
+  export type DepartmentUpdateManyWithoutAdditionalBranchesNestedInput = {
+    create?: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput> | DepartmentCreateWithoutAdditionalBranchesInput[] | DepartmentUncheckedCreateWithoutAdditionalBranchesInput[]
+    connectOrCreate?: DepartmentCreateOrConnectWithoutAdditionalBranchesInput | DepartmentCreateOrConnectWithoutAdditionalBranchesInput[]
+    upsert?: DepartmentUpsertWithWhereUniqueWithoutAdditionalBranchesInput | DepartmentUpsertWithWhereUniqueWithoutAdditionalBranchesInput[]
+    set?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    disconnect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    delete?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    connect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    update?: DepartmentUpdateWithWhereUniqueWithoutAdditionalBranchesInput | DepartmentUpdateWithWhereUniqueWithoutAdditionalBranchesInput[]
+    updateMany?: DepartmentUpdateManyWithWhereWithoutAdditionalBranchesInput | DepartmentUpdateManyWithWhereWithoutAdditionalBranchesInput[]
+    deleteMany?: DepartmentScalarWhereInput | DepartmentScalarWhereInput[]
+  }
+
   export type StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput = {
     create?: XOR<StudyCenterInviteCreateWithoutBranchInput, StudyCenterInviteUncheckedCreateWithoutBranchInput> | StudyCenterInviteCreateWithoutBranchInput[] | StudyCenterInviteUncheckedCreateWithoutBranchInput[]
     connectOrCreate?: StudyCenterInviteCreateOrConnectWithoutBranchInput | StudyCenterInviteCreateOrConnectWithoutBranchInput[]
@@ -88871,6 +89528,33 @@ export namespace Prisma {
     update?: UserUpdateWithWhereUniqueWithoutBranchInput | UserUpdateWithWhereUniqueWithoutBranchInput[]
     updateMany?: UserUpdateManyWithWhereWithoutBranchInput | UserUpdateManyWithWhereWithoutBranchInput[]
     deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
+  }
+
+  export type DesignationUncheckedUpdateManyWithoutBranchNestedInput = {
+    create?: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput> | DesignationCreateWithoutBranchInput[] | DesignationUncheckedCreateWithoutBranchInput[]
+    connectOrCreate?: DesignationCreateOrConnectWithoutBranchInput | DesignationCreateOrConnectWithoutBranchInput[]
+    upsert?: DesignationUpsertWithWhereUniqueWithoutBranchInput | DesignationUpsertWithWhereUniqueWithoutBranchInput[]
+    createMany?: DesignationCreateManyBranchInputEnvelope
+    set?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    disconnect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    delete?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    connect?: DesignationWhereUniqueInput | DesignationWhereUniqueInput[]
+    update?: DesignationUpdateWithWhereUniqueWithoutBranchInput | DesignationUpdateWithWhereUniqueWithoutBranchInput[]
+    updateMany?: DesignationUpdateManyWithWhereWithoutBranchInput | DesignationUpdateManyWithWhereWithoutBranchInput[]
+    deleteMany?: DesignationScalarWhereInput | DesignationScalarWhereInput[]
+  }
+
+  export type DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput = {
+    create?: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput> | DepartmentCreateWithoutAdditionalBranchesInput[] | DepartmentUncheckedCreateWithoutAdditionalBranchesInput[]
+    connectOrCreate?: DepartmentCreateOrConnectWithoutAdditionalBranchesInput | DepartmentCreateOrConnectWithoutAdditionalBranchesInput[]
+    upsert?: DepartmentUpsertWithWhereUniqueWithoutAdditionalBranchesInput | DepartmentUpsertWithWhereUniqueWithoutAdditionalBranchesInput[]
+    set?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    disconnect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    delete?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    connect?: DepartmentWhereUniqueInput | DepartmentWhereUniqueInput[]
+    update?: DepartmentUpdateWithWhereUniqueWithoutAdditionalBranchesInput | DepartmentUpdateWithWhereUniqueWithoutAdditionalBranchesInput[]
+    updateMany?: DepartmentUpdateManyWithWhereWithoutAdditionalBranchesInput | DepartmentUpdateManyWithWhereWithoutAdditionalBranchesInput[]
+    deleteMany?: DepartmentScalarWhereInput | DepartmentScalarWhereInput[]
   }
 
   export type StudyCenterCreateassignedUniversitiesInput = {
@@ -91126,6 +91810,12 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput | UserWhereUniqueInput[]
   }
 
+  export type BranchCreateNestedOneWithoutDesignationsInput = {
+    create?: XOR<BranchCreateWithoutDesignationsInput, BranchUncheckedCreateWithoutDesignationsInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutDesignationsInput
+    connect?: BranchWhereUniqueInput
+  }
+
   export type DesignationUncheckedCreateNestedManyWithoutParentDesignationInput = {
     create?: XOR<DesignationCreateWithoutParentDesignationInput, DesignationUncheckedCreateWithoutParentDesignationInput> | DesignationCreateWithoutParentDesignationInput[] | DesignationUncheckedCreateWithoutParentDesignationInput[]
     connectOrCreate?: DesignationCreateOrConnectWithoutParentDesignationInput | DesignationCreateOrConnectWithoutParentDesignationInput[]
@@ -91204,6 +91894,16 @@ export namespace Prisma {
     update?: UserUpdateWithWhereUniqueWithoutAssignedDesignationInput | UserUpdateWithWhereUniqueWithoutAssignedDesignationInput[]
     updateMany?: UserUpdateManyWithWhereWithoutAssignedDesignationInput | UserUpdateManyWithWhereWithoutAssignedDesignationInput[]
     deleteMany?: UserScalarWhereInput | UserScalarWhereInput[]
+  }
+
+  export type BranchUpdateOneWithoutDesignationsNestedInput = {
+    create?: XOR<BranchCreateWithoutDesignationsInput, BranchUncheckedCreateWithoutDesignationsInput>
+    connectOrCreate?: BranchCreateOrConnectWithoutDesignationsInput
+    upsert?: BranchUpsertWithoutDesignationsInput
+    disconnect?: BranchWhereInput | boolean
+    delete?: BranchWhereInput | boolean
+    connect?: BranchWhereUniqueInput
+    update?: XOR<XOR<BranchUpdateToOneWithWhereWithoutDesignationsInput, BranchUpdateWithoutDesignationsInput>, BranchUncheckedUpdateWithoutDesignationsInput>
   }
 
   export type DesignationUncheckedUpdateManyWithoutParentDesignationNestedInput = {
@@ -92045,6 +92745,11 @@ export namespace Prisma {
     updatedAt?: Date | string
     invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
     users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchUncheckedCreateWithoutOrganizationInput = {
@@ -92057,8 +92762,13 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
     invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
     users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchCreateOrConnectWithoutOrganizationInput = {
@@ -92165,6 +92875,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutOrganizationInput = {
@@ -92189,6 +92902,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutOrganizationInput = {
@@ -92203,7 +92919,6 @@ export namespace Prisma {
 
   export type DesignationCreateWithoutOrganizationInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -92215,6 +92930,7 @@ export namespace Prisma {
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutOrganizationInput = {
@@ -93289,6 +94005,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -93361,6 +94078,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -94018,6 +94736,9 @@ export namespace Prisma {
     status?: StringFilter<"Branch"> | string
     createdAt?: DateTimeFilter<"Branch"> | Date | string
     updatedAt?: DateTimeFilter<"Branch"> | Date | string
+    branchManagerId?: StringNullableFilter<"Branch"> | string | null
+    salesDeptId?: StringNullableFilter<"Branch"> | string | null
+    operationsDeptId?: StringNullableFilter<"Branch"> | string | null
   }
 
   export type CeoPanelUpsertWithWhereUniqueWithoutOrganizationInput = {
@@ -95478,6 +96199,49 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Task"> | Date | string
   }
 
+  export type BranchCreateWithoutBranchManagerInput = {
+    id?: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutBranchesInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchUncheckedCreateWithoutBranchManagerInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchCreateOrConnectWithoutBranchManagerInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+  }
+
   export type AdmissionSessionCreateWithoutApproverInput = {
     id?: string
     name: string
@@ -95741,6 +96505,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutManagerInput = {
@@ -95765,6 +96532,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutManagerInput = {
@@ -96986,6 +97756,11 @@ export namespace Prisma {
     updatedAt?: Date | string
     organization: OrganizationCreateNestedOneWithoutBranchesInput
     invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchUncheckedCreateWithoutUsersInput = {
@@ -96999,7 +97774,12 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
     invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchCreateOrConnectWithoutUsersInput = {
@@ -97029,6 +97809,9 @@ export namespace Prisma {
     targets?: TargetCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutUsersInput = {
@@ -97053,6 +97836,9 @@ export namespace Prisma {
     targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutUsersInput = {
@@ -97062,7 +97848,6 @@ export namespace Prisma {
 
   export type DesignationCreateWithoutUsersInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -97074,6 +97859,7 @@ export namespace Prisma {
     parentDesignation?: DesignationCreateNestedOneWithoutChildDesignationsInput
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutUsersInput = {
@@ -97647,6 +98433,55 @@ export namespace Prisma {
   export type PollCreateManyCreatorInputEnvelope = {
     data: PollCreateManyCreatorInput | PollCreateManyCreatorInput[]
     skipDuplicates?: boolean
+  }
+
+  export type BranchUpsertWithoutBranchManagerInput = {
+    update: XOR<BranchUpdateWithoutBranchManagerInput, BranchUncheckedUpdateWithoutBranchManagerInput>
+    create: XOR<BranchCreateWithoutBranchManagerInput, BranchUncheckedCreateWithoutBranchManagerInput>
+    where?: BranchWhereInput
+  }
+
+  export type BranchUpdateToOneWithWhereWithoutBranchManagerInput = {
+    where?: BranchWhereInput
+    data: XOR<BranchUpdateWithoutBranchManagerInput, BranchUncheckedUpdateWithoutBranchManagerInput>
+  }
+
+  export type BranchUpdateWithoutBranchManagerInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutBranchManagerInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type AdmissionSessionUpsertWithWhereUniqueWithoutApproverInput = {
@@ -98355,6 +99190,11 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
     invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutUsersInput = {
@@ -98368,7 +99208,12 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
     invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type DepartmentUpsertWithoutUsersInput = {
@@ -98404,6 +99249,9 @@ export namespace Prisma {
     targets?: TargetUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutUsersInput = {
@@ -98428,6 +99276,9 @@ export namespace Prisma {
     targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DesignationUpsertWithoutUsersInput = {
@@ -98443,7 +99294,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutUsersInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -98455,6 +99305,7 @@ export namespace Prisma {
     parentDesignation?: DesignationUpdateOneWithoutChildDesignationsNestedInput
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutUsersInput = {
@@ -99017,6 +99868,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -99090,6 +99942,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -99288,6 +100141,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutSubDepartmentsInput = {
@@ -99312,6 +100168,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutSubDepartmentsInput = {
@@ -99341,6 +100200,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutParentDepartmentInput = {
@@ -99365,6 +100227,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutParentDepartmentInput = {
@@ -99379,7 +100244,6 @@ export namespace Prisma {
 
   export type DesignationCreateWithoutDepartmentInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -99391,6 +100255,7 @@ export namespace Prisma {
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutDepartmentInput = {
@@ -99518,6 +100383,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -99590,6 +100456,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -99729,6 +100596,145 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type BranchCreateWithoutSalesDeptInput = {
+    id?: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutBranchesInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchUncheckedCreateWithoutSalesDeptInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    operationsDeptId?: string | null
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchCreateOrConnectWithoutSalesDeptInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput>
+  }
+
+  export type BranchCreateManySalesDeptInputEnvelope = {
+    data: BranchCreateManySalesDeptInput | BranchCreateManySalesDeptInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type BranchCreateWithoutOperationsDeptInput = {
+    id?: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutBranchesInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchUncheckedCreateWithoutOperationsDeptInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchCreateOrConnectWithoutOperationsDeptInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput>
+  }
+
+  export type BranchCreateManyOperationsDeptInputEnvelope = {
+    data: BranchCreateManyOperationsDeptInput | BranchCreateManyOperationsDeptInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type BranchCreateWithoutAdditionalDeptsInput = {
+    id?: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutBranchesInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+  }
+
+  export type BranchUncheckedCreateWithoutAdditionalDeptsInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+  }
+
+  export type BranchCreateOrConnectWithoutAdditionalDeptsInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput>
+  }
+
   export type AdmissionSessionUpsertWithWhereUniqueWithoutSubDepartmentInput = {
     where: AdmissionSessionWhereUniqueInput
     update: XOR<AdmissionSessionUpdateWithoutSubDepartmentInput, AdmissionSessionUncheckedUpdateWithoutSubDepartmentInput>
@@ -99789,6 +100795,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -99862,6 +100869,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -100072,6 +101080,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutSubDepartmentsInput = {
@@ -100096,6 +101107,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUpsertWithWhereUniqueWithoutParentDepartmentInput = {
@@ -100210,9 +101224,56 @@ export namespace Prisma {
     data: XOR<TaskUpdateManyMutationInput, TaskUncheckedUpdateManyWithoutDepartmentInput>
   }
 
+  export type BranchUpsertWithWhereUniqueWithoutSalesDeptInput = {
+    where: BranchWhereUniqueInput
+    update: XOR<BranchUpdateWithoutSalesDeptInput, BranchUncheckedUpdateWithoutSalesDeptInput>
+    create: XOR<BranchCreateWithoutSalesDeptInput, BranchUncheckedCreateWithoutSalesDeptInput>
+  }
+
+  export type BranchUpdateWithWhereUniqueWithoutSalesDeptInput = {
+    where: BranchWhereUniqueInput
+    data: XOR<BranchUpdateWithoutSalesDeptInput, BranchUncheckedUpdateWithoutSalesDeptInput>
+  }
+
+  export type BranchUpdateManyWithWhereWithoutSalesDeptInput = {
+    where: BranchScalarWhereInput
+    data: XOR<BranchUpdateManyMutationInput, BranchUncheckedUpdateManyWithoutSalesDeptInput>
+  }
+
+  export type BranchUpsertWithWhereUniqueWithoutOperationsDeptInput = {
+    where: BranchWhereUniqueInput
+    update: XOR<BranchUpdateWithoutOperationsDeptInput, BranchUncheckedUpdateWithoutOperationsDeptInput>
+    create: XOR<BranchCreateWithoutOperationsDeptInput, BranchUncheckedCreateWithoutOperationsDeptInput>
+  }
+
+  export type BranchUpdateWithWhereUniqueWithoutOperationsDeptInput = {
+    where: BranchWhereUniqueInput
+    data: XOR<BranchUpdateWithoutOperationsDeptInput, BranchUncheckedUpdateWithoutOperationsDeptInput>
+  }
+
+  export type BranchUpdateManyWithWhereWithoutOperationsDeptInput = {
+    where: BranchScalarWhereInput
+    data: XOR<BranchUpdateManyMutationInput, BranchUncheckedUpdateManyWithoutOperationsDeptInput>
+  }
+
+  export type BranchUpsertWithWhereUniqueWithoutAdditionalDeptsInput = {
+    where: BranchWhereUniqueInput
+    update: XOR<BranchUpdateWithoutAdditionalDeptsInput, BranchUncheckedUpdateWithoutAdditionalDeptsInput>
+    create: XOR<BranchCreateWithoutAdditionalDeptsInput, BranchUncheckedCreateWithoutAdditionalDeptsInput>
+  }
+
+  export type BranchUpdateWithWhereUniqueWithoutAdditionalDeptsInput = {
+    where: BranchWhereUniqueInput
+    data: XOR<BranchUpdateWithoutAdditionalDeptsInput, BranchUncheckedUpdateWithoutAdditionalDeptsInput>
+  }
+
+  export type BranchUpdateManyWithWhereWithoutAdditionalDeptsInput = {
+    where: BranchScalarWhereInput
+    data: XOR<BranchUpdateManyMutationInput, BranchUncheckedUpdateManyWithoutAdditionalDeptsInput>
+  }
+
   export type DesignationCreateWithoutSubDepartmentInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -100224,6 +101285,7 @@ export namespace Prisma {
     parentDesignation?: DesignationCreateNestedOneWithoutChildDesignationsInput
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutSubDepartmentInput = {
@@ -100269,6 +101331,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -100342,6 +101405,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -100408,6 +101472,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -100481,6 +101546,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -100679,6 +101745,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutSubDeptRelationsInput = {
@@ -100703,6 +101772,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutSubDeptRelationsInput = {
@@ -100727,6 +101799,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -100799,6 +101872,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -101057,6 +102131,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -101130,6 +102205,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -101202,6 +102278,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -101275,6 +102352,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -101485,6 +102563,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutSubDeptRelationsInput = {
@@ -101509,6 +102590,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type UserUpsertWithWhereUniqueWithoutSubDepartmentInput = {
@@ -101757,6 +102841,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -101829,6 +102914,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -101882,6 +102968,366 @@ export namespace Prisma {
   export type UserCreateManyBranchInputEnvelope = {
     data: UserCreateManyBranchInput | UserCreateManyBranchInput[]
     skipDuplicates?: boolean
+  }
+
+  export type DesignationCreateWithoutBranchInput = {
+    id?: string
+    title: string
+    level?: number
+    maxHeadcount?: number
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    department?: DepartmentCreateNestedOneWithoutDesignationsInput
+    organization: OrganizationCreateNestedOneWithoutDesignationsInput
+    parentDesignation?: DesignationCreateNestedOneWithoutChildDesignationsInput
+    childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
+    subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
+    users?: UserCreateNestedManyWithoutAssignedDesignationInput
+  }
+
+  export type DesignationUncheckedCreateWithoutBranchInput = {
+    id?: string
+    organizationId: string
+    departmentId?: string | null
+    subDepartmentId?: string | null
+    title: string
+    level?: number
+    parentDesignationId?: string | null
+    maxHeadcount?: number
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    childDesignations?: DesignationUncheckedCreateNestedManyWithoutParentDesignationInput
+    users?: UserUncheckedCreateNestedManyWithoutAssignedDesignationInput
+  }
+
+  export type DesignationCreateOrConnectWithoutBranchInput = {
+    where: DesignationWhereUniqueInput
+    create: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput>
+  }
+
+  export type DesignationCreateManyBranchInputEnvelope = {
+    data: DesignationCreateManyBranchInput | DesignationCreateManyBranchInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserCreateWithoutManagedBranchInput = {
+    id?: string
+    userId: string
+    additionalDepartmentIds?: UserCreateadditionalDepartmentIdsInput | string[]
+    ceoPanelId?: string | null
+    email: string
+    password: string
+    name: string
+    role: string
+    avatar?: string | null
+    phone?: string | null
+    designation?: string | null
+    reportingTo?: string | null
+    status?: string
+    lastLogin?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
+    postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
+    attendances?: AttendanceCreateNestedManyWithoutUserInput
+    auditLogs?: AuditLogCreateNestedManyWithoutUserInput
+    ceoPanel?: CeoPanelCreateNestedOneWithoutAssignedUserInput
+    createdCeoPanels?: CeoPanelCreateNestedManyWithoutCreatorInput
+    complaints?: ComplaintCreateNestedManyWithoutEmployeeInput
+    managedDepartments?: DepartmentCreateNestedManyWithoutManagerInput
+    editRequests?: EditDeleteRequestCreateNestedManyWithoutRequesterInput
+    responseRequests?: EditDeleteRequestCreateNestedManyWithoutRespondedByInput
+    raisedEscalations?: EscalationCreateNestedManyWithoutRaisedByInput
+    resolvedEscalations?: EscalationCreateNestedManyWithoutResolverInput
+    approvedExpenses?: ExpenseClaimCreateNestedManyWithoutApproverInput
+    claimedExpenses?: ExpenseClaimCreateNestedManyWithoutEmployeeInput
+    gstSettings?: GSTSettingCreateNestedManyWithoutCreatorInput
+    enteredMarks?: InternalMarkCreateNestedManyWithoutAuthorInput
+    referredLeads?: LeadCreateNestedManyWithoutReferredByInput
+    leaveAllocations?: LeaveAllocationCreateNestedManyWithoutUserInput
+    leaveRequests?: LeaveRequestCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutRecipientInput
+    receivedPayments?: PaymentEntryCreateNestedManyWithoutAuthorInput
+    payrollRecords?: PayrollCreateNestedManyWithoutUserInput
+    approvedBatches?: PayrollBatchCreateNestedManyWithoutApproverInput
+    transferredBatches?: PayrollBatchCreateNestedManyWithoutAuthorInput
+    authoredAllocations?: ProgramAllocationCreateNestedManyWithoutAuthorInput
+    createdFees?: ProgramFeeStructureCreateNestedManyWithoutCreatorInput
+    referralLinks?: ReferralLinkCreateNestedManyWithoutUserInput
+    salaryConfig?: SalaryConfigCreateNestedOneWithoutUserInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutReferrerInput
+    createdSubDepts?: SubDepartmentCreateNestedManyWithoutCreatorInput
+    managedSubDepts?: SubDepartmentCreateNestedManyWithoutManagerInput
+    targets?: TargetCreateNestedManyWithoutEmployeeInput
+    assignedTasks?: TaskCreateNestedManyWithoutAssigneeInput
+    createdTasks?: TaskCreateNestedManyWithoutCreatorInput
+    escalatedTasks?: TaskCreateNestedManyWithoutEscalatedToInput
+    configuredFees?: UniversityAuthFeeCreateNestedManyWithoutAuthorInput
+    branch?: BranchCreateNestedOneWithoutUsersInput
+    department?: DepartmentCreateNestedOneWithoutUsersInput
+    assignedDesignation?: DesignationCreateNestedOneWithoutUsersInput
+    organization: OrganizationCreateNestedOneWithoutUsersInput
+    studyCenter?: StudyCenterCreateNestedOneWithoutUsersInput
+    subDepartment?: SubDepartmentCreateNestedOneWithoutUsersInput
+    employeeProfile?: EmployeeProfileCreateNestedOneWithoutUserInput
+    verifiedTopUps?: WalletTopUpCreateNestedManyWithoutVerifierInput
+    CredentialRequest?: CredentialRequestCreateNestedManyWithoutRequesterInput
+    ReregRule?: ReregRuleCreateNestedManyWithoutCreatorInput
+    SessionRequest?: SessionRequestCreateNestedManyWithoutRequesterInput
+    ProgramMaterial?: ProgramMaterialCreateNestedManyWithoutUploaderInput
+    Poll?: PollCreateNestedManyWithoutCreatorInput
+  }
+
+  export type UserUncheckedCreateWithoutManagedBranchInput = {
+    id?: string
+    userId: string
+    organizationId: string
+    departmentId?: string | null
+    additionalDepartmentIds?: UserCreateadditionalDepartmentIdsInput | string[]
+    branchId?: string | null
+    subDepartmentId?: string | null
+    ceoPanelId?: string | null
+    studyCenterId?: string | null
+    email: string
+    password: string
+    name: string
+    role: string
+    avatar?: string | null
+    phone?: string | null
+    designation?: string | null
+    reportingTo?: string | null
+    status?: string
+    lastLogin?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    designationId?: string | null
+    approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
+    postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
+    attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
+    auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
+    ceoPanel?: CeoPanelUncheckedCreateNestedOneWithoutAssignedUserInput
+    createdCeoPanels?: CeoPanelUncheckedCreateNestedManyWithoutCreatorInput
+    complaints?: ComplaintUncheckedCreateNestedManyWithoutEmployeeInput
+    managedDepartments?: DepartmentUncheckedCreateNestedManyWithoutManagerInput
+    editRequests?: EditDeleteRequestUncheckedCreateNestedManyWithoutRequesterInput
+    responseRequests?: EditDeleteRequestUncheckedCreateNestedManyWithoutRespondedByInput
+    raisedEscalations?: EscalationUncheckedCreateNestedManyWithoutRaisedByInput
+    resolvedEscalations?: EscalationUncheckedCreateNestedManyWithoutResolverInput
+    approvedExpenses?: ExpenseClaimUncheckedCreateNestedManyWithoutApproverInput
+    claimedExpenses?: ExpenseClaimUncheckedCreateNestedManyWithoutEmployeeInput
+    gstSettings?: GSTSettingUncheckedCreateNestedManyWithoutCreatorInput
+    enteredMarks?: InternalMarkUncheckedCreateNestedManyWithoutAuthorInput
+    referredLeads?: LeadUncheckedCreateNestedManyWithoutReferredByInput
+    leaveAllocations?: LeaveAllocationUncheckedCreateNestedManyWithoutUserInput
+    leaveRequests?: LeaveRequestUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutRecipientInput
+    receivedPayments?: PaymentEntryUncheckedCreateNestedManyWithoutAuthorInput
+    payrollRecords?: PayrollUncheckedCreateNestedManyWithoutUserInput
+    approvedBatches?: PayrollBatchUncheckedCreateNestedManyWithoutApproverInput
+    transferredBatches?: PayrollBatchUncheckedCreateNestedManyWithoutAuthorInput
+    authoredAllocations?: ProgramAllocationUncheckedCreateNestedManyWithoutAuthorInput
+    createdFees?: ProgramFeeStructureUncheckedCreateNestedManyWithoutCreatorInput
+    referralLinks?: ReferralLinkUncheckedCreateNestedManyWithoutUserInput
+    salaryConfig?: SalaryConfigUncheckedCreateNestedOneWithoutUserInput
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutReferrerInput
+    createdSubDepts?: SubDepartmentUncheckedCreateNestedManyWithoutCreatorInput
+    managedSubDepts?: SubDepartmentUncheckedCreateNestedManyWithoutManagerInput
+    targets?: TargetUncheckedCreateNestedManyWithoutEmployeeInput
+    assignedTasks?: TaskUncheckedCreateNestedManyWithoutAssigneeInput
+    createdTasks?: TaskUncheckedCreateNestedManyWithoutCreatorInput
+    escalatedTasks?: TaskUncheckedCreateNestedManyWithoutEscalatedToInput
+    configuredFees?: UniversityAuthFeeUncheckedCreateNestedManyWithoutAuthorInput
+    employeeProfile?: EmployeeProfileUncheckedCreateNestedOneWithoutUserInput
+    verifiedTopUps?: WalletTopUpUncheckedCreateNestedManyWithoutVerifierInput
+    CredentialRequest?: CredentialRequestUncheckedCreateNestedManyWithoutRequesterInput
+    ReregRule?: ReregRuleUncheckedCreateNestedManyWithoutCreatorInput
+    SessionRequest?: SessionRequestUncheckedCreateNestedManyWithoutRequesterInput
+    ProgramMaterial?: ProgramMaterialUncheckedCreateNestedManyWithoutUploaderInput
+    Poll?: PollUncheckedCreateNestedManyWithoutCreatorInput
+  }
+
+  export type UserCreateOrConnectWithoutManagedBranchInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutManagedBranchInput, UserUncheckedCreateWithoutManagedBranchInput>
+  }
+
+  export type DepartmentCreateWithoutSalesBranchInput = {
+    id?: string
+    name: string
+    type: string
+    subType?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementCreateNestedManyWithoutDepartmentInput
+    manager?: UserCreateNestedOneWithoutManagedDepartmentsInput
+    organization: OrganizationCreateNestedOneWithoutDepartmentsInput
+    parentDepartment?: DepartmentCreateNestedOneWithoutSubDepartmentsInput
+    subDepartments?: DepartmentCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentCreateNestedManyWithoutParentDeptInput
+    targets?: TargetCreateNestedManyWithoutDepartmentInput
+    users?: UserCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
+    Task?: TaskCreateNestedManyWithoutDepartmentInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
+  }
+
+  export type DepartmentUncheckedCreateWithoutSalesBranchInput = {
+    id?: string
+    organizationId: string
+    name: string
+    type: string
+    subType?: string | null
+    parentDepartmentId?: string | null
+    managerId?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementUncheckedCreateNestedManyWithoutDepartmentInput
+    subDepartments?: DepartmentUncheckedCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentUncheckedCreateNestedManyWithoutParentDeptInput
+    targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
+    users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
+    Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
+  }
+
+  export type DepartmentCreateOrConnectWithoutSalesBranchInput = {
+    where: DepartmentWhereUniqueInput
+    create: XOR<DepartmentCreateWithoutSalesBranchInput, DepartmentUncheckedCreateWithoutSalesBranchInput>
+  }
+
+  export type DepartmentCreateWithoutOpsBranchInput = {
+    id?: string
+    name: string
+    type: string
+    subType?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementCreateNestedManyWithoutDepartmentInput
+    manager?: UserCreateNestedOneWithoutManagedDepartmentsInput
+    organization: OrganizationCreateNestedOneWithoutDepartmentsInput
+    parentDepartment?: DepartmentCreateNestedOneWithoutSubDepartmentsInput
+    subDepartments?: DepartmentCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentCreateNestedManyWithoutParentDeptInput
+    targets?: TargetCreateNestedManyWithoutDepartmentInput
+    users?: UserCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
+    Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
+  }
+
+  export type DepartmentUncheckedCreateWithoutOpsBranchInput = {
+    id?: string
+    organizationId: string
+    name: string
+    type: string
+    subType?: string | null
+    parentDepartmentId?: string | null
+    managerId?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementUncheckedCreateNestedManyWithoutDepartmentInput
+    subDepartments?: DepartmentUncheckedCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentUncheckedCreateNestedManyWithoutParentDeptInput
+    targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
+    users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
+    Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
+  }
+
+  export type DepartmentCreateOrConnectWithoutOpsBranchInput = {
+    where: DepartmentWhereUniqueInput
+    create: XOR<DepartmentCreateWithoutOpsBranchInput, DepartmentUncheckedCreateWithoutOpsBranchInput>
+  }
+
+  export type DepartmentCreateWithoutAdditionalBranchesInput = {
+    id?: string
+    name: string
+    type: string
+    subType?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementCreateNestedManyWithoutDepartmentInput
+    manager?: UserCreateNestedOneWithoutManagedDepartmentsInput
+    organization: OrganizationCreateNestedOneWithoutDepartmentsInput
+    parentDepartment?: DepartmentCreateNestedOneWithoutSubDepartmentsInput
+    subDepartments?: DepartmentCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentCreateNestedManyWithoutParentDeptInput
+    targets?: TargetCreateNestedManyWithoutDepartmentInput
+    users?: UserCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
+    Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+  }
+
+  export type DepartmentUncheckedCreateWithoutAdditionalBranchesInput = {
+    id?: string
+    organizationId: string
+    name: string
+    type: string
+    subType?: string | null
+    parentDepartmentId?: string | null
+    managerId?: string | null
+    assistantManagerIds?: DepartmentCreateassistantManagerIdsInput | string[]
+    features?: DepartmentCreatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    admissionSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutSubDepartmentInput
+    announcements?: AnnouncementUncheckedCreateNestedManyWithoutDepartmentInput
+    subDepartments?: DepartmentUncheckedCreateNestedManyWithoutParentDepartmentInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutDepartmentInput
+    subDeptRelations?: SubDepartmentUncheckedCreateNestedManyWithoutParentDeptInput
+    targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
+    users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
+    vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
+    Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+  }
+
+  export type DepartmentCreateOrConnectWithoutAdditionalBranchesInput = {
+    where: DepartmentWhereUniqueInput
+    create: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput>
   }
 
   export type OrganizationUpsertWithoutBranchesInput = {
@@ -102047,6 +103493,315 @@ export namespace Prisma {
   export type UserUpdateManyWithWhereWithoutBranchInput = {
     where: UserScalarWhereInput
     data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyWithoutBranchInput>
+  }
+
+  export type DesignationUpsertWithWhereUniqueWithoutBranchInput = {
+    where: DesignationWhereUniqueInput
+    update: XOR<DesignationUpdateWithoutBranchInput, DesignationUncheckedUpdateWithoutBranchInput>
+    create: XOR<DesignationCreateWithoutBranchInput, DesignationUncheckedCreateWithoutBranchInput>
+  }
+
+  export type DesignationUpdateWithWhereUniqueWithoutBranchInput = {
+    where: DesignationWhereUniqueInput
+    data: XOR<DesignationUpdateWithoutBranchInput, DesignationUncheckedUpdateWithoutBranchInput>
+  }
+
+  export type DesignationUpdateManyWithWhereWithoutBranchInput = {
+    where: DesignationScalarWhereInput
+    data: XOR<DesignationUpdateManyMutationInput, DesignationUncheckedUpdateManyWithoutBranchInput>
+  }
+
+  export type UserUpsertWithoutManagedBranchInput = {
+    update: XOR<UserUpdateWithoutManagedBranchInput, UserUncheckedUpdateWithoutManagedBranchInput>
+    create: XOR<UserCreateWithoutManagedBranchInput, UserUncheckedCreateWithoutManagedBranchInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutManagedBranchInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutManagedBranchInput, UserUncheckedUpdateWithoutManagedBranchInput>
+  }
+
+  export type UserUpdateWithoutManagedBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    additionalDepartmentIds?: UserUpdateadditionalDepartmentIdsInput | string[]
+    ceoPanelId?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    designation?: NullableStringFieldUpdateOperationsInput | string | null
+    reportingTo?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
+    postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
+    attendances?: AttendanceUpdateManyWithoutUserNestedInput
+    auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
+    ceoPanel?: CeoPanelUpdateOneWithoutAssignedUserNestedInput
+    createdCeoPanels?: CeoPanelUpdateManyWithoutCreatorNestedInput
+    complaints?: ComplaintUpdateManyWithoutEmployeeNestedInput
+    managedDepartments?: DepartmentUpdateManyWithoutManagerNestedInput
+    editRequests?: EditDeleteRequestUpdateManyWithoutRequesterNestedInput
+    responseRequests?: EditDeleteRequestUpdateManyWithoutRespondedByNestedInput
+    raisedEscalations?: EscalationUpdateManyWithoutRaisedByNestedInput
+    resolvedEscalations?: EscalationUpdateManyWithoutResolverNestedInput
+    approvedExpenses?: ExpenseClaimUpdateManyWithoutApproverNestedInput
+    claimedExpenses?: ExpenseClaimUpdateManyWithoutEmployeeNestedInput
+    gstSettings?: GSTSettingUpdateManyWithoutCreatorNestedInput
+    enteredMarks?: InternalMarkUpdateManyWithoutAuthorNestedInput
+    referredLeads?: LeadUpdateManyWithoutReferredByNestedInput
+    leaveAllocations?: LeaveAllocationUpdateManyWithoutUserNestedInput
+    leaveRequests?: LeaveRequestUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutRecipientNestedInput
+    receivedPayments?: PaymentEntryUpdateManyWithoutAuthorNestedInput
+    payrollRecords?: PayrollUpdateManyWithoutUserNestedInput
+    approvedBatches?: PayrollBatchUpdateManyWithoutApproverNestedInput
+    transferredBatches?: PayrollBatchUpdateManyWithoutAuthorNestedInput
+    authoredAllocations?: ProgramAllocationUpdateManyWithoutAuthorNestedInput
+    createdFees?: ProgramFeeStructureUpdateManyWithoutCreatorNestedInput
+    referralLinks?: ReferralLinkUpdateManyWithoutUserNestedInput
+    salaryConfig?: SalaryConfigUpdateOneWithoutUserNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutReferrerNestedInput
+    createdSubDepts?: SubDepartmentUpdateManyWithoutCreatorNestedInput
+    managedSubDepts?: SubDepartmentUpdateManyWithoutManagerNestedInput
+    targets?: TargetUpdateManyWithoutEmployeeNestedInput
+    assignedTasks?: TaskUpdateManyWithoutAssigneeNestedInput
+    createdTasks?: TaskUpdateManyWithoutCreatorNestedInput
+    escalatedTasks?: TaskUpdateManyWithoutEscalatedToNestedInput
+    configuredFees?: UniversityAuthFeeUpdateManyWithoutAuthorNestedInput
+    branch?: BranchUpdateOneWithoutUsersNestedInput
+    department?: DepartmentUpdateOneWithoutUsersNestedInput
+    assignedDesignation?: DesignationUpdateOneWithoutUsersNestedInput
+    organization?: OrganizationUpdateOneRequiredWithoutUsersNestedInput
+    studyCenter?: StudyCenterUpdateOneWithoutUsersNestedInput
+    subDepartment?: SubDepartmentUpdateOneWithoutUsersNestedInput
+    employeeProfile?: EmployeeProfileUpdateOneWithoutUserNestedInput
+    verifiedTopUps?: WalletTopUpUpdateManyWithoutVerifierNestedInput
+    CredentialRequest?: CredentialRequestUpdateManyWithoutRequesterNestedInput
+    ReregRule?: ReregRuleUpdateManyWithoutCreatorNestedInput
+    SessionRequest?: SessionRequestUpdateManyWithoutRequesterNestedInput
+    ProgramMaterial?: ProgramMaterialUpdateManyWithoutUploaderNestedInput
+    Poll?: PollUpdateManyWithoutCreatorNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutManagedBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    departmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    additionalDepartmentIds?: UserUpdateadditionalDepartmentIdsInput | string[]
+    branchId?: NullableStringFieldUpdateOperationsInput | string | null
+    subDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    ceoPanelId?: NullableStringFieldUpdateOperationsInput | string | null
+    studyCenterId?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    avatar?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    designation?: NullableStringFieldUpdateOperationsInput | string | null
+    reportingTo?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
+    postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
+    attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
+    auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
+    ceoPanel?: CeoPanelUncheckedUpdateOneWithoutAssignedUserNestedInput
+    createdCeoPanels?: CeoPanelUncheckedUpdateManyWithoutCreatorNestedInput
+    complaints?: ComplaintUncheckedUpdateManyWithoutEmployeeNestedInput
+    managedDepartments?: DepartmentUncheckedUpdateManyWithoutManagerNestedInput
+    editRequests?: EditDeleteRequestUncheckedUpdateManyWithoutRequesterNestedInput
+    responseRequests?: EditDeleteRequestUncheckedUpdateManyWithoutRespondedByNestedInput
+    raisedEscalations?: EscalationUncheckedUpdateManyWithoutRaisedByNestedInput
+    resolvedEscalations?: EscalationUncheckedUpdateManyWithoutResolverNestedInput
+    approvedExpenses?: ExpenseClaimUncheckedUpdateManyWithoutApproverNestedInput
+    claimedExpenses?: ExpenseClaimUncheckedUpdateManyWithoutEmployeeNestedInput
+    gstSettings?: GSTSettingUncheckedUpdateManyWithoutCreatorNestedInput
+    enteredMarks?: InternalMarkUncheckedUpdateManyWithoutAuthorNestedInput
+    referredLeads?: LeadUncheckedUpdateManyWithoutReferredByNestedInput
+    leaveAllocations?: LeaveAllocationUncheckedUpdateManyWithoutUserNestedInput
+    leaveRequests?: LeaveRequestUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutRecipientNestedInput
+    receivedPayments?: PaymentEntryUncheckedUpdateManyWithoutAuthorNestedInput
+    payrollRecords?: PayrollUncheckedUpdateManyWithoutUserNestedInput
+    approvedBatches?: PayrollBatchUncheckedUpdateManyWithoutApproverNestedInput
+    transferredBatches?: PayrollBatchUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredAllocations?: ProgramAllocationUncheckedUpdateManyWithoutAuthorNestedInput
+    createdFees?: ProgramFeeStructureUncheckedUpdateManyWithoutCreatorNestedInput
+    referralLinks?: ReferralLinkUncheckedUpdateManyWithoutUserNestedInput
+    salaryConfig?: SalaryConfigUncheckedUpdateOneWithoutUserNestedInput
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutReferrerNestedInput
+    createdSubDepts?: SubDepartmentUncheckedUpdateManyWithoutCreatorNestedInput
+    managedSubDepts?: SubDepartmentUncheckedUpdateManyWithoutManagerNestedInput
+    targets?: TargetUncheckedUpdateManyWithoutEmployeeNestedInput
+    assignedTasks?: TaskUncheckedUpdateManyWithoutAssigneeNestedInput
+    createdTasks?: TaskUncheckedUpdateManyWithoutCreatorNestedInput
+    escalatedTasks?: TaskUncheckedUpdateManyWithoutEscalatedToNestedInput
+    configuredFees?: UniversityAuthFeeUncheckedUpdateManyWithoutAuthorNestedInput
+    employeeProfile?: EmployeeProfileUncheckedUpdateOneWithoutUserNestedInput
+    verifiedTopUps?: WalletTopUpUncheckedUpdateManyWithoutVerifierNestedInput
+    CredentialRequest?: CredentialRequestUncheckedUpdateManyWithoutRequesterNestedInput
+    ReregRule?: ReregRuleUncheckedUpdateManyWithoutCreatorNestedInput
+    SessionRequest?: SessionRequestUncheckedUpdateManyWithoutRequesterNestedInput
+    ProgramMaterial?: ProgramMaterialUncheckedUpdateManyWithoutUploaderNestedInput
+    Poll?: PollUncheckedUpdateManyWithoutCreatorNestedInput
+  }
+
+  export type DepartmentUpsertWithoutSalesBranchInput = {
+    update: XOR<DepartmentUpdateWithoutSalesBranchInput, DepartmentUncheckedUpdateWithoutSalesBranchInput>
+    create: XOR<DepartmentCreateWithoutSalesBranchInput, DepartmentUncheckedCreateWithoutSalesBranchInput>
+    where?: DepartmentWhereInput
+  }
+
+  export type DepartmentUpdateToOneWithWhereWithoutSalesBranchInput = {
+    where?: DepartmentWhereInput
+    data: XOR<DepartmentUpdateWithoutSalesBranchInput, DepartmentUncheckedUpdateWithoutSalesBranchInput>
+  }
+
+  export type DepartmentUpdateWithoutSalesBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUpdateManyWithoutDepartmentNestedInput
+    manager?: UserUpdateOneWithoutManagedDepartmentsNestedInput
+    organization?: OrganizationUpdateOneRequiredWithoutDepartmentsNestedInput
+    parentDepartment?: DepartmentUpdateOneWithoutSubDepartmentsNestedInput
+    subDepartments?: DepartmentUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUpdateManyWithoutDepartmentNestedInput
+    users?: UserUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
+  }
+
+  export type DepartmentUncheckedUpdateWithoutSalesBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    parentDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    managerId?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUncheckedUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDepartments?: DepartmentUncheckedUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUncheckedUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
+    users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
+  }
+
+  export type DepartmentUpsertWithoutOpsBranchInput = {
+    update: XOR<DepartmentUpdateWithoutOpsBranchInput, DepartmentUncheckedUpdateWithoutOpsBranchInput>
+    create: XOR<DepartmentCreateWithoutOpsBranchInput, DepartmentUncheckedCreateWithoutOpsBranchInput>
+    where?: DepartmentWhereInput
+  }
+
+  export type DepartmentUpdateToOneWithWhereWithoutOpsBranchInput = {
+    where?: DepartmentWhereInput
+    data: XOR<DepartmentUpdateWithoutOpsBranchInput, DepartmentUncheckedUpdateWithoutOpsBranchInput>
+  }
+
+  export type DepartmentUpdateWithoutOpsBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUpdateManyWithoutDepartmentNestedInput
+    manager?: UserUpdateOneWithoutManagedDepartmentsNestedInput
+    organization?: OrganizationUpdateOneRequiredWithoutDepartmentsNestedInput
+    parentDepartment?: DepartmentUpdateOneWithoutSubDepartmentsNestedInput
+    subDepartments?: DepartmentUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUpdateManyWithoutDepartmentNestedInput
+    users?: UserUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
+  }
+
+  export type DepartmentUncheckedUpdateWithoutOpsBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    parentDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    managerId?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUncheckedUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDepartments?: DepartmentUncheckedUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUncheckedUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
+    users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
+  }
+
+  export type DepartmentUpsertWithWhereUniqueWithoutAdditionalBranchesInput = {
+    where: DepartmentWhereUniqueInput
+    update: XOR<DepartmentUpdateWithoutAdditionalBranchesInput, DepartmentUncheckedUpdateWithoutAdditionalBranchesInput>
+    create: XOR<DepartmentCreateWithoutAdditionalBranchesInput, DepartmentUncheckedCreateWithoutAdditionalBranchesInput>
+  }
+
+  export type DepartmentUpdateWithWhereUniqueWithoutAdditionalBranchesInput = {
+    where: DepartmentWhereUniqueInput
+    data: XOR<DepartmentUpdateWithoutAdditionalBranchesInput, DepartmentUncheckedUpdateWithoutAdditionalBranchesInput>
+  }
+
+  export type DepartmentUpdateManyWithWhereWithoutAdditionalBranchesInput = {
+    where: DepartmentScalarWhereInput
+    data: XOR<DepartmentUpdateManyMutationInput, DepartmentUncheckedUpdateManyWithoutAdditionalBranchesInput>
   }
 
   export type EnrollmentCreateWithoutCenterInput = {
@@ -102440,6 +104195,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -102512,6 +104268,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -105122,6 +106879,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -105195,6 +106953,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -105405,6 +107164,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -105478,6 +107238,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -105539,6 +107300,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -105612,6 +107374,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -105678,6 +107441,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -105751,6 +107515,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -105817,6 +107582,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -105890,6 +107656,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -105961,6 +107728,9 @@ export namespace Prisma {
     targets?: TargetCreateNestedManyWithoutDepartmentInput
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutTaskInput = {
@@ -105985,6 +107755,9 @@ export namespace Prisma {
     targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutTaskInput = {
@@ -106147,6 +107920,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -106220,6 +107994,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -106292,6 +108067,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -106365,6 +108141,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -106437,6 +108214,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -106510,6 +108288,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -106587,6 +108366,9 @@ export namespace Prisma {
     targets?: TargetUpdateManyWithoutDepartmentNestedInput
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutTaskInput = {
@@ -106611,6 +108393,9 @@ export namespace Prisma {
     targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type OrganizationUpsertWithoutTaskInput = {
@@ -106763,6 +108548,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
@@ -106836,6 +108622,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -106913,6 +108700,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
@@ -106986,6 +108774,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -107047,6 +108836,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -107120,6 +108910,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -107197,6 +108988,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -107270,6 +109062,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -108142,6 +109935,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -108215,6 +110009,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -108292,6 +110087,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -108365,6 +110161,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -108709,6 +110506,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -108782,6 +110580,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -108992,6 +110791,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -109065,6 +110865,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -109126,6 +110927,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
@@ -109199,6 +111001,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -109397,6 +111200,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutAdmissionSessionsInput = {
@@ -109421,6 +111227,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutAdmissionSessionsInput = {
@@ -109456,6 +111265,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
@@ -109529,6 +111339,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -109739,6 +111550,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutAdmissionSessionsInput = {
@@ -109763,6 +111577,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type UserCreateWithoutEnteredMarksInput = {
@@ -109782,6 +111599,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -109855,6 +111673,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -110165,6 +111984,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -110238,6 +112058,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -110555,6 +112376,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutAnnouncementsInput = {
@@ -110579,6 +112403,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutAnnouncementsInput = {
@@ -110730,6 +112557,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogCreateNestedManyWithoutUserInput
@@ -110803,6 +112631,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
     auditLogs?: AuditLogUncheckedCreateNestedManyWithoutUserInput
@@ -110885,6 +112714,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutAnnouncementsInput = {
@@ -110909,6 +112741,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type OrganizationUpsertWithoutAnnouncementsInput = {
@@ -111072,6 +112907,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUpdateManyWithoutUserNestedInput
@@ -111145,6 +112981,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
     auditLogs?: AuditLogUncheckedUpdateManyWithoutUserNestedInput
@@ -111206,6 +113043,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -111279,6 +113117,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -111603,6 +113442,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -111676,6 +113516,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -112204,6 +114045,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -112277,6 +114119,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -112568,6 +114411,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -112641,6 +114485,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -112702,6 +114547,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -112775,6 +114621,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -113024,6 +114871,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -113097,6 +114945,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -114042,6 +115891,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -114115,6 +115965,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -114370,6 +116221,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -114443,6 +116295,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -114504,6 +116357,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -114577,6 +116431,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -114643,6 +116498,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -114716,6 +116572,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -114920,6 +116777,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -114993,6 +116851,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -115065,6 +116924,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -115138,6 +116998,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -115412,6 +117273,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutTargetsInput = {
@@ -115436,6 +117300,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutTargetsInput = {
@@ -115460,6 +117327,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -115533,6 +117401,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -115823,6 +117692,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutTargetsInput = {
@@ -115847,6 +117719,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type UserUpsertWithoutTargetsInput = {
@@ -115877,6 +117752,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -115950,6 +117826,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -116144,6 +118021,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -116217,6 +118095,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -116421,6 +118300,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -116494,6 +118374,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -116815,6 +118696,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -116888,6 +118770,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -117098,6 +118981,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -117171,6 +119055,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -117232,6 +119117,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -117305,6 +119191,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -117548,6 +119435,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -117621,6 +119509,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -117860,6 +119749,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -117933,6 +119823,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -118126,6 +120017,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -118199,6 +120091,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -118276,6 +120169,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -118349,6 +120243,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -118554,6 +120449,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -118627,6 +120523,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -118693,6 +120590,9 @@ export namespace Prisma {
     targets?: TargetCreateNestedManyWithoutDepartmentInput
     users?: UserCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutVacanciesInput = {
@@ -118717,6 +120617,9 @@ export namespace Prisma {
     targets?: TargetUncheckedCreateNestedManyWithoutDepartmentInput
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutVacanciesInput = {
@@ -118884,6 +120787,9 @@ export namespace Prisma {
     targets?: TargetUpdateManyWithoutDepartmentNestedInput
     users?: UserUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutVacanciesInput = {
@@ -118908,6 +120814,9 @@ export namespace Prisma {
     targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type OrganizationUpsertWithoutVacanciesInput = {
@@ -119060,6 +120969,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -119133,6 +121043,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -119337,6 +121248,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -119410,6 +121322,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -119991,6 +121904,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -120064,6 +121978,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -120274,6 +122189,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -120347,6 +122263,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -120408,6 +122325,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -120481,6 +122399,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -120547,6 +122466,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -120620,6 +122540,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -120824,6 +122745,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -120897,6 +122819,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -120969,6 +122892,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -121042,6 +122966,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -121241,6 +123166,9 @@ export namespace Prisma {
     users?: UserCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyCreateNestedManyWithoutDepartmentInput
     Task?: TaskCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentUncheckedCreateWithoutDesignationsInput = {
@@ -121265,6 +123193,9 @@ export namespace Prisma {
     users?: UserUncheckedCreateNestedManyWithoutDepartmentInput
     vacancies?: VacancyUncheckedCreateNestedManyWithoutDepartmentInput
     Task?: TaskUncheckedCreateNestedManyWithoutDepartmentInput
+    salesBranch?: BranchUncheckedCreateNestedManyWithoutSalesDeptInput
+    opsBranch?: BranchUncheckedCreateNestedManyWithoutOperationsDeptInput
+    additionalBranches?: BranchUncheckedCreateNestedManyWithoutAdditionalDeptsInput
   }
 
   export type DepartmentCreateOrConnectWithoutDesignationsInput = {
@@ -121401,7 +123332,6 @@ export namespace Prisma {
 
   export type DesignationCreateWithoutChildDesignationsInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -121413,6 +123343,7 @@ export namespace Prisma {
     parentDesignation?: DesignationCreateNestedOneWithoutChildDesignationsInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutChildDesignationsInput = {
@@ -121438,7 +123369,6 @@ export namespace Prisma {
 
   export type DesignationCreateWithoutParentDesignationInput = {
     id?: string
-    branchId?: string | null
     title: string
     level?: number
     maxHeadcount?: number
@@ -121450,6 +123380,7 @@ export namespace Prisma {
     childDesignations?: DesignationCreateNestedManyWithoutParentDesignationInput
     subDepartment?: SubDepartmentCreateNestedOneWithoutDesignationsInput
     users?: UserCreateNestedManyWithoutAssignedDesignationInput
+    branch?: BranchCreateNestedOneWithoutDesignationsInput
   }
 
   export type DesignationUncheckedCreateWithoutParentDesignationInput = {
@@ -121534,6 +123465,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -121606,6 +123538,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -121661,6 +123594,49 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type BranchCreateWithoutDesignationsInput = {
+    id?: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutBranchesInput
+    invites?: StudyCenterInviteCreateNestedManyWithoutBranchInput
+    users?: UserCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchUncheckedCreateWithoutDesignationsInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
+    invites?: StudyCenterInviteUncheckedCreateNestedManyWithoutBranchInput
+    users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
+  }
+
+  export type BranchCreateOrConnectWithoutDesignationsInput = {
+    where: BranchWhereUniqueInput
+    create: XOR<BranchCreateWithoutDesignationsInput, BranchUncheckedCreateWithoutDesignationsInput>
+  }
+
   export type DepartmentUpsertWithoutDesignationsInput = {
     update: XOR<DepartmentUpdateWithoutDesignationsInput, DepartmentUncheckedUpdateWithoutDesignationsInput>
     create: XOR<DepartmentCreateWithoutDesignationsInput, DepartmentUncheckedCreateWithoutDesignationsInput>
@@ -121694,6 +123670,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutDesignationsInput = {
@@ -121718,6 +123697,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type OrganizationUpsertWithoutDesignationsInput = {
@@ -121866,7 +123848,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutChildDesignationsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -121878,6 +123859,7 @@ export namespace Prisma {
     parentDesignation?: DesignationUpdateOneWithoutChildDesignationsNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutChildDesignationsInput = {
@@ -121973,6 +123955,55 @@ export namespace Prisma {
     data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyWithoutAssignedDesignationInput>
   }
 
+  export type BranchUpsertWithoutDesignationsInput = {
+    update: XOR<BranchUpdateWithoutDesignationsInput, BranchUncheckedUpdateWithoutDesignationsInput>
+    create: XOR<BranchCreateWithoutDesignationsInput, BranchUncheckedCreateWithoutDesignationsInput>
+    where?: BranchWhereInput
+  }
+
+  export type BranchUpdateToOneWithWhereWithoutDesignationsInput = {
+    where?: BranchWhereInput
+    data: XOR<BranchUpdateWithoutDesignationsInput, BranchUncheckedUpdateWithoutDesignationsInput>
+  }
+
+  export type BranchUpdateWithoutDesignationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    users?: UserUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutDesignationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
   export type BranchCreateWithoutInvitesInput = {
     id?: string
     name: string
@@ -121985,6 +124016,11 @@ export namespace Prisma {
     updatedAt?: Date | string
     organization: OrganizationCreateNestedOneWithoutBranchesInput
     users?: UserCreateNestedManyWithoutBranchInput
+    designations?: DesignationCreateNestedManyWithoutBranchInput
+    branchManager?: UserCreateNestedOneWithoutManagedBranchInput
+    salesDept?: DepartmentCreateNestedOneWithoutSalesBranchInput
+    operationsDept?: DepartmentCreateNestedOneWithoutOpsBranchInput
+    additionalDepts?: DepartmentCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchUncheckedCreateWithoutInvitesInput = {
@@ -121998,7 +124034,12 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
     users?: UserUncheckedCreateNestedManyWithoutBranchInput
+    designations?: DesignationUncheckedCreateNestedManyWithoutBranchInput
+    additionalDepts?: DepartmentUncheckedCreateNestedManyWithoutAdditionalBranchesInput
   }
 
   export type BranchCreateOrConnectWithoutInvitesInput = {
@@ -122150,6 +124191,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -122223,6 +124265,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -122295,6 +124338,11 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
     users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutInvitesInput = {
@@ -122308,7 +124356,12 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
     users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type OrganizationUpsertWithoutInvitesInput = {
@@ -122472,6 +124525,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -122545,6 +124599,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -122733,6 +124788,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -122806,6 +124862,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -122872,6 +124929,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -122945,6 +125003,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -123155,6 +125214,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -123228,6 +125288,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -123300,6 +125361,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -123373,6 +125435,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -123561,6 +125624,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -123634,6 +125698,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -123844,6 +125909,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -123917,6 +125983,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -124105,6 +126172,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -124178,6 +126246,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -124388,6 +126457,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -124461,6 +126531,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -124649,6 +126720,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -124722,6 +126794,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -124788,6 +126861,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -124861,6 +126935,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -125071,6 +127146,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -125144,6 +127220,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -125216,6 +127293,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -125289,6 +127367,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -125350,6 +127429,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -125423,6 +127503,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -125627,6 +127708,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -125700,6 +127782,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -126021,6 +128104,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -126094,6 +128178,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -126304,6 +128389,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -126377,6 +128463,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -126825,6 +128912,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -126898,6 +128986,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -127108,6 +129197,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -127181,6 +129271,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -127369,6 +129460,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -127442,6 +129534,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -127652,6 +129745,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -127725,6 +129819,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -127913,6 +130008,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -127986,6 +130082,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -128196,6 +130293,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -128269,6 +130367,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -128532,6 +130631,7 @@ export namespace Prisma {
     lastLogin?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    managedBranch?: BranchCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceCreateNestedManyWithoutUserInput
@@ -128605,6 +130705,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     designationId?: string | null
+    managedBranch?: BranchUncheckedCreateNestedOneWithoutBranchManagerInput
     approvedSessions?: AdmissionSessionUncheckedCreateNestedManyWithoutApproverInput
     postedAnnouncements?: AnnouncementUncheckedCreateNestedManyWithoutAuthorInput
     attendances?: AttendanceUncheckedCreateNestedManyWithoutUserInput
@@ -128896,6 +130997,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -128969,6 +131071,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -129063,6 +131166,9 @@ export namespace Prisma {
     status?: string
     createdAt?: Date | string
     updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+    operationsDeptId?: string | null
   }
 
   export type CeoPanelCreateManyOrganizationInput = {
@@ -129790,6 +131896,11 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
     users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchUncheckedUpdateWithoutOrganizationInput = {
@@ -129802,8 +131913,13 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
     invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
     users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
   }
 
   export type BranchUncheckedUpdateManyWithoutOrganizationInput = {
@@ -129816,6 +131932,9 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type CeoPanelUpdateWithoutOrganizationInput = {
@@ -129918,6 +132037,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutOrganizationInput = {
@@ -129942,6 +132064,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateManyWithoutOrganizationInput = {
@@ -129961,7 +132086,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutOrganizationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -129973,6 +132097,7 @@ export namespace Prisma {
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutOrganizationInput = {
@@ -131137,6 +133262,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -131209,6 +133335,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -132665,6 +134792,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutManagerInput = {
@@ -132689,6 +134819,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateManyWithoutManagerInput = {
@@ -134434,6 +136567,36 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
+  export type BranchCreateManySalesDeptInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    operationsDeptId?: string | null
+  }
+
+  export type BranchCreateManyOperationsDeptInput = {
+    id?: string
+    organizationId: string
+    name: string
+    code: string
+    address?: string | null
+    city?: string | null
+    state?: string | null
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    branchManagerId?: string | null
+    salesDeptId?: string | null
+  }
+
   export type AdmissionSessionUpdateWithoutSubDepartmentInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -134540,6 +136703,9 @@ export namespace Prisma {
     users?: UserUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateWithoutParentDepartmentInput = {
@@ -134564,6 +136730,9 @@ export namespace Prisma {
     users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
     vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
     Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+    additionalBranches?: BranchUncheckedUpdateManyWithoutAdditionalDeptsNestedInput
   }
 
   export type DepartmentUncheckedUpdateManyWithoutParentDepartmentInput = {
@@ -134583,7 +136752,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutDepartmentInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -134595,6 +136763,7 @@ export namespace Prisma {
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutDepartmentInput = {
@@ -134732,6 +136901,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -134804,6 +136974,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -134969,6 +137140,166 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type BranchUpdateWithoutSalesDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutSalesDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateManyWithoutSalesDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type BranchUpdateWithoutOperationsDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    additionalDepts?: DepartmentUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutOperationsDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+    additionalDepts?: DepartmentUncheckedUpdateManyWithoutAdditionalBranchesNestedInput
+  }
+
+  export type BranchUncheckedUpdateManyWithoutOperationsDeptInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type BranchUpdateWithoutAdditionalDeptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutBranchesNestedInput
+    invites?: StudyCenterInviteUpdateManyWithoutBranchNestedInput
+    users?: UserUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUpdateManyWithoutBranchNestedInput
+    branchManager?: UserUpdateOneWithoutManagedBranchNestedInput
+    salesDept?: DepartmentUpdateOneWithoutSalesBranchNestedInput
+    operationsDept?: DepartmentUpdateOneWithoutOpsBranchNestedInput
+  }
+
+  export type BranchUncheckedUpdateWithoutAdditionalDeptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    invites?: StudyCenterInviteUncheckedUpdateManyWithoutBranchNestedInput
+    users?: UserUncheckedUpdateManyWithoutBranchNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutBranchNestedInput
+  }
+
+  export type BranchUncheckedUpdateManyWithoutAdditionalDeptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    address?: NullableStringFieldUpdateOperationsInput | string | null
+    city?: NullableStringFieldUpdateOperationsInput | string | null
+    state?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    branchManagerId?: NullableStringFieldUpdateOperationsInput | string | null
+    salesDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+    operationsDeptId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type DesignationCreateManySubDepartmentInput = {
     id?: string
     organizationId: string
@@ -135009,7 +137340,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutSubDepartmentInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -135021,6 +137351,7 @@ export namespace Prisma {
     parentDesignation?: DesignationUpdateOneWithoutChildDesignationsNestedInput
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutSubDepartmentInput = {
@@ -135070,6 +137401,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -135142,6 +137474,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -135449,6 +137782,20 @@ export namespace Prisma {
     designationId?: string | null
   }
 
+  export type DesignationCreateManyBranchInput = {
+    id?: string
+    organizationId: string
+    departmentId?: string | null
+    subDepartmentId?: string | null
+    title: string
+    level?: number
+    parentDesignationId?: string | null
+    maxHeadcount?: number
+    status?: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type StudyCenterInviteUpdateWithoutBranchInput = {
     id?: StringFieldUpdateOperationsInput | string
     token?: StringFieldUpdateOperationsInput | string
@@ -135508,6 +137855,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -135580,6 +137928,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -135647,6 +137996,122 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type DesignationUpdateWithoutBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    level?: IntFieldUpdateOperationsInput | number
+    maxHeadcount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    department?: DepartmentUpdateOneWithoutDesignationsNestedInput
+    organization?: OrganizationUpdateOneRequiredWithoutDesignationsNestedInput
+    parentDesignation?: DesignationUpdateOneWithoutChildDesignationsNestedInput
+    childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
+    subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
+    users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+  }
+
+  export type DesignationUncheckedUpdateWithoutBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    departmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    subDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    level?: IntFieldUpdateOperationsInput | number
+    parentDesignationId?: NullableStringFieldUpdateOperationsInput | string | null
+    maxHeadcount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    childDesignations?: DesignationUncheckedUpdateManyWithoutParentDesignationNestedInput
+    users?: UserUncheckedUpdateManyWithoutAssignedDesignationNestedInput
+  }
+
+  export type DesignationUncheckedUpdateManyWithoutBranchInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    departmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    subDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    level?: IntFieldUpdateOperationsInput | number
+    parentDesignationId?: NullableStringFieldUpdateOperationsInput | string | null
+    maxHeadcount?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DepartmentUpdateWithoutAdditionalBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUpdateManyWithoutDepartmentNestedInput
+    manager?: UserUpdateOneWithoutManagedDepartmentsNestedInput
+    organization?: OrganizationUpdateOneRequiredWithoutDepartmentsNestedInput
+    parentDepartment?: DepartmentUpdateOneWithoutSubDepartmentsNestedInput
+    subDepartments?: DepartmentUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUpdateManyWithoutDepartmentNestedInput
+    users?: UserUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUpdateManyWithoutOperationsDeptNestedInput
+  }
+
+  export type DepartmentUncheckedUpdateWithoutAdditionalBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    parentDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    managerId?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    admissionSessions?: AdmissionSessionUncheckedUpdateManyWithoutSubDepartmentNestedInput
+    announcements?: AnnouncementUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDepartments?: DepartmentUncheckedUpdateManyWithoutParentDepartmentNestedInput
+    designations?: DesignationUncheckedUpdateManyWithoutDepartmentNestedInput
+    subDeptRelations?: SubDepartmentUncheckedUpdateManyWithoutParentDeptNestedInput
+    targets?: TargetUncheckedUpdateManyWithoutDepartmentNestedInput
+    users?: UserUncheckedUpdateManyWithoutDepartmentNestedInput
+    vacancies?: VacancyUncheckedUpdateManyWithoutDepartmentNestedInput
+    Task?: TaskUncheckedUpdateManyWithoutDepartmentNestedInput
+    salesBranch?: BranchUncheckedUpdateManyWithoutSalesDeptNestedInput
+    opsBranch?: BranchUncheckedUpdateManyWithoutOperationsDeptNestedInput
+  }
+
+  export type DepartmentUncheckedUpdateManyWithoutAdditionalBranchesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    subType?: NullableStringFieldUpdateOperationsInput | string | null
+    parentDepartmentId?: NullableStringFieldUpdateOperationsInput | string | null
+    managerId?: NullableStringFieldUpdateOperationsInput | string | null
+    assistantManagerIds?: DepartmentUpdateassistantManagerIdsInput | string[]
+    features?: DepartmentUpdatefeaturesInput | string[]
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    status?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type EnrollmentCreateManyCenterInput = {
@@ -136071,6 +138536,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -136143,6 +138609,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     designationId?: NullableStringFieldUpdateOperationsInput | string | null
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput
@@ -137361,7 +139828,6 @@ export namespace Prisma {
 
   export type DesignationUpdateWithoutParentDesignationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    branchId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     level?: IntFieldUpdateOperationsInput | number
     maxHeadcount?: IntFieldUpdateOperationsInput | number
@@ -137373,6 +139839,7 @@ export namespace Prisma {
     childDesignations?: DesignationUpdateManyWithoutParentDesignationNestedInput
     subDepartment?: SubDepartmentUpdateOneWithoutDesignationsNestedInput
     users?: UserUpdateManyWithoutAssignedDesignationNestedInput
+    branch?: BranchUpdateOneWithoutDesignationsNestedInput
   }
 
   export type DesignationUncheckedUpdateWithoutParentDesignationInput = {
@@ -137422,6 +139889,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUpdateManyWithoutUserNestedInput
@@ -137494,6 +139962,7 @@ export namespace Prisma {
     lastLogin?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    managedBranch?: BranchUncheckedUpdateOneWithoutBranchManagerNestedInput
     approvedSessions?: AdmissionSessionUncheckedUpdateManyWithoutApproverNestedInput
     postedAnnouncements?: AnnouncementUncheckedUpdateManyWithoutAuthorNestedInput
     attendances?: AttendanceUncheckedUpdateManyWithoutUserNestedInput

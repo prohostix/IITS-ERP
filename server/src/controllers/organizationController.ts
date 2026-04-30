@@ -20,8 +20,20 @@ export const getOrganization = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const createOrganization = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { name, email, phone, ...rest } = req.body;
+  
+  const slug = rest.slug || name.toLowerCase()
+    .replace(/ /g, '-')
+    .replace(/[^\w-]+/g, '') + '-' + Math.random().toString(36).substring(2, 7);
+
   const organization = await prisma.organization.create({
-    data: req.body
+    data: {
+      ...rest,
+      name,
+      slug,
+      contactEmail: email || rest.contactEmail,
+      contactPhone: phone || rest.contactPhone,
+    }
   });
   res.status(201).json({ success: true, data: organization });
 });

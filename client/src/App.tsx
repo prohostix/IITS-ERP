@@ -64,7 +64,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   students: 'students',
   universities: 'universities',
   programs: 'programs',
-  study_centers: 'study_centers',
+  study_centers: 'centers',
   admission_sessions: 'admission_sessions',
   internal_marks: 'marks',
   announcements: 'announcements',
@@ -74,7 +74,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Sales
   leads: 'leads',
   invite_links: 'invite_links',
-  sub_departments: 'sub_departments',
+  sub_departments: 'subdepartments',
   // CEO
   performance: 'performance',
   center_onboarding: 'center_onboarding',
@@ -225,11 +225,12 @@ function App() {
 
     if (user.role === 'org_admin') {
       return [
-        { id: 'dashboard', label: 'Dashboard' },
-        { id: 'hierarchy', label: 'Org Hierarchy' },
+        { id: 'dashboard', label: 'Overview' },
+        { id: 'hierarchy', label: 'Hierarchy' },
         { id: 'branches', label: 'Branches' },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
+        { id: 'sub_departments', label: 'Sub-Departments' },
         { id: 'tasks', label: 'Tasks' },
         { id: 'students', label: 'Students' },
         { id: 'universities', label: 'Universities' },
@@ -241,7 +242,6 @@ function App() {
         { id: 'employees', label: 'Employees' },
         { id: 'leave_requests', label: 'Leave Requests' },
         { id: 'leads', label: 'Leads' },
-        { id: 'escalations', label: 'Escalations' },
       ];
     }
 

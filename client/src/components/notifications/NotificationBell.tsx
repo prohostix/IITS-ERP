@@ -77,7 +77,8 @@ export function NotificationBell({ userId, organizationId }: NotificationBellPro
   useEffect(() => {
     if (!userId || !organizationId) return;
 
-    const socket = io(import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:4009', {
+    const rawUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '');
+    const socket = io(rawUrl && rawUrl !== '' ? rawUrl : window.location.origin, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 3,
       timeout: 5000,

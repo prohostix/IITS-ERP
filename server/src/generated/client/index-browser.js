@@ -203,7 +203,10 @@ exports.Prisma.BranchScalarFieldEnum = {
   state: 'state',
   status: 'status',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  branchManagerId: 'branchManagerId',
+  salesDeptId: 'salesDeptId',
+  operationsDeptId: 'operationsDeptId'
 };
 
 exports.Prisma.StudyCenterScalarFieldEnum = {

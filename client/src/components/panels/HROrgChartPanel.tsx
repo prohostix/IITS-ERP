@@ -16,7 +16,7 @@ import api from '@/lib/api';
 interface Dept { id: string; name: string; type: string; }
 interface SubDept { id: string; name: string; parentDeptId: string | { id: string; name: string }; }
 interface Branch {
-  id: string; name: string; branchCode: string; location: string; city?: string;
+  id: string; name: string; code: string; address: string; city?: string;
   branchManagerId?: { id: string; name: string; role: string; designation?: string };
   salesDeptId?: { id: string; name: string; type: string };
   operationsDeptId?: { id: string; name: string; type: string };
@@ -29,7 +29,7 @@ interface DesignationNode {
   maxHeadcount: number;
   departmentId?: Dept;
   subDepartmentId?: SubDept;
-  branchId?: { id: string; name: string; branchCode: string };
+  branchId?: { id: string; name: string; code: string };
   parentDesignationId?: { id: string; title: string };
   filledBy: OrgUser[];
   status: string;
@@ -78,7 +78,7 @@ function HROrgNode({
             <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1 inline-flex items-center gap-1"
               style={{ background: '#0891b222', color: '#0891b2' }}>
               <Building2 className="h-2.5 w-2.5" />
-              {node.branchId.name} [{node.branchId.branchCode}]
+              {node.branchId.name} [{node.branchId.code}]
             </span>
           )}
 
@@ -377,10 +377,10 @@ export function HROrgChartPanel() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-base text-cyan-900">{branch.name}</span>
-                          <span className="text-xs font-mono bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">{branch.branchCode}</span>
+                          <span className="text-xs font-mono bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">{branch.code}</span>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-cyan-700 mt-0.5">
-                          <MapPin className="h-3 w-3" />{branch.location}{branch.city ? `, ${branch.city}` : ''}
+                          <MapPin className="h-3 w-3" />{branch.address}{branch.city ? `, ${branch.city}` : ''}
                         </div>
                       </div>
                       {mgr && (
@@ -448,7 +448,7 @@ export function HROrgChartPanel() {
               Assign to "{assignTarget?.title}"
               {assignTarget?.branchId && (
                 <span className="text-sm font-normal text-cyan-600 ml-2">
-                  [{assignTarget.branchId.branchCode}]
+                  [{assignTarget.branchId.code}]
                 </span>
               )}
             </DialogTitle>

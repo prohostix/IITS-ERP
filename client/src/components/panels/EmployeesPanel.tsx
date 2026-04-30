@@ -249,7 +249,7 @@ export function EmployeesPanel() {
                       <SelectItem value="none">— None —</SelectItem>
                       {branches.map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
-                          {b.name} ({b.branchCode})
+                          {b.name} ({b.code})
                           {b.branchManagerId ? ' · has manager' : ' · vacant'}
                         </SelectItem>
                       ))}

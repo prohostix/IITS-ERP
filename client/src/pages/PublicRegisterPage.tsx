@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4009/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface University { id: string; name: string; code: string; }
 interface Program { id: string; name: string; code: string; universityId: string; courseType: string; }

@@ -320,7 +320,7 @@ export function TasksPanel() {
                             {task.evidence.map((url, i) => (
                               <a
                                 key={i}
-                                href={url.startsWith('/') ? `http://localhost:4009${url}` : url}
+                                href={url.startsWith('/') ? `${url}` : url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-xs text-primary hover:underline"

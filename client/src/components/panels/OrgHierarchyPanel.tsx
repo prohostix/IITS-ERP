@@ -11,7 +11,7 @@ import api from '@/lib/api';
 interface Dept { id: string; name: string; type: string; }
 interface SubDept { id: string; name: string; parentDeptId: string | { id: string; name: string }; }
 interface Branch {
-  id: string; name: string; branchCode: string; location: string; city?: string;
+  id: string; name: string; code: string; address: string; city?: string;
   branchManagerId?: { id: string; name: string; role: string; userId?: string; designation?: string };
   salesDeptId?: { id: string; name: string; type: string };
   operationsDeptId?: { id: string; name: string; type: string };
@@ -25,7 +25,7 @@ interface DesignationNode {
   maxHeadcount: number;
   departmentId?: Dept;
   subDepartmentId?: SubDept;
-  branchId?: { id: string; name: string; branchCode: string };
+  branchId?: { id: string; name: string; code: string };
   parentDesignationId?: { id: string; title: string };
   filledBy: OrgUser[];
   status: string;
@@ -48,7 +48,10 @@ function OrgNode({
   onAddChild: (parent: DesignationNode) => void; depth?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const children = allNodes.filter(n => n.parentDesignationId?.id === node.id);
+  const children = allNodes.filter(n => {
+    const pid = typeof n.parentDesignationId === 'object' ? (n.parentDesignationId as any)?.id : n.parentDesignationId;
+    return pid === node.id;
+  });
   const filled = node.filledBy?.length || 0;
   const vacant = node.maxHeadcount - filled;
   const isFull = vacant <= 0;
@@ -74,7 +77,7 @@ function OrgNode({
             <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1 inline-flex items-center gap-1"
               style={{ background: '#0891b222', color: '#0891b2' }}>
               <Building2 className="h-2.5 w-2.5" />
-              {node.branchId.name} [{node.branchId.branchCode}]
+              {node.branchId.name} [{node.branchId.code}]
             </span>
           )}
 
@@ -217,9 +220,11 @@ function BranchSection({
   const [expanded, setExpanded] = useState(true);
 
   // Designation nodes scoped to this branch with no parent = roots of branch subtree
-  const branchRoots = allNodes.filter(n =>
-    n.branchId?.id === branch.id && !n.parentDesignationId
-  );
+  const branchRoots = allNodes.filter(n => {
+    const bId = typeof n.branchId === 'object' ? (n.branchId as any)?.id : n.branchId;
+    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId as any)?.id : !!n.parentDesignationId;
+    return bId === branch.id && !hasParent;
+  });
 
   // Branch manager controls Sales and Operations only — Finance and HR are org-wide
   const BRANCH_CONTROLLED_TYPES = new Set(['sales', 'operations']);
@@ -253,11 +258,11 @@ function BranchSection({
             <div className="flex items-center gap-2">
               <span className="font-bold text-base text-cyan-900">{branch.name}</span>
               <span className="text-xs font-mono bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">
-                {branch.branchCode}
+                {branch.code}
               </span>
             </div>
             <div className="flex items-center gap-1 text-xs text-cyan-700 mt-0.5">
-              <MapPin className="h-3 w-3" />{branch.location}{branch.city ? `, ${branch.city}` : ''}
+              <MapPin className="h-3 w-3" />{branch.address}{branch.city ? `, ${branch.city}` : ''}
             </div>
           </div>
         </div>
@@ -532,7 +537,11 @@ export function OrgHierarchyPanel() {
   };
 
   // Global (non-branch) root nodes
-  const globalRoots = nodes.filter(n => !n.parentDesignationId && !n.branchId);
+  const globalRoots = nodes.filter(n => {
+    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId as any)?.id : !!n.parentDesignationId;
+    const hasBranch = typeof n.branchId === 'object' ? !!(n.branchId as any)?.id : !!n.branchId;
+    return !hasParent && !hasBranch;
+  });
   const assignedUserIds = new Set(nodes.flatMap(n => (n.filledBy || []).map(u => u.id)));
   const unassignedUsers = allUsers.filter(u => !assignedUserIds.has(u.id));
 
@@ -543,21 +552,21 @@ export function OrgHierarchyPanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Organisation Chart</h2>
           <p className="text-sm text-muted-foreground">
             Build the designation hierarchy. Branches have their own position trees.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setSubDeptDialog(true)}>
-            <Layers className="h-4 w-4 mr-1" /> Add Sub-Dept
+        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
+          <Button size="sm" variant="outline" onClick={() => setSubDeptDialog(true)} className="w-full sm:w-auto">
+            <Layers className="h-4 w-4 mr-1" /> Sub-Dept
           </Button>
-          <Button size="sm" variant="outline" onClick={fetchAll}>
+          <Button size="sm" variant="outline" onClick={fetchAll} className="w-full sm:w-auto">
             <RefreshCw className="h-4 w-4 mr-1" /> Refresh
           </Button>
-          <Button size="sm" onClick={() => openCreate()}>
+          <Button size="sm" onClick={() => openCreate()} className="col-span-2 sm:col-span-1 w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-1" /> Add Position
           </Button>
         </div>
@@ -573,7 +582,7 @@ export function OrgHierarchyPanel() {
 
       {/* Global org chart */}
       {globalRoots.length > 0 && (
-        <div className="overflow-auto border rounded-xl bg-gray-50 p-8">
+        <div className="overflow-auto border rounded-xl bg-gray-50 p-4 sm:p-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-6 text-center">
             Organisation — Head Office
           </p>
@@ -682,7 +691,7 @@ export function OrgHierarchyPanel() {
                   <SelectItem value="__none__">Head office / global</SelectItem>
                   {allBranches.map(b => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.name} [{b.branchCode}] — {b.location}
+                      {b.name} [{b.code}] — {b.address}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -740,7 +749,7 @@ export function OrgHierarchyPanel() {
                     .filter(n => n.id !== editingNode?.id)
                     .map(n => (
                       <SelectItem key={n.id} value={n.id}>
-                        {n.title}{n.branchId ? ` [${n.branchId.branchCode}]` : ''}
+                        {n.title}{n.branchId ? ` [${n.branchId.code}]` : ''}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -796,7 +805,7 @@ export function OrgHierarchyPanel() {
             <DialogTitle>Assign to "{assignTarget?.title}"
               {assignTarget?.branchId && (
                 <span className="text-sm font-normal text-cyan-600 ml-2">
-                  [{assignTarget.branchId.branchCode}]
+                  [{assignTarget.branchId.code}]
                 </span>
               )}
             </DialogTitle>

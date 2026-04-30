@@ -51,8 +51,41 @@ export const assignHierarchy = asyncHandler(async (req: AuthRequest, res: Respon
 
 // Designations
 export const getDesignations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const designations = await prisma.designation.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, count: designations.length, data: designations });
+  const designations = await prisma.designation.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      department: true,
+      subDepartment: true,
+      users: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true,
+          userId: true
+        }
+      },
+      parentDesignation: {
+        select: { id: true, title: true }
+      },
+      branch: {
+        select: { id: true, name: true, code: true }
+      }
+    }
+  });
+
+  // Map relations for frontend compatibility
+  const mapped = designations.map(d => ({
+    ...d,
+    filledBy: d.users || [],
+    branchId: d.branch,
+    parentDesignationId: d.parentDesignation,
+    departmentId: d.department,
+    subDepartmentId: d.subDepartment
+  }));
+
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const createDesignation = asyncHandler(async (req: AuthRequest, res: Response) => {
   const designation = await prisma.designation.create({ data: { ...req.body, organizationId: req.user.organizationId } });
