@@ -115,8 +115,8 @@ export function getSalesNavItems() {
     { id: 'targets', label: 'Targets' },
     { id: 'invite_links', label: 'Invite Links' },
     { id: 'my_team', label: 'My Team' },
-    { id: 'study_centers', label: 'Center Onboarding' },
-    { id: 'center_onboarding', label: 'Onboarding Status' },
+    { id: 'study_centers', label: 'Manual Center Creation' },
+    { id: 'center_onboarding', label: 'Center Onboarding Status' },
     { id: 'tasks', label: 'Tasks' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
@@ -539,6 +539,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'invite_links': return <SalesInvitePanel />;
           case 'my_team': return <TeamPerformancePanel />;
           case 'study_centers': return <StudyCentersPanel />;
+          case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
           case 'my_attendance': return <AttendancePanel />;
           case 'my_leaves': return <LeavesPanel />;
           case 'my_payslips': return <PayrollPanel />;
