@@ -79,7 +79,7 @@ model Organization {
 model License {
   id             String         @id @default(uuid())
   name           String
-  type           LicenseType
+  type           String?
   features       Json           @default("[]")
   maxUsers       Int            @default(10)
   maxStorage     Int            @default(1024)
