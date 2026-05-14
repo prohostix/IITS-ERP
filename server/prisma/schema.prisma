@@ -1044,12 +1044,12 @@ model Escalation {
   handledBy      String?
   chain          Json?            @default("[]")
   updatedAt      DateTime        @updatedAt
-  deptAdmin      User            @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
-  employee       User            @relation("EscalationEmployee", fields: [employeeId], references: [id])
+  deptAdmin      User?           @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
+  employee       User?           @relation("EscalationEmployee", fields: [employeeId], references: [id])
   handler        User?           @relation("EscalationHandledBy", fields: [handledBy], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   resolver       User?           @relation("EscalatedResolvedBy", fields: [resolvedBy], references: [id])
-  task           Task            @relation(fields: [taskId], references: [id])
+  task           Task?            @relation(fields: [taskId], references: [id])
   logs           EscalationLog[]
 
   @@index([organizationId, status])
