@@ -76,7 +76,7 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 
   const subDepartments = await prisma.subDepartment.findMany({
     where,
-    include: { as any,
+    include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
       universities: { select: { id: true, name: true, code: true } },
@@ -99,7 +99,7 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const subDepartment = await prisma.subDepartment.findUnique({
     where: { id: req.params.id },
-    include: { as any,
+    include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
       universities: { select: { id: true, name: true, code: true } },
@@ -202,7 +202,7 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
 
   const subDept: any = await prisma.subDepartment.findUnique({
     where: { id: subDeptId },
-    include: { as any,
+    include: {
       parentDept: { select: { name: true, type: true } },
       manager: { select: { name: true, email: true } },
       universities: { select: { id: true, name: true, code: true, status: true } },
