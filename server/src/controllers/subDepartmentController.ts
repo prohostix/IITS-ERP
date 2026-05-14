@@ -46,9 +46,9 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
       features: features || [],
       managerId: req.user.id,
       // Handle relations
-      universities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
-      programs: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
-      studyCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
+      assignedUniversities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
+      assignedPrograms: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
+      assignedCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
     },
   });
 
@@ -78,10 +78,10 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
     where,
     include: {
       parentDept: { select: { name: true } },
-      manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true } },
-      studyCenters: { select: { id: true, name: true, code: true } },
+      managerUser: { select: { name: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true } },
+      assignedCenters: { select: { id: true, name: true, code: true } },
     },
     orderBy: { name: 'asc' }
   });
@@ -101,10 +101,10 @@ export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Respo
     where: { id: req.params.id },
     include: {
       parentDept: { select: { name: true } },
-      manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true } },
+      managerUser: { select: { name: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true, duration: true } },
+      assignedCenters: { select: { id: true, name: true, code: true, city: true } },
     }
   });
 
@@ -204,10 +204,10 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
     where: { id: subDeptId },
     include: {
       parentDept: { select: { name: true, type: true } },
-      manager: { select: { name: true, email: true } },
-      universities: { select: { id: true, name: true, code: true, status: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true, status: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
+      managerUser: { select: { name: true, email: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true, status: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true, duration: true, status: true } },
+      assignedCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
     }
   });
 
