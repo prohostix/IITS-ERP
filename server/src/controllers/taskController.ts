@@ -36,21 +36,39 @@ export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
 });
 
 export const createTask = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { title, description, assignedTo, deadline, priority, departmentId } = req.body;
+
   const task = await prisma.task.create({
     data: {
-      ...req.body,
+      title,
+      description,
+      status: 'pending',
+      priority: priority || 'medium',
+      dueDate: deadline ? new Date(deadline) : null,
       orgId: req.user.organizationId,
       creatorId: req.user.id,
-      departmentId: req.body.departmentId || req.user.departmentId
+      assigneeId: assignedTo,
+      departmentId: departmentId || req.user.departmentId
     }
   });
   res.status(201).json({ success: true, data: task });
 });
 
 export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { title, description, assignedTo, deadline, status, priority, departmentId } = req.body;
+  
+  const updateData: any = {};
+  if (title) updateData.title = title;
+  if (description) updateData.description = description;
+  if (assignedTo) updateData.assigneeId = assignedTo;
+  if (deadline) updateData.dueDate = new Date(deadline);
+  if (status) updateData.status = status;
+  if (priority) updateData.priority = priority;
+  if (departmentId) updateData.departmentId = departmentId;
+
   const task = await prisma.task.update({
     where: { id: req.params.id },
-    data: req.body
+    data: updateData
   });
   res.status(200).json({ success: true, data: task });
 });
