@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Building2, BookOpen, GraduationCap, MapPin, RefreshCw,
-  TrendingUp, BarChart3,
+  BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

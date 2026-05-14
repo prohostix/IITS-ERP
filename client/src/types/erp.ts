@@ -11,7 +11,8 @@ export type UserRole =
   | 'sales_admin' 
   | 'center_admin' 
   | 'employee'
-  | 'staff';
+  | 'staff'
+  | 'bde';
 
 export type DepartmentType = 'operations' | 'finance' | 'hr' | 'sales' | 'custom';
 export type SubDepartmentType = 'openschool' | 'online' | 'skill' | 'bvoc';
