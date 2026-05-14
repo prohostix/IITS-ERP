@@ -46,19 +46,20 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
 
   const fetchDepartmentType = async () => {
     try {
-      // Try direct departmentId first
-      if (user?.departmentId) {
-        if (typeof user.departmentId === 'object' && user.departmentId !== null) {
-          const populated = user.departmentId as any;
+      // Try direct department object or departmentId first
+      const dept = (user as any).department || user?.departmentId;
+      if (dept) {
+        if (typeof dept === 'object' && dept !== null) {
+          const populated = dept as any;
           if (populated.type) { setDepartmentType(populated.type); return; }
-          const deptId = populated.id?.toString() || populated.id?.toString();
+          const deptId = populated.id?.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             setDepartmentType(res.data.data?.type || null);
             return;
           }
         } else {
-          const deptId = user.departmentId?.toString();
+          const deptId = dept.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             setDepartmentType(res.data.data?.type || null);

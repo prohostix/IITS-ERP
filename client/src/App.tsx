@@ -132,19 +132,20 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'employee') return;
     const subDeptId = (user as any)?.subDepartmentId;
-    if (!subDeptId) return;
+    if (!user?.departmentId && !subDeptId) return;
 
     const fetchDeptType = async () => {
       try {
-        // Try direct departmentId first
-        if (user?.departmentId) {
-          if (typeof user.departmentId === 'object' && (user.departmentId as any)?.type) {
-            setDeptType((user.departmentId as any).type);
+        // Try direct department object or departmentId first
+        const dept = (user as any).department || user?.departmentId;
+        if (dept) {
+          if (typeof dept === 'object' && (dept as any)?.type) {
+            setDeptType((dept as any).type);
             return;
           }
-          const deptId = typeof user.departmentId === 'object'
-            ? (user.departmentId as any).id?.toString()
-            : user.departmentId?.toString();
+          const deptId = typeof dept === 'object'
+            ? (dept as any).id?.toString()
+            : dept.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             if (res.data.data?.type) { setDeptType(res.data.data.type); return; }
