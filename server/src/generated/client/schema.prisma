@@ -16,28 +16,31 @@ model Organization {
   address            String?
   contactEmail       String?
   contactPhone       String?
-  contactName        String?
   status             String                @default("active")
   plan               String                @default("basic")
   licenseId          String?
   licenseExpiry      DateTime?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
+  contactName        String?
   admissionSessions  AdmissionSession[]
   announcements      Announcement[]
   auditLogs          AuditLog[]
   branches           Branch[]
   ceoPanels          CeoPanel[]
   complaints         Complaint[]
+  CredentialRequest  CredentialRequest[]
   departments        Department[]
   designations       Designation[]
   editDeleteRequests EditDeleteRequest[]
+  EmployeeProfile    EmployeeProfile[]
   escalations        Escalation[]
   expenseClaims      ExpenseClaim[]
   feeStructures      FeeStructure[]
   gstSettings        GSTSetting[]
   settings           HRSettings?
   holidays           Holiday[]
+  IncentiveStructure IncentiveStructure[]
   internalMarks      InternalMark[]
   invoices           Invoice[]
   leads              Lead[]
@@ -45,29 +48,26 @@ model Organization {
   notifications      Notification[]
   payments           PaymentEntry[]
   payrollBatches     PayrollBatch[]
+  Poll               Poll[]
   programs           Program[]
   programAllocations ProgramAllocation[]
   programFees        ProgramFeeStructure[]
+  ProgramMaterial    ProgramMaterial[]
   referralLinks      ReferralLink[]
+  ReregRule          ReregRule?
   salaryConfigs      SalaryConfig[]
+  SessionRequest     SessionRequest[]
   studyCenters       StudyCenter[]
   invites            StudyCenterInvite[]
   subDepartments     SubDepartment[]
   targets            Target[]
+  Task               Task[]
   universities       University[]
   authFees           UniversityAuthFee[]
   users              User[]
   vacancies          Vacancy[]
   walletTopUps       WalletTopUp[]
   licenses           License[]             @relation("LicenseToOrganization")
-  EmployeeProfile    EmployeeProfile[]
-  CredentialRequest  CredentialRequest[]
-  IncentiveStructure IncentiveStructure[]
-  Poll               Poll[]
-  ProgramMaterial    ProgramMaterial[]
-  ReregRule          ReregRule?
-  SessionRequest     SessionRequest[]
-  Task               Task[]
 }
 
 model User {
@@ -93,17 +93,19 @@ model User {
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   designationId           String?
-  managedBranch           Branch?               @relation("BranchManager")
   approvedSessions        AdmissionSession[]    @relation("SessionApprover")
   postedAnnouncements     Announcement[]        @relation("AnnouncementAuthor")
   attendances             Attendance[]
   auditLogs               AuditLog[]
+  managedBranch           Branch?               @relation("BranchManager")
   ceoPanel                CeoPanel?             @relation("CeoPanelUser")
   createdCeoPanels        CeoPanel[]            @relation("CeoPanelCreator")
   complaints              Complaint[]
+  CredentialRequest       CredentialRequest[]
   managedDepartments      Department[]          @relation("DeptManager")
   editRequests            EditDeleteRequest[]   @relation("EditDeleteRequester")
   responseRequests        EditDeleteRequest[]   @relation("EditDeleteResponder")
+  employeeProfile         EmployeeProfile?
   raisedEscalations       Escalation[]          @relation("EscalationRaiser")
   resolvedEscalations     Escalation[]          @relation("EscalationResolver")
   approvedExpenses        ExpenseClaim[]        @relation("ExpenseApprover")
@@ -118,10 +120,14 @@ model User {
   payrollRecords          Payroll[]
   approvedBatches         PayrollBatch[]        @relation("BatchApprover")
   transferredBatches      PayrollBatch[]        @relation("BatchTransferrer")
+  Poll                    Poll[]
   authoredAllocations     ProgramAllocation[]   @relation("AllocationAuthor")
   createdFees             ProgramFeeStructure[] @relation("FeeCreator")
+  ProgramMaterial         ProgramMaterial[]
   referralLinks           ReferralLink[]
+  ReregRule               ReregRule[]
   salaryConfig            SalaryConfig?
+  SessionRequest          SessionRequest[]
   invites                 StudyCenterInvite[]
   createdSubDepts         SubDepartment[]       @relation("SubDeptCreator")
   managedSubDepts         SubDepartment[]       @relation("SubDeptManager")
@@ -136,13 +142,7 @@ model User {
   organization            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   studyCenter             StudyCenter?          @relation(fields: [studyCenterId], references: [id])
   subDepartment           SubDepartment?        @relation(fields: [subDepartmentId], references: [id])
-  employeeProfile         EmployeeProfile?
   verifiedTopUps          WalletTopUp[]         @relation("TopUpVerifier")
-  CredentialRequest       CredentialRequest[]
-  ReregRule               ReregRule[]
-  SessionRequest          SessionRequest[]
-  ProgramMaterial         ProgramMaterial[]
-  Poll                    Poll[]
 }
 
 model Department {
@@ -161,18 +161,18 @@ model Department {
   updatedAt           DateTime           @updatedAt
   admissionSessions   AdmissionSession[]
   announcements       Announcement[]
-  manager             User?              @relation("DeptManager", fields: [managerId], references: [id], onDelete: SetNull)
+  opsBranch           Branch[]           @relation("BranchOpsDept")
+  salesBranch         Branch[]           @relation("BranchSalesDept")
+  manager             User?              @relation("DeptManager", fields: [managerId], references: [id])
   organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDepartment    Department?        @relation("SubDepartments", fields: [parentDepartmentId], references: [id])
   subDepartments      Department[]       @relation("SubDepartments")
   designations        Designation[]
   subDeptRelations    SubDepartment[]
   targets             Target[]
+  Task                Task[]
   users               User[]             @relation("UserDepartment")
   vacancies           Vacancy[]
-  Task                Task[]
-  salesBranch         Branch[]           @relation("BranchSalesDept")
-  opsBranch           Branch[]           @relation("BranchOpsDept")
   additionalBranches  Branch[]           @relation("BranchAdditionalDepts")
 }
 
@@ -189,7 +189,7 @@ model SubDepartment {
   updatedAt      DateTime      @updatedAt
   designations   Designation[]
   creator        User          @relation("SubDeptCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  manager        User?         @relation("SubDeptManager", fields: [managerId], references: [id], onDelete: SetNull)
+  manager        User?         @relation("SubDeptManager", fields: [managerId], references: [id])
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDept     Department    @relation(fields: [parentDeptId], references: [id])
   users          User[]
@@ -211,16 +211,16 @@ model Branch {
   status           String              @default("active")
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
-  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invites          StudyCenterInvite[]
-  users            User[]
-  designations     Designation[]
+  operationsDeptId String?
+  salesDeptId      String?
   branchManagerId  String?             @unique
   branchManager    User?               @relation("BranchManager", fields: [branchManagerId], references: [id])
-  salesDeptId      String?
-  operationsDeptId String?
-  salesDept        Department?         @relation("BranchSalesDept", fields: [salesDeptId], references: [id])
   operationsDept   Department?         @relation("BranchOpsDept", fields: [operationsDeptId], references: [id])
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  salesDept        Department?         @relation("BranchSalesDept", fields: [salesDeptId], references: [id])
+  designations     Designation[]
+  invites          StudyCenterInvite[]
+  users            User[]
   additionalDepts  Department[]        @relation("BranchAdditionalDepts")
 }
 
@@ -240,25 +240,25 @@ model StudyCenter {
   assignedPrograms     String[]
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
-  verifiedBy           String?
-  verifiedAt           DateTime?
-  opsRemarks           String?
-  financeApprovedBy    String?
   financeApprovedAt    DateTime?
-  paymentRemarks       String?
+  financeApprovedBy    String?
+  opsRemarks           String?
   paymentProof         Json?
+  paymentRemarks       String?
   referredById         String?
+  verifiedAt           DateTime?
+  verifiedBy           String?
   enrollments          Enrollment[]
   internalMarks        InternalMark[]
   invoices             Invoice[]
   programAllocations   ProgramAllocation[]
+  SessionRequest       SessionRequest[]
   organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   wallet               StudyCenterWallet?
   targets              Target[]
   users                User[]
   walletTopUps         WalletTopUp[]
   subDepartments       SubDepartment[]     @relation("StudyCenterToSubDepartment")
-  SessionRequest       SessionRequest[]
 }
 
 model University {
@@ -374,23 +374,23 @@ model Task {
   status           String       @default("pending")
   priority         String       @default("medium")
   dueDate          DateTime?
-  completedAt      DateTime?
-  remarks          String?
-  evidence         String[]
-  escalationStatus String       @default("none")
-  escalatedAt      DateTime?
-  escalatedToId    String?
-  gracePeriodEnd   DateTime?
   creatorId        String
   assigneeId       String
   orgId            String
-  departmentId     String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  completedAt      DateTime?
+  departmentId     String?
+  escalatedAt      DateTime?
+  escalatedToId    String?
+  escalationStatus String       @default("none")
+  evidence         String[]
+  gracePeriodEnd   DateTime?
+  remarks          String?
   assignee         User         @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: Cascade)
   creator          User         @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
-  escalatedTo      User?        @relation("EscalatedTasks", fields: [escalatedToId], references: [id], onDelete: SetNull)
   department       Department?  @relation(fields: [departmentId], references: [id])
+  escalatedTo      User?        @relation("EscalatedTasks", fields: [escalatedToId], references: [id])
   organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
@@ -416,28 +416,21 @@ model LeaveRequest {
   reason        String?
   status        String   @default("pending")
   orgId         String
-  statusRemarks String?
-  approvedBy    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  approvedBy    String?
+  statusRemarks String?
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Enrollment {
   id                     String              @id @default(uuid())
-  enrollmentNumber       String?             @unique
   studentId              String
   universityId           String
   programId              String
   studyCenterId          String?
   status                 String              @default("pending")
   orgId                  String
-  deptReviewedBy         String?
-  deptReviewedAt         DateTime?
-  deptRemarks            String?
-  financeReviewedBy      String?
-  financeReviewedAt      DateTime?
-  financeRemarks         String?
   admissionSessionId     String?
   enrolledBy             String?
   enrolledAt             DateTime?
@@ -453,6 +446,13 @@ model Enrollment {
   remarks                String?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
+  deptRemarks            String?
+  deptReviewedAt         DateTime?
+  deptReviewedBy         String?
+  enrollmentNumber       String?             @unique
+  financeRemarks         String?
+  financeReviewedAt      DateTime?
+  financeReviewedBy      String?
   program                Program             @relation(fields: [programId], references: [id])
   student                Student             @relation(fields: [studentId], references: [id])
   center                 StudyCenter?        @relation(fields: [studyCenterId], references: [id])
@@ -466,9 +466,9 @@ model Student {
   email         String         @unique
   phone         String?
   orgId         String
-  status        String         @default("pending")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  status        String         @default("pending")
   enrollments   Enrollment[]
   internalMarks InternalMark[]
   invoices      Invoice[]
@@ -550,7 +550,7 @@ model AdmissionSession {
   approvedAt      DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  approver        User?        @relation("SessionApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approver        User?        @relation("SessionApprover", fields: [approvedBy], references: [id])
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subDepartment   Department   @relation(fields: [subDepartmentId], references: [id])
 }
@@ -627,7 +627,7 @@ model WalletTopUp {
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   center          StudyCenter  @relation(fields: [studyCenterId], references: [id])
-  verifier        User?        @relation("TopUpVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  verifier        User?        @relation("TopUpVerifier", fields: [verifiedBy], references: [id])
 }
 
 model ProgramFeeStructure {
@@ -697,7 +697,7 @@ model ExpenseClaim {
   submittedAt    DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  approver       User?        @relation("ExpenseApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approver       User?        @relation("ExpenseApprover", fields: [approvedBy], references: [id])
   employee       User         @relation("ExpenseEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
@@ -717,7 +717,7 @@ model Target {
   updatedAt      DateTime     @updatedAt
   center         StudyCenter? @relation(fields: [centerId], references: [id])
   department     Department?  @relation(fields: [departmentId], references: [id])
-  employee       User?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employee       User?        @relation(fields: [employeeId], references: [id])
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
@@ -788,7 +788,7 @@ model PayrollBatch {
   remarks         String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  approver        User?        @relation("BatchApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approver        User?        @relation("BatchApprover", fields: [approvedBy], references: [id])
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   author          User         @relation("BatchTransferrer", fields: [transferredBy], references: [id], onDelete: Cascade)
 }
@@ -844,12 +844,12 @@ model Notification {
   title          String
   message        String
   type           String?
-  data           Json?
   priority       String       @default("medium")
   read           Boolean      @default(false)
   link           String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  data           Json?
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   recipient      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -882,13 +882,13 @@ model Designation {
   status              String         @default("active")
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  branch              Branch?        @relation(fields: [branchId], references: [id])
   department          Department?    @relation(fields: [departmentId], references: [id])
   organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDesignation   Designation?   @relation("DesignationHierarchy", fields: [parentDesignationId], references: [id])
   childDesignations   Designation[]  @relation("DesignationHierarchy")
   subDepartment       SubDepartment? @relation(fields: [subDepartmentId], references: [id])
   users               User[]
-  branch              Branch?        @relation(fields: [branchId], references: [id])
 }
 
 model StudyCenterInvite {
@@ -923,13 +923,13 @@ model Escalation {
   description    String
   impact         String       @default("medium")
   chain          Json?
-  resolvedAt     DateTime?
-  resolvedById   String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  resolvedAt     DateTime?
+  resolvedById   String?
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   raisedBy       User         @relation("EscalationRaiser", fields: [raisedById], references: [id], onDelete: Cascade)
-  resolver       User?        @relation("EscalationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolver       User?        @relation("EscalationResolver", fields: [resolvedById], references: [id])
 }
 
 model Lead {
@@ -948,7 +948,7 @@ model Lead {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  referredBy     User?        @relation("LeadReferrer", fields: [referredById], references: [id], onDelete: SetNull)
+  referredBy     User?        @relation("LeadReferrer", fields: [referredById], references: [id])
 }
 
 model LeaveAllocation {
@@ -992,7 +992,7 @@ model EditDeleteRequest {
   updatedAt        DateTime     @updatedAt
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requester        User         @relation("EditDeleteRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  respondedBy      User?        @relation("EditDeleteResponder", fields: [respondedById], references: [id], onDelete: SetNull)
+  respondedBy      User?        @relation("EditDeleteResponder", fields: [respondedById], references: [id])
 }
 
 model EmployeeProfile {
@@ -1028,8 +1028,8 @@ model EmployeeProfile {
   reviewRemarks    String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CredentialRequest {
@@ -1083,8 +1083,8 @@ model Poll {
   allowMultiple  Boolean      @default(false)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator        User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model ProgramMaterial {
@@ -1119,8 +1119,8 @@ model ReregRule {
   createdBy            String
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator              User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model Reregistration {
@@ -1145,7 +1145,7 @@ model SessionRequest {
   rejectionReason String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   center          StudyCenter  @relation(fields: [centerId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requester       User         @relation(fields: [requestedBy], references: [id], onDelete: Cascade)
 }

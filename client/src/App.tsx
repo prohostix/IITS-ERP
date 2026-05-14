@@ -280,12 +280,16 @@ function App() {
 
     if (user.role === 'employee') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
-      if (isSubDeptManager && deptType) {
-        switch (deptType) {
-          case 'operations': return getOpsNavItems(true);
-          case 'hr': return getHRNavItems();
-          case 'finance': return getFinanceNavItems();
-          case 'sales': return getSalesNavItems();
+      if (deptType) {
+        if (isSubDeptManager) {
+          switch (deptType) {
+            case 'operations': return getOpsNavItems(true);
+            case 'hr': return getHRNavItems();
+            case 'finance': return getFinanceNavItems();
+            case 'sales': return getSalesNavItems();
+          }
+        } else if (deptType === 'sales') {
+          return getSalesNavItems();
         }
       }
       return EMPLOYEE_NAV_ITEMS;

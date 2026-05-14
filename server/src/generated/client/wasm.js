@@ -130,13 +130,13 @@ exports.Prisma.OrganizationScalarFieldEnum = {
   address: 'address',
   contactEmail: 'contactEmail',
   contactPhone: 'contactPhone',
-  contactName: 'contactName',
   status: 'status',
   plan: 'plan',
   licenseId: 'licenseId',
   licenseExpiry: 'licenseExpiry',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  contactName: 'contactName'
 };
 
 exports.Prisma.UserScalarFieldEnum = {
@@ -204,9 +204,9 @@ exports.Prisma.BranchScalarFieldEnum = {
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  branchManagerId: 'branchManagerId',
+  operationsDeptId: 'operationsDeptId',
   salesDeptId: 'salesDeptId',
-  operationsDeptId: 'operationsDeptId'
+  branchManagerId: 'branchManagerId'
 };
 
 exports.Prisma.StudyCenterScalarFieldEnum = {
@@ -225,14 +225,14 @@ exports.Prisma.StudyCenterScalarFieldEnum = {
   assignedPrograms: 'assignedPrograms',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
-  verifiedBy: 'verifiedBy',
-  verifiedAt: 'verifiedAt',
-  opsRemarks: 'opsRemarks',
-  financeApprovedBy: 'financeApprovedBy',
   financeApprovedAt: 'financeApprovedAt',
-  paymentRemarks: 'paymentRemarks',
+  financeApprovedBy: 'financeApprovedBy',
+  opsRemarks: 'opsRemarks',
   paymentProof: 'paymentProof',
-  referredById: 'referredById'
+  paymentRemarks: 'paymentRemarks',
+  referredById: 'referredById',
+  verifiedAt: 'verifiedAt',
+  verifiedBy: 'verifiedBy'
 };
 
 exports.Prisma.UniversityScalarFieldEnum = {
@@ -330,19 +330,19 @@ exports.Prisma.TaskScalarFieldEnum = {
   status: 'status',
   priority: 'priority',
   dueDate: 'dueDate',
-  completedAt: 'completedAt',
-  remarks: 'remarks',
-  evidence: 'evidence',
-  escalationStatus: 'escalationStatus',
-  escalatedAt: 'escalatedAt',
-  escalatedToId: 'escalatedToId',
-  gracePeriodEnd: 'gracePeriodEnd',
   creatorId: 'creatorId',
   assigneeId: 'assigneeId',
   orgId: 'orgId',
-  departmentId: 'departmentId',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  completedAt: 'completedAt',
+  departmentId: 'departmentId',
+  escalatedAt: 'escalatedAt',
+  escalatedToId: 'escalatedToId',
+  escalationStatus: 'escalationStatus',
+  evidence: 'evidence',
+  gracePeriodEnd: 'gracePeriodEnd',
+  remarks: 'remarks'
 };
 
 exports.Prisma.AttendanceScalarFieldEnum = {
@@ -366,27 +366,20 @@ exports.Prisma.LeaveRequestScalarFieldEnum = {
   reason: 'reason',
   status: 'status',
   orgId: 'orgId',
-  statusRemarks: 'statusRemarks',
-  approvedBy: 'approvedBy',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  approvedBy: 'approvedBy',
+  statusRemarks: 'statusRemarks'
 };
 
 exports.Prisma.EnrollmentScalarFieldEnum = {
   id: 'id',
-  enrollmentNumber: 'enrollmentNumber',
   studentId: 'studentId',
   universityId: 'universityId',
   programId: 'programId',
   studyCenterId: 'studyCenterId',
   status: 'status',
   orgId: 'orgId',
-  deptReviewedBy: 'deptReviewedBy',
-  deptReviewedAt: 'deptReviewedAt',
-  deptRemarks: 'deptRemarks',
-  financeReviewedBy: 'financeReviewedBy',
-  financeReviewedAt: 'financeReviewedAt',
-  financeRemarks: 'financeRemarks',
   admissionSessionId: 'admissionSessionId',
   enrolledBy: 'enrolledBy',
   enrolledAt: 'enrolledAt',
@@ -401,7 +394,14 @@ exports.Prisma.EnrollmentScalarFieldEnum = {
   processedAt: 'processedAt',
   remarks: 'remarks',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  deptRemarks: 'deptRemarks',
+  deptReviewedAt: 'deptReviewedAt',
+  deptReviewedBy: 'deptReviewedBy',
+  enrollmentNumber: 'enrollmentNumber',
+  financeRemarks: 'financeRemarks',
+  financeReviewedAt: 'financeReviewedAt',
+  financeReviewedBy: 'financeReviewedBy'
 };
 
 exports.Prisma.StudentScalarFieldEnum = {
@@ -410,9 +410,9 @@ exports.Prisma.StudentScalarFieldEnum = {
   email: 'email',
   phone: 'phone',
   orgId: 'orgId',
-  status: 'status',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  status: 'status'
 };
 
 exports.Prisma.EnrollmentPaymentScalarFieldEnum = {
@@ -727,12 +727,12 @@ exports.Prisma.NotificationScalarFieldEnum = {
   title: 'title',
   message: 'message',
   type: 'type',
-  data: 'data',
   priority: 'priority',
   read: 'read',
   link: 'link',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  data: 'data'
 };
 
 exports.Prisma.CeoPanelScalarFieldEnum = {
@@ -791,10 +791,10 @@ exports.Prisma.EscalationScalarFieldEnum = {
   description: 'description',
   impact: 'impact',
   chain: 'chain',
-  resolvedAt: 'resolvedAt',
-  resolvedById: 'resolvedById',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  resolvedAt: 'resolvedAt',
+  resolvedById: 'resolvedById'
 };
 
 exports.Prisma.LeadScalarFieldEnum = {

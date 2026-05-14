@@ -47,6 +47,7 @@ interface NavItem {
   roles: UserRole[];
   badge?: number;
   children?: NavItem[];
+  department?: DepartmentType;
 }
 
 const navItems: NavItem[] = [
@@ -133,13 +134,14 @@ const navItems: NavItem[] = [
     id: 'sales',
     label: 'Sales & CRM',
     icon: TrendingUp,
-    roles: ['sales_admin', 'bde', 'ceo'],
+    roles: ['sales_admin', 'bde', 'ceo', 'employee'],
+    department: 'sales',
     children: [
-      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'bde', 'ceo'] },
-      { id: 'study_centers', label: 'Center Onboarding', icon: Building, roles: ['sales_admin', 'bde', 'ceo'] },
-      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'bde', 'ceo'] },
-      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo'] },
-      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo'] },
+      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'study_centers', label: 'Center Onboarding', icon: Building, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
     ],
   },
   {
