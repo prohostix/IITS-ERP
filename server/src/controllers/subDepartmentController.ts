@@ -48,9 +48,9 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
       features: features || [],
       createdBy: req.user.id,
       // Handle relations
-      universities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
-      programs: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
-      studyCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
+      assignedUniversities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
+      assignedPrograms: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
+      assignedCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
     },
   });
 
@@ -152,9 +152,9 @@ export const updateSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   if (managerId !== undefined) data.managerId = (managerId && managerId !== '') ? managerId : null;
 
   // Handle relation updates (set/disconnect/connect)
-  if (assignedUniversities !== undefined) data.universities = { set: assignedUniversities.map((id: string) => ({ id })) };
-  if (assignedPrograms !== undefined) data.programs = { set: assignedPrograms.map((id: string) => ({ id })) };
-  if (assignedCenters !== undefined) data.studyCenters = { set: assignedCenters.map((id: string) => ({ id })) };
+  if (assignedUniversities !== undefined) data.assignedUniversities = { set: assignedUniversities.map((id: string) => ({ id })) };
+  if (assignedPrograms !== undefined) data.assignedPrograms = { set: assignedPrograms.map((id: string) => ({ id })) };
+  if (assignedCenters !== undefined) data.assignedCenters = { set: assignedCenters.map((id: string) => ({ id })) };
 
   const updated = await prisma.subDepartment.update({
     where: { id: req.params.id },
@@ -222,8 +222,8 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
   let enrollmentStats: any[] = [];
   let monthlyEnrollments: any[] = [];
 
-  if (subDept.studyCenters && subDept.studyCenters.length > 0) {
-    const centerIds = subDept.studyCenters.map(c => c.id);
+  if (subDept.assignedCenters && subDept.assignedCenters.length > 0) {
+    const centerIds = subDept.assignedCenters.map(c => c.id);
     const organizationId = resolveOrgId(req.user.organizationId);
 
     // Get enrollment counts by status for assigned centers
