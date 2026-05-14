@@ -19,14 +19,30 @@ export const getLeaveRequest = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { startDate, endDate, ...rest } = req.body;
   const leave = await prisma.leaveRequest.create({
-    data: { ...req.body, userId: req.user.id, orgId: req.user.organizationId }
+    data: { 
+      ...rest,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      userId: req.user.id, 
+      orgId: req.user.organizationId 
+    }
   });
   res.status(201).json({ success: true, data: leave });
 });
 
 export const updateLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const leave = await prisma.leaveRequest.update({ where: { id: req.params.id }, data: req.body });
+  const { startDate, endDate, ...rest } = req.body;
+  const updateData: any = { ...rest };
+  
+  if (startDate) updateData.startDate = new Date(startDate);
+  if (endDate) updateData.endDate = new Date(endDate);
+
+  const leave = await prisma.leaveRequest.update({ 
+    where: { id: req.params.id }, 
+    data: updateData 
+  });
   res.json({ success: true, data: leave });
 });
 
@@ -131,11 +147,22 @@ export const getHoliday = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: holiday });
 });
 export const createHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const holiday = await prisma.holiday.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { date, ...rest } = req.body;
+  const holiday = await prisma.holiday.create({ 
+    data: { 
+      ...rest, 
+      date: new Date(date),
+      organizationId: req.user.organizationId 
+    } 
+  });
   res.status(201).json({ success: true, data: holiday });
 });
 export const updateHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const holiday = await prisma.holiday.update({ where: { id: req.params.id }, data: req.body });
+  const { date, ...rest } = req.body;
+  const updateData: any = { ...rest };
+  if (date) updateData.date = new Date(date);
+
+  const holiday = await prisma.holiday.update({ where: { id: req.params.id }, data: updateData });
   res.json({ success: true, data: holiday });
 });
 export const deleteHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -149,13 +176,23 @@ export const getAnnouncements = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ success: true, data: announcements });
 });
 export const createAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { expiresAt, ...rest } = req.body;
   const announcement = await prisma.announcement.create({
-    data: { ...req.body, organizationId: req.user.organizationId, createdById: req.user.id }
+    data: { 
+      ...rest, 
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      organizationId: req.user.organizationId, 
+      postedBy: req.user.id 
+    }
   });
   res.status(201).json({ success: true, data: announcement });
 });
 export const updateAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const announcement = await prisma.announcement.update({ where: { id: req.params.id }, data: req.body });
+  const { expiresAt, ...rest } = req.body;
+  const updateData: any = { ...rest };
+  if (expiresAt) updateData.expiresAt = new Date(expiresAt);
+
+  const announcement = await prisma.announcement.update({ where: { id: req.params.id }, data: updateData });
   res.json({ success: true, data: announcement });
 });
 export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {

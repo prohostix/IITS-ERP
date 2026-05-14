@@ -65,7 +65,16 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
   res.json({ success: true, data: center });
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const isSales = req.user.role === 'sales_admin' || req.user.role === 'bde';
+
+  const center = await prisma.studyCenter.create({ 
+    data: { 
+      ...req.body, 
+      organizationId: req.user.organizationId,
+      status: isSales ? 'pending' : (req.body.status || 'pending'),
+      referredById: isSales ? req.user.id : (req.body.referredById || null)
+    } 
+  });
   res.status(201).json({ success: true, data: center });
 });
 export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
