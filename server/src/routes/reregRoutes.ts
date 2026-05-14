@@ -7,8 +7,8 @@ import {
   processRereg,
   carryForwardMissedReregs,
   getReregStats,
-} from '../controllers/reregController';
-import { protect, authorize } from '../middleware/auth';
+} from '../controllers/reregController.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 

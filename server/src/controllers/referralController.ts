@@ -1,9 +1,9 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import ReferralLink from '../models/ReferralLink';
-import StudyCenter from '../models/StudyCenter';
-import Student from '../models/Student';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import ReferralLink from '../models/ReferralLink.js';
+import StudyCenter from '../models/StudyCenter.js';
+import Student from '../models/Student.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import crypto from 'crypto';
 
 // @desc    Generate referral link for BDE
