@@ -32,14 +32,14 @@ ssh -i $KEY_PATH $SERVER_USER@$SERVER_IP << EOF
     npm install
     
     echo "🏗️ Building server..."
-    npm run build
+    NODE_OPTIONS="--max-old-space-size=2048" npm run build
     
     echo "📦 Installing client dependencies..."
     cd $PROJECT_DIR/client
     npm install
     
     echo "🏗️ Building client..."
-    npm run build
+    NODE_OPTIONS="--max-old-space-size=2048" npm run build
     
     echo "🔄 Restarting backend service..."
     cd $PROJECT_DIR/server
