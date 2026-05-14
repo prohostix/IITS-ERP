@@ -25,13 +25,11 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   const organizationId = resolveOrgId(req.user.organizationId);
 
   // Check if sub-department already exists within the same parent department
-  const existing = await prisma.subDepartment.findUnique({
+  const existing = await prisma.subDepartment.findFirst({
     where: {
-      organizationId_parentDeptId_name: {
-        organizationId,
-        name,
-        parentDeptId,
-      }
+      organizationId,
+      name,
+      parentDeptId,
     }
   });
 
@@ -48,9 +46,9 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
       features: features || [],
       createdBy: req.user.id,
       // Handle relations
-      assignedUniversities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
-      assignedPrograms: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
-      assignedCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
+      universities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
+      programs: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
+      studyCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
     },
   });
 
@@ -81,9 +79,9 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
     include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
-      assignedUniversities: { select: { id: true, name: true, code: true } },
-      assignedPrograms: { select: { id: true, name: true, code: true } },
-      assignedCenters: { select: { id: true, name: true, code: true } },
+      universities: { select: { id: true, name: true, code: true } },
+      programs: { select: { id: true, name: true, code: true } },
+      studyCenters: { select: { id: true, name: true, code: true } },
     },
     orderBy: { name: 'asc' }
   });
@@ -104,9 +102,9 @@ export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Respo
     include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
-      assignedUniversities: { select: { id: true, name: true, code: true } },
-      assignedPrograms: { select: { id: true, name: true, code: true, duration: true } },
-      assignedCenters: { select: { id: true, name: true, code: true, city: true } },
+      universities: { select: { id: true, name: true, code: true } },
+      programs: { select: { id: true, name: true, code: true, duration: true } },
+      studyCenters: { select: { id: true, name: true, code: true, city: true } },
     }
   });
 
@@ -152,9 +150,9 @@ export const updateSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   if (managerId !== undefined) data.managerId = (managerId && managerId !== '') ? managerId : null;
 
   // Handle relation updates (set/disconnect/connect)
-  if (assignedUniversities !== undefined) data.assignedUniversities = { set: assignedUniversities.map((id: string) => ({ id })) };
-  if (assignedPrograms !== undefined) data.assignedPrograms = { set: assignedPrograms.map((id: string) => ({ id })) };
-  if (assignedCenters !== undefined) data.assignedCenters = { set: assignedCenters.map((id: string) => ({ id })) };
+  if (assignedUniversities !== undefined) data.universities = { set: assignedUniversities.map((id: string) => ({ id })) };
+  if (assignedPrograms !== undefined) data.programs = { set: assignedPrograms.map((id: string) => ({ id })) };
+  if (assignedCenters !== undefined) data.studyCenters = { set: assignedCenters.map((id: string) => ({ id })) };
 
   const updated = await prisma.subDepartment.update({
     where: { id: req.params.id },
@@ -207,11 +205,11 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
     include: {
       parentDept: { select: { name: true, type: true } },
       manager: { select: { name: true, email: true } },
-      assignedUniversities: { select: { id: true, name: true, code: true, status: true } },
-      assignedPrograms: { select: { id: true, name: true, code: true, duration: true, status: true } },
-      assignedCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
+      universities: { select: { id: true, name: true, code: true, status: true } },
+      programs: { select: { id: true, name: true, code: true, duration: true, status: true } },
+      studyCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
     }
-  } as any);
+  });
 
   if (!subDept) {
     res.status(404).json({ success: false, message: 'Sub-department not found' });
