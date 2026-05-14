@@ -84,9 +84,9 @@ export function InternalMarksPanel() {
 
   const handleEdit = (m: any) => {
     const studentId = typeof m.studentId === 'object'
-      ? (m.studentId?.id || m.studentId?.id)
+      ? (m.studentId?._id || m.studentId?.id)
       : m.studentId;
-    setEditingId(m.id || m.id);
+    setEditingId(m._id || m.id);
     setFormData({
       studentId: studentId?.toString() || '',
       subjectName: m.subjectName || '',
@@ -148,8 +148,8 @@ export function InternalMarksPanel() {
                   <Select value={formData.studentId} onValueChange={(v) => setFormData({ ...formData, studentId: v })}>
                     <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                     <SelectContent>
-                      {students.filter(s => s && (s.id || s.id)).map((s) => (
-                        <SelectItem key={s.id || s.id} value={(s.id || s.id).toString()}>
+                      {students.filter(s => s && (s._id || s.id)).map((s) => (
+                        <SelectItem key={s._id || s.id} value={(s._id || s.id).toString()}>
                           {s.name}{s.enrollmentNo ? ` (${s.enrollmentNo})` : ''}
                         </SelectItem>
                       ))}
@@ -202,7 +202,7 @@ export function InternalMarksPanel() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Records', value: marks.length },
-            { label: 'Students', value: new Set(marks.map(m => typeof m.studentId === 'object' ? m.studentId?.id : m.studentId)).size },
+            { label: 'Students', value: new Set(marks.map(m => typeof m.studentId === 'object' ? m.studentId?._id : m.studentId)).size },
             { label: 'Avg Score', value: `${Math.round(marks.reduce((s, m) => s + (m.maxMarks ? (m.marks / m.maxMarks) * 100 : 0), 0) / marks.length)}%` },
             { label: 'Subjects', value: new Set(marks.map(m => m.subjectName)).size },
           ].map(stat => (
@@ -234,8 +234,8 @@ export function InternalMarksPanel() {
             </div>
           ) : (
             <div className="space-y-2">
-              {marks.filter(m => m && (m.id || m.id)).map((m) => {
-                const mid = m.id || m.id;
+              {marks.filter(m => m && (m._id || m.id)).map((m) => {
+                const mid = m._id || m.id;
                 const studentName = typeof m.studentId === 'object' ? m.studentId?.name : 'Unknown Student';
                 const enrollNo = typeof m.studentId === 'object' ? m.studentId?.enrollmentNo : null;
                 const centerName = typeof m.studyCenterId === 'object' ? m.studyCenterId?.name : null;

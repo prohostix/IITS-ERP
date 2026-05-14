@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   designation?: string;
@@ -30,7 +30,7 @@ interface User {
 }
 
 interface SubDepartment {
-  id: string;
+  _id: string;
   name: string;
   parentDeptId: any;
   managerId?: any;
@@ -38,7 +38,7 @@ interface SubDepartment {
 }
 
 interface Department {
-  id: string;
+  _id: string;
   name: string;
   type: string;
   managerId?: any;
@@ -95,9 +95,9 @@ export function ManagerAssignmentPanel() {
         subDepartments: subs.filter((s) => {
           const parentId =
             typeof s.parentDeptId === 'object'
-              ? s.parentDeptId?.id
+              ? s.parentDeptId?._id
               : s.parentDeptId;
-          return parentId === dept.id;
+          return parentId === dept._id;
         }),
       }));
 
@@ -127,7 +127,7 @@ export function ManagerAssignmentPanel() {
   ) => {
     const currentId =
       typeof currentManager === 'object'
-        ? currentManager?.id
+        ? currentManager?._id
         : currentManager;
     setAssignTarget({ type, id, name, currentManagerId: currentId });
     setSelectedManagerId(currentId || 'none');
@@ -161,7 +161,7 @@ export function ManagerAssignmentPanel() {
   const getManagerName = (managerId: any) => {
     if (!managerId) return null;
     if (typeof managerId === 'object') return managerId.name;
-    const user = users.find((u) => u.id === managerId);
+    const user = users.find((u) => u._id === managerId);
     return user?.name || null;
   };
 
@@ -200,16 +200,16 @@ export function ManagerAssignmentPanel() {
           )}
 
           {departments.map((dept) => {
-            const isExpanded = expandedDepts.has(dept.id);
+            const isExpanded = expandedDepts.has(dept._id);
             const hasSubs = (dept.subDepartments?.length ?? 0) > 0;
             const managerName = getManagerName(dept.managerId);
 
             return (
-              <div key={dept.id} className="border rounded-xl overflow-hidden">
+              <div key={dept._id} className="border rounded-xl overflow-hidden">
                 {/* Department row */}
                 <div className="flex items-center gap-3 p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
                   <button
-                    onClick={() => hasSubs && toggleExpand(dept.id)}
+                    onClick={() => hasSubs && toggleExpand(dept._id)}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     disabled={!hasSubs}
                   >
@@ -260,7 +260,7 @@ export function ManagerAssignmentPanel() {
                     size="sm"
                     variant={managerName ? 'outline' : 'default'}
                     onClick={() =>
-                      openAssignDialog('department', dept.id, dept.name, dept.managerId)
+                      openAssignDialog('department', dept._id, dept.name, dept.managerId)
                     }
                   >
                     <Users className="w-3 h-3 mr-1" />
@@ -275,7 +275,7 @@ export function ManagerAssignmentPanel() {
                       const subManagerName = getManagerName(sub.managerId);
                       return (
                         <div
-                          key={sub.id}
+                          key={sub._id}
                           className="flex items-center gap-3 p-3 pl-10 bg-background hover:bg-muted/20 transition-colors"
                         >
                           <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -309,7 +309,7 @@ export function ManagerAssignmentPanel() {
                             size="sm"
                             variant={subManagerName ? 'outline' : 'default'}
                             onClick={() =>
-                              openAssignDialog('subdepartment', sub.id, sub.name, sub.managerId)
+                              openAssignDialog('subdepartment', sub._id, sub.name, sub.managerId)
                             }
                           >
                             <Users className="w-3 h-3 mr-1" />
@@ -348,7 +348,7 @@ export function ManagerAssignmentPanel() {
                 <SelectContent>
                   <SelectItem value="none">— Remove Manager —</SelectItem>
                   {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
+                    <SelectItem key={user._id} value={user._id}>
                       {user.name}
                       {' — '}
                       {user.designation || user.role.replace(/_/g, ' ')}

@@ -97,9 +97,9 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   };
 
   const handleEdit = (t: any) => {
-    const empId = typeof t.employeeId === 'object' ? (t.employeeId?.id || t.employeeId?.id) : t.employeeId;
-    const deptId = typeof t.departmentId === 'object' ? (t.departmentId?.id || t.departmentId?.id) : t.departmentId;
-    setEditingId(t.id || t.id);
+    const empId = typeof t.employeeId === 'object' ? (t.employeeId?._id || t.employeeId?.id) : t.employeeId;
+    const deptId = typeof t.departmentId === 'object' ? (t.departmentId?._id || t.departmentId?.id) : t.departmentId;
+    setEditingId(t._id || t.id);
     setFormData({
       employeeId: empId?.toString() || '',
       departmentId: deptId?.toString() || '',
@@ -151,8 +151,8 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                     <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {employees.filter(e => e && (e.id || e.id)).map((e) => (
-                        <SelectItem key={e.id || e.id} value={(e.id || e.id).toString()}>
+                      {employees.filter(e => e && (e._id || e.id)).map((e) => (
+                        <SelectItem key={e._id || e.id} value={(e._id || e.id).toString()}>
                           {e.name || e.email}
                         </SelectItem>
                       ))}
@@ -165,8 +165,8 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                     <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {departments.filter(d => d && (d.id || d.id)).map((d) => (
-                        <SelectItem key={d.id || d.id} value={(d.id || d.id).toString()}>
+                      {departments.filter(d => d && (d._id || d.id)).map((d) => (
+                        <SelectItem key={d._id || d.id} value={(d._id || d.id).toString()}>
                           {d.name}
                         </SelectItem>
                       ))}
@@ -227,8 +227,8 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
             <div className="text-center py-8 text-muted-foreground">No targets found</div>
           ) : (
             <div className="space-y-4">
-              {targets.filter(t => t && (t.id || t.id)).map((t) => {
-                const tid = t.id || t.id;
+              {targets.filter(t => t && (t._id || t.id)).map((t) => {
+                const tid = t._id || t.id;
                 const pct = t.target ? Math.min(100, ((t.achieved || 0) / t.target) * 100) : 0;
                 const empName = typeof t.employeeId === 'object' ? t.employeeId?.name : '';
                 const deptName = typeof t.departmentId === 'object' ? t.departmentId?.name : '';

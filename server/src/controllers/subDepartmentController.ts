@@ -1,7 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import { asyncHandler, resolveOrgId } from '../utils/asyncHandler.js';
-import prisma from '../lib/prisma.js';
+import SubDepartment from '../models/SubDepartment.js';
+import Department from '../models/Department.js';
 
 // @desc    Create sub-department
 // @route   POST /api/ops/sub-departments
@@ -11,7 +12,7 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
     req.body;
 
   // Verify parent department exists
-  const parentDept = await prisma.department.findUnique({ where: { id: parentDeptId } });
+  const parentDept = await Department.findById(parentDeptId);
   if (!parentDept) {
     res.status(404);
     throw new Error('Parent department not found');
@@ -22,17 +23,11 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
     throw new Error('Sub-department name is required');
   }
 
-  const organizationId = resolveOrgId(req.user.organizationId);
-
   // Check if sub-department already exists within the same parent department
-  const existing = await prisma.subDepartment.findUnique({
-    where: {
-      organizationId_parentDeptId_name: {
-        organizationId,
-        name,
-        parentDeptId,
-      }
-    }
+  const existing = await SubDepartment.findOne({
+    organizationId: req.user.organizationId,
+    name,
+    parentDeptId,
   });
 
   if (existing) {
@@ -40,18 +35,15 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
     throw new Error(`Sub-department ${name} already exists`);
   }
 
-  const subDepartment = await prisma.subDepartment.create({
-    data: {
-      organizationId,
-      name,
-      parentDeptId,
-      features: features || [],
-      createdBy: req.user.id,
-      // Handle relations
-      universities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
-      programs: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
-      studyCenters: assignedCenters ? { connect: assignedCenters.map((id: string) => ({ id })) } : undefined,
-    },
+  const subDepartment = await SubDepartment.create({
+    organizationId: req.user.organizationId,
+    name,
+    parentDeptId,
+    features: features || [],
+    assignedUniversities: assignedUniversities || [],
+    assignedPrograms: assignedPrograms || [],
+    assignedCenters: assignedCenters || [],
+    createdBy: req.user._id,
   });
 
   res.status(201).json({
@@ -66,27 +58,23 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
 export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { parentDeptId, status } = req.query;
 
-  const where: any = { organizationId: resolveOrgId(req.user.organizationId) };
+  const query: any = { organizationId: req.user.organizationId };
 
   if (parentDeptId) {
-    where.parentDeptId = parentDeptId as string;
+    query.parentDeptId = parentDeptId;
   }
 
   if (status) {
-    where.status = status as string;
+    query.status = status;
   }
 
-  const subDepartments = await prisma.subDepartment.findMany({
-    where,
-    include: {
-      parentDept: { select: { name: true } },
-      manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true } },
-      studyCenters: { select: { id: true, name: true, code: true } },
-    },
-    orderBy: { name: 'asc' }
-  });
+  const subDepartments = await SubDepartment.find(query)
+    .populate('parentDeptId', 'name')
+    .populate('managerId', 'name')
+    .populate('assignedUniversities', 'name code')
+    .populate('assignedPrograms', 'name code')
+    .populate('assignedCenters', 'name code')
+    .sort({ name: 1 });
 
   res.status(200).json({
     success: true,
@@ -99,16 +87,12 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 // @route   GET /api/ops/sub-departments/:id
 // @access  Private
 export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const subDepartment = await prisma.subDepartment.findUnique({
-    where: { id: req.params.id },
-    include: {
-      parentDept: { select: { name: true } },
-      manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true } },
-    }
-  });
+  const subDepartment = await SubDepartment.findById(req.params.id)
+    .populate('parentDeptId', 'name')
+    .populate('managerId', 'name')
+    .populate('assignedUniversities', 'name code')
+    .populate('assignedPrograms', 'name code duration')
+    .populate('assignedCenters', 'name code city');
 
   if (!subDepartment) {
     res.status(404);
@@ -116,7 +100,7 @@ export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   // Verify organization
-  if (subDepartment.organizationId !== resolveOrgId(req.user.organizationId)) {
+  if (subDepartment.organizationId.toString() !== resolveOrgId(req.user.organizationId)) {
     res.status(403);
     throw new Error('Not authorized to access this sub-department');
   }
@@ -133,7 +117,7 @@ export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Respo
 export const updateSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { features, assignedUniversities, assignedPrograms, assignedCenters, status, managerId } = req.body;
 
-  const subDepartment = await prisma.subDepartment.findUnique({ where: { id: req.params.id } });
+  const subDepartment = await SubDepartment.findById(req.params.id);
 
   if (!subDepartment) {
     res.status(404);
@@ -141,25 +125,24 @@ export const updateSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Verify organization
-  if (subDepartment.organizationId !== resolveOrgId(req.user.organizationId)) {
+  if (subDepartment.organizationId.toString() !== resolveOrgId(req.user.organizationId)) {
     res.status(403);
     throw new Error('Not authorized to update this sub-department');
   }
 
-  const data: any = {};
-  if (features !== undefined) data.features = features;
-  if (status) data.status = status;
-  if (managerId !== undefined) data.managerId = (managerId && managerId !== '') ? managerId : null;
+  const updateFields: any = {};
+  if (features !== undefined) updateFields.features = features;
+  if (assignedUniversities !== undefined) updateFields.assignedUniversities = assignedUniversities;
+  if (assignedPrograms !== undefined) updateFields.assignedPrograms = assignedPrograms;
+  if (assignedCenters !== undefined) updateFields.assignedCenters = assignedCenters;
+  if (status) updateFields.status = status;
+  if (managerId !== undefined) updateFields.managerId = (managerId && managerId !== '') ? managerId : null;
 
-  // Handle relation updates (set/disconnect/connect)
-  if (assignedUniversities !== undefined) data.universities = { set: assignedUniversities.map((id: string) => ({ id })) };
-  if (assignedPrograms !== undefined) data.programs = { set: assignedPrograms.map((id: string) => ({ id })) };
-  if (assignedCenters !== undefined) data.studyCenters = { set: assignedCenters.map((id: string) => ({ id })) };
-
-  const updated = await prisma.subDepartment.update({
-    where: { id: req.params.id },
-    data
-  });
+  const updated = await SubDepartment.findByIdAndUpdate(
+    req.params.id,
+    { $set: updateFields },
+    { new: true, runValidators: false }
+  );
 
   res.status(200).json({
     success: true,
@@ -171,7 +154,7 @@ export const updateSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
 // @route   DELETE /api/ops/sub-departments/:id
 // @access  Private (Ops Admin, Org Admin, Superadmin)
 export const deleteSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const subDepartment = await prisma.subDepartment.findUnique({ where: { id: req.params.id } });
+  const subDepartment = await SubDepartment.findById(req.params.id);
 
   if (!subDepartment) {
     res.status(404);
@@ -179,12 +162,12 @@ export const deleteSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Verify organization
-  if (subDepartment.organizationId !== resolveOrgId(req.user.organizationId)) {
+  if (subDepartment.organizationId.toString() !== resolveOrgId(req.user.organizationId)) {
     res.status(403);
     throw new Error('Not authorized to delete this sub-department');
   }
 
-  await prisma.subDepartment.delete({ where: { id: req.params.id } });
+  await subDepartment.deleteOne();
 
   res.status(200).json({
     success: true,
@@ -196,22 +179,22 @@ export const deleteSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
 // @route   GET /api/ops/sub-departments/my
 // @access  Private (any employee with subDepartmentId)
 export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const subDeptId = req.user.subDepartmentId;
-  if (!subDeptId) {
+  const rawSubDeptId = (req.user as any).subDepartmentId;
+  if (!rawSubDeptId) {
     res.status(404).json({ success: false, message: 'No sub-department assigned to your account' });
     return;
   }
+  // Handle both populated object and plain ObjectId
+  const subDeptId = typeof rawSubDeptId === 'object' && rawSubDeptId._id
+    ? rawSubDeptId._id
+    : rawSubDeptId;
 
-  const subDept = await prisma.subDepartment.findUnique({
-    where: { id: subDeptId },
-    include: {
-      parentDept: { select: { name: true, type: true } },
-      manager: { select: { name: true, email: true } },
-      universities: { select: { id: true, name: true, code: true, status: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true, status: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
-    }
-  });
+  const subDept = await SubDepartment.findById(subDeptId)
+    .populate('parentDeptId', 'name type')
+    .populate('managerId', 'name email')
+    .populate('assignedUniversities', 'name code status')
+    .populate('assignedPrograms', 'name code duration status')
+    .populate('assignedCenters', 'name code city state status');
 
   if (!subDept) {
     res.status(404).json({ success: false, message: 'Sub-department not found' });
@@ -222,52 +205,41 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
   let enrollmentStats: any[] = [];
   let monthlyEnrollments: any[] = [];
 
-  if (subDept.studyCenters && subDept.studyCenters.length > 0) {
-    const centerIds = subDept.studyCenters.map(c => c.id);
-    const orgId = resolveOrgId(req.user.organizationId);
+  if (subDept.assignedCenters && subDept.assignedCenters.length > 0) {
+    try {
+      const Enrollment = (await import('../models/Enrollment.js')).default;
+      const centerIds = subDept.assignedCenters.map((c: any) => c._id || c);
 
-    // Get enrollment counts by status for assigned centers
-    const countsByStatus = await prisma.enrollment.groupBy({
-      by: ['status'],
-      where: {
-        orgId,
-        studyCenterId: { in: centerIds }
-      },
-      _count: true
-    });
+      // Total counts per center
+      enrollmentStats = await Enrollment.aggregate([
+        { $match: { studyCenterId: { $in: centerIds }, organizationId: req.user.organizationId } },
+        { $group: {
+          _id: '$studyCenterId',
+          total: { $sum: 1 },
+          enrolled: { $sum: { $cond: [{ $eq: ['$status', 'enrolled'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $in: ['$status', ['payment_pending', 'document_review', 'finance_review']] }, 1, 0] } },
+          rejected: { $sum: { $cond: [{ $in: ['$status', ['rejected', 'department_rejected']] }, 1, 0] } },
+        }},
+      ]);
 
-    enrollmentStats = countsByStatus.map(item => ({
-      status: item.status,
-      count: item._count
-    }));
+      // Monthly enrollments for last 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    // Get last 6 months enrollment trends
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    const monthlyData = await prisma.enrollment.findMany({
-      where: {
-        orgId,
-        studyCenterId: { in: centerIds },
-        createdAt: { gte: sixMonthsAgo }
-      },
-      select: { createdAt: true }
-    });
-
-    // Simple grouping by month
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const trendMap = new Map<string, number>();
-
-    monthlyData.forEach(e => {
-      const date = new Date(e.createdAt);
-      const monthLabel = `${months[date.getMonth()]} ${date.getFullYear()}`;
-      trendMap.set(monthLabel, (trendMap.get(monthLabel) || 0) + 1);
-    });
-
-    monthlyEnrollments = Array.from(trendMap.entries()).map(([month, count]) => ({
-      month,
-      count
-    })).reverse();
+      monthlyEnrollments = await Enrollment.aggregate([
+        { $match: {
+          studyCenterId: { $in: centerIds },
+          organizationId: req.user.organizationId,
+          createdAt: { $gte: sixMonthsAgo },
+        }},
+        { $group: {
+          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+          total: { $sum: 1 },
+          enrolled: { $sum: { $cond: [{ $eq: ['$status', 'enrolled'] }, 1, 0] } },
+        }},
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]);
+    } catch (_) {}
   }
 
   res.status(200).json({

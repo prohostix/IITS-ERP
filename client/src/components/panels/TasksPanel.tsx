@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 
 interface Task {
+  _id?: string;
   id?: string;
   title: string;
   description: string;
@@ -32,7 +33,7 @@ interface Task {
 }
 
 interface SubUser {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   designation?: string;
@@ -92,7 +93,7 @@ export function TasksPanel() {
     if (!formData.assignedTo) return;
 
     // Auto-derive departmentId from the selected subordinate
-    const selectedUser = subordinates.find(s => s.id === formData.assignedTo);
+    const selectedUser = subordinates.find(s => s._id === formData.assignedTo);
     const payload: any = { ...formData };
     if (selectedUser?.departmentId) {
       payload.departmentId = selectedUser.departmentId;
@@ -100,7 +101,7 @@ export function TasksPanel() {
 
     try {
       if (editingTask) {
-        await api.put(`/tasks/${editingTask.id || editingTask.id}`, payload);
+        await api.put(`/tasks/${editingTask._id || editingTask.id}`, payload);
       } else {
         await api.post('/tasks', payload);
       }
@@ -121,7 +122,7 @@ export function TasksPanel() {
       if (completeData.files) {
         Array.from(completeData.files).forEach(f => fd.append('evidence', f));
       }
-      await api.put(`/tasks/${completingTask.id || completingTask.id}/complete`, fd, {
+      await api.put(`/tasks/${completingTask._id || completingTask.id}/complete`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setCompleteDialogOpen(false);
@@ -148,7 +149,7 @@ export function TasksPanel() {
     setFormData({
       title: task.title,
       description: task.description,
-      assignedTo: task.assignedTo?.id || task.assignedTo?.id || task.assignedTo || '',
+      assignedTo: task.assignedTo?._id || task.assignedTo?.id || task.assignedTo || '',
       priority: task.priority,
       deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
     });
@@ -174,12 +175,12 @@ export function TasksPanel() {
     pending: 'bg-gray-100 text-gray-800',
   }[s] || 'bg-gray-100 text-gray-800');
 
-  const currentUserId = user?.id || (user as any)?.id;
+  const currentUserId = user?._id || (user as any)?.id;
 
   const filteredTasks = (() => {
     switch (activeTab) {
-      case 'assigned': return tasks.filter(t => (t.assignedBy?.id || t.assignedBy?.id || t.assignedBy) === currentUserId);
-      case 'my': return tasks.filter(t => (t.assignedTo?.id || t.assignedTo?.id || t.assignedTo) === currentUserId);
+      case 'assigned': return tasks.filter(t => (t.assignedBy?._id || t.assignedBy?.id || t.assignedBy) === currentUserId);
+      case 'my': return tasks.filter(t => (t.assignedTo?._id || t.assignedTo?.id || t.assignedTo) === currentUserId);
       case 'pending': return tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
       case 'completed': return tasks.filter(t => t.status === 'completed');
       default: return tasks;
@@ -236,7 +237,7 @@ export function TasksPanel() {
                       <SelectItem value="__none__" disabled>No direct reports found</SelectItem>
                     ) : (
                       subordinates.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
+                        <SelectItem key={s._id} value={s._id}>
                           {s.name}{s.designation ? ` — ${s.designation}` : ''}
                         </SelectItem>
                       ))
@@ -297,9 +298,9 @@ export function TasksPanel() {
             ) : (
               <div className="space-y-3">
                 {filteredTasks.map(task => {
-                  const taskId = task.id || task.id || '';
-                  const isAssignedByMe = (task.assignedBy?.id || task.assignedBy?.id || task.assignedBy) === currentUserId;
-                  const isAssignedToMe = (task.assignedTo?.id || task.assignedTo?.id || task.assignedTo) === currentUserId;
+                  const taskId = task._id || task.id || '';
+                  const isAssignedByMe = (task.assignedBy?._id || task.assignedBy?.id || task.assignedBy) === currentUserId;
+                  const isAssignedToMe = (task.assignedTo?._id || task.assignedTo?.id || task.assignedTo) === currentUserId;
                   return (
                     <div key={taskId} className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex-1">
@@ -320,7 +321,7 @@ export function TasksPanel() {
                             {task.evidence.map((url, i) => (
                               <a
                                 key={i}
-                                href={url.startsWith('/') ? `${url}` : url}
+                                href={url.startsWith('/') ? `http://localhost:4009${url}` : url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-xs text-primary hover:underline"

@@ -46,20 +46,19 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
 
   const fetchDepartmentType = async () => {
     try {
-      // Try direct department object or departmentId first
-      const dept = (user as any).department || user?.departmentId;
-      if (dept) {
-        if (typeof dept === 'object' && dept !== null) {
-          const populated = dept as any;
+      // Try direct departmentId first
+      if (user?.departmentId) {
+        if (typeof user.departmentId === 'object' && user.departmentId !== null) {
+          const populated = user.departmentId as any;
           if (populated.type) { setDepartmentType(populated.type); return; }
-          const deptId = populated.id?.toString();
+          const deptId = populated._id?.toString() || populated.id?.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             setDepartmentType(res.data.data?.type || null);
             return;
           }
         } else {
-          const deptId = dept.toString();
+          const deptId = user.departmentId?.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             setDepartmentType(res.data.data?.type || null);
@@ -76,7 +75,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
             setDepartmentType(parentDeptId.type);
             return;
           }
-          const pid = typeof parentDeptId === 'object' ? parentDeptId.id?.toString() : parentDeptId?.toString();
+          const pid = typeof parentDeptId === 'object' ? parentDeptId._id?.toString() : parentDeptId?.toString();
           if (pid) {
             const res = await api.get(`/departments/${pid}`);
             setDepartmentType(res.data.data?.type || null);
@@ -112,8 +111,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
     // If we have a department type, route accordingly
     if (departmentType) {
       // Regular employees (not sub-dept managers) always get the employee dashboard
-      // Exception: Sales employees get the Sales dashboard (which has an employee portal)
-      if (!isSubDeptManager && departmentType !== 'sales') {
+      if (!isSubDeptManager) {
         return <ModernEmployeeDashboard initialTab={initialTab} />;
       }
       // Sub-dept managers get the department admin dashboard

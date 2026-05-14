@@ -72,8 +72,8 @@ export function FeeStructuresPanel() {
   };
 
   const handleEdit = (f: any) => {
-    const progId = typeof f.programId === 'object' ? (f.programId?.id || f.programId?.id) : f.programId;
-    setEditingId(f.id || f.id);
+    const progId = typeof f.programId === 'object' ? (f.programId?._id || f.programId?.id) : f.programId;
+    setEditingId(f._id || f.id);
     setFormData({
       programId: progId?.toString() || '',
       registrationFee: f.registrationFee?.toString() || '0',
@@ -120,8 +120,8 @@ export function FeeStructuresPanel() {
                 <Select value={formData.programId} onValueChange={(v) => setFormData({ ...formData, programId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
                   <SelectContent>
-                    {programs.filter(p => p && (p.id || p.id)).map((p) => (
-                      <SelectItem key={p.id || p.id} value={(p.id || p.id).toString()}>
+                    {programs.filter(p => p && (p._id || p.id)).map((p) => (
+                      <SelectItem key={p._id || p.id} value={(p._id || p.id).toString()}>
                         {p.name}
                       </SelectItem>
                     ))}
@@ -166,8 +166,8 @@ export function FeeStructuresPanel() {
             <div className="text-center py-8 text-muted-foreground">No fee structures found</div>
           ) : (
             <div className="space-y-2">
-              {fees.filter(f => f && (f.id || f.id)).map((f) => {
-                const fid = f.id || f.id;
+              {fees.filter(f => f && (f._id || f.id)).map((f) => {
+                const fid = f._id || f.id;
                 const progName = typeof f.programId === 'object' ? f.programId?.name : '';
                 const total = (f.registrationFee || 0) + (f.tuitionFee || 0) + (f.examFee || 0);
                 return (

@@ -90,7 +90,7 @@ export function EmployeesPanel() {
         await api.put(`/users/${editingId}`, payload);
       } else {
         const res = await api.post('/users', payload);
-        userId = res.data.data?.id || res.data.data?.id;
+        userId = res.data.data?._id || res.data.data?.id;
       }
 
       // If a branch was selected, assign this user as branch manager
@@ -108,11 +108,11 @@ export function EmployeesPanel() {
   };
 
   const handleEdit = (employee: any) => {
-    const empId = employee.id || employee.id;
+    const empId = employee.id || employee._id;
     const rawDept = employee.departmentId;
     const deptId = typeof rawDept === 'object' && rawDept !== null
-      ? (rawDept.id || rawDept.id)
-      : (rawDept || employee.department?.id || employee.department?.id);
+      ? (rawDept._id || rawDept.id)
+      : (rawDept || employee.department?.id || employee.department?._id);
     setEditingId(empId);
     setFormData({
       name: employee.name || '',
@@ -122,7 +122,7 @@ export function EmployeesPanel() {
       departmentId: deptId?.toString() || '',
       role: employee.role || 'employee',
       designation: employee.designation || '',
-      branchId: typeof employee.branchId === 'object' ? (employee.branchId?.id || '') : (employee.branchId || ''),
+      branchId: typeof employee.branchId === 'object' ? (employee.branchId?._id || '') : (employee.branchId || ''),
       status: employee.status || 'active'
     });
     setDialogOpen(true);
@@ -248,8 +248,8 @@ export function EmployeesPanel() {
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
                       {branches.map((b: any) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name} ({b.code})
+                        <SelectItem key={b._id} value={b._id}>
+                          {b.name} ({b.branchCode})
                           {b.branchManagerId ? ' · has manager' : ' · vacant'}
                         </SelectItem>
                       ))}
@@ -269,8 +269,8 @@ export function EmployeesPanel() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.filter(dept => dept && (dept.id || dept.id)).map((dept) => (
-                      <SelectItem key={dept.id || dept.id} value={(dept.id || dept.id).toString()}>
+                    {departments.filter(dept => dept && (dept.id || dept._id)).map((dept) => (
+                      <SelectItem key={dept.id || dept._id} value={(dept.id || dept._id).toString()}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -310,8 +310,8 @@ export function EmployeesPanel() {
             <div className="text-center py-8 text-muted-foreground">No employees found</div>
           ) : (
             <div className="space-y-2">
-              {employees.filter(emp => emp && (emp.id || emp.id)).map((employee) => {
-                const empId = employee.id || employee.id;
+              {employees.filter(emp => emp && (emp.id || emp._id)).map((employee) => {
+                const empId = employee.id || employee._id;
                 return (
                 <div key={empId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                   <div className="flex items-center gap-4">

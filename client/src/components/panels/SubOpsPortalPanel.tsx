@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
-  Building2, BookOpen, GraduationCap, MapPin, RefreshCw, BarChart3,
+  Building2, BookOpen, GraduationCap, MapPin, RefreshCw,
+  TrendingUp, Users, CheckCircle2, Clock, BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
@@ -66,11 +67,11 @@ export function SubOpsPortalPanel() {
 
   // Build center enrollment map
   const centerEnrollMap: Record<string, any> = {};
-  enrollmentStats.forEach((e: any) => { centerEnrollMap[e.id?.toString()] = e; });
+  enrollmentStats.forEach((e: any) => { centerEnrollMap[e._id?.toString()] = e; });
 
   // Monthly chart data
   const chartData = monthlyEnrollments.map((m: any) => ({
-    month: MONTH_NAMES[(m.id.month - 1)],
+    month: MONTH_NAMES[(m._id.month - 1)],
     total: m.total,
     enrolled: m.enrolled,
   }));
@@ -145,10 +146,10 @@ export function SubOpsPortalPanel() {
                 {centers.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">No centers assigned</p>
                 ) : centers.map((c: any) => {
-                  const stats = centerEnrollMap[c.id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
+                  const stats = centerEnrollMap[c._id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
                   const pct = stats.total > 0 ? Math.round((stats.enrolled / stats.total) * 100) : 0;
                   return (
-                    <div key={c.id} className="space-y-1">
+                    <div key={c._id} className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="font-medium truncate max-w-[200px]">{c.name} <span className="text-muted-foreground">({c.code})</span></span>
                         <span className="text-muted-foreground">{stats.enrolled}/{stats.total}</span>
@@ -187,9 +188,9 @@ export function SubOpsPortalPanel() {
             {centers.length === 0 ? (
               <p className="text-muted-foreground col-span-3 text-center py-8">No study centers assigned</p>
             ) : centers.map((c: any) => {
-              const stats = centerEnrollMap[c.id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
+              const stats = centerEnrollMap[c._id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
               return (
-                <Card key={c.id} className="hover:border-primary/30 transition-colors">
+                <Card key={c._id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -298,7 +299,7 @@ function QuickList({ title, items, icon }: any) {
         {items.length === 0 ? (
           <p className="text-xs text-muted-foreground">None assigned</p>
         ) : items.map((item: any) => (
-          <div key={item.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
+          <div key={item._id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
             <span className="font-medium truncate">{item.name}</span>
             <span className="text-muted-foreground shrink-0 ml-2">{item.code}</span>
           </div>
@@ -318,7 +319,7 @@ function ResourceGrid({ items, type }: { items: any[]; type: string }) {
       {items.length === 0 ? (
         <p className="text-muted-foreground col-span-3 text-center py-8">No {type}s assigned to your sub-department</p>
       ) : items.map((item: any) => (
-        <Card key={item.id} className="hover:border-primary/30 transition-colors">
+        <Card key={item._id} className="hover:border-primary/30 transition-colors">
           <CardContent className="p-4 flex items-start gap-3">
             <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">{icons[type]}</div>
             <div className="min-w-0">

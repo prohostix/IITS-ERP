@@ -10,9 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 
-interface Branch { id: string; name: string; code: string; }
+interface Branch { _id: string; name: string; branchCode: string; }
 interface University {
-  id: string; name: string; code: string; address?: string;
+  _id: string; name: string; code: string; address?: string;
   contact?: string; status: string;
   allowedBranchIds: Branch[];
 }
@@ -79,9 +79,9 @@ export function UniversitiesPanel() {
   };
 
   const handleEdit = (u: University) => {
-    setEditingId(u.id);
+    setEditingId(u._id);
     setFormData({ name: u.name, code: u.code, address: u.address || '', contact: u.contact || '', status: u.status });
-    const ids = (u.allowedBranchIds || []).map(b => b.id);
+    const ids = (u.allowedBranchIds || []).map(b => b._id);
     setSelectedBranchIds(ids);
     if (ids.length === 0) setAccessMode('all');
     else if (ids.length === 1) setAccessMode('exclusive');
@@ -230,8 +230,8 @@ export function UniversitiesPanel() {
                         <SelectContent>
                           <SelectItem value="__none__">— Choose a branch —</SelectItem>
                           {branches.map(b => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.name} [{b.code}]
+                            <SelectItem key={b._id} value={b._id}>
+                              {b.name} [{b.branchCode}]
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -240,7 +240,7 @@ export function UniversitiesPanel() {
                         <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
                           <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                           <p className="text-xs text-amber-800">
-                            <strong>Exclusive to {branches.find(b => b.id === selectedBranchIds[0])?.name}.</strong>{' '}
+                            <strong>Exclusive to {branches.find(b => b._id === selectedBranchIds[0])?.name}.</strong>{' '}
                             All other branches will not see this university in their lists.
                           </p>
                         </div>
@@ -255,19 +255,19 @@ export function UniversitiesPanel() {
                     <div className="space-y-2">
                       <div className="bg-white border rounded-lg divide-y">
                         {branches.map(b => {
-                          const checked = selectedBranchIds.includes(b.id);
+                          const checked = selectedBranchIds.includes(b._id);
                           return (
-                            <label key={b.id}
+                            <label key={b._id}
                               className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
                               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
                                 checked ? 'bg-cyan-600 border-cyan-600' : 'border-slate-300'}`}
                                 onClick={() => setSelectedBranchIds(prev =>
-                                  prev.includes(b.id) ? prev.filter(x => x !== b.id) : [...prev, b.id]
+                                  prev.includes(b._id) ? prev.filter(x => x !== b._id) : [...prev, b._id]
                                 )}>
                                 {checked && <span className="text-white text-[10px] font-bold">✓</span>}
                               </div>
                               <span className="text-sm font-medium">{b.name}</span>
-                              <span className="text-xs font-mono text-muted-foreground ml-auto">[{b.code}]</span>
+                              <span className="text-xs font-mono text-muted-foreground ml-auto">[{b.branchCode}]</span>
                             </label>
                           );
                         })}
@@ -311,10 +311,10 @@ export function UniversitiesPanel() {
         const branchMap = new Map<string, { branch: Branch; unis: University[] }>();
         universities.forEach(u => {
           (u.allowedBranchIds || []).forEach(b => {
-            if (!branchMap.has(b.id)) branchMap.set(b.id, { branch: b, unis: [] });
+            if (!branchMap.has(b._id)) branchMap.set(b._id, { branch: b, unis: [] });
             // Only add once per university per branch
-            if (!branchMap.get(b.id)!.unis.find(x => x.id === u.id)) {
-              branchMap.get(b.id)!.unis.push(u);
+            if (!branchMap.get(b._id)!.unis.find(x => x._id === u._id)) {
+              branchMap.get(b._id)!.unis.push(u);
             }
           });
         });
@@ -337,7 +337,7 @@ export function UniversitiesPanel() {
               {isOrgAdmin && (
                 <>
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(u)}><Edit className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDelete(u._id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </>
               )}
             </div>
@@ -355,20 +355,20 @@ export function UniversitiesPanel() {
                   <span className="ml-auto text-xs text-muted-foreground">{globalUnis.length} universit{globalUnis.length > 1 ? 'ies' : 'y'}</span>
                 </div>
                 <div className="divide-y">
-                  {globalUnis.map(u => <UniRow key={u.id} u={u} />)}
+                  {globalUnis.map(u => <UniRow key={u._id} u={u} />)}
                 </div>
               </div>
             )}
 
             {/* Per-branch sections */}
             {Array.from(branchMap.values()).map(({ branch, unis }) => (
-              <div key={branch.id} className="border-2 rounded-xl overflow-hidden" style={{ borderColor: '#0891b233' }}>
+              <div key={branch._id} className="border-2 rounded-xl overflow-hidden" style={{ borderColor: '#0891b233' }}>
                 <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ background: '#0891b211' }}>
                   <div className="w-6 h-6 rounded-lg bg-cyan-600 flex items-center justify-center">
                     <GitBranch className="h-3.5 w-3.5 text-white" />
                   </div>
                   <span className="text-sm font-semibold text-cyan-900">{branch.name}</span>
-                  <span className="text-xs font-mono text-cyan-600 bg-cyan-100 px-1.5 py-0.5 rounded">{branch.code}</span>
+                  <span className="text-xs font-mono text-cyan-600 bg-cyan-100 px-1.5 py-0.5 rounded">{branch.branchCode}</span>
                   {unis.length === 1 && unis[0].allowedBranchIds.length === 1 && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full ml-1">
                       <Lock className="h-2.5 w-2.5" /> Exclusive
@@ -377,7 +377,7 @@ export function UniversitiesPanel() {
                   <span className="ml-auto text-xs text-muted-foreground">{unis.length} universit{unis.length > 1 ? 'ies' : 'y'}</span>
                 </div>
                 <div className="divide-y">
-                  {unis.map(u => <UniRow key={u.id} u={u} />)}
+                  {unis.map(u => <UniRow key={u._id} u={u} />)}
                 </div>
               </div>
             ))}

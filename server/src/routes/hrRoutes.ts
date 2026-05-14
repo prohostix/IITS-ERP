@@ -10,6 +10,13 @@ import {
   hrApproveLeave,
   getLeaveStats,
   getMyLeaves,
+  getAttendance,
+  getAttendanceById,
+  markAttendance,
+  updateAttendance,
+  deleteAttendance,
+  getMyAttendance,
+  getMyAttendanceSummary,
   getVacancies,
   getVacancy,
   createVacancy,
@@ -34,17 +41,8 @@ import {
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
-} from '../controllers/hrController.js';
-import {
-  getAttendance,
-  getAttendanceById,
-  markAttendance,
-  updateAttendance,
-  deleteAttendance,
-  getMyAttendance,
-  getMyAttendanceSummary,
   getActivityReport,
-} from '../controllers/attendanceController.js';
+} from '../controllers/hrController.js';
 import {
   getEmployeeProfile,
   upsertEmployeeProfile,

@@ -10,7 +10,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Program {
-  id: string;
+  _id: string;
   name: string;
   code: string;
   universityId?: { name: string };
@@ -61,7 +61,7 @@ export function EnrollStudentPanel() {
     }
     setSubmitting(true);
     try {
-      await api.post('/enrollment/enroll', { ...form, programId: selectedProgram.id });
+      await api.post('/enrollment/enroll', { ...form, programId: selectedProgram._id });
       toast.success('Enrollment submitted successfully');
       setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '' });
       setSelectedProgram(null);
@@ -110,10 +110,10 @@ export function EnrollStudentPanel() {
                 {programs.map(p => {
                   const total = getTotalFee(p);
                   const canAfford = balance >= total;
-                  const isSelected = selectedProgram?.id === p.id;
+                  const isSelected = selectedProgram?._id === p._id;
                   return (
                     <button
-                      key={p.id}
+                      key={p._id}
                       onClick={() => setSelectedProgram(isSelected ? null : p)}
                       className={cn(
                         'w-full text-left p-4 rounded-xl border transition-all',

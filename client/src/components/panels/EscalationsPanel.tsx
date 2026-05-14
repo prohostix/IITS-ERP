@@ -25,10 +25,10 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Escalation {
-  id: string;
-  taskId?: { id: string; title: string; description: string; deadline: string; priority: string };
-  employeeId?: { id: string; name: string; email: string };
-  deptAdminId?: { id: string; name: string; email: string };
+  _id: string;
+  taskId?: { _id: string; title: string; description: string; deadline: string; priority: string };
+  employeeId?: { _id: string; name: string; email: string };
+  deptAdminId?: { _id: string; name: string; email: string };
   organizationId: string;
   priority: string;
   status: string;
@@ -92,7 +92,7 @@ export function EscalationsPanel() {
     if (!selected || !actionData.action) return;
     setSubmitting(true);
     try {
-      await api.patch(`/ceo/escalations/${selected.id}`, actionData);
+      await api.patch(`/ceo/escalations/${selected._id}`, actionData);
       toast.success('Escalation handled successfully');
       setActionDialog(false);
       setSelected(null);
@@ -182,7 +182,7 @@ export function EscalationsPanel() {
           ) : (
             <div className="space-y-3">
               {filtered.map(esc => (
-                <Card key={esc.id} className="hover:border-primary/30 transition-colors">
+                <Card key={esc._id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 
 interface TeamMember {
-  id: string;
+  _id: string;
   name: string;
   designation: string;
   status: string;
@@ -129,7 +129,7 @@ export function TeamPerformancePanel() {
             <div className="space-y-3">
               {team.map((member, i) => (
                 <div
-                  key={member.id}
+                  key={member._id}
                   className={cn(
                     'flex items-center gap-4 p-4 rounded-xl border transition-all',
                     i === 0 ? 'border-yellow-500/30 bg-yellow-500/5' :

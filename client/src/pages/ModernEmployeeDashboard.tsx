@@ -195,7 +195,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
                 ) : (
                   tasks.map((task: any) => (
                     <TaskItem
-                      key={task.id}
+                      key={task._id}
                       title={task.title}
                       priority={task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Medium' : 'Low'}
                       due={task.deadline ? new Date(task.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'No deadline'}

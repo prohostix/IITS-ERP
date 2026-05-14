@@ -16,19 +16,19 @@ import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4009/api/v1';
 
 interface Program {
-  id: string; name: string; code: string; courseType: string;
+  _id: string; name: string; code: string; courseType: string;
   duration: number; hasSemesters: boolean; semesters: { number: number; name: string; durationMonths: number }[];
   status: string; universityId: any; subDepartmentId?: any;
 }
 
 interface Material {
-  id: string; title: string; description: string;
+  _id: string; title: string; description: string;
   category: string; fileUrl: string; fileName: string;
   fileSize: number; mimeType: string; semesterNumber?: number;
-  uploadedBy: { id: string; name: string; email: string };
+  uploadedBy: { _id: string; name: string; email: string };
   createdAt: string;
 }
 
@@ -166,7 +166,7 @@ export function ProgramDetailPanel({
   };
 
   const handleEdit = (m: Material) => {
-    setEditingId(m.id);
+    setEditingId(m._id);
     setUploadForm({
       title: m.title,
       description: m.description,
@@ -340,7 +340,7 @@ export function ProgramDetailPanel({
           {filtered.map(m => {
             const catMeta = CATEGORIES.find(c => c.value === m.category) || CATEGORIES[4];
             return (
-              <Card key={m.id} className="group hover:border-primary/20 transition-colors">
+              <Card key={m._id} className="group hover:border-primary/20 transition-colors">
                 <CardContent className="p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
@@ -380,7 +380,7 @@ export function ProgramDetailPanel({
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(m)} title="Edit">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(m.id)} title="Delete"
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(m._id)} title="Delete"
                           className="text-destructive hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                         </Button>

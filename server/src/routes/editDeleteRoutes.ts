@@ -5,8 +5,8 @@ import {
   getEditDeleteRequest,
   respondToEditDeleteRequest,
   getEditDeleteStats,
-} from '../controllers/editDeleteController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/editDeleteController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

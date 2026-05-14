@@ -57,7 +57,7 @@ export function StudyCentersPanel() {
   };
 
   const handleEdit = (c: any) => {
-    setEditingId(c.id || c.id);
+    setEditingId(c._id || c.id);
     setFormData({
       name: c.name || '',
       code: c.code || '',
@@ -156,8 +156,8 @@ export function StudyCentersPanel() {
             <div className="text-center py-8 text-muted-foreground">No study centers found</div>
           ) : (
             <div className="space-y-2">
-              {centers.filter(c => c && (c.id || c.id)).map((c) => {
-                const cid = c.id || c.id;
+              {centers.filter(c => c && (c._id || c.id)).map((c) => {
+                const cid = c._id || c.id;
                 return (
                   <div key={cid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">

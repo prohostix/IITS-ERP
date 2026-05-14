@@ -1,34 +1,31 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import prisma from '../lib/prisma.js';
+import Department from '../models/Department.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Get all departments
 // @route   GET /api/v1/departments
 // @access  Private
 export const getDepartments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const where: any = {};
+  const query: any = {};
   
   if (req.user.role !== 'superadmin') {
-    where.organizationId = req.user.organizationId;
+    query.organizationId = req.user.organizationId;
   }
 
   // Filter by parent department if specified
   if (req.query.parentDepartmentId) {
-    where.parentDepartmentId = req.query.parentDepartmentId as string;
+    query.parentDepartmentId = req.query.parentDepartmentId;
   } else if (req.query.topLevel === 'true') {
     // Only get top-level departments (no parent)
-    where.parentDepartmentId = null;
+    query.parentDepartmentId = null;
   }
 
-  const departments = await prisma.department.findMany({
-    where,
-    include: {
-      organization: { select: { name: true } },
-      parentDepartment: { select: { name: true } },
-      manager: { select: { name: true, email: true, designation: true } },
-    }
-  });
+  const departments = await Department.find(query)
+    .populate('organizationId', 'name')
+    .populate('parentDepartmentId', 'name')
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   res.status(200).json({
     success: true,
@@ -41,14 +38,11 @@ export const getDepartments = asyncHandler(async (req: AuthRequest, res: Respons
 // @route   GET /api/v1/departments/:id
 // @access  Private
 export const getDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const department = await prisma.department.findUnique({
-    where: { id: req.params.id },
-    include: {
-      organization: { select: { name: true } },
-      parentDepartment: { select: { name: true } },
-      manager: { select: { name: true, email: true, designation: true } },
-    }
-  });
+  const department = await Department.findById(req.params.id)
+    .populate('organizationId', 'name')
+    .populate('parentDepartmentId', 'name')
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
@@ -65,6 +59,8 @@ export const getDepartment = asyncHandler(async (req: AuthRequest, res: Response
 // @route   POST /api/v1/departments
 // @access  Private (OrgAdmin)
 export const createDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  // If superadmin, organizationId must be provided in request body
+  // Otherwise, use the user's organizationId
   if (req.user.role !== 'superadmin') {
     req.body.organizationId = req.user.organizationId;
   } else if (!req.body.organizationId) {
@@ -75,9 +71,7 @@ export const createDepartment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
-  const department = await prisma.department.create({
-    data: req.body
-  });
+  const department = await Department.create(req.body);
 
   res.status(201).json({
     success: true,
@@ -89,10 +83,14 @@ export const createDepartment = asyncHandler(async (req: AuthRequest, res: Respo
 // @route   PUT /api/v1/departments/:id
 // @access  Private (OrgAdmin)
 export const updateDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const department = await prisma.department.update({
-    where: { id: req.params.id },
-    data: req.body
-  });
+  const department = await Department.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
@@ -109,14 +107,12 @@ export const updateDepartment = asyncHandler(async (req: AuthRequest, res: Respo
 // @route   DELETE /api/v1/departments/:id
 // @access  Private (OrgAdmin)
 export const deleteDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const department = await prisma.department.findUnique({ where: { id: req.params.id } });
+  const department = await Department.findByIdAndDelete(req.params.id);
+
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
     return;
   }
-  await prisma.department.delete({
-    where: { id: req.params.id }
-  });
 
   res.status(200).json({
     success: true,
@@ -135,13 +131,11 @@ export const assignManager = asyncHandler(async (req: AuthRequest, res: Response
     return;
   }
 
-  const department = await prisma.department.update({
-    where: { id: req.params.id },
-    data: { managerId },
-    include: {
-      manager: { select: { name: true, email: true, designation: true } }
-    }
-  });
+  const department = await Department.findByIdAndUpdate(
+    req.params.id,
+    { managerId },
+    { new: true, runValidators: true }
+  ).populate('managerId', 'name email designation');
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
@@ -159,10 +153,11 @@ export const assignManager = asyncHandler(async (req: AuthRequest, res: Response
 // @route   DELETE /api/v1/departments/:id/remove-manager
 // @access  Private (OrgAdmin, Superadmin)
 export const removeManager = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const department = await prisma.department.update({
-    where: { id: req.params.id },
-    data: { managerId: null }
-  });
+  const department = await Department.findByIdAndUpdate(
+    req.params.id,
+    { managerId: null },
+    { new: true }
+  );
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
@@ -187,9 +182,7 @@ export const addAssistantManager = asyncHandler(async (req: AuthRequest, res: Re
     return;
   }
 
-  const department = await prisma.department.findUnique({
-    where: { id: req.params.id }
-  });
+  const department = await Department.findById(req.params.id);
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
@@ -197,23 +190,20 @@ export const addAssistantManager = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Check if already an assistant manager
-  if (department.assistantManagerIds.includes(userId)) {
+  if (department.assistantManagerIds?.some(id => id.toString() === userId)) {
     res.status(400).json({ success: false, message: 'User is already an assistant manager' });
     return;
   }
 
-  const updatedDept = await prisma.department.update({
-    where: { id: req.params.id },
-    data: {
-      assistantManagerIds: {
-        push: userId
-      }
-    }
-  });
+  department.assistantManagerIds = department.assistantManagerIds || [];
+  department.assistantManagerIds.push(userId);
+  await department.save();
+
+  await department.populate('assistantManagerIds', 'name email designation');
 
   res.status(200).json({
     success: true,
-    data: updatedDept,
+    data: department,
     message: 'Assistant manager added successfully',
   });
 });
@@ -224,27 +214,22 @@ export const addAssistantManager = asyncHandler(async (req: AuthRequest, res: Re
 export const removeAssistantManager = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
 
-  const department = await prisma.department.findUnique({
-    where: { id: req.params.id }
-  });
+  const department = await Department.findById(req.params.id);
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
     return;
   }
 
-  const updatedDept = await prisma.department.update({
-    where: { id: req.params.id },
-    data: {
-      assistantManagerIds: {
-        set: department.assistantManagerIds.filter(id => id !== userId)
-      }
-    }
-  });
+  department.assistantManagerIds = department.assistantManagerIds?.filter(
+    id => id.toString() !== userId
+  ) || [];
+  
+  await department.save();
 
   res.status(200).json({
     success: true,
-    data: updatedDept,
+    data: department,
     message: 'Assistant manager removed successfully',
   });
 });
@@ -253,12 +238,11 @@ export const removeAssistantManager = asyncHandler(async (req: AuthRequest, res:
 // @route   GET /api/v1/departments/:id/sub-departments
 // @access  Private
 export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const subDepartments = await prisma.department.findMany({ 
-    where: { parentDepartmentId: req.params.id },
-    include: {
-      manager: { select: { name: true, email: true, designation: true } }
-    }
-  });
+  const subDepartments = await Department.find({ 
+    parentDepartmentId: req.params.id 
+  })
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   res.status(200).json({
     success: true,
@@ -271,9 +255,7 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 // @route   POST /api/v1/departments/:id/sub-departments
 // @access  Private (OrgAdmin, Department Manager)
 export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const parentDepartment = await prisma.department.findUnique({
-    where: { id: req.params.id }
-  });
+  const parentDepartment = await Department.findById(req.params.id);
 
   if (!parentDepartment) {
     res.status(404).json({ success: false, message: 'Parent department not found' });
@@ -284,9 +266,7 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   req.body.parentDepartmentId = req.params.id;
   req.body.type = parentDepartment.type; // Inherit type from parent
 
-  const subDepartment = await prisma.department.create({
-    data: req.body
-  });
+  const subDepartment = await Department.create(req.body);
 
   res.status(201).json({
     success: true,
@@ -299,24 +279,20 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
 // @route   GET /api/v1/departments/:id/hierarchy
 // @access  Private
 export const getDepartmentHierarchy = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const department = await prisma.department.findUnique({
-    where: { id: req.params.id },
-    include: {
-      manager: { select: { name: true, email: true, designation: true } }
-    }
-  });
+  const department = await Department.findById(req.params.id)
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   if (!department) {
     res.status(404).json({ success: false, message: 'Department not found' });
     return;
   }
 
-  const subDepartments = await prisma.department.findMany({ 
-    where: { parentDepartmentId: req.params.id },
-    include: {
-      manager: { select: { name: true, email: true, designation: true } }
-    }
-  });
+  const subDepartments = await Department.find({ 
+    parentDepartmentId: req.params.id 
+  })
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   res.status(200).json({
     success: true,
@@ -331,19 +307,16 @@ export const getDepartmentHierarchy = asyncHandler(async (req: AuthRequest, res:
 // @route   GET /api/v1/departments/my-departments
 // @access  Private
 export const getMyDepartments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const departments = await prisma.department.findMany({
-    where: {
-      OR: [
-        { managerId: req.user.id },
-        { assistantManagerIds: { has: req.user.id } }
-      ]
-    },
-    include: {
-      organization: { select: { name: true } },
-      parentDepartment: { select: { name: true } },
-      manager: { select: { name: true, email: true, designation: true } },
-    }
-  });
+  const departments = await Department.find({
+    $or: [
+      { managerId: req.user._id },
+      { assistantManagerIds: req.user._id }
+    ]
+  })
+    .populate('organizationId', 'name')
+    .populate('parentDepartmentId', 'name')
+    .populate('managerId', 'name email designation')
+    .populate('assistantManagerIds', 'name email designation');
 
   res.status(200).json({
     success: true,

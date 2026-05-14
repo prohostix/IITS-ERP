@@ -10,7 +10,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Enrollment {
-  id: string;
+  _id: string;
   enrollmentNumber?: string;
   studentName: string;
   studentEmail: string;
@@ -210,7 +210,7 @@ export function FinanceEnrollmentsPanel() {
               {enrollments.map(e => {
                 const meta = STATUS_META[e.status] || { label: e.status, color: 'bg-muted text-muted-foreground', icon: null };
                 return (
-                  <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={e._id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3">
                       <p className="font-medium">{e.studentName}</p>
                       <p className="text-xs text-muted-foreground">{e.studentEmail}</p>
@@ -241,10 +241,10 @@ export function FinanceEnrollmentsPanel() {
                     <td className="p-3 text-right">
                       {e.status === 'finance_review' && (
                         <div className="flex gap-1.5 justify-end">
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleApprove(e.id)}>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleApprove(e._id)}>
                             <CheckCircle className="w-3 h-3 mr-1" />Enroll
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setRejectDialog({ open: true, id: e.id }); setRemarks(''); }}>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setRejectDialog({ open: true, id: e._id }); setRemarks(''); }}>
                             <XCircle className="w-3 h-3 mr-1" />Reject
                           </Button>
                         </div>

@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Escalation {
-  id: string;
+  _id: string;
   type: string;
   description: string;
   impact: string;
@@ -224,9 +224,9 @@ export function EmployeeEscalationsPanel() {
         <div className="space-y-3">
           {escalations.map(esc => (
             <Card
-              key={esc.id}
-              className={cn('transition-colors cursor-pointer', expanded === esc.id ? 'border-primary/40' : 'hover:border-primary/20')}
-              onClick={() => setExpanded(expanded === esc.id ? null : esc.id)}
+              key={esc._id}
+              className={cn('transition-colors cursor-pointer', expanded === esc._id ? 'border-primary/40' : 'hover:border-primary/20')}
+              onClick={() => setExpanded(expanded === esc._id ? null : esc._id)}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -263,7 +263,7 @@ export function EmployeeEscalationsPanel() {
                 </div>
 
                 {/* Expanded chain */}
-                {expanded === esc.id && esc.chain.length > 0 && (
+                {expanded === esc._id && esc.chain.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-border space-y-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activity Chain</p>
                     {esc.chain.map((step, i) => (

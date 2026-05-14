@@ -8,8 +8,8 @@ import {
   deleteIncentiveStructure,
   calculateIncentive,
   getCurrentActiveIncentives,
-} from '../controllers/incentiveController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/incentiveController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

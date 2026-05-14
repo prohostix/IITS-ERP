@@ -8,8 +8,8 @@ import {
   getApplicableGST,
   calculateGST,
   getGSTSummary,
-} from '../controllers/gstController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/gstController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

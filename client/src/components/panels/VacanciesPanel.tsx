@@ -75,11 +75,11 @@ export function VacanciesPanel() {
   };
 
   const handleEdit = (vacancy: any) => {
-    const vid = vacancy.id || vacancy.id;
+    const vid = vacancy._id || vacancy.id;
     setEditingId(vid);
     setFormData({
       designation: vacancy.designation || '',
-      departmentId: (typeof vacancy.departmentId === 'object' ? vacancy.departmentId?.id || vacancy.departmentId?.id : vacancy.departmentId) || '',
+      departmentId: (typeof vacancy.departmentId === 'object' ? vacancy.departmentId?._id || vacancy.departmentId?.id : vacancy.departmentId) || '',
       count: vacancy.count?.toString() || '1',
       status: vacancy.status || 'open'
     });
@@ -186,8 +186,8 @@ export function VacanciesPanel() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.filter(dept => dept && (dept.id || dept.id)).map((dept) => (
-                      <SelectItem key={dept.id || dept.id} value={(dept.id || dept.id).toString()}>
+                    {departments.filter(dept => dept && (dept.id || dept._id)).map((dept) => (
+                      <SelectItem key={dept.id || dept._id} value={(dept.id || dept._id).toString()}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -231,7 +231,7 @@ export function VacanciesPanel() {
           ) : (
             <div className="space-y-4">
               {vacancies.map((vacancy) => {
-                const vid = vacancy.id || vacancy.id || '';
+                const vid = vacancy._id || vacancy.id || '';
                 const deptName = typeof vacancy.departmentId === 'object'
                   ? vacancy.departmentId?.name
                   : vacancy.department?.name;

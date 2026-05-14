@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface SalaryConfig {
-  id?: string;
+  _id?: string;
   userId: any;
   basicSalary: number;
   allowances: { hra: number; transport: number; medical: number; other: number };
@@ -23,7 +23,7 @@ interface SalaryConfig {
 }
 
 interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   designation?: string;
@@ -72,7 +72,7 @@ export function SalaryConfigPanel() {
 
   const openEdit = (config?: SalaryConfig, userId?: string) => {
     if (config) {
-      setEditingUserId(typeof config.userId === 'object' ? config.userId.id : config.userId);
+      setEditingUserId(typeof config.userId === 'object' ? config.userId._id : config.userId);
       setForm({
         basicSalary: config.basicSalary,
         allowances: { ...config.allowances },
@@ -114,9 +114,9 @@ export function SalaryConfigPanel() {
   };
 
   const configuredUserIds = new Set(configs.map(c =>
-    typeof c.userId === 'object' ? c.userId.id : c.userId
+    typeof c.userId === 'object' ? c.userId._id : c.userId
   ));
-  const unconfiguredUsers = users.filter(u => !configuredUserIds.has(u.id));
+  const unconfiguredUsers = users.filter(u => !configuredUserIds.has(u._id));
 
   const filtered = configs.filter(c => {
     const name = (typeof c.userId === 'object' ? c.userId.name : '') || '';
@@ -161,7 +161,7 @@ export function SalaryConfigPanel() {
         <div className="space-y-3">
           {filtered.map(config => {
             const user = typeof config.userId === 'object' ? config.userId : null;
-            const uid = user?.id || config.userId;
+            const uid = user?._id || config.userId;
             const grossAmt = config.basicSalary + Object.values(config.allowances).reduce((s, v) => s + (v || 0), 0);
             const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0);
             return (
@@ -237,14 +237,14 @@ export function SalaryConfigPanel() {
           </DialogHeader>
           <div className="space-y-5 pt-2">
             {/* Employee selector (only when creating new) */}
-            {!configs.find(c => (typeof c.userId === 'object' ? c.userId.id : c.userId) === editingUserId) && (
+            {!configs.find(c => (typeof c.userId === 'object' ? c.userId._id : c.userId) === editingUserId) && (
               <div className="space-y-2">
                 <Label>Employee</Label>
                 <Select value={editingUserId} onValueChange={setEditingUserId}>
                   <SelectTrigger><SelectValue placeholder="Select employee..." /></SelectTrigger>
                   <SelectContent>
                     {unconfiguredUsers.map(u => (
-                      <SelectItem key={u.id} value={u.id}>
+                      <SelectItem key={u._id} value={u._id}>
                         {u.name} — {u.role.replace(/_/g, ' ')}
                       </SelectItem>
                     ))}

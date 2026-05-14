@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface LeaveAllocation {
-  id?: string;
+  _id?: string;
   userId: any;
   year: number;
   sickLeave: number;
@@ -25,7 +25,7 @@ interface LeaveAllocation {
 }
 
 interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: string;
@@ -71,7 +71,7 @@ export function LeaveAllocationPanel() {
 
   const openEdit = (alloc?: LeaveAllocation, userId?: string) => {
     if (alloc) {
-      setEditingUserId(typeof alloc.userId === 'object' ? alloc.userId.id : alloc.userId);
+      setEditingUserId(typeof alloc.userId === 'object' ? alloc.userId._id : alloc.userId);
       setForm({
         sickLeave: alloc.sickLeave,
         casualLeave: alloc.casualLeave,
@@ -115,9 +115,9 @@ export function LeaveAllocationPanel() {
   };
 
   const allocatedUserIds = new Set(allocations.map(a =>
-    typeof a.userId === 'object' ? a.userId.id : a.userId
+    typeof a.userId === 'object' ? a.userId._id : a.userId
   ));
-  const unallocatedUsers = users.filter(u => !allocatedUserIds.has(u.id));
+  const unallocatedUsers = users.filter(u => !allocatedUserIds.has(u._id));
 
   const filtered = allocations.filter(a => {
     const name = (typeof a.userId === 'object' ? a.userId.name : '') || '';
@@ -169,7 +169,7 @@ export function LeaveAllocationPanel() {
         <div className="space-y-3">
           {filtered.map(alloc => {
             const user = typeof alloc.userId === 'object' ? alloc.userId : null;
-            const uid = user?.id || alloc.userId;
+            const uid = user?._id || alloc.userId;
             return (
               <Card key={uid} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
@@ -212,14 +212,14 @@ export function LeaveAllocationPanel() {
             <DialogTitle>Leave Allocation — {year}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            {!allocations.find(a => (typeof a.userId === 'object' ? a.userId.id : a.userId) === editingUserId) && (
+            {!allocations.find(a => (typeof a.userId === 'object' ? a.userId._id : a.userId) === editingUserId) && (
               <div className="space-y-2">
                 <Label>Employee</Label>
                 <Select value={editingUserId} onValueChange={setEditingUserId}>
                   <SelectTrigger><SelectValue placeholder="Select employee..." /></SelectTrigger>
                   <SelectContent>
                     {unallocatedUsers.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name} — {u.role.replace(/_/g, ' ')}</SelectItem>
+                      <SelectItem key={u._id} value={u._id}>{u.name} — {u.role.replace(/_/g, ' ')}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

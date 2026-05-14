@@ -17,6 +17,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
 interface PayrollBatch {
+  _id?: string;
   id?: string;
   month: string;
   totalAmount: number;
@@ -77,7 +78,7 @@ export function PayrollBatchesPanel() {
       toast.error('Rejection reason is required');
       return;
     }
-    const id = selectedBatch.id || selectedBatch.id;
+    const id = selectedBatch._id || selectedBatch.id;
     try {
       await api.post(`/finance/payroll-batches/${id}/reject`, { rejectionReason });
       toast.success('Payroll batch rejected');
@@ -102,7 +103,7 @@ export function PayrollBatchesPanel() {
 
   const handleCompletePayment = async () => {
     if (!selectedBatch) return;
-    const id = selectedBatch.id || selectedBatch.id;
+    const id = selectedBatch._id || selectedBatch.id;
     try {
       await api.put(`/finance/payroll-batches/${id}/complete-payment`, paymentData);
       toast.success('Payment completed — salaries disbursed');
@@ -169,7 +170,7 @@ export function PayrollBatchesPanel() {
               ) : (
                 <div className="space-y-4">
                   {filteredBatches.map((batch) => {
-                    const bid = batch.id || batch.id || '';
+                    const bid = batch._id || batch.id || '';
                     return (
                       <div
                         key={bid}

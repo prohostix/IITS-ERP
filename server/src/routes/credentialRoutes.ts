@@ -5,8 +5,8 @@ import {
   getCredentialRequest,
   respondToCredentialRequest,
   getCredentialStats,
-} from '../controllers/credentialController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/credentialController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

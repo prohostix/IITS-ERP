@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
 interface SubDepartment {
-  id?: string;
+  _id?: string; id?: string;
   name: string;
   parentDeptId: any;
   managerId?: any;
@@ -90,7 +90,7 @@ export function SubDepartmentsPanel() {
     e.preventDefault();
     try {
       if (editingSubDept) {
-        const subDeptId = editingSubDept.id || editingSubDept.id;
+        const subDeptId = editingSubDept._id || editingSubDept.id;
         await api.patch(`/sub-departments/${subDeptId}`, {
           managerId: (formData.managerId && formData.managerId !== 'none') ? formData.managerId : null,
           assignedUniversities: formData.assignedUniversities,
@@ -130,9 +130,9 @@ export function SubDepartmentsPanel() {
 
   const openEditDialog = (sd: SubDepartment) => {
     setEditingSubDept(sd);
-    const parentId = typeof sd.parentDeptId === 'object' ? (sd.parentDeptId?.id || '') : sd.parentDeptId;
-    const managerId = typeof sd.managerId === 'object' ? (sd.managerId?.id || '') : (sd.managerId || '');
-    const toIds = (arr: any[]) => arr.map((x: any) => typeof x === 'object' ? (x.id || x.id) : x).filter(Boolean);
+    const parentId = typeof sd.parentDeptId === 'object' ? (sd.parentDeptId?._id || '') : sd.parentDeptId;
+    const managerId = typeof sd.managerId === 'object' ? (sd.managerId?._id || '') : (sd.managerId || '');
+    const toIds = (arr: any[]) => arr.map((x: any) => typeof x === 'object' ? (x._id || x.id) : x).filter(Boolean);
     setFormData({
       name: sd.name,
       parentDeptId: parentId,
@@ -192,7 +192,7 @@ export function SubDepartmentsPanel() {
                       <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                       <SelectContent>
                         {departments.map((d) => (
-                          <SelectItem key={d.id || d.id} value={(d.id || d.id)!}>{d.name} ({d.type})</SelectItem>
+                          <SelectItem key={d._id || d.id} value={(d._id || d.id)!}>{d.name} ({d.type})</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -206,7 +206,7 @@ export function SubDepartmentsPanel() {
                     <SelectContent>
                       <SelectItem value="none">No Manager</SelectItem>
                       {users.map((u) => (
-                        <SelectItem key={u.id || u.id} value={(u.id || u.id)!}>
+                        <SelectItem key={u._id || u.id} value={(u._id || u.id)!}>
                           {u.name} {u.designation ? `(${u.designation})` : ''}
                         </SelectItem>
                       ))}
@@ -225,13 +225,13 @@ export function SubDepartmentsPanel() {
                     <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                       {universities.length === 0 ? <p className="text-sm text-muted-foreground">No universities found</p> :
                         universities.map((u: any) => (
-                          <div key={u.id} className="flex items-center gap-2">
+                          <div key={u._id} className="flex items-center gap-2">
                             <Checkbox
-                              id={`uni-${u.id}`}
-                              checked={formData.assignedUniversities.includes(u.id)}
-                              onCheckedChange={() => toggle('assignedUniversities', u.id)}
+                              id={`uni-${u._id}`}
+                              checked={formData.assignedUniversities.includes(u._id)}
+                              onCheckedChange={() => toggle('assignedUniversities', u._id)}
                             />
-                            <label htmlFor={`uni-${u.id}`} className="text-sm cursor-pointer">{u.name} <span className="text-muted-foreground">({u.code})</span></label>
+                            <label htmlFor={`uni-${u._id}`} className="text-sm cursor-pointer">{u.name} <span className="text-muted-foreground">({u.code})</span></label>
                           </div>
                         ))}
                     </div>
@@ -241,13 +241,13 @@ export function SubDepartmentsPanel() {
                     <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                       {programs.length === 0 ? <p className="text-sm text-muted-foreground">No programs found</p> :
                         programs.map((p: any) => (
-                          <div key={p.id} className="flex items-center gap-2">
+                          <div key={p._id} className="flex items-center gap-2">
                             <Checkbox
-                              id={`prog-${p.id}`}
-                              checked={formData.assignedPrograms.includes(p.id)}
-                              onCheckedChange={() => toggle('assignedPrograms', p.id)}
+                              id={`prog-${p._id}`}
+                              checked={formData.assignedPrograms.includes(p._id)}
+                              onCheckedChange={() => toggle('assignedPrograms', p._id)}
                             />
-                            <label htmlFor={`prog-${p.id}`} className="text-sm cursor-pointer">{p.name} <span className="text-muted-foreground">({p.code})</span></label>
+                            <label htmlFor={`prog-${p._id}`} className="text-sm cursor-pointer">{p.name} <span className="text-muted-foreground">({p.code})</span></label>
                           </div>
                         ))}
                     </div>
@@ -257,13 +257,13 @@ export function SubDepartmentsPanel() {
                     <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                       {centers.length === 0 ? <p className="text-sm text-muted-foreground">No study centers found</p> :
                         centers.map((c: any) => (
-                          <div key={c.id} className="flex items-center gap-2">
+                          <div key={c._id} className="flex items-center gap-2">
                             <Checkbox
-                              id={`ctr-${c.id}`}
-                              checked={formData.assignedCenters.includes(c.id)}
-                              onCheckedChange={() => toggle('assignedCenters', c.id)}
+                              id={`ctr-${c._id}`}
+                              checked={formData.assignedCenters.includes(c._id)}
+                              onCheckedChange={() => toggle('assignedCenters', c._id)}
                             />
-                            <label htmlFor={`ctr-${c.id}`} className="text-sm cursor-pointer">{c.name} <span className="text-muted-foreground">({c.code})</span></label>
+                            <label htmlFor={`ctr-${c._id}`} className="text-sm cursor-pointer">{c.name} <span className="text-muted-foreground">({c.code})</span></label>
                           </div>
                         ))}
                     </div>
@@ -289,7 +289,7 @@ export function SubDepartmentsPanel() {
         ) : (
           <div className="space-y-4">
             {subDepartments.map((sd) => {
-              const sdId = sd.id || sd.id || '';
+              const sdId = sd._id || sd.id || '';
               const parentName = typeof sd.parentDeptId === 'object' ? sd.parentDeptId?.name : null;
               const managerName = typeof sd.managerId === 'object' ? sd.managerId?.name : null;
               const unis = sd.assignedUniversities || [];

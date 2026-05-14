@@ -10,10 +10,10 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface University { id: string; name: string; code: string; }
-interface Program { id: string; name: string; code: string; universityId: string; courseType: string; }
+interface University { _id: string; name: string; code: string; }
+interface Program { _id: string; name: string; code: string; universityId: string; courseType: string; }
 interface Invite {
-  id: string;
+  _id: string;
   token: string;
   universityIds: University[];
   programIds: Program[];
@@ -127,15 +127,15 @@ export function SalesInvitePanel() {
     // Always build from current origin so it works in any environment
     const url = `${window.location.origin}/register?token=${invite.token}`;
     navigator.clipboard.writeText(url).then(() => {
-      setCopied(invite.id);
+      setCopied(invite._id);
       setTimeout(() => setCopied(null), 2000);
     });
   };
 
   const handleRegenerate = async (invite: Invite) => {
-    setRegenerating(invite.id);
+    setRegenerating(invite._id);
     try {
-      const res = await api.patch(`/sales/invites/${invite.id}/regenerate`);
+      const res = await api.patch(`/sales/invites/${invite._id}/regenerate`);
       toast.success('New invite link generated');
       const newToken = res.data.data?.token;
       if (newToken) {
@@ -153,7 +153,7 @@ export function SalesInvitePanel() {
 
   // Group programs by university name for display
   const programsByUni = programs.reduce<Record<string, { uniName: string; programs: Program[] }>>((acc, p) => {
-    const uni = universities.find(u => u.id === p.universityId);
+    const uni = universities.find(u => u._id === p.universityId);
     const key = p.universityId;
     if (!acc[key]) acc[key] = { uniName: uni?.name || 'Unknown', programs: [] };
     acc[key].programs.push(p);
@@ -187,7 +187,7 @@ export function SalesInvitePanel() {
       ) : (
         <div className="space-y-3">
           {invites.map(inv => (
-            <Card key={inv.id} className="hover:border-primary/30 transition-colors">
+            <Card key={inv._id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -197,25 +197,25 @@ export function SalesInvitePanel() {
                   <p className="text-sm font-mono text-muted-foreground truncate">{inv.token.substring(0, 24)}...</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {inv.universityIds.map(u => (
-                      <Badge key={u.id} variant="outline" className="text-[10px]">{u.name}</Badge>
+                      <Badge key={u._id} variant="outline" className="text-[10px]">{u.name}</Badge>
                     ))}
                   </div>
                   {inv.programIds && inv.programIds.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {inv.programIds.map(p => (
-                        <Badge key={p.id} variant="secondary" className="text-[10px]">{p.name}</Badge>
+                        <Badge key={p._id} variant="secondary" className="text-[10px]">{p.name}</Badge>
                       ))}
                     </div>
                   )}
                 </div>
                 {inv.status === 'pending' && (
                   <Button variant="outline" size="sm" onClick={() => copyLink(inv)}>
-                    {copied === inv.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                    {copied === inv._id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                   </Button>
                 )}
                 {(inv.status === 'used' || inv.status === 'expired') && (
-                  <Button variant="outline" size="sm" onClick={() => handleRegenerate(inv)} disabled={regenerating === inv.id}>
-                    <RotateCcw className={cn('w-4 h-4', regenerating === inv.id && 'animate-spin')} />
+                  <Button variant="outline" size="sm" onClick={() => handleRegenerate(inv)} disabled={regenerating === inv._id}>
+                    <RotateCcw className={cn('w-4 h-4', regenerating === inv._id && 'animate-spin')} />
                   </Button>
                 )}
               </CardContent>
@@ -241,9 +241,9 @@ export function SalesInvitePanel() {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {universities.map(u => (
-                    <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                      <Checkbox id={`uni-${u.id}`} checked={selectedUnis.includes(u.id)} onCheckedChange={() => toggleUni(u.id)} />
-                      <label htmlFor={`uni-${u.id}`} className="text-sm cursor-pointer flex-1">
+                    <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                      <Checkbox id={`uni-${u._id}`} checked={selectedUnis.includes(u._id)} onCheckedChange={() => toggleUni(u._id)} />
+                      <label htmlFor={`uni-${u._id}`} className="text-sm cursor-pointer flex-1">
                         {u.name} <span className="text-muted-foreground text-xs">({u.code})</span>
                       </label>
                     </div>
@@ -267,9 +267,9 @@ export function SalesInvitePanel() {
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{uniName}</p>
                       <div className="space-y-1">
                         {uniPrograms.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                            <Checkbox id={`prog-${p.id}`} checked={selectedPrograms.includes(p.id)} onCheckedChange={() => toggleProgram(p.id)} />
-                            <label htmlFor={`prog-${p.id}`} className="text-sm cursor-pointer flex-1">
+                          <div key={p._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                            <Checkbox id={`prog-${p._id}`} checked={selectedPrograms.includes(p._id)} onCheckedChange={() => toggleProgram(p._id)} />
+                            <label htmlFor={`prog-${p._id}`} className="text-sm cursor-pointer flex-1">
                               {p.name}
                               <span className="text-muted-foreground text-xs ml-1">({p.code})</span>
                               <Badge variant="outline" className="text-[10px] ml-1">{p.courseType}</Badge>

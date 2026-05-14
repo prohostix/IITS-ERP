@@ -66,7 +66,7 @@ export function LicensesPanel() {
   };
 
   const handleEdit = (l: any) => {
-    setEditingId(l.id || l.id);
+    setEditingId(l._id || l.id);
     setFormData({
       name: l.name || '',
       type: l.type || 'basic',
@@ -186,8 +186,8 @@ export function LicensesPanel() {
             <div className="text-center py-8 text-muted-foreground">No licenses found</div>
           ) : (
             <div className="space-y-3">
-              {licenses.filter(l => l && (l.id || l.id)).map((l) => {
-                const lid = l.id || l.id;
+              {licenses.filter(l => l && (l._id || l.id)).map((l) => {
+                const lid = l._id || l.id;
                 return (
                   <div key={lid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">

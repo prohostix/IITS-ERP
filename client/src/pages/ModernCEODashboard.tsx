@@ -424,7 +424,7 @@ function EscalationPreview({ onViewAll }: { onViewAll: () => void }) {
           </div>
         ) : (
           items.map(esc => (
-            <div key={esc.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer" onClick={onViewAll}>
+            <div key={esc._id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer" onClick={onViewAll}>
               <div className={cn("mt-0.5 p-1.5 rounded-md", esc.priority === 'critical' ? 'bg-red-500/10 text-red-500' : 'bg-warning/10 text-warning')}>
                 <AlertTriangle className="w-3.5 h-3.5" />
               </div>
@@ -446,10 +446,10 @@ function EscalationPreview({ onViewAll }: { onViewAll: () => void }) {
 // ─── EscalationsPanel ────────────────────────────────────────────────────────
 
 interface Escalation {
-  id: string;
-  taskId?: { id: string; title: string; description: string; deadline: string; priority: string };
-  employeeId?: { id: string; name: string; email: string };
-  deptAdminId?: { id: string; name: string; email: string };
+  _id: string;
+  taskId?: { _id: string; title: string; description: string; deadline: string; priority: string };
+  employeeId?: { _id: string; name: string; email: string };
+  deptAdminId?: { _id: string; name: string; email: string };
   organizationId: string;
   priority: string;
   status: string;
@@ -513,7 +513,7 @@ function EscalationsPanel() {
     if (!selected || !actionData.action) return;
     setSubmitting(true);
     try {
-      await api.patch(`/ceo/escalations/${selected.id}`, actionData);
+      await api.patch(`/ceo/escalations/${selected._id}`, actionData);
       toast.success('Escalation handled successfully');
       setActionDialog(false);
       setSelected(null);
@@ -603,7 +603,7 @@ function EscalationsPanel() {
           ) : (
             <div className="space-y-3">
               {filtered.map(esc => (
-                <Card key={esc.id} className="hover:border-primary/30 transition-colors">
+                <Card key={esc._id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">

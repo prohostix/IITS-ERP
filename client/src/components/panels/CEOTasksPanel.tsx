@@ -24,12 +24,12 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   description: string;
-  assignedTo?: { id: string; name: string; email: string };
-  assignedBy?: { id: string; name: string; email: string };
-  departmentId?: { id: string; name: string };
+  assignedTo?: { _id: string; name: string; email: string };
+  assignedBy?: { _id: string; name: string; email: string };
+  departmentId?: { _id: string; name: string };
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'in_progress' | 'completed' | 'overdue';
   deadline: string;
@@ -40,17 +40,17 @@ interface Task {
 }
 
 interface Department {
-  id: string;
+  _id: string;
   name: string;
 }
 
 interface Manager {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: string;
   designation?: string;
-  departmentId?: { id: string; name: string };
+  departmentId?: { _id: string; name: string };
 }
 
 const emptyForm = {
@@ -173,11 +173,11 @@ export function CEOTasksPanel() {
 
   // When manager is selected, auto-fill their department
   const handleManagerChange = (managerId: string) => {
-    const mgr = managers.find(m => m.id === managerId);
+    const mgr = managers.find(m => m._id === managerId);
     setForm(f => ({
       ...f,
       assignedTo: managerId,
-      departmentId: mgr?.departmentId?.id || f.departmentId,
+      departmentId: mgr?.departmentId?._id || f.departmentId,
     }));
   };
 
@@ -278,7 +278,7 @@ export function CEOTasksPanel() {
               <SelectContent>
                 <SelectItem value="all">All Departments</SelectItem>
                 {departments.map(d => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -318,7 +318,7 @@ export function CEOTasksPanel() {
                 const displayStatus = actuallyOverdue && task.status !== 'completed' ? 'overdue' : task.status;
 
                 return (
-                  <div key={task.id} className="px-5 py-4 hover:bg-muted/30 transition-colors">
+                  <div key={task._id} className="px-5 py-4 hover:bg-muted/30 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         {/* Title row */}
@@ -411,7 +411,7 @@ export function CEOTasksPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   {managers.map(m => (
-                    <SelectItem key={m.id} value={m.id}>
+                    <SelectItem key={m._id} value={m._id}>
                       <span className="font-medium">{m.name}</span>
                       <span className="text-muted-foreground ml-2 text-xs">
                         {m.departmentId?.name ? `· ${m.departmentId.name}` : ''} · {m.role.replace(/_/g, ' ')}
@@ -429,7 +429,7 @@ export function CEOTasksPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

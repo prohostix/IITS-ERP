@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface Payroll {
-  id: string;
+  _id: string;
   employeeId: any;
   month: string;
   basicSalary: number;
@@ -120,7 +120,7 @@ export function PayrollPanel() {
     if (!editPayroll) return;
     setEditSaving(true);
     try {
-      await api.put(`/payroll/${editPayroll.id}`, editForm);
+      await api.put(`/payroll/${editPayroll._id}`, editForm);
       toast.success('Payroll updated');
       setEditOpen(false);
       fetchPayrolls();
@@ -132,7 +132,7 @@ export function PayrollPanel() {
   const handleTransfer = async () => {
     if (!selectedIds.length) { toast.error('Select at least one confirmed payroll'); return; }
     try {
-      const month = payrolls.find(p => selectedIds.includes(p.id))?.month;
+      const month = payrolls.find(p => selectedIds.includes(p._id))?.month;
       await api.post('/payroll/transfer-to-finance', { payrollIds: selectedIds, month, remarks: transferRemarks });
       toast.success(`Transferred ${selectedIds.length} payrolls to Finance`);
       setTransferOpen(false);
@@ -195,11 +195,11 @@ export function PayrollPanel() {
                 <div className="space-y-3">
                   {filtered.map(p => {
                     const empName = p.employeeId?.name || p.employeeId?.userId?.name || 'Employee';
-                    const isSelected = selectedIds.includes(p.id);
+                    const isSelected = selectedIds.includes(p._id);
                     return (
-                      <div key={p.id} className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
+                      <div key={p._id} className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
                         {p.status === 'confirmed' && (
-                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(p.id)} className="w-4 h-4 shrink-0" />
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(p._id)} className="w-4 h-4 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -223,7 +223,7 @@ export function PayrollPanel() {
                             </Button>
                           )}
                           {(p.status === 'draft' || p.status === 'processed') && (
-                            <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleConfirm(p.id)}>
+                            <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleConfirm(p._id)}>
                               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Confirm
                             </Button>
                           )}

@@ -54,7 +54,7 @@ export function ComplaintsPanel() {
   };
 
   const handleEdit = (c: any) => {
-    setEditingId(c.id || c.id);
+    setEditingId(c._id || c.id);
     setFormData({
       subject: c.subject || '',
       description: c.description || '',
@@ -183,8 +183,8 @@ export function ComplaintsPanel() {
             <div className="text-center py-8 text-muted-foreground">No complaints found</div>
           ) : (
             <div className="space-y-4">
-              {complaints.filter(c => c && (c.id || c.id)).map((c) => {
-                const cid = c.id || c.id;
+              {complaints.filter(c => c && (c._id || c.id)).map((c) => {
+                const cid = c._id || c.id;
                 return (
                   <div key={cid} className="p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-start justify-between">

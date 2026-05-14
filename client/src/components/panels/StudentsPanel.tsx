@@ -85,12 +85,12 @@ export function StudentsPanel() {
   };
 
   const handleEdit = (student: any) => {
-    const studentId = student.id || student.id;
+    const studentId = student.id || student._id;
     const programId = typeof student.programId === 'object'
-      ? (student.programId?.id || student.programId?.id)
+      ? (student.programId?._id || student.programId?.id)
       : student.programId;
     const centerId = typeof student.centerId === 'object'
-      ? (student.centerId?.id || student.centerId?.id)
+      ? (student.centerId?._id || student.centerId?.id)
       : student.centerId;
     setEditingId(studentId);
     setFormData({
@@ -175,8 +175,8 @@ export function StudentsPanel() {
                   <Select value={formData.programId} onValueChange={(value) => setFormData({...formData, programId: value})}>
                     <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
                     <SelectContent>
-                      {programs.filter(p => p && (p.id || p.id)).map((prog) => (
-                        <SelectItem key={prog.id || prog.id} value={(prog.id || prog.id).toString()}>
+                      {programs.filter(p => p && (p.id || p._id)).map((prog) => (
+                        <SelectItem key={prog.id || prog._id} value={(prog.id || prog._id).toString()}>
                           {prog.name}
                         </SelectItem>
                       ))}
@@ -188,8 +188,8 @@ export function StudentsPanel() {
                   <Select value={formData.centerId} onValueChange={(value) => setFormData({...formData, centerId: value})}>
                     <SelectTrigger><SelectValue placeholder="Select center" /></SelectTrigger>
                     <SelectContent>
-                      {centers.filter(c => c && (c.id || c.id)).map((center) => (
-                        <SelectItem key={center.id || center.id} value={(center.id || center.id).toString()}>
+                      {centers.filter(c => c && (c.id || c._id)).map((center) => (
+                        <SelectItem key={center.id || center._id} value={(center.id || center._id).toString()}>
                           {center.name}
                         </SelectItem>
                       ))}
@@ -228,8 +228,8 @@ export function StudentsPanel() {
             <div className="text-center py-8 text-muted-foreground">No students found</div>
           ) : (
             <div className="space-y-2">
-              {students.filter(s => s && (s.id || s.id)).map((student) => {
-                const studentId = student.id || student.id;
+              {students.filter(s => s && (s.id || s._id)).map((student) => {
+                const studentId = student.id || student._id;
                 const centerName = typeof student.centerId === 'object' ? student.centerId?.name : '';
                 const programName = typeof student.programId === 'object' ? student.programId?.name : '';
                 return (

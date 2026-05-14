@@ -10,8 +10,8 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface University { id: string; name: string; code: string; }
-interface AuthFee { id: string; universityId: University; amount: number; currency: string; updatedAt: string; }
+interface University { _id: string; name: string; code: string; }
+interface AuthFee { _id: string; universityId: University; amount: number; currency: string; updatedAt: string; }
 
 export function FinanceAuthFeePanel() {
   const [fees, setFees] = useState<AuthFee[]>([]);
@@ -42,7 +42,7 @@ export function FinanceAuthFeePanel() {
   const openCreate = () => { setEditing(null); setForm({ universityId: '', amount: '', currency: 'INR' }); setOpen(true); };
   const openEdit = (fee: AuthFee) => {
     setEditing(fee);
-    setForm({ universityId: fee.universityId.id, amount: String(fee.amount), currency: fee.currency });
+    setForm({ universityId: fee.universityId._id, amount: String(fee.amount), currency: fee.currency });
     setOpen(true);
   };
 
@@ -54,7 +54,7 @@ export function FinanceAuthFeePanel() {
     setSubmitting(true);
     try {
       if (editing) {
-        await api.put(`/finance/auth-fees/${editing.id}`, { amount, currency: form.currency });
+        await api.put(`/finance/auth-fees/${editing._id}`, { amount, currency: form.currency });
       } else {
         await api.post('/finance/auth-fees', { universityId: form.universityId, amount, currency: form.currency });
       }
@@ -93,7 +93,7 @@ export function FinanceAuthFeePanel() {
       ) : (
         <div className="space-y-3">
           {fees.map(fee => (
-            <Card key={fee.id} className="hover:border-primary/30 transition-colors">
+            <Card key={fee._id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
                   <p className="font-semibold text-sm">{fee.universityId.name}</p>
@@ -122,7 +122,7 @@ export function FinanceAuthFeePanel() {
                   <SelectTrigger><SelectValue placeholder="Select university" /></SelectTrigger>
                   <SelectContent>
                     {universities.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.name} ({u.code})</SelectItem>
+                      <SelectItem key={u._id} value={u._id}>{u.name} ({u.code})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

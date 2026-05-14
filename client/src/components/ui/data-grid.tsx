@@ -96,62 +96,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
 
   return (
     <div className="w-full overflow-hidden">
-      {/* Mobile Card View (shown only on small screens) */}
-      <div className="md:hidden space-y-4 px-1">
-        {data.map((row, rowIndex) => {
-          const rowId = row.id || rowIndex;
-          return (
-            <div key={rowId} className="bg-white dark:bg-slate-900 border border-border rounded-xl p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="rounded border-input text-primary h-4 w-4"
-                    checked={selectedRows.has(rowId)}
-                    onChange={(e) => {
-                      const newSelected = new Set(selectedRows);
-                      if (e.target.checked) newSelected.add(rowId);
-                      else newSelected.delete(rowId);
-                      setSelectedRows(newSelected);
-                    }}
-                  />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    #{rowIndex + 1}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {onEdit && (
-                    <Button variant="ghost" size="icon-sm" onClick={() => onEdit(rowId, row)}>
-                      <Edit className="w-3.5 h-3.5 text-primary" />
-                    </Button>
-                  )}
-                  {onDelete && (
-                    <Button variant="ghost" size="icon-sm" onClick={() => onDelete(rowId)}>
-                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-y-3 gap-x-2">
-                {columns.map(col => (
-                  <div key={col.key} className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
-                      {col.label}
-                    </span>
-                    <div className="text-sm font-medium truncate">
-                      {formatValue(row[col.key], col.type, col.key)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Desktop Table View (hidden on small screens) */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-0">
           <thead>
             <tr className="bg-muted/50 transition-colors">
@@ -161,7 +106,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
                   className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedRows(new Set(data.map(row => row.id || row.id)));
+                      setSelectedRows(new Set(data.map(row => row._id || row.id)));
                     } else {
                       setSelectedRows(new Set());
                     }
@@ -189,7 +134,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
           </thead>
           <tbody className="divide-y divide-border/50">
             {data.map((row, rowIndex) => {
-              const rowId = row.id || row.id || rowIndex;
+              const rowId = row._id || row.id || rowIndex;
               const isSelected = selectedRows.has(rowId);
               return (
                 <tr

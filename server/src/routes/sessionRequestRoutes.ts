@@ -6,8 +6,8 @@ import {
   approveSessionRequest,
   rejectSessionRequest,
   getSessionRequestStats,
-} from '../controllers/sessionRequestController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/sessionRequestController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

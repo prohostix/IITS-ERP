@@ -222,7 +222,7 @@ function EmployeeRow({ emp, scheduled }: { emp: EmployeeReport; scheduled: numbe
                 {emp.tasks.list.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {emp.tasks.list.slice(0, 5).map((t: any) => (
-                      <div key={t.id} className="flex items-center gap-2 text-xs">
+                      <div key={t._id} className="flex items-center gap-2 text-xs">
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0',
                           t.status === 'completed' ? 'bg-success' :
                           t.status === 'overdue' ? 'bg-destructive' : 'bg-warning'
@@ -328,7 +328,7 @@ export function EmployeeActivityReportPanel() {
           >
             <option value="">All Departments</option>
             {deptList.map((d: any) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d._id} value={d._id}>{d.name}</option>
             ))}
           </select>
         </div>

@@ -11,7 +11,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface Enrollment {
-  id: string;
+  _id: string;
   enrollmentNumber?: string;
   studentName: string;
   studentEmail: string;
@@ -88,7 +88,7 @@ export function DeptEnrollmentReviewPanel() {
       ) : (
         <div className="space-y-3">
           {enrollments.map(e => (
-            <Card key={e.id} className="hover:border-primary/30 transition-colors">
+            <Card key={e._id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -106,10 +106,10 @@ export function DeptEnrollmentReviewPanel() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(e.id)}>
+                  <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(e._id)}>
                     <CheckCircle className="w-4 h-4 mr-1" />Approve
                   </Button>
-                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: e.id }); setRemarks(''); }}>
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: e._id }); setRemarks(''); }}>
                     <XCircle className="w-4 h-4 mr-1" />Reject
                   </Button>
                 </div>

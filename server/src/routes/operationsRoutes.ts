@@ -75,9 +75,7 @@ router.get('/centers/pending-verification', authorize('ops_admin', 'ops_sub_admi
 router.put('/centers/:id/verify', authorize('ops_admin', 'ops_sub_admin', 'employee'), verifyCenter);
 
 // Study Centers
-router.route('/centers')
-  .get(getStudyCenters)
-  .post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
+router.route('/centers').get(getStudyCenters).post(authorize('org_admin', 'superadmin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
 router.route('/centers/:id')
   .get(getStudyCenter)
   .put(authorize('org_admin', 'superadmin'), updateStudyCenter)

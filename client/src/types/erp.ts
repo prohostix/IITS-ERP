@@ -9,7 +9,6 @@ export type UserRole =
   | 'finance_admin' 
   | 'hr_admin' 
   | 'sales_admin' 
-  | 'bde' 
   | 'center_admin' 
   | 'employee'
   | 'staff';
@@ -73,6 +72,7 @@ export interface Permission {
 
 export interface User {
   id: string;
+  _id?: string;
   organizationId: string;
   departmentId?: string;
   subDepartmentId?: string;

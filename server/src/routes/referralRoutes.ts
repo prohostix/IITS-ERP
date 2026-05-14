@@ -9,8 +9,8 @@ import {
   getReferralMetrics,
   validateReferralSlug,
   getReferralLeaderboard,
-} from '../controllers/referralController.js';
-import { protect, authorize } from '../middleware/auth.js';
+} from '../controllers/referralController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 

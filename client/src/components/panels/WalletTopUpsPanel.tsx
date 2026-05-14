@@ -11,7 +11,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface TopUp {
-  id: string;
+  _id: string;
   studyCenterId: { name?: string } | string;
   amount: number;
   paymentMethod: string;
@@ -91,7 +91,7 @@ export function WalletTopUpsPanel() {
       ) : (
         <div className="space-y-3">
           {topUps.map(t => (
-            <Card key={t.id} className="hover:border-primary/30 transition-colors">
+            <Card key={t._id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -109,10 +109,10 @@ export function WalletTopUpsPanel() {
                 </div>
                 {t.status === 'pending' && (
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(t.id)}>
+                    <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(t._id)}>
                       <CheckCircle className="w-4 h-4 mr-1" />Approve
                     </Button>
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: t.id }); setRemarks(''); }}>
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: t._id }); setRemarks(''); }}>
                       <XCircle className="w-4 h-4 mr-1" />Reject
                     </Button>
                   </div>

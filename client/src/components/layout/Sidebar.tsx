@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserRole, DepartmentType } from '@/types/erp';
+import type { UserRole } from '@/types/erp';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -47,7 +47,6 @@ interface NavItem {
   roles: UserRole[];
   badge?: number;
   children?: NavItem[];
-  department?: DepartmentType;
 }
 
 const navItems: NavItem[] = [
@@ -55,7 +54,7 @@ const navItems: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde', 'employee'],
+    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'employee'],
   },
   {
     id: 'organizations',
@@ -107,9 +106,6 @@ const navItems: NavItem[] = [
       { id: 'payments', label: 'Payments', icon: Wallet, roles: ['finance_admin', 'ceo'] },
       { id: 'expenses', label: 'Expenses', icon: Receipt, roles: ['finance_admin', 'ceo'] },
       { id: 'targets', label: 'Targets', icon: Target, roles: ['finance_admin', 'ceo'] },
-      { id: 'fees', label: 'Fee Structures', icon: Settings, roles: ['finance_admin', 'ceo'] },
-      { id: 'salary_approvals', label: 'Salary Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
-      { id: 'payroll-batches', label: 'Payroll Batches', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'approvals', label: 'Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
     ],
   },
@@ -119,30 +115,25 @@ const navItems: NavItem[] = [
     icon: Briefcase,
     roles: ['hr_admin', 'ceo'],
     children: [
-      { id: 'users', label: 'Users', icon: Users, roles: ['hr_admin', 'ceo'] },
       { id: 'employees', label: 'Employees', icon: Users, roles: ['hr_admin', 'ceo'] },
       { id: 'vacancies', label: 'Vacancies', icon: UserPlus, roles: ['hr_admin', 'ceo'] },
       { id: 'attendance', label: 'Attendance', icon: Calendar, roles: ['hr_admin', 'ceo'] },
       { id: 'leaves', label: 'Leave Requests', icon: Calendar, roles: ['hr_admin', 'ceo'] },
       { id: 'complaints', label: 'Complaints', icon: MessageSquare, roles: ['hr_admin', 'ceo'] },
-      { id: 'payroll', label: 'Payroll', icon: DollarSign, roles: ['hr_admin', 'ceo'] },
-      { id: 'salary-config', label: 'Salary Config', icon: Settings, roles: ['hr_admin', 'ceo'] },
-      { id: 'payroll-batches', label: 'Payroll Batches', icon: CheckSquare, roles: ['hr_admin', 'ceo'] },
     ],
   },
   {
     id: 'sales',
     label: 'Sales & CRM',
     icon: TrendingUp,
-    roles: ['sales_admin', 'bde', 'ceo', 'employee'],
-    department: 'sales',
+    roles: ['sales_admin', 'ceo', 'bde', 'employee'],
     children: [
-      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
-      { id: 'study_centers', label: 'Manual Center Creation', icon: Building, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
-      { id: 'center_onboarding', label: 'Center Onboarding Status', icon: LayoutDashboard, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
-      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
-      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
-      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
+      { id: 'study_centers', label: 'Manual Center Creation', icon: Building, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
+      { id: 'center_onboarding', label: 'Center Onboarding Status', icon: LayoutDashboard, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
+      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
+      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
+      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'ceo', 'bde', 'employee'] },
     ],
   },
   {
@@ -172,10 +163,10 @@ const navItems: NavItem[] = [
     id: 'staff',
     label: 'Staff Portal',
     icon: Users,
-    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'],
+    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'],
     children: [
-      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
-      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
+      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'] },
+      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'] },
     ],
   },
   {
@@ -213,7 +204,7 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
               <Building2 className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg">PYPE ERP</span>
+            <span className="font-bold text-lg">UniERP</span>
           </div>
         )}
         {isCollapsed && (

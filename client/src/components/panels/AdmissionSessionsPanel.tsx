@@ -82,9 +82,9 @@ export function AdmissionSessionsPanel() {
 
   const handleEdit = (s: any) => {
     const subDeptId = typeof s.subDepartmentId === 'object'
-      ? (s.subDepartmentId?.id || s.subDepartmentId?.id)
+      ? (s.subDepartmentId?._id || s.subDepartmentId?.id)
       : s.subDepartmentId;
-    setEditingId(s.id || s.id);
+    setEditingId(s._id || s.id);
     setFormData({
       name: s.name || '',
       subDepartmentId: subDeptId?.toString() || '',
@@ -137,8 +137,8 @@ export function AdmissionSessionsPanel() {
                 <Select value={formData.subDepartmentId} onValueChange={(v) => setFormData({ ...formData, subDepartmentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                   <SelectContent>
-                    {departments.filter(d => d && (d.id || d.id)).map((d) => (
-                      <SelectItem key={d.id || d.id} value={(d.id || d.id).toString()}>
+                    {departments.filter(d => d && (d._id || d.id)).map((d) => (
+                      <SelectItem key={d._id || d.id} value={(d._id || d.id).toString()}>
                         {d.name}
                       </SelectItem>
                     ))}
@@ -190,8 +190,8 @@ export function AdmissionSessionsPanel() {
             <div className="text-center py-8 text-muted-foreground">No sessions found</div>
           ) : (
             <div className="space-y-2">
-              {sessions.filter(s => s && (s.id || s.id)).map((s) => {
-                const sid = s.id || s.id;
+              {sessions.filter(s => s && (s._id || s.id)).map((s) => {
+                const sid = s._id || s.id;
                 const subDeptName = typeof s.subDepartmentId === 'object' ? s.subDepartmentId?.name : '';
                 return (
                   <div key={sid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">

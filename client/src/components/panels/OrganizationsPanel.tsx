@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface Organization {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   phone: string;
@@ -89,8 +89,8 @@ export function OrganizationsPanel() {
     try {
       if (editingOrg) {
         // Update existing organization
-        console.log('Updating organization:', editingOrg.id, formData);
-        const response = await api.put(`/organizations/${editingOrg.id}`, formData);
+        console.log('Updating organization:', editingOrg._id, formData);
+        const response = await api.put(`/organizations/${editingOrg._id}`, formData);
         console.log('Update response:', response);
         toast.success('Organization updated successfully');
       } else {
@@ -114,7 +114,7 @@ export function OrganizationsPanel() {
     if (!deletingOrg) return;
     
     try {
-      await api.delete(`/organizations/${deletingOrg.id}`);
+      await api.delete(`/organizations/${deletingOrg._id}`);
       toast.success('Organization deleted successfully');
       setIsDeleteDialogOpen(false);
       fetchOrganizations();
@@ -151,7 +151,7 @@ export function OrganizationsPanel() {
       {/* Organizations Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {organizations.map((org) => (
-          <Card key={org.id} className="hover:shadow-lg transition-shadow">
+          <Card key={org._id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">

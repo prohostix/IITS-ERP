@@ -9,9 +9,9 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface Center { id: string; name: string; code: string; }
-interface Program { id: string; name: string; code: string; courseType?: string; }
-interface Allocation { id: string; programId: Program; allocatedAt: string; }
+interface Center { _id: string; name: string; code: string; }
+interface Program { _id: string; name: string; code: string; courseType?: string; }
+interface Allocation { _id: string; programId: Program; allocatedAt: string; }
 
 export function OpsProgramAllocationPanel() {
   const [centers, setCenters] = useState<Center[]>([]);
@@ -72,8 +72,8 @@ export function OpsProgramAllocationPanel() {
     }
   };
 
-  const allocatedProgramIds = allocations.map(a => a.programId.id);
-  const availablePrograms = programs.filter(p => !allocatedProgramIds.includes(p.id));
+  const allocatedProgramIds = allocations.map(a => a.programId._id);
+  const availablePrograms = programs.filter(p => !allocatedProgramIds.includes(p._id));
 
   return (
     <div className="space-y-6">
@@ -89,7 +89,7 @@ export function OpsProgramAllocationPanel() {
           </SelectTrigger>
           <SelectContent>
             {centers.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
+              <SelectItem key={c._id} value={c._id}>{c.name} ({c.code})</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -117,7 +117,7 @@ export function OpsProgramAllocationPanel() {
             <CardHeader><CardTitle className="text-base">Allocated Programs ({allocations.length})</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {allocations.map(a => (
-                <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+                <div key={a._id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
                   <div>
                     <span className="font-medium text-sm">{a.programId.name}</span>
                     <span className="text-muted-foreground text-xs ml-2">({a.programId.code})</span>
@@ -125,7 +125,7 @@ export function OpsProgramAllocationPanel() {
                       <Badge variant="outline" className="ml-2 text-[10px]">{a.programId.courseType}</Badge>
                     )}
                   </div>
-                  <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemove(a.id)}>
+                  <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemove(a._id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -145,7 +145,7 @@ export function OpsProgramAllocationPanel() {
               </SelectTrigger>
               <SelectContent>
                 {availablePrograms.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
+                  <SelectItem key={p._id} value={p._id}>{p.name} ({p.code})</SelectItem>
                 ))}
               </SelectContent>
             </Select>

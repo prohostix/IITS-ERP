@@ -16,7 +16,7 @@ interface WalletData {
 }
 
 interface TopUp {
-  id: string;
+  _id: string;
   amount: number;
   paymentMethod: string;
   referenceNumber?: string;
@@ -116,7 +116,7 @@ export function StudyCenterWalletPanel() {
           ) : (
             <div className="space-y-3">
               {topUps.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div key={t._id} className="flex items-center justify-between p-3 rounded-lg border border-border">
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[t.status] || 'bg-muted text-muted-foreground')}>
