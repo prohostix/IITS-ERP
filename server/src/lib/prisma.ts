@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { PrismaClient } from '../generated/client/index.js';
+import { PrismaClient } from '@prisma/client';
 const prismaClientSingleton = () => {
   return new PrismaClient({
     log: ['error', 'warn'],
