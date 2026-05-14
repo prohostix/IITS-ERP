@@ -9,10 +9,10 @@ export type UserRole =
   | 'finance_admin' 
   | 'hr_admin' 
   | 'sales_admin' 
+  | 'bde' 
   | 'center_admin' 
   | 'employee'
-  | 'staff'
-  | 'bde';
+  | 'staff';
 
 export type DepartmentType = 'operations' | 'finance' | 'hr' | 'sales' | 'custom';
 export type SubDepartmentType = 'openschool' | 'online' | 'skill' | 'bvoc';
@@ -73,7 +73,6 @@ export interface Permission {
 
 export interface User {
   id: string;
-  _id?: string;
   organizationId: string;
   departmentId?: string;
   subDepartmentId?: string;

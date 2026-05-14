@@ -13,24 +13,24 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Dept { _id: string; name: string; type: string; }
-interface SubDept { _id: string; name: string; parentDeptId: string | { _id: string; name: string }; }
+interface Dept { id: string; name: string; type: string; }
+interface SubDept { id: string; name: string; parentDeptId: string | { id: string; name: string }; }
 interface Branch {
-  _id: string; name: string; branchCode: string; location: string; city?: string;
-  branchManagerId?: { _id: string; name: string; role: string; designation?: string };
-  salesDeptId?: { _id: string; name: string; type: string };
-  operationsDeptId?: { _id: string; name: string; type: string };
+  id: string; name: string; code: string; address: string; city?: string;
+  branchManagerId?: { id: string; name: string; role: string; designation?: string };
+  salesDeptId?: { id: string; name: string; type: string };
+  operationsDeptId?: { id: string; name: string; type: string };
 }
-interface OrgUser { _id: string; name: string; email: string; role: string; designation?: string; }
+interface OrgUser { id: string; name: string; email: string; role: string; designation?: string; }
 interface DesignationNode {
-  _id: string;
+  id: string;
   title: string;
   level: number;
   maxHeadcount: number;
   departmentId?: Dept;
   subDepartmentId?: SubDept;
-  branchId?: { _id: string; name: string; branchCode: string };
-  parentDesignationId?: { _id: string; title: string };
+  branchId?: { id: string; name: string; code: string };
+  parentDesignationId?: { id: string; title: string };
   filledBy: OrgUser[];
   status: string;
 }
@@ -51,7 +51,7 @@ function HROrgNode({
   depth?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const children = allNodes.filter(n => n.parentDesignationId?._id === node._id);
+  const children = allNodes.filter(n => n.parentDesignationId?.id === node.id);
   const filled = node.filledBy?.length || 0;
   const vacant = node.maxHeadcount - filled;
   const isFull = vacant <= 0;
@@ -78,7 +78,7 @@ function HROrgNode({
             <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1 inline-flex items-center gap-1"
               style={{ background: '#0891b222', color: '#0891b2' }}>
               <Building2 className="h-2.5 w-2.5" />
-              {node.branchId.name} [{node.branchId.branchCode}]
+              {node.branchId.name} [{node.branchId.code}]
             </span>
           )}
 
@@ -109,7 +109,7 @@ function HROrgNode({
           {filled > 0 && (
             <div className="mt-2 space-y-1">
               {node.filledBy.map(u => (
-                <div key={u._id} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 group/person">
+                <div key={u.id} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 group/person">
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                     style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
@@ -121,7 +121,7 @@ function HROrgNode({
                     {u.role.replace(/_/g, ' ')}
                   </span>
                   <button
-                    onClick={() => onUnassign(node, u._id)}
+                    onClick={() => onUnassign(node, u.id)}
                     className="text-red-400 hover:text-red-600 opacity-0 group-hover/person:opacity-100 transition-opacity ml-1"
                     title="Remove from position"
                   >
@@ -159,7 +159,7 @@ function HROrgNode({
                     style={{ width: `calc(100% - 190px)`, height: 1, background: '#d1d5db', top: 0 }}
                   />
                   {children.map(child => (
-                    <div key={child._id} className="flex flex-col items-center" style={{ padding: '0 20px' }}>
+                    <div key={child.id} className="flex flex-col items-center" style={{ padding: '0 20px' }}>
                       <div className="w-px bg-gray-300" style={{ height: 20 }} />
                       <HROrgNode node={child} allNodes={allNodes} onAssign={onAssign} onUnassign={onUnassign} depth={depth + 1} />
                     </div>
@@ -222,7 +222,7 @@ export function HROrgChartPanel() {
     if (!assignTarget || !assignUserId) return;
     setSaving(true);
     try {
-      await api.patch(`/org/designations/${assignTarget._id}/assign`, { userId: assignUserId });
+      await api.patch(`/org/designations/${assignTarget.id}/assign`, { userId: assignUserId });
       toast.success('User assigned to position');
       setAssignDialog(false);
       fetchAll();
@@ -236,7 +236,7 @@ export function HROrgChartPanel() {
   const handleUnassign = async (node: DesignationNode, userId: string) => {
     if (!confirm('Remove this person from the position?')) return;
     try {
-      await api.patch(`/org/designations/${node._id}/unassign`, { userId });
+      await api.patch(`/org/designations/${node.id}/unassign`, { userId });
       toast.success('Removed from position');
       fetchAll();
     } catch (err: any) {
@@ -261,14 +261,14 @@ export function HROrgChartPanel() {
   };
 
   // Users not yet in any position
-  const assignedUserIds = new Set(nodes.flatMap(n => (n.filledBy || []).map(u => u._id)));
+  const assignedUserIds = new Set(nodes.flatMap(n => (n.filledBy || []).map(u => u.id)));
   const unplacedUsers = allUsers.filter(u =>
-    !assignedUserIds.has(u._id) && !['ceo', 'org_admin', 'superadmin'].includes(u.role)
+    !assignedUserIds.has(u.id) && !['ceo', 'org_admin', 'superadmin'].includes(u.role)
   );
 
   // Filtered users for assign dialog
   const filteredUsers = allUsers
-    .filter(u => !assignTarget?.filledBy?.find(f => f._id === u._id))
+    .filter(u => !assignTarget?.filledBy?.find(f => f.id === u.id))
     .filter(u => !userSearch || u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()));
 
   if (loading) {
@@ -345,10 +345,10 @@ export function HROrgChartPanel() {
               </p>
               <div className="inline-flex gap-12 justify-center min-w-full pb-4">
                 {globalRoots
-                  .filter(r => !search || matchesSearch(r) || nodes.some(n => n.parentDesignationId?._id === r._id && matchesSearch(n)))
+                  .filter(r => !search || matchesSearch(r) || nodes.some(n => n.parentDesignationId?.id === r.id && matchesSearch(n)))
                   .map(root => (
                     <HROrgNode
-                      key={root._id}
+                      key={root.id}
                       node={root}
                       allNodes={nodes}
                       onAssign={openAssign}
@@ -366,10 +366,10 @@ export function HROrgChartPanel() {
                 Branch Hierarchies ({allBranches.length})
               </p>
               {allBranches.map(branch => {
-                const branchRoots = nodes.filter(n => n.branchId?._id === branch._id && !n.parentDesignationId);
+                const branchRoots = nodes.filter(n => n.branchId?.id === branch.id && !n.parentDesignationId);
                 const mgr = branch.branchManagerId;
                 return (
-                  <div key={branch._id} className="border-2 rounded-2xl p-5 bg-cyan-50/50" style={{ borderColor: '#0891b244' }}>
+                  <div key={branch.id} className="border-2 rounded-2xl p-5 bg-cyan-50/50" style={{ borderColor: '#0891b244' }}>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-9 h-9 rounded-xl bg-cyan-600 flex items-center justify-center text-white">
                         <Building2 className="h-5 w-5" />
@@ -377,10 +377,10 @@ export function HROrgChartPanel() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-base text-cyan-900">{branch.name}</span>
-                          <span className="text-xs font-mono bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">{branch.branchCode}</span>
+                          <span className="text-xs font-mono bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">{branch.code}</span>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-cyan-700 mt-0.5">
-                          <MapPin className="h-3 w-3" />{branch.location}{branch.city ? `, ${branch.city}` : ''}
+                          <MapPin className="h-3 w-3" />{branch.address}{branch.city ? `, ${branch.city}` : ''}
                         </div>
                       </div>
                       {mgr && (
@@ -395,7 +395,7 @@ export function HROrgChartPanel() {
                         <div className="inline-flex gap-10 justify-center min-w-full pb-4 pt-2">
                           {branchRoots.map(root => (
                             <HROrgNode
-                              key={root._id}
+                              key={root.id}
                               node={root}
                               allNodes={nodes}
                               onAssign={openAssign}
@@ -425,7 +425,7 @@ export function HROrgChartPanel() {
           </p>
           <div className="flex flex-wrap gap-2">
             {unplacedUsers.map(u => (
-              <span key={u._id} className="text-xs bg-white border rounded-full px-3 py-1 flex items-center gap-1.5">
+              <span key={u.id} className="text-xs bg-white border rounded-full px-3 py-1 flex items-center gap-1.5">
                 <span
                   className="w-4 h-4 rounded-full inline-flex items-center justify-center text-white text-[9px] font-bold"
                   style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
@@ -448,7 +448,7 @@ export function HROrgChartPanel() {
               Assign to "{assignTarget?.title}"
               {assignTarget?.branchId && (
                 <span className="text-sm font-normal text-cyan-600 ml-2">
-                  [{assignTarget.branchId.branchCode}]
+                  [{assignTarget.branchId.code}]
                 </span>
               )}
             </DialogTitle>
@@ -496,7 +496,7 @@ export function HROrgChartPanel() {
                     <div className="px-3 py-4 text-sm text-muted-foreground text-center">No matching employees</div>
                   ) : (
                     filteredUsers.map(u => (
-                      <SelectItem key={u._id} value={u._id}>
+                      <SelectItem key={u.id} value={u.id}>
                         <div className="flex items-center gap-2">
                           <span
                             className="w-5 h-5 rounded-full inline-flex items-center justify-center text-white text-[9px] font-bold shrink-0"
@@ -516,7 +516,7 @@ export function HROrgChartPanel() {
 
             {/* Selected user preview */}
             {assignUserId && (() => {
-              const u = allUsers.find(x => x._id === assignUserId);
+              const u = allUsers.find(x => x.id === assignUserId);
               if (!u) return null;
               return (
                 <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">

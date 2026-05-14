@@ -10,9 +10,9 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface University { _id: string; name: string; code: string; }
+interface University { id: string; name: string; code: string; }
 interface Center {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   email: string;
@@ -54,7 +54,7 @@ export function OpsCenterVerificationPanel() {
     }
     setSubmitting(true);
     try {
-      await api.put(`/operations/centers/${dialog.center._id}/verify`, {
+      await api.put(`/operations/centers/${dialog.center.id}/verify`, {
         action: dialog.action,
         remarks,
       });
@@ -91,7 +91,7 @@ export function OpsCenterVerificationPanel() {
       ) : (
         <div className="space-y-4">
           {centers.map(c => (
-            <Card key={c._id} className="hover:border-primary/30 transition-colors">
+            <Card key={c.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -103,7 +103,7 @@ export function OpsCenterVerificationPanel() {
                     <p className="text-xs text-muted-foreground mt-0.5">{c.address}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {c.associatedUniversityIds.map(u => (
-                        <Badge key={u._id} variant="secondary" className="text-[10px]">{u.name}</Badge>
+                        <Badge key={u.id} variant="secondary" className="text-[10px]">{u.name}</Badge>
                       ))}
                     </div>
                     {c.pendingDocuments.length > 0 && (

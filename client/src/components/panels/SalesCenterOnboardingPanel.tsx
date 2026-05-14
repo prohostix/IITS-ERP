@@ -8,17 +8,17 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface OnboardingCenter {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   email?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
-  verifiedBy?: { _id: string; name: string; email: string };
+  verifiedBy?: { id: string; name: string; email: string };
   verifiedAt?: string;
   opsRemarks?: string;
-  financeApprovedBy?: { _id: string; name: string; email: string };
+  financeApprovedBy?: { id: string; name: string; email: string };
   financeApprovedAt?: string;
   paymentRemarks?: string;
   associatedUniversityIds: { name: string; code: string }[];
@@ -152,12 +152,12 @@ export function SalesCenterOnboardingPanel() {
         <div className="space-y-3">
           {centers.map(center => {
             const cfg = STATUS_CONFIG[center.status] || STATUS_CONFIG['pending_verification'];
-            const isExpanded = expanded === center._id;
+            const isExpanded = expanded === center.id;
             const currentStep = cfg.step;
 
             return (
               <Card
-                key={center._id}
+                key={center.id}
                 className={cn(
                   'transition-colors',
                   center.slaBreached ? 'border-warning/40' : 'hover:border-primary/20',
@@ -214,7 +214,7 @@ export function SalesCenterOnboardingPanel() {
                       </span>
                       <button
                         className="text-xs text-primary flex items-center gap-1 hover:underline"
-                        onClick={() => setExpanded(isExpanded ? null : center._id)}
+                        onClick={() => setExpanded(isExpanded ? null : center.id)}
                       >
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         {isExpanded ? 'Hide' : 'Details'}
@@ -313,7 +313,7 @@ export function SalesCenterOnboardingPanel() {
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Universities</p>
                           <div className="flex flex-wrap gap-1">
                             {center.associatedUniversityIds.map((u: any) => (
-                              <Badge key={u._id || u.name} variant="outline" className="text-[10px]">{u.name}</Badge>
+                              <Badge key={u.id || u.name} variant="outline" className="text-[10px]">{u.name}</Badge>
                             ))}
                           </div>
                         </div>

@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { createServer } from 'http';
-import { connectDatabase } from './config/database.js';
+import { connectDatabase, prisma } from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { startEscalationCron } from './services/escalationService.js';
 import { initializeSocket } from './config/socket.js';
@@ -48,7 +48,6 @@ import publicRoutes from './routes/publicRoutes.js';
 import enrollmentRoutes from './routes/enrollmentRoutes.js';
 
 const app: Application = express();
-app.set('trust proxy', 1);
 
 // Connect to database
 connectDatabase();
@@ -123,12 +122,24 @@ app.use(`/api/${API_VERSION}/public`, publicRoutes);
 app.use(`/api/${API_VERSION}/enrollment`, enrollmentRoutes);
 
 // Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'ERP System API is running',
-    timestamp: new Date().toISOString(),
-  });
+app.get('/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      success: true,
+      message: 'ERP System API is running',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'ERP System API is running, but database is disconnected',
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Error handlers
@@ -146,7 +157,6 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Start cron jobs
 if (process.env.NODE_ENV !== 'test') {
-  startEscalationCron();
   startAllCronJobs();
 }
 

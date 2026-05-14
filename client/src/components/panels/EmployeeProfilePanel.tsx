@@ -20,7 +20,7 @@ import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface KPI {
-  _id?: string;
+  id?: string;
   title: string;
   description?: string;
   target: number;
@@ -31,7 +31,7 @@ interface KPI {
 }
 
 interface KRA {
-  _id?: string;
+  id?: string;
   area: string;
   description?: string;
   weightage: number;

@@ -32,17 +32,17 @@ import {
 } from 'recharts';
 
 interface CenterData {
-  _id: string;
+  id: string;
   name: string;
   code: string;
   email?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
-  verifiedBy?: { _id: string; name: string; email: string };
+  verifiedBy?: { id: string; name: string; email: string };
   verifiedAt?: string;
   opsRemarks?: string;
-  financeApprovedBy?: { _id: string; name: string; email: string };
+  financeApprovedBy?: { id: string; name: string; email: string };
   financeApprovedAt?: string;
   paymentRemarks?: string;
   associatedUniversityIds: { name: string; code: string }[];
@@ -123,10 +123,10 @@ export function CenterOnboardingOverviewPanel({ mode = 'ceo' }: { mode?: 'ceo' |
           api.get('/ceo/center-onboarding'),
           api.get('/ceo/enrollment-overview'),
         ]);
-        const data = centersRes.data.data;
-        setSummary(data.summary);
-        setCenters(data.centers);
-        setEnrollmentData(enrollRes.data.data);
+        const data = centersRes.data.data || {};
+        setSummary(data.summary || null);
+        setCenters(data.centers || []);
+        setEnrollmentData(enrollRes.data.data || null);
       } else {
         // Sales mode — use existing endpoint
         const res = await api.get('/sales/my-centers');
@@ -238,7 +238,7 @@ export function CenterOnboardingOverviewPanel({ mode = 'ceo' }: { mode?: 'ceo' |
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="centers" className="flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5" /> Centers ({centers.length})
+              <Building2 className="w-3.5 h-3.5" /> Centers ({centers?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="enrollments" className="flex items-center gap-1.5">
               <GraduationCap className="w-3.5 h-3.5" /> Enrollments ({enrollmentData?.total || 0})
@@ -294,7 +294,7 @@ function CenterList({
     );
   }
 
-  if (centers.length === 0) {
+  if (!centers || centers.length === 0) {
     return (
       <Card>
         <CardContent className="py-16 text-center text-muted-foreground">
@@ -310,12 +310,12 @@ function CenterList({
     <div className="space-y-3">
       {centers.map(center => {
         const cfg = STATUS_CONFIG[center.status] || STATUS_CONFIG['pending_verification'];
-        const isExpanded = expanded === center._id;
+        const isExpanded = expanded === center.id;
         const currentStep = cfg.step;
 
         return (
           <Card
-            key={center._id}
+            key={center.id}
             className={cn(
               'transition-colors',
               center.slaBreached ? 'border-warning/40' : 'hover:border-primary/20',
@@ -395,7 +395,7 @@ function CenterList({
                   </span>
                   <button
                     className="text-xs text-primary flex items-center gap-1 hover:underline"
-                    onClick={() => setExpanded(isExpanded ? null : center._id)}
+                    onClick={() => setExpanded(isExpanded ? null : center.id)}
                   >
                     {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     {isExpanded ? 'Hide' : 'Details'}
@@ -493,7 +493,7 @@ function CenterList({
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Universities</p>
                       <div className="flex flex-wrap gap-1">
                         {center.associatedUniversityIds.map((u: any) => (
-                          <Badge key={u._id || u.name} variant="outline" className="text-[10px]">{u.name}</Badge>
+                          <Badge key={u.id || u.name} variant="outline" className="text-[10px]">{u.name}</Badge>
                         ))}
                       </div>
                     </div>
@@ -619,7 +619,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
         )}
 
         {/* Monthly Trend */}
-        {data.monthly.length > 0 && (
+        {data.monthly?.length > 0 && (
           <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -645,7 +645,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
       </div>
 
       {/* Recent Enrollments Table */}
-      {data.enrollments.length > 0 && (
+      {data.enrollments?.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Recent Student Enrollments</CardTitle>
@@ -667,7 +667,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
                   {data.enrollments.slice(0, 20).map((e: any) => {
                     const ecfg = ENROLLMENT_STATUS_CONFIG[e.status];
                     return (
-                      <tr key={e._id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                      <tr key={e.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-3">
                           <div>
                             <p className="font-medium text-sm">{e.studentName}</p>

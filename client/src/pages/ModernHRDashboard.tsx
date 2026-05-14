@@ -220,7 +220,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             ) : (
               <div className="space-y-5">
                 {vacancies.slice(0, 5).map(v => (
-                  <VacancyItem key={v._id} vacancy={v} onClick={() => onNavigate('vacancies')} />
+                  <VacancyItem key={v.id} vacancy={v} onClick={() => onNavigate('vacancies')} />
                 ))}
                 {vacancies.length > 5 && (
                   <button
@@ -329,7 +329,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           ) : (
             <div className="space-y-3">
               {pendingLeaves.slice(0, 5).map(leave => (
-                <LiveLeaveItem key={leave._id} leave={leave} onRefresh={fetchOverviewData} onViewAll={() => onNavigate('leaves')} />
+                <LiveLeaveItem key={leave.id} leave={leave} onRefresh={fetchOverviewData} onViewAll={() => onNavigate('leaves')} />
               ))}
               {pendingLeaves.length > 5 && (
                 <button
@@ -423,7 +423,7 @@ function LiveLeaveItem({ leave, onRefresh, onViewAll }: { leave: any; onRefresh:
   const handleQuickAction = async (action: 'approve' | 'reject') => {
     setActing(true);
     try {
-      await api.patch(`/hr/leaves/${leave._id}/dept-approve`, { action, remarks: action === 'approve' ? 'Approved from overview' : 'Rejected from overview' });
+      await api.patch(`/hr/leaves/${leave.id}/dept-approve`, { action, remarks: action === 'approve' ? 'Approved from overview' : 'Rejected from overview' });
       toast.success(action === 'approve' ? 'Leave approved' : 'Leave rejected');
       onRefresh();
     } catch (err: any) {

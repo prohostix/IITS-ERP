@@ -22,7 +22,7 @@ interface ReportData {
   monthly: MonthlyRow[];
   totals: { income: number; expenditure: number; netProfit: number; profitMargin: number };
   incomeBreakdown: { invoices: number; enrollments: number; payments: number };
-  expenditureBreakdown: { salaries: number; expenses: number; byCategory: { _id: string; amount: number; count: number }[] };
+  expenditureBreakdown: { salaries: number; expenses: number; byCategory: { id: string; amount: number; count: number }[] };
 }
 
 const fmt = (n: number) =>
@@ -245,7 +245,7 @@ export function IncomeExpenditurePanel() {
               <BreakdownRow label="Salaries (Payroll)" amount={data.expenditureBreakdown.salaries} total={data.totals.expenditure} color="bg-red-500" />
               <BreakdownRow label="Expense Claims" amount={data.expenditureBreakdown.expenses} total={data.totals.expenditure} color="bg-orange-400" />
               {data.expenditureBreakdown.byCategory.slice(0, 4).map(c => (
-                <BreakdownRow key={c._id} label={`  └ ${c._id}`} amount={c.amount} total={data.expenditureBreakdown.expenses} color="bg-orange-200" />
+                <BreakdownRow key={c.id} label={`  └ ${c.id}`} amount={c.amount} total={data.expenditureBreakdown.expenses} color="bg-orange-200" />
               ))}
             </CardContent>
           </Card>

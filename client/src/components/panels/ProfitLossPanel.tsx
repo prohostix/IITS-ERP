@@ -19,7 +19,7 @@ interface ReportData {
   monthly: MonthlyRow[];
   totals: { income: number; expenditure: number; netProfit: number; profitMargin: number };
   incomeBreakdown: { invoices: number; enrollments: number; payments: number };
-  expenditureBreakdown: { salaries: number; expenses: number; byCategory: { _id: string; amount: number }[] };
+  expenditureBreakdown: { salaries: number; expenses: number; byCategory: { id: string; amount: number }[] };
 }
 
 const fmt = (n: number) =>
@@ -112,7 +112,7 @@ export function ProfitLossPanel() {
               <PLRow label="Salaries & Payroll" amount={data.expenditureBreakdown.salaries} indent={1} />
               <PLRow label="Operational Expenses" amount={data.expenditureBreakdown.expenses} indent={1} />
               {data.expenditureBreakdown.byCategory.map(c => (
-                <PLRow key={c._id} label={c._id} amount={c.amount} indent={2} muted />
+                <PLRow key={c.id} label={c.id} amount={c.amount} indent={2} muted />
               ))}
               <PLRow label="Total Expenditure" amount={data.totals.expenditure} bold negative />
 

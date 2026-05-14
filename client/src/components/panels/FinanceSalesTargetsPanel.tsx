@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 interface SalesUser {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -17,8 +17,8 @@ interface SalesUser {
 }
 
 interface SalesTarget {
-  _id: string;
-  employeeId: { _id: string; name: string; email: string } | null;
+  id: string;
+  employeeId: { id: string; name: string; email: string } | null;
   type: 'revenue' | 'students' | 'centers';
   period: string;
   target: number;
@@ -65,9 +65,9 @@ export function FinanceSalesTargetsPanel() {
       ]);
       setUsers(usersRes.data.data || []);
       // Filter targets that belong to sales users
-      const salesUserIds = new Set((usersRes.data.data || []).map((u: SalesUser) => u._id));
+      const salesUserIds = new Set((usersRes.data.data || []).map((u: SalesUser) => u.id));
       const allTargets: SalesTarget[] = targetsRes.data.data || [];
-      setTargets(allTargets.filter(t => t.employeeId && salesUserIds.has(t.employeeId._id)));
+      setTargets(allTargets.filter(t => t.employeeId && salesUserIds.has(t.employeeId.id)));
     } catch (e: any) {
       toast.error('Failed to load data');
     } finally {
@@ -86,7 +86,7 @@ export function FinanceSalesTargetsPanel() {
   const openEdit = (t: SalesTarget) => {
     setEditTarget(t);
     setForm({
-      employeeId: t.employeeId?._id || '',
+      employeeId: t.employeeId?.id || '',
       type: t.type,
       period: t.period,
       target: String(t.target),
@@ -112,7 +112,7 @@ export function FinanceSalesTargetsPanel() {
         ...(form.incentive ? { incentive: Number(form.incentive) } : {}),
       };
       if (editTarget) {
-        await api.put(`/finance/targets/${editTarget._id}`, payload);
+        await api.put(`/finance/targets/${editTarget.id}`, payload);
         toast.success('Target updated');
       } else {
         await api.post('/finance/targets', payload);
@@ -211,7 +211,7 @@ export function FinanceSalesTargetsPanel() {
                 >
                   <option value="">Select user...</option>
                   {users.map(u => (
-                    <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
+                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
                   ))}
                 </select>
               </div>
@@ -300,7 +300,7 @@ export function FinanceSalesTargetsPanel() {
               {targets.map(t => {
                 const pct = t.target > 0 ? Math.min(100, Math.round((t.achieved / t.target) * 100)) : 0;
                 return (
-                  <div key={t._id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                  <div key={t.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-semibold text-sm">{t.employeeId?.name || 'Unknown'}</span>
@@ -322,7 +322,7 @@ export function FinanceSalesTargetsPanel() {
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(t)}>
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(t._id)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(t.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>

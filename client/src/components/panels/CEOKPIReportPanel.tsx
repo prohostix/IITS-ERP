@@ -14,12 +14,12 @@ import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface KPI {
-  _id: string; title: string; description?: string;
+  id: string; title: string; description?: string;
   target: number; achieved: number; unit: string;
   period: string; status: 'on_track' | 'at_risk' | 'achieved' | 'missed';
 }
 interface KRA {
-  _id: string; area: string; description?: string;
+  id: string; area: string; description?: string;
   weightage: number; rating?: number; remarks?: string;
 }
 interface EmployeeReport {
@@ -135,7 +135,7 @@ function EmployeeKPICard({ emp }: { emp: EmployeeReport }) {
                   <Target className="w-3 h-3" /> KPIs
                 </p>
                 <div className="space-y-3">
-                  {emp.kpis.map(kpi => <KpiBar key={kpi._id} kpi={kpi} />)}
+                  {emp.kpis.map(kpi => <KpiBar key={kpi.id} kpi={kpi} />)}
                 </div>
               </div>
             )}
@@ -150,7 +150,7 @@ function EmployeeKPICard({ emp }: { emp: EmployeeReport }) {
                 </p>
                 <div className="space-y-2">
                   {emp.kras.map(kra => (
-                    <div key={kra._id} className="flex items-center justify-between py-1.5 border-b last:border-0">
+                    <div key={kra.id} className="flex items-center justify-between py-1.5 border-b last:border-0">
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{kra.area}</p>
                         <p className="text-[10px] text-muted-foreground">Weightage: {kra.weightage}%{kra.remarks ? ` · "${kra.remarks}"` : ''}</p>

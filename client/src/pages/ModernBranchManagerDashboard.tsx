@@ -156,7 +156,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="font-mono">{branch.branchCode}</Badge>
+              <Badge variant="outline" className="font-mono">{branch.code}</Badge>
               <Badge className={cn(branch.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground')}>
                 {branch.status}
               </Badge>
@@ -189,7 +189,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
             {loading ? [1,2,3].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />) :
               leads.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No leads yet</p> :
               leads.slice(0, 4).map((l: any) => (
-                <div key={l._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div key={l.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                   <div>
                     <p className="text-sm font-medium">{l.name || l.contactName || 'Lead'}</p>
                     <p className="text-[10px] text-muted-foreground">{l.source || 'Direct'} · {new Date(l.createdAt).toLocaleDateString()}</p>
@@ -245,7 +245,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
                 : typeof t.departmentId === 'object' ? t.departmentId?.name
                 : t.type || 'Target';
               return (
-                <div key={t._id} className="space-y-1">
+                <div key={t.id} className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <span className="font-medium">{label} · {t.period}</span>
                     <span className="font-bold text-primary">{pct}%</span>

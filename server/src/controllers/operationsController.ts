@@ -1,629 +1,185 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import University from '../models/University.js';
-import Program from '../models/Program.js';
-import StudyCenter from '../models/StudyCenter.js';
-import AdmissionSession from '../models/AdmissionSession.js';
-import InternalMark from '../models/InternalMark.js';
-import Announcement from '../models/Announcement.js';
+import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { broadcastNotification } from './notificationController.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.status) query.status = req.query.status;
-
-  // Branch isolation: if the user is a branch manager, only show universities
-  // that have no branch restriction OR explicitly include their branch
-  const userBranchId = req.user.branchId?._id || req.user.branchId;
-  if (userBranchId) {
-    query.$or = [
-      { allowedBranchIds: { $size: 0 } },
-      { allowedBranchIds: userBranchId },
-    ];
-  }
-
-  const universities = await University.find(query)
-    .populate('subDepartmentId', 'name')
-    .populate('allowedBranchIds', 'name branchCode');
-  res.status(200).json({ success: true, count: universities.length, data: universities });
+  const universities = await prisma.university.findMany({ where: { organizationId: req.user.organizationId } });
+  res.json({ success: true, count: universities.length, data: universities });
 });
-
+export const getUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const university = await prisma.university.findUnique({ where: { id: req.params.id } });
+  res.json({ success: true, data: university });
+});
 export const createUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
-  // allowedBranchIds comes from body as-is (array of IDs or empty)
-  if (!req.body.allowedBranchIds) req.body.allowedBranchIds = [];
-
-  const university = await University.create(req.body);
-  await university.populate('allowedBranchIds', 'name branchCode');
+  const university = await prisma.university.create({ data: { ...req.body, organizationId: req.user.organizationId } });
   res.status(201).json({ success: true, data: university });
 });
-
 export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await University.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  }).populate('allowedBranchIds', 'name branchCode');
-
-  if (!university) {
-    res.status(404).json({ success: false, message: 'University not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: university });
+  const university = await prisma.university.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: university });
+});
+export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await prisma.university.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
+});
+export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const university = await prisma.university.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  res.json({ success: true, data: university });
 });
 
 // Programs
 export const getPrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.universityId) query.universityId = req.query.universityId;
-
-  const programs = await Program.find(query)
-    .populate('universityId', 'name code')
-    .populate('subDepartmentId', 'name parentDeptId');
-  res.status(200).json({ success: true, count: programs.length, data: programs });
+  const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId }, include: { university: true } });
+  res.json({ success: true, count: programs.length, data: programs });
 });
-
+export const getProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const program = await prisma.program.findUnique({ where: { id: req.params.id }, include: { university: true } });
+  res.json({ success: true, data: program });
+});
 export const createProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
-
-  const program = await Program.create(req.body);
+  const program = await prisma.program.create({ data: { ...req.body, organizationId: req.user.organizationId } });
   res.status(201).json({ success: true, data: program });
 });
-
 export const updateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await Program.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!program) {
-    res.status(404).json({ success: false, message: 'Program not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: program });
+  const program = await prisma.program.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: program });
+});
+export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await prisma.program.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
+});
+export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const program = await prisma.program.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  res.json({ success: true, data: program });
 });
 
 // Study Centers
 export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.status) query.status = req.query.status;
-
-  const centers = await StudyCenter.find(query).populate('referredBy', 'name email');
-  res.status(200).json({ success: true, count: centers.length, data: centers });
+  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId } });
+  res.json({ success: true, count: centers.length, data: centers });
 });
-
+export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const center = await prisma.studyCenter.findUnique({ where: { id: req.params.id } });
+  res.json({ success: true, data: center });
+});
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
+  const isSales = req.user.role === 'sales_admin' || req.user.role === 'bde' || req.user.role === 'employee';
 
-  // Sales roles: center starts as pending and is linked to the creator
-  const isSales = ['sales_admin', 'bde', 'employee'].includes(req.user.role);
-  if (isSales) {
-    req.body.status = 'pending_verification';
-    req.body.referredBy = req.user._id;
-  }
-
-  const center = await StudyCenter.create(req.body);
+  const center = await prisma.studyCenter.create({ 
+    data: { 
+      ...req.body, 
+      organizationId: req.user.organizationId,
+      status: isSales ? 'pending' : (req.body.status || 'pending'),
+      referredById: isSales ? req.user.id : (req.body.referredById || null)
+    } 
+  });
   res.status(201).json({ success: true, data: center });
 });
-
 export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: center });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: center });
 });
-
+export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await prisma.studyCenter.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
+});
 export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findById(req.params.id);
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  center.status = 'active';
-  center.financeApprovedBy = req.user._id;
-  center.financeApprovedAt = new Date();
-  await center.save();
-
-  res.status(200).json({ success: true, data: center });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  res.json({ success: true, data: center });
+});
+export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'suspended' } });
+  res.json({ success: true, data: center });
 });
 
 // Admission Sessions
 export const getAdmissionSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.status) query.status = req.query.status;
-
-  const sessions = await AdmissionSession.find(query).populate('subDepartmentId', 'name');
-  res.status(200).json({ success: true, count: sessions.length, data: sessions });
+  const sessions = await prisma.admissionSession.findMany({ where: { organizationId: req.user.organizationId } });
+  res.json({ success: true, count: sessions.length, data: sessions });
 });
-
+export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const session = await prisma.admissionSession.findUnique({ where: { id: req.params.id } });
+  res.json({ success: true, data: session });
+});
 export const createAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
-
-  const session = await AdmissionSession.create(req.body);
+  const session = await prisma.admissionSession.create({ data: { ...req.body, organizationId: req.user.organizationId } });
   res.status(201).json({ success: true, data: session });
 });
-
+export const updateAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: session });
+});
+export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await prisma.admissionSession.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
+});
 export const approveAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await AdmissionSession.findById(req.params.id);
-
-  if (!session) {
-    res.status(404).json({ success: false, message: 'Admission session not found' });
-    return;
-  }
-
-  session.status = 'approved';
-  session.approvedBy = req.user._id;
-  session.approvedAt = new Date();
-  await session.save();
-
-  res.status(200).json({ success: true, data: session });
+  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: { status: 'approved', approvedBy: req.user.id, approvedAt: new Date() } });
+  res.json({ success: true, data: session });
 });
 
 // Internal Marks
 export const getInternalMarks = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.studentId) query.studentId = req.query.studentId;
-
-  // Study center admins only see marks they entered (for their center's students)
-  if (req.user.role === 'center_admin') {
-    const center = await StudyCenter.findOne({ organizationId: req.user.organizationId, referredBy: req.user._id });
-    if (center) query.studyCenterId = center._id;
-    else query.enteredBy = req.user._id; // fallback: marks they personally entered
-  }
-
-  const marks = await InternalMark.find(query)
-    .populate('studentId', 'name enrollmentNo')
-    .populate('enteredBy', 'name email')
-    .populate('studyCenterId', 'name code');
-
-  res.status(200).json({ success: true, count: marks.length, data: marks });
+  const marks = await prisma.internalMark.findMany({ where: { organizationId: req.user.organizationId }, include: { student: true } });
+  res.json({ success: true, count: marks.length, data: marks });
 });
-
 export const createInternalMark = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
-  req.body.enteredBy = req.user._id;
-
-  // Auto-attach studyCenterId for center_admin
-  if (req.user.role === 'center_admin') {
-    const center = await StudyCenter.findOne({ organizationId: req.user.organizationId, referredBy: req.user._id });
-    if (!center) {
-      res.status(403).json({ success: false, message: 'No study center found for your account' });
-      return;
-    }
-    req.body.studyCenterId = center._id;
-  }
-
-  const mark = await InternalMark.create(req.body);
+  const mark = await prisma.internalMark.create({ data: { ...req.body, organizationId: req.user.organizationId, enteredBy: req.user.id } });
   res.status(201).json({ success: true, data: mark });
 });
-
 export const updateInternalMark = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const mark = await InternalMark.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!mark) {
-    res.status(404).json({ success: false, message: 'Internal mark not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: mark });
+  const mark = await prisma.internalMark.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: mark });
 });
-
 export const deleteInternalMark = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const mark = await InternalMark.findByIdAndDelete(req.params.id);
-
-  if (!mark) {
-    res.status(404).json({ success: false, message: 'Internal mark not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
+  await prisma.internalMark.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
 });
 
 // Announcements
 export const getAnnouncements = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = { organizationId: req.user.organizationId };
-  if (req.query.type) query.type = req.query.type;
-
-  const announcements = await Announcement.find(query)
-    .populate('postedBy', 'name email')
-    .sort('-postedAt');
-
-  res.status(200).json({ success: true, count: announcements.length, data: announcements });
+  const announcements = await prisma.announcement.findMany({ where: { organizationId: req.user.organizationId }, orderBy: { createdAt: 'desc' } });
+  res.json({ success: true, count: announcements.length, data: announcements });
 });
-
+export const getAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const announcement = await prisma.announcement.findUnique({ where: { id: req.params.id } });
+  res.json({ success: true, data: announcement });
+});
 export const createAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
-  req.body.organizationId = req.user.organizationId;
-  req.body.postedBy = req.user._id;
-
-  const announcement = await Announcement.create(req.body);
-
-  // Broadcast real-time notification to all org users
-  await broadcastNotification(req.user.organizationId.toString(), {
-    title: announcement.title,
-    message: announcement.content.substring(0, 120),
-    type: 'announcement',
-    priority: announcement.priority,
-    link: 'announcements',
-  });
-
+  const announcement = await prisma.announcement.create({ data: { ...req.body, organizationId: req.user.organizationId, createdById: req.user.id } });
   res.status(201).json({ success: true, data: announcement });
 });
-
-
-// Get single university
-export const getUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await University.findById(req.params.id)
-    .populate('allowedBranchIds', 'name branchCode');
-
-  if (!university) {
-    res.status(404).json({ success: false, message: 'University not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: university });
-});
-
-// Delete university
-export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await University.findByIdAndDelete(req.params.id);
-
-  if (!university) {
-    res.status(404).json({ success: false, message: 'University not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
-});
-
-// Activate university
-export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await University.findByIdAndUpdate(
-    req.params.id,
-    { status: 'active' },
-    { new: true }
-  );
-
-  if (!university) {
-    res.status(404).json({ success: false, message: 'University not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: university });
-});
-
-// Get single program
-export const getProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await Program.findById(req.params.id).populate('universityId', 'name code');
-
-  if (!program) {
-    res.status(404).json({ success: false, message: 'Program not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: program });
-});
-
-// Delete program
-export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await Program.findByIdAndDelete(req.params.id);
-
-  if (!program) {
-    res.status(404).json({ success: false, message: 'Program not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
-});
-
-// Activate program
-export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await Program.findByIdAndUpdate(
-    req.params.id,
-    { status: 'active' },
-    { new: true }
-  );
-
-  if (!program) {
-    res.status(404).json({ success: false, message: 'Program not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: program });
-});
-
-// Get single study center
-export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findById(req.params.id);
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: center });
-});
-
-// Delete study center
-export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findByIdAndDelete(req.params.id);
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
-});
-
-// Suspend study center
-export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findByIdAndUpdate(
-    req.params.id,
-    { status: 'suspended' },
-    { new: true }
-  );
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: center });
-});
-
-// Get single admission session
-export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await AdmissionSession.findById(req.params.id);
-
-  if (!session) {
-    res.status(404).json({ success: false, message: 'Admission session not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: session });
-});
-
-// Update admission session
-export const updateAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await AdmissionSession.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!session) {
-    res.status(404).json({ success: false, message: 'Admission session not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: session });
-});
-
-// Delete admission session
-export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await AdmissionSession.findByIdAndDelete(req.params.id);
-
-  if (!session) {
-    res.status(404).json({ success: false, message: 'Admission session not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
-});
-
-// Get single announcement
-export const getAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const announcement = await Announcement.findById(req.params.id);
-
-  if (!announcement) {
-    res.status(404).json({ success: false, message: 'Announcement not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: announcement });
-});
-
-// Update announcement
 export const updateAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const announcement = await Announcement.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!announcement) {
-    res.status(404).json({ success: false, message: 'Announcement not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: announcement });
+  const announcement = await prisma.announcement.update({ where: { id: req.params.id }, data: req.body });
+  res.json({ success: true, data: announcement });
 });
-
-// Delete announcement
 export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const announcement = await Announcement.findByIdAndDelete(req.params.id);
-
-  if (!announcement) {
-    res.status(404).json({ success: false, message: 'Announcement not found' });
-    return;
-  }
-
-  res.status(200).json({ success: true, data: {} });
+  await prisma.announcement.delete({ where: { id: req.params.id } });
+  res.json({ success: true, data: {} });
 });
 
-// ─── Study Center Onboarding — Ops ───────────────────────────────────────────
-
-import ProgramAllocation from '../models/ProgramAllocation.js';
-import { VALID_ONBOARDING_TRANSITIONS } from '../models/StudyCenter.js';
-
+// Onboarding
 export const getPendingVerificationCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const query: any = {
-    organizationId: req.user.organizationId,
-    status: 'pending_verification',
-  };
-
-  // Scope to sub-dept assigned centers for employee sub-dept managers
-  const rawSubDeptId = (req.user as any).subDepartmentId;
-  if (rawSubDeptId) {
-    const subDeptId = typeof rawSubDeptId === 'object' && rawSubDeptId._id
-      ? rawSubDeptId._id
-      : rawSubDeptId;
-    const SubDepartment = (await import('../models/SubDepartment.js')).default;
-    const subDept = await SubDepartment.findById(subDeptId).select('assignedCenters');
-    if (subDept?.assignedCenters?.length) {
-      query._id = { $in: subDept.assignedCenters };
-    }
-  }
-
-  const centers = await StudyCenter.find(query)
-    .populate('associatedUniversityIds', 'name code subDepartmentId')
-    .populate('referredBy', 'name email')
-    .sort('-createdAt');
-
-  res.status(200).json({ success: true, count: centers.length, data: centers });
+  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_verification' } });
+  res.json({ success: true, data: centers });
 });
-
 export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { action, remarks } = req.body;
-  const center = await StudyCenter.findOne({
-    _id: req.params.id,
-    organizationId: req.user.organizationId,
-  });
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  if (center.status !== 'pending_verification') {
-    res.status(400).json({ success: false, message: 'Action not permitted at current stage' });
-    return;
-  }
-
-  if (action === 'approve') {
-    center.status = 'pending_payment';
-    center.verifiedBy = req.user._id;
-    center.verifiedAt = new Date();
-    center.statusHistory.push({ status: 'pending_payment', actorId: req.user._id, remarks, timestamp: new Date() });
-
-    // Notify finance admins
-    try {
-      await broadcastNotification(req.user.organizationId.toString(), {
-        title: 'Study Center Pending Payment Verification',
-        message: `${center.name} has been approved by Ops and is awaiting finance verification.`,
-        type: 'general',
-        priority: 'medium',
-        link: 'pending-payment',
-      });
-    } catch (_) { /* non-critical */ }
-  } else if (action === 'reject') {
-    if (!remarks || remarks.trim().length === 0) {
-      res.status(400).json({ success: false, message: 'Remarks are required when rejecting' });
-      return;
-    }
-    center.status = 'rejected';
-    center.opsRemarks = remarks;
-    center.statusHistory.push({ status: 'rejected', actorId: req.user._id, remarks, timestamp: new Date() });
-  } else {
-    res.status(400).json({ success: false, message: 'Invalid action. Use approve or reject' });
-    return;
-  }
-
-  await center.save();
-  res.status(200).json({ success: true, data: center });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'verified' } });
+  res.json({ success: true, data: center });
 });
 
+// Allocations
 export const getProgramAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const allocations = await ProgramAllocation.find({
-    organizationId: req.user.organizationId,
-    studyCenterId: req.params.id,
-    isActive: true,
-  }).populate('programId', 'name code courseType');
-
-  res.status(200).json({ success: true, count: allocations.length, data: allocations });
+  const allocations = await prisma.programAllocation.findMany({ where: { studyCenterId: req.params.id }, include: { program: true } });
+  res.json({ success: true, data: allocations });
 });
-
 export const allocateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await StudyCenter.findOne({
-    _id: req.params.id,
-    organizationId: req.user.organizationId,
-  });
-
-  if (!center) {
-    res.status(404).json({ success: false, message: 'Study center not found' });
-    return;
-  }
-
-  if (center.status !== 'active') {
-    res.status(400).json({ success: false, message: 'Center must be active before programs can be allocated' });
-    return;
-  }
-
-  const { programId } = req.body;
-  if (!programId) {
-    res.status(400).json({ success: false, message: 'programId is required' });
-    return;
-  }
-
-  // Check for existing active allocation
-  const existing = await ProgramAllocation.findOne({
-    organizationId: req.user.organizationId,
-    studyCenterId: req.params.id,
-    programId,
-  });
-
-  if (existing) {
-    if (existing.isActive) {
-      res.status(400).json({ success: false, message: 'Program is already allocated to this center' });
-      return;
-    }
-    // Re-activate soft-deleted allocation
-    existing.isActive = true;
-    existing.allocatedBy = req.user._id;
-    existing.allocatedAt = new Date();
-    await existing.save();
-    res.status(200).json({ success: true, data: existing });
-    return;
-  }
-
-  const allocation = await ProgramAllocation.create({
-    organizationId: req.user.organizationId,
-    studyCenterId: req.params.id,
-    programId,
-    allocatedBy: req.user._id,
-    allocatedAt: new Date(),
-  });
-
+  const allocation = await prisma.programAllocation.create({ data: { ...req.body, studyCenterId: req.params.id, organizationId: req.user.organizationId, allocatedBy: req.user.id } });
   res.status(201).json({ success: true, data: allocation });
 });
-
 export const removeAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const allocation = await ProgramAllocation.findOne({
-    _id: req.params.allocId,
-    organizationId: req.user.organizationId,
-    studyCenterId: req.params.id,
-  });
-
-  if (!allocation) {
-    res.status(404).json({ success: false, message: 'Allocation not found' });
-    return;
-  }
-
-  allocation.isActive = false;
-  await allocation.save();
-
-  res.status(200).json({ success: true, data: {} });
+  await prisma.programAllocation.delete({ where: { id: req.params.allocId } });
+  res.json({ success: true, data: {} });
 });

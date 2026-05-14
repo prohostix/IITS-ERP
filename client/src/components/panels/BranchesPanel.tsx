@@ -11,24 +11,24 @@ import { Plus, RefreshCw, Edit2, Trash2, UserPlus, MapPin, Building2, TrendingUp
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
-interface Dept { _id: string; name: string; type: string; }
+interface Dept { id: string; name: string; type: string; }
 
 interface Branch {
-  _id: string;
+  id: string;
   name: string;
-  branchCode: string;
-  location: string;
+  code: string;
+  address: string;
   city?: string;
   state?: string;
   status: 'active' | 'inactive';
-  branchManagerId?: { _id: string; name: string; email: string; role: string; userId?: string; designation?: string };
+  branchManagerId?: { id: string; name: string; email: string; role: string; userId?: string; designation?: string };
   salesDeptId?: Dept;
   operationsDeptId?: Dept;
   additionalDeptIds?: Dept[];
 }
 
 interface OrgUser {
-  _id: string; name: string; email: string; role: string; userId?: string; designation?: string;
+  id: string; name: string; email: string; role: string; userId?: string; designation?: string;
 }
 
 const DEPT_TYPE_COLORS: Record<string, string> = {
@@ -47,7 +47,7 @@ export function BranchesPanel() {
   const [branchDialog, setBranchDialog] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [form, setForm] = useState({
-    name: '', branchCode: '', location: '', city: '', state: '', branchManagerId: '',
+    name: '', code: '', address: '', city: '', state: '', branchManagerId: '',
   });
 
   // Assign manager dialog (includes dept selection)
@@ -87,12 +87,12 @@ export function BranchesPanel() {
   const getAvailableExtraDepts = (branch: Branch | null) => {
     const autoIds = new Set<string>();
     branches.forEach(b => {
-      if (b.salesDeptId) autoIds.add(b.salesDeptId._id);
-      if (b.operationsDeptId) autoIds.add(b.operationsDeptId._id);
+      if (b.salesDeptId) autoIds.add(b.salesDeptId.id);
+      if (b.operationsDeptId) autoIds.add(b.operationsDeptId.id);
     });
-    if (branch?.salesDeptId) autoIds.add(branch.salesDeptId._id);
-    if (branch?.operationsDeptId) autoIds.add(branch.operationsDeptId._id);
-    return allDepts.filter(d => !autoIds.has(d._id) && !RESTRICTED_TYPES.has(d.type));
+    if (branch?.salesDeptId) autoIds.add(branch.salesDeptId.id);
+    if (branch?.operationsDeptId) autoIds.add(branch.operationsDeptId.id);
+    return allDepts.filter(d => !autoIds.has(d.id) && !RESTRICTED_TYPES.has(d.type));
   };
 
   const toggleDept = (id: string, list: string[], setList: (v: string[]) => void) => {
@@ -102,29 +102,29 @@ export function BranchesPanel() {
   // ── Create / Edit ──
   const openCreate = () => {
     setEditingBranch(null);
-    setForm({ name: '', branchCode: '', location: '', city: '', state: '', branchManagerId: '' });
+    setForm({ name: '', code: '', address: '', city: '', state: '', branchManagerId: '' });
     setBranchDialog(true);
   };
 
   const openEdit = (b: Branch) => {
     setEditingBranch(b);
-    setForm({ name: b.name, branchCode: b.branchCode, location: b.location, city: b.city || '', state: b.state || '', branchManagerId: '' });
+    setForm({ name: b.name, code: b.code, address: b.address, city: b.city || '', state: b.state || '', branchManagerId: '' });
     setBranchDialog(true);
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.branchCode || !form.location) {
-      toast.error('Name, branch code, and location are required'); return;
+    if (!form.name || !form.code || !form.address) {
+      toast.error('Name, branch code, and address are required'); return;
     }
     setSaving(true);
     try {
       if (editingBranch) {
-        await api.patch(`/org/branches/${editingBranch._id}`, {
-          name: form.name, location: form.location, city: form.city, state: form.state,
+        await api.patch(`/org/branches/${editingBranch.id}`, {
+          name: form.name, address: form.address, city: form.city, state: form.state,
         });
       } else {
         await api.post('/org/branches', {
-          name: form.name, branchCode: form.branchCode, location: form.location,
+          name: form.name, code: form.code, address: form.address,
           city: form.city, state: form.state,
           branchManagerId: form.branchManagerId || undefined,
         });
@@ -142,7 +142,7 @@ export function BranchesPanel() {
   const handleDelete = async (b: Branch) => {
     if (!confirm(`Delete branch "${b.name}"? This will also remove its Sales and Operations departments.`)) return;
     try {
-      await api.delete(`/org/branches/${b._id}`);
+      await api.delete(`/org/branches/${b.id}`);
       toast.success('Branch deleted');
       fetchAll();
     } catch (e: any) {
@@ -153,8 +153,8 @@ export function BranchesPanel() {
   // ── Assign Manager ──
   const openAssignManager = (b: Branch) => {
     setManagerTarget(b);
-    setManagerUserId(b.branchManagerId?._id || '');
-    setSelectedDeptIds((b.additionalDeptIds || []).map(d => d._id));
+    setManagerUserId(b.branchManagerId?.id || '');
+    setSelectedDeptIds((b.additionalDeptIds || []).map(d => d.id));
     setManagerDialog(true);
   };
 
@@ -162,7 +162,7 @@ export function BranchesPanel() {
     if (!managerTarget) return;
     setSaving(true);
     try {
-      await api.patch(`/org/branches/${managerTarget._id}/manager`, {
+      await api.patch(`/org/branches/${managerTarget.id}/manager`, {
         userId: managerUserId || null,
         additionalDeptIds: selectedDeptIds,
       });
@@ -179,7 +179,7 @@ export function BranchesPanel() {
   // ── Manage Departments (no manager change) ──
   const openManageDepts = (b: Branch) => {
     setDeptTarget(b);
-    setDeptSelection((b.additionalDeptIds || []).map(d => d._id));
+    setDeptSelection((b.additionalDeptIds || []).map(d => d.id));
     setDeptDialog(true);
   };
 
@@ -187,7 +187,7 @@ export function BranchesPanel() {
     if (!deptTarget) return;
     setSaving(true);
     try {
-      await api.patch(`/org/branches/${deptTarget._id}/departments`, {
+      await api.patch(`/org/branches/${deptTarget.id}/departments`, {
         additionalDeptIds: deptSelection,
       });
       toast.success('Branch departments updated');
@@ -202,7 +202,7 @@ export function BranchesPanel() {
 
   const toggleStatus = async (b: Branch) => {
     try {
-      await api.patch(`/org/branches/${b._id}`, { status: b.status === 'active' ? 'inactive' : 'active' });
+      await api.patch(`/org/branches/${b.id}`, { status: b.status === 'active' ? 'inactive' : 'active' });
       fetchAll();
     } catch { toast.error('Failed to update status'); }
   };
@@ -214,16 +214,22 @@ export function BranchesPanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold">Branches</h2>
-          <p className="text-sm text-muted-foreground">
-            Each branch gets its own Sales and Operations departments. Branch managers can access additional departments too.
+          <h2 className="text-2xl font-bold tracking-tight">Branches</h2>
+          <p className="text-muted-foreground text-sm">
+            Manage organization branches and departments
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={fetchAll}><RefreshCw className="h-4 w-4 mr-1" /> Refresh</Button>
-          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Add Branch</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchAll} className="flex-1 sm:flex-none">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={() => setBranchDialog(true)} className="flex-1 sm:flex-none">
+            <Plus className="w-4 h-4 mr-2" />
+            New Branch
+          </Button>
         </div>
       </div>
 
@@ -237,19 +243,19 @@ export function BranchesPanel() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {branches.map(b => (
-            <div key={b._id}
+            <div key={b.id}
               className={`border rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow ${b.status === 'inactive' ? 'opacity-60' : ''}`}>
               {/* Header */}
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{b.branchCode}</span>
+                    <span className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{b.code}</span>
                     <Badge variant={b.status === 'active' ? 'default' : 'secondary'} className="text-xs">{b.status}</Badge>
                   </div>
                   <h3 className="font-bold text-base mt-1">{b.name}</h3>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                     <MapPin className="h-3 w-3" />
-                    {b.location}{b.city ? `, ${b.city}` : ''}{b.state ? `, ${b.state}` : ''}
+                    {b.address}{b.city ? `, ${b.city}` : ''}{b.state ? `, ${b.state}` : ''}
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -322,7 +328,7 @@ export function BranchesPanel() {
                 {(b.additionalDeptIds || []).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {(b.additionalDeptIds || []).map(d => (
-                      <span key={d._id} className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
+                      <span key={d.id} className="text-[10px] px-2 py-0.5 rounded-full border font-medium"
                         style={{
                           borderColor: (DEPT_TYPE_COLORS[d.type] || '#6366f1') + '55',
                           background: (DEPT_TYPE_COLORS[d.type] || '#6366f1') + '11',
@@ -357,14 +363,14 @@ export function BranchesPanel() {
             {!editingBranch && (
               <div className="space-y-1">
                 <Label>Branch Code *</Label>
-                <Input placeholder="e.g. DEL-N" value={form.branchCode}
-                  onChange={e => setForm(p => ({ ...p, branchCode: e.target.value.toUpperCase() }))} />
+                <Input placeholder="e.g. DEL-N" value={form.code}
+                  onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} />
               </div>
             )}
             <div className="space-y-1">
               <Label>Location / Address *</Label>
-              <Input placeholder="Street address or area" value={form.location}
-                onChange={e => setForm(p => ({ ...p, location: e.target.value }))} />
+              <Input placeholder="Street address or area" value={form.address}
+                onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -388,7 +394,7 @@ export function BranchesPanel() {
                     <SelectContent>
                       <SelectItem value="__none__">Assign later</SelectItem>
                       {allUsers.map(u => (
-                        <SelectItem key={u._id} value={u._id}>
+                        <SelectItem key={u.id} value={u.id}>
                           {u.name} — {u.role.replace(/_/g, ' ')} {u.userId ? `(${u.userId})` : ''}
                         </SelectItem>
                       ))}
@@ -403,7 +409,7 @@ export function BranchesPanel() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBranchDialog(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.name || !form.branchCode || !form.location}>
+            <Button onClick={handleSave} disabled={saving || !form.name || !form.code || !form.address}>
               {saving ? 'Saving...' : editingBranch ? 'Save Changes' : 'Create Branch'}
             </Button>
           </DialogFooter>
@@ -425,7 +431,7 @@ export function BranchesPanel() {
                 <SelectContent>
                   <SelectItem value="__none__">Remove manager</SelectItem>
                   {allUsers.map(u => (
-                    <SelectItem key={u._id} value={u._id}>
+                    <SelectItem key={u.id} value={u.id}>
                       {u.name} — {u.role.replace(/_/g, ' ')} {u.userId ? `(${u.userId})` : ''}
                     </SelectItem>
                   ))}
@@ -458,10 +464,10 @@ export function BranchesPanel() {
                   )}
                   {/* Selectable extra depts */}
                   {getAvailableExtraDepts(managerTarget).map(d => (
-                    <div key={d._id} className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => toggleDept(d._id, selectedDeptIds, setSelectedDeptIds)}>
-                      <Checkbox checked={selectedDeptIds.includes(d._id)}
-                        onCheckedChange={() => toggleDept(d._id, selectedDeptIds, setSelectedDeptIds)} />
+                    <div key={d.id} className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => toggleDept(d.id, selectedDeptIds, setSelectedDeptIds)}>
+                      <Checkbox checked={selectedDeptIds.includes(d.id)}
+                        onCheckedChange={() => toggleDept(d.id, selectedDeptIds, setSelectedDeptIds)} />
                       <span className="text-sm">{d.name}</span>
                       <span className="text-xs text-muted-foreground capitalize">{d.type}</span>
                     </div>
@@ -509,10 +515,10 @@ export function BranchesPanel() {
                   </div>
                 )}
                 {getAvailableExtraDepts(deptTarget).map(d => (
-                  <div key={d._id} className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => toggleDept(d._id, deptSelection, setDeptSelection)}>
-                    <Checkbox checked={deptSelection.includes(d._id)}
-                      onCheckedChange={() => toggleDept(d._id, deptSelection, setDeptSelection)} />
+                  <div key={d.id} className="flex items-center gap-2 cursor-pointer"
+                    onClick={() => toggleDept(d.id, deptSelection, setDeptSelection)}>
+                    <Checkbox checked={deptSelection.includes(d.id)}
+                      onCheckedChange={() => toggleDept(d.id, deptSelection, setDeptSelection)} />
                     <span className="text-sm">{d.name}</span>
                     <span className="text-xs text-muted-foreground capitalize">{d.type}</span>
                   </div>

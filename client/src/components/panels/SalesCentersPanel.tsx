@@ -124,7 +124,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {center.associatedUniversityIds.map((u: any) => (
-                    <Badge key={u._id} variant="secondary" className="text-xs">
+                    <Badge key={u.id} variant="secondary" className="text-xs">
                       {u.name}{u.code ? ` (${u.code})` : ''}
                     </Badge>
                   ))}
@@ -144,9 +144,9 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
               ) : (
                 <div className="space-y-2">
                   {center.allowedProgramIds.map((p: any) => {
-                    const group = byProgram.find((b: any) => b.program?._id?.toString() === p._id?.toString());
+                    const group = byProgram.find((b: any) => b.program?.id?.toString() === p.id?.toString());
                     return (
-                      <div key={p._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40">
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40">
                         <div>
                           <p className="text-sm font-medium">{p.name}</p>
                           <p className="text-[10px] text-muted-foreground">
@@ -174,7 +174,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
               </CardContent>
             </Card>
           ) : byProgram.map((group: any) => (
-            <Card key={group.program?._id || 'unknown'}>
+            <Card key={group.program?.id || 'unknown'}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm">{group.program?.name || 'Unknown Program'}</CardTitle>
@@ -188,7 +188,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
               </CardHeader>
               <CardContent className="space-y-2">
                 {group.students.map((s: any) => (
-                  <div key={s._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div>
                       <p className="text-sm font-medium">{s.studentName}</p>
                       <p className="text-[10px] text-muted-foreground">{s.studentEmail} · {s.enrollmentNumber}</p>
@@ -214,7 +214,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
               ) : (
                 <div className="space-y-2">
                   {enrollments.map((e: any) => (
-                    <div key={e._id} className="flex items-center gap-3 p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors">
+                    <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
                         {(e.studentName || '?')[0].toUpperCase()}
                       </div>
@@ -354,8 +354,8 @@ export function SalesCentersPanel() {
                 <div className="space-y-3">
                   {centers.map(c => (
                     <button
-                      key={c._id}
-                      onClick={() => setSelectedCenterId(c._id)}
+                      key={c.id}
+                      onClick={() => setSelectedCenterId(c.id)}
                       className="w-full flex items-center gap-4 p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all text-left group"
                     >
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
@@ -412,7 +412,7 @@ export function SalesCentersPanel() {
               ) : (
                 <div className="space-y-3">
                   {admissions.map(a => (
-                    <div key={a._id} className="flex items-center gap-4 p-4 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors">
+                    <div key={a.id} className="flex items-center gap-4 p-4 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors">
                       <div className="w-9 h-9 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 font-bold text-sm shrink-0">
                         {(a.studentName || '?')[0].toUpperCase()}
                       </div>

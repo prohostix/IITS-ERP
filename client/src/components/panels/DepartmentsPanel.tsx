@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface Department {
-  _id: string;
+  id: string;
   name: string;
   type: string;
   organizationId?: any;
@@ -34,12 +34,12 @@ interface Department {
 }
 
 interface Organization {
-  _id: string;
+  id: string;
   name: string;
 }
 
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   designation?: string;
@@ -101,8 +101,8 @@ export function DepartmentsPanel() {
     setFormData({
       name: dept.name,
       type: dept.type,
-      organizationId: dept.organizationId?._id || dept.organizationId || '',
-      managerId: dept.managerId?._id || dept.managerId || '',
+      organizationId: dept.organizationId?.id || dept.organizationId || '',
+      managerId: dept.managerId?.id || dept.managerId || '',
     });
     setIsDialogOpen(true);
   };
@@ -127,7 +127,7 @@ export function DepartmentsPanel() {
       }
 
       if (editingDept) {
-        await api.put(`/departments/${editingDept._id}`, payload);
+        await api.put(`/departments/${editingDept.id}`, payload);
         toast.success('Department updated successfully');
       } else {
         await api.post('/departments', payload);
@@ -146,7 +146,7 @@ export function DepartmentsPanel() {
     if (!deletingDept) return;
 
     try {
-      await api.delete(`/departments/${deletingDept._id}`);
+      await api.delete(`/departments/${deletingDept.id}`);
       toast.success('Department deleted successfully');
       setIsDeleteDialogOpen(false);
       fetchData();
@@ -196,7 +196,7 @@ export function DepartmentsPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {departments.map((dept) => (
-          <Card key={dept._id} className="hover:shadow-lg transition-shadow">
+          <Card key={dept.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -327,7 +327,7 @@ export function DepartmentsPanel() {
                   </SelectTrigger>
                   <SelectContent>
                     {organizations.map((org) => (
-                      <SelectItem key={org._id} value={org._id}>
+                      <SelectItem key={org.id} value={org.id}>
                         {org.name}
                       </SelectItem>
                     ))}
@@ -373,7 +373,7 @@ export function DepartmentsPanel() {
                   <SelectContent>
                     <SelectItem value="none">No Manager</SelectItem>
                     {users.map((user) => (
-                      <SelectItem key={user._id} value={user._id}>
+                      <SelectItem key={user.id} value={user.id}>
                         {user.name} {user.designation ? `(${user.designation})` : ''} - {user.role}
                       </SelectItem>
                     ))}

@@ -9,11 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4009/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
-interface University { _id: string; name: string; code: string; }
-interface Program { _id: string; name: string; code: string; universityId: string; courseType: string; }
-interface PaymentUni { _id: string; name: string; code: string; fee: number | null; }
+interface University { id: string; name: string; code: string; }
+interface Program { id: string; name: string; code: string; universityId: string; courseType: string; }
+interface PaymentUni { id: string; name: string; code: string; fee: number | null; }
 interface PaymentStatus {
   centerId: string;
   centerName: string;
@@ -281,7 +281,7 @@ export default function PublicRegisterPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {paymentStatus.universities.map(u => (
-                <div key={u._id} className="flex items-center justify-between text-sm py-1">
+                <div key={u.id} className="flex items-center justify-between text-sm py-1">
                   <span>{u.name} <span className="text-muted-foreground">({u.code})</span></span>
                   {u.fee !== null ? (
                     <span className="font-semibold">₹{u.fee.toLocaleString()}</span>
@@ -378,13 +378,13 @@ export default function PublicRegisterPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {universities.map(u => (
-                <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                   <Checkbox
-                    id={`uni-${u._id}`}
-                    checked={selectedUnis.includes(u._id)}
-                    onCheckedChange={() => toggleUni(u._id)}
+                    id={`uni-${u.id}`}
+                    checked={selectedUnis.includes(u.id)}
+                    onCheckedChange={() => toggleUni(u.id)}
                   />
-                  <label htmlFor={`uni-${u._id}`} className="text-sm cursor-pointer">
+                  <label htmlFor={`uni-${u.id}`} className="text-sm cursor-pointer">
                     {u.name} <span className="text-muted-foreground">({u.code})</span>
                   </label>
                 </div>
@@ -400,7 +400,7 @@ export default function PublicRegisterPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {invitePrograms.map(p => (
-                  <div key={p._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40">
+                  <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40">
                     <span className="text-sm">{p.name} <span className="text-muted-foreground text-xs">({p.code})</span></span>
                     <Badge variant="outline" className="text-[10px]">{p.courseType}</Badge>
                   </div>

@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.js';
-import AuditLog from '../models/AuditLog.js';
+import prisma from '../lib/prisma.js';
 
 export const auditLog = (action: string, entityType: string) => {
   return async (
@@ -12,28 +12,23 @@ export const auditLog = (action: string, entityType: string) => {
       const originalSend = res.json;
 
       res.json = function (data: any) {
-        // Only log successful operations
         if (data.success && req.user) {
-          const entityId = 
-            req.params.id || 
-            data.data?._id || 
-            data.data?.id;
+          const entityId = req.params.id || data.data?.id;
 
           if (entityId) {
-            AuditLog.create({
-              organizationId: req.user.organizationId,
-              userId: req.user._id,
-              action,
-              entityType,
-              entityId,
-              oldValue: req.body._oldValue,
-              newValue: req.body,
-              ipAddress: req.ip,
-              timestamp: new Date(),
+            prisma.auditLog.create({
+              data: {
+                organizationId: req.user.organizationId,
+                userId: req.user.id,
+                action,
+                entityType,
+                entityId: entityId.toString(),
+                newValue: req.body,
+                ipAddress: req.ip || '0.0.0.0',
+              }
             }).catch(err => console.error('Audit log error:', err));
           }
         }
-
         return originalSend.call(this, data);
       };
 

@@ -64,7 +64,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   students: 'students',
   universities: 'universities',
   programs: 'programs',
-  study_centers: 'study_centers',
+  study_centers: 'centers',
   admission_sessions: 'admission_sessions',
   internal_marks: 'marks',
   announcements: 'announcements',
@@ -74,7 +74,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Sales
   leads: 'leads',
   invite_links: 'invite_links',
-  sub_departments: 'sub_departments',
+  sub_departments: 'subdepartments',
   // CEO
   performance: 'performance',
   center_onboarding: 'center_onboarding',
@@ -132,19 +132,20 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'employee') return;
     const subDeptId = (user as any)?.subDepartmentId;
-    if (!subDeptId) return;
+    if (!user?.departmentId && !subDeptId) return;
 
     const fetchDeptType = async () => {
       try {
-        // Try direct departmentId first
-        if (user?.departmentId) {
-          if (typeof user.departmentId === 'object' && (user.departmentId as any)?.type) {
-            setDeptType((user.departmentId as any).type);
+        // Try direct department object or departmentId first
+        const dept = (user as any).department || user?.departmentId;
+        if (dept) {
+          if (typeof dept === 'object' && (dept as any)?.type) {
+            setDeptType((dept as any).type);
             return;
           }
-          const deptId = typeof user.departmentId === 'object'
-            ? (user.departmentId as any)._id?.toString()
-            : user.departmentId?.toString();
+          const deptId = typeof dept === 'object'
+            ? (dept as any).id?.toString()
+            : dept.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
             if (res.data.data?.type) { setDeptType(res.data.data.type); return; }
@@ -158,7 +159,7 @@ function App() {
             setDeptType(parentDeptId.type);
             return;
           }
-          const pid = typeof parentDeptId === 'object' ? parentDeptId._id?.toString() : parentDeptId?.toString();
+          const pid = typeof parentDeptId === 'object' ? parentDeptId.id?.toString() : parentDeptId?.toString();
           if (pid) {
             const res = await api.get(`/departments/${pid}`);
             if (res.data.data?.type) { setDeptType(res.data.data.type); return; }
@@ -176,7 +177,7 @@ function App() {
     };
 
     fetchDeptType();
-  }, [user?.role, (user as any)?.subDepartmentId]);
+  }, [user?.role, (user as any)?.subDepartmentId, user?.departmentId, (user as any)?.department]);
 
   // Public register page — show when on /register path OR has ?token= param (no-router SPA)
   // Only intercept if user is not logged in, to avoid breaking logged-in users with token params
@@ -225,11 +226,12 @@ function App() {
 
     if (user.role === 'org_admin') {
       return [
-        { id: 'dashboard', label: 'Dashboard' },
-        { id: 'hierarchy', label: 'Org Hierarchy' },
+        { id: 'dashboard', label: 'Overview' },
+        { id: 'hierarchy', label: 'Hierarchy' },
         { id: 'branches', label: 'Branches' },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
+        { id: 'sub_departments', label: 'Sub-Departments' },
         { id: 'tasks', label: 'Tasks' },
         { id: 'students', label: 'Students' },
         { id: 'universities', label: 'Universities' },
@@ -241,7 +243,6 @@ function App() {
         { id: 'employees', label: 'Employees' },
         { id: 'leave_requests', label: 'Leave Requests' },
         { id: 'leads', label: 'Leads' },
-        { id: 'escalations', label: 'Escalations' },
       ];
     }
 
@@ -280,12 +281,16 @@ function App() {
 
     if (user.role === 'employee') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
-      if (isSubDeptManager && deptType) {
-        switch (deptType) {
-          case 'operations': return getOpsNavItems(true);
-          case 'hr': return getHRNavItems();
-          case 'finance': return getFinanceNavItems();
-          case 'sales': return getSalesNavItems();
+      if (deptType) {
+        if (isSubDeptManager) {
+          switch (deptType) {
+            case 'operations': return getOpsNavItems(true);
+            case 'hr': return getHRNavItems();
+            case 'finance': return getFinanceNavItems();
+            case 'sales': return getSalesNavItems();
+          }
+        } else if (deptType === 'sales') {
+          return getSalesNavItems();
         }
       }
       return EMPLOYEE_NAV_ITEMS;
@@ -480,10 +485,10 @@ function App() {
         { key: 'department', label: 'department', type: 'text' },
         { key: 'status', label: 'status', type: 'text' },
         { key: 'createdAt', label: 'createdAt', type: 'date' },
-        { key: '_id', label: '_id', type: 'id' },
+        { key: 'id', label: 'id', type: 'id' },
       ],
       tasks: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'title', label: 'title', type: 'text', required: true },
         { key: 'description', label: 'description', type: 'text' },
         { key: 'status', label: 'status', type: 'text' },
@@ -492,14 +497,14 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       departments: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'type', label: 'type', type: 'text' },
         { key: 'organizationId', label: 'organizationId', type: 'text' },
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       organizations: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'email', label: 'email', type: 'text' },
         { key: 'phone', label: 'phone', type: 'text' },
@@ -507,7 +512,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       licenses: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'type', label: 'type', type: 'text' },
         { key: 'maxUsers', label: 'maxUsers', type: 'number' },
@@ -515,7 +520,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       students: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'firstName', label: 'firstName', type: 'text' },
         { key: 'lastName', label: 'lastName', type: 'text' },
         { key: 'email', label: 'email', type: 'text' },
@@ -524,7 +529,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       invoices: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'invoiceNo', label: 'invoiceNo', type: 'text' },
         { key: 'amount', label: 'amount', type: 'number' },
         { key: 'status', label: 'status', type: 'text' },
@@ -532,7 +537,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       leads: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text' },
         { key: 'email', label: 'email', type: 'text' },
         { key: 'phone', label: 'phone', type: 'text' },
@@ -541,7 +546,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       universities: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'code', label: 'code', type: 'text' },
         { key: 'type', label: 'type', type: 'text' },
@@ -549,7 +554,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       programs: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'code', label: 'code', type: 'text' },
         { key: 'duration', label: 'duration', type: 'text' },
@@ -557,7 +562,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       study_centers: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'code', label: 'code', type: 'text' },
         { key: 'city', label: 'city', type: 'text' },
@@ -566,7 +571,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       admission_sessions: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'sessionName', label: 'sessionName', type: 'text' },
         { key: 'startDate', label: 'startDate', type: 'date' },
         { key: 'endDate', label: 'endDate', type: 'date' },
@@ -574,7 +579,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       internal_marks: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'studentId', label: 'studentId', type: 'text' },
         { key: 'subject', label: 'subject', type: 'text' },
         { key: 'marks', label: 'marks', type: 'number' },
@@ -582,7 +587,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       announcements: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'title', label: 'title', type: 'text', required: true },
         { key: 'message', label: 'message', type: 'text' },
         { key: 'type', label: 'type', type: 'text' },
@@ -590,7 +595,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       payments: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'paymentNo', label: 'paymentNo', type: 'text' },
         { key: 'amount', label: 'amount', type: 'number' },
         { key: 'method', label: 'method', type: 'text' },
@@ -598,7 +603,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       expenses: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'description', label: 'description', type: 'text' },
         { key: 'amount', label: 'amount', type: 'number' },
         { key: 'category', label: 'category', type: 'text' },
@@ -606,7 +611,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       targets: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text' },
         { key: 'targetValue', label: 'targetValue', type: 'number' },
         { key: 'achievedValue', label: 'achievedValue', type: 'number' },
@@ -614,7 +619,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       fee_structures: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text' },
         { key: 'amount', label: 'amount', type: 'number' },
         { key: 'type', label: 'type', type: 'text' },
@@ -622,7 +627,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       employees: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'userId', label: 'userId', type: 'text' },
         { key: 'name', label: 'name', type: 'text' },
         { key: 'email', label: 'email', type: 'text' },
@@ -631,7 +636,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       vacancies: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'title', label: 'title', type: 'text', required: true },
         { key: 'department', label: 'department', type: 'text' },
         { key: 'positions', label: 'positions', type: 'number' },
@@ -639,7 +644,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       leave_requests: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'userId', label: 'userId', type: 'text' },
         { key: 'leaveType', label: 'leaveType', type: 'text' },
         { key: 'startDate', label: 'startDate', type: 'date' },
@@ -648,7 +653,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       attendance: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'userId', label: 'userId', type: 'text' },
         { key: 'date', label: 'date', type: 'date' },
         { key: 'checkIn', label: 'checkIn', type: 'text' },
@@ -657,7 +662,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       holidays: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'name', label: 'name', type: 'text', required: true },
         { key: 'date', label: 'date', type: 'date' },
         { key: 'type', label: 'type', type: 'text' },
@@ -665,7 +670,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       complaints: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'title', label: 'title', type: 'text', required: true },
         { key: 'description', label: 'description', type: 'text' },
         { key: 'status', label: 'status', type: 'text' },
@@ -673,7 +678,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       escalations: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'title', label: 'title', type: 'text', required: true },
         { key: 'description', label: 'description', type: 'text' },
         { key: 'status', label: 'status', type: 'text' },
@@ -681,7 +686,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       payroll: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'employeeId', label: 'employeeId', type: 'text' },
         { key: 'month', label: 'month', type: 'text' },
         { key: 'year', label: 'year', type: 'number' },
@@ -691,7 +696,7 @@ function App() {
         { key: 'createdAt', label: 'createdAt', type: 'date' },
       ],
       payroll_batches: [
-        { key: '_id', label: 'id', type: 'id', required: true },
+        { key: 'id', label: 'id', type: 'id', required: true },
         { key: 'batchNumber', label: 'batchNumber', type: 'text' },
         { key: 'month', label: 'month', type: 'text' },
         { key: 'year', label: 'year', type: 'number' },
@@ -702,7 +707,7 @@ function App() {
     };
 
     return columnMap[activeTable] || [
-      { key: '_id', label: 'id', type: 'id', required: true },
+      { key: 'id', label: 'id', type: 'id', required: true },
       { key: 'name', label: 'name', type: 'text' },
       { key: 'createdAt', label: 'createdAt', type: 'date' },
     ];
@@ -746,12 +751,12 @@ function App() {
       onLogout={logout}
       userName={user?.name}
       userRole={user?.role}
-      userId={user?._id?.toString()}
+      userId={user?.id?.toString()}
       organizationId={
         (() => {
           const orgId = (user as any)?.organizationId;
           if (!orgId) return undefined;
-          if (typeof orgId === 'object') return orgId._id?.toString() || String(orgId);
+          if (typeof orgId === 'object') return orgId.id?.toString() || String(orgId);
           return String(orgId);
         })()
       }

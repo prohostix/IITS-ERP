@@ -248,7 +248,7 @@ function OverviewContent({ metrics }: { metrics: any }) {
              <AuditItem 
                user="system" 
                action="Auto-Backup Completed" 
-               target="AWS S3" 
+               target="Local Storage" 
                time="2h ago" 
                type="success"
              />

@@ -77,7 +77,7 @@ export function SubSalesPortalPanel() {
   const copyLink = (invite: any) => {
     const url = invite.inviteUrl || `${window.location.origin}/register?token=${invite.token}`;
     navigator.clipboard.writeText(url).then(() => {
-      setCopied(invite._id);
+      setCopied(invite.id);
       setTimeout(() => setCopied(null), 2000);
     });
   };
@@ -109,10 +109,10 @@ export function SubSalesPortalPanel() {
   const totalAll = enrollmentStats.reduce((s: number, e: any) => s + (e.total || 0), 0);
 
   const centerEnrollMap: Record<string, any> = {};
-  enrollmentStats.forEach((e: any) => { centerEnrollMap[e._id?.toString()] = e; });
+  enrollmentStats.forEach((e: any) => { centerEnrollMap[e.id?.toString()] = e; });
 
   const chartData = monthlyEnrollments.map((m: any) => ({
-    month: MONTH_NAMES[m._id.month - 1],
+    month: MONTH_NAMES[m.id.month - 1],
     total: m.total,
     enrolled: m.enrolled,
   }));
@@ -190,7 +190,7 @@ export function SubSalesPortalPanel() {
                 {invites.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">No invite links yet</p>
                 ) : invites.slice(0, 5).map(inv => (
-                  <div key={inv._id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <div key={inv.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <Badge className={cn('text-[9px] uppercase', STATUS_COLOR[inv.status])}>{inv.status}</Badge>
@@ -200,7 +200,7 @@ export function SubSalesPortalPanel() {
                     </div>
                     {inv.status === 'pending' && (
                       <Button variant="ghost" size="sm" className="shrink-0" onClick={() => copyLink(inv)}>
-                        {copied === inv._id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copied === inv.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                       </Button>
                     )}
                   </div>
@@ -216,7 +216,7 @@ export function SubSalesPortalPanel() {
               <CardContent className="space-y-1.5 max-h-40 overflow-y-auto">
                 {universities.length === 0 ? <p className="text-xs text-muted-foreground">None assigned</p> :
                   universities.map((u: any) => (
-                    <div key={u._id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
+                    <div key={u.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
                       <span className="font-medium truncate">{u.name}</span>
                       <span className="text-muted-foreground shrink-0 ml-2">{u.code}</span>
                     </div>
@@ -228,9 +228,9 @@ export function SubSalesPortalPanel() {
               <CardContent className="space-y-1.5 max-h-40 overflow-y-auto">
                 {centers.length === 0 ? <p className="text-xs text-muted-foreground">None assigned</p> :
                   centers.map((c: any) => {
-                    const stats = centerEnrollMap[c._id?.toString()] || { enrolled: 0, total: 0 };
+                    const stats = centerEnrollMap[c.id?.toString()] || { enrolled: 0, total: 0 };
                     return (
-                      <div key={c._id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
+                      <div key={c.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-muted/40">
                         <span className="font-medium truncate">{c.name}</span>
                         <span className="text-muted-foreground shrink-0 ml-2">{stats.enrolled} enrolled</span>
                       </div>
@@ -257,7 +257,7 @@ export function SubSalesPortalPanel() {
             ) : (
               <div className="space-y-3">
                 {invites.map(inv => (
-                  <Card key={inv._id} className="hover:border-primary/30 transition-colors">
+                  <Card key={inv.id} className="hover:border-primary/30 transition-colors">
                     <CardContent className="p-4 flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -267,13 +267,13 @@ export function SubSalesPortalPanel() {
                         <p className="text-sm font-mono text-muted-foreground truncate">{inv.token.substring(0, 28)}...</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {(inv.universityIds || []).map((u: any) => (
-                            <Badge key={u._id || u} variant="outline" className="text-[10px]">{u.name || u}</Badge>
+                            <Badge key={u.id || u} variant="outline" className="text-[10px]">{u.name || u}</Badge>
                           ))}
                         </div>
                       </div>
                       {inv.status === 'pending' && (
                         <Button variant="outline" size="sm" onClick={() => copyLink(inv)}>
-                          {copied === inv._id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                          {copied === inv.id ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                         </Button>
                       )}
                     </CardContent>
@@ -290,7 +290,7 @@ export function SubSalesPortalPanel() {
             {universities.length === 0 ? (
               <p className="text-muted-foreground col-span-3 text-center py-8">No universities assigned to your sub-department</p>
             ) : universities.map((u: any) => (
-              <Card key={u._id} className="hover:border-primary/30 transition-colors">
+              <Card key={u.id} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4 flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Building2 className="w-4 h-4" /></div>
                   <div>
@@ -312,9 +312,9 @@ export function SubSalesPortalPanel() {
             {centers.length === 0 ? (
               <p className="text-muted-foreground col-span-3 text-center py-8">No study centers assigned</p>
             ) : centers.map((c: any) => {
-              const stats = centerEnrollMap[c._id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
+              const stats = centerEnrollMap[c.id?.toString()] || { total: 0, enrolled: 0, pending: 0 };
               return (
-                <Card key={c._id} className="hover:border-primary/30 transition-colors">
+                <Card key={c.id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -399,9 +399,9 @@ export function SubSalesPortalPanel() {
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {universities.map((u: any) => (
-                  <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                    <Checkbox id={u._id} checked={selected.includes(u._id)} onCheckedChange={() => toggleUniversity(u._id)} />
-                    <label htmlFor={u._id} className="text-sm cursor-pointer flex-1">
+                  <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                    <Checkbox id={u.id} checked={selected.includes(u.id)} onCheckedChange={() => toggleUniversity(u.id)} />
+                    <label htmlFor={u.id} className="text-sm cursor-pointer flex-1">
                       {u.name} <span className="text-muted-foreground text-xs">({u.code})</span>
                     </label>
                   </div>
