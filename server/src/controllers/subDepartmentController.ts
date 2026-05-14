@@ -44,7 +44,7 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
       name,
       parentDeptId,
       features: features || [],
-      createdBy: req.user.id,
+      managerId: req.user.id,
       // Handle relations
       universities: assignedUniversities ? { connect: assignedUniversities.map((id: string) => ({ id })) } : undefined,
       programs: assignedPrograms ? { connect: assignedPrograms.map((id: string) => ({ id })) } : undefined,
@@ -76,7 +76,7 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 
   const subDepartments = await prisma.subDepartment.findMany({
     where,
-    include: {
+    include: { as any,
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
       universities: { select: { id: true, name: true, code: true } },
@@ -99,7 +99,7 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
 export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const subDepartment = await prisma.subDepartment.findUnique({
     where: { id: req.params.id },
-    include: {
+    include: { as any,
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
       universities: { select: { id: true, name: true, code: true } },
@@ -202,7 +202,7 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
 
   const subDept: any = await prisma.subDepartment.findUnique({
     where: { id: subDeptId },
-    include: {
+    include: { as any,
       parentDept: { select: { name: true, type: true } },
       manager: { select: { name: true, email: true } },
       universities: { select: { id: true, name: true, code: true, status: true } },
