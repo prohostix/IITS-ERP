@@ -469,7 +469,7 @@ model Lead {
   id             String       @id @default(uuid())
   organizationId String
   centerName     String
-  contactName    String
+  contactName    String?
   email          String
   phone          String
   address        String
