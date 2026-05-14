@@ -64,7 +64,7 @@ export function getBranchManagerNavItems() {
 }
 
 export function ModernBranchManagerDashboard({ initialTab }: { initialTab?: string }) {
-  const { user } = useAuth();
+  useAuth();
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const [branch, setBranch] = useState<any>(null);
   const [metrics, setMetrics] = useState<any>({});

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
   Building2, BookOpen, GraduationCap, MapPin, RefreshCw,
-  TrendingUp, Users, CheckCircle2, Clock, BarChart3,
+  TrendingUp, BarChart3,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
