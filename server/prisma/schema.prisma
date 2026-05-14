@@ -133,7 +133,7 @@ model User {
   userId                        String?               @unique
   organizationId                String?
   departmentId                  String?
-  additionalDepartmentIds       Json?                 @default("[]")
+  additionalDepartmentIds       String[]
   branchId                      String?
   subDepartmentId               String?
   ceoPanelId                    String?
@@ -1059,6 +1059,7 @@ model Escalation {
   description    String?
   entityType     String?
   entityId       String?
+  createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   deptAdmin      User?           @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
   employee       User?           @relation("EscalationEmployee", fields: [employeeId], references: [id])
