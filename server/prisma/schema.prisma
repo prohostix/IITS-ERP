@@ -10,11 +10,11 @@ datasource db {
 model Organization {
   id                   String                @id @default(uuid())
   name                 String
-  email                String                @unique
-  phone                String
-  address              String
+  email                String?               @unique
+  phone                String?
+  address              String?
   logo                 String?
-  status               OrganizationStatus    @default(active)
+  status               String?               @default("active")
   licenseId            String?
   licenseExpiry        DateTime?
   metadata             Json?
@@ -95,12 +95,12 @@ model Department {
   id                 String             @id @default(uuid())
   organizationId     String
   name               String
-  type               DepartmentType
-  subType            DepartmentSubType?
+  type               String?
+  subType            String?
   parentDepartmentId String?
   managerId          String?
-  features           Json               @default("[]")
-  permissions        Json               @default("[]")
+  features           Json?               @default("[]")
+  permissions        Json?               @default("[]")
   status             String             @default("active")
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -138,12 +138,12 @@ model User {
   email                         String                @unique
   password                      String
   name                          String
-  role                          UserRole
+  role                          String?
   avatar                        String?
   phone                         String?
   designation                   String?
   reportingTo                   String?
-  status                        UserStatus            @default(active)
+  status                        String?            @default("active")
   lastLogin                     DateTime?
   createdAt                     DateTime              @default(now())
   updatedAt                     DateTime              @updatedAt
@@ -1032,17 +1032,17 @@ model EditDeleteRequest {
 model Escalation {
   id             String          @id @default(uuid())
   organizationId String
-  taskId         String
-  employeeId     String
-  deptAdminId    String
+  taskId         String?
+  employeeId     String?
+  deptAdminId    String?
   escalatedAt    DateTime        @default(now())
-  reason         String
+  reason         String?
   status         String          @default("pending")
   resolution     String?
   resolvedAt     DateTime?
   resolvedBy     String?
   handledBy      String?
-  chain          Json            @default("[]")
+  chain          Json?            @default("[]")
   updatedAt      DateTime        @updatedAt
   deptAdmin      User            @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
   employee       User            @relation("EscalationEmployee", fields: [employeeId], references: [id])
