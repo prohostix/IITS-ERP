@@ -25,13 +25,11 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   const organizationId = resolveOrgId(req.user.organizationId);
 
   // Check if sub-department already exists within the same parent department
-  const existing = await prisma.subDepartment.findUnique({
+  const existing = await prisma.subDepartment.findFirst({
     where: {
-      organizationId_parentDeptId_name: {
-        organizationId,
-        name,
-        parentDeptId,
-      }
+      organizationId,
+      name,
+      parentDeptId,
     }
   });
 
@@ -222,8 +220,8 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
   let enrollmentStats: any[] = [];
   let monthlyEnrollments: any[] = [];
 
-  if (subDept.studyCenters && subDept.studyCenters.length > 0) {
-    const centerIds = subDept.studyCenters.map(c => c.id);
+  if (subDept.assignedCenters && subDept.assignedCenters.length > 0) {
+    const centerIds = subDept.assignedCenters.map(c => c.id);
     const organizationId = resolveOrgId(req.user.organizationId);
 
     // Get enrollment counts by status for assigned centers
