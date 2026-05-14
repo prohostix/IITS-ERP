@@ -177,7 +177,7 @@ function App() {
     };
 
     fetchDeptType();
-  }, [user?.role, (user as any)?.subDepartmentId]);
+  }, [user?.role, (user as any)?.subDepartmentId, user?.departmentId, (user as any)?.department]);
 
   // Public register page — show when on /register path OR has ?token= param (no-router SPA)
   // Only intercept if user is not logged in, to avoid breaking logged-in users with token params
