@@ -18,7 +18,7 @@ import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { TeamPerformancePanel } from '@/components/panels/TeamPerformancePanel';
-import { SalesCentersPanel } from '@/components/panels/SalesCentersPanel';
+
 import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';

@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       center_admin: ['center', 'students', 'invoices', 'marks'],
       employee: ['tasks', 'attendance', 'leave', 'profile'],
       staff: ['tasks', 'attendance', 'leave', 'profile'],
+      bde: ['sales', 'leads', 'deals', 'tasks', 'attendance', 'leave', 'profile'],
     };
 
     const userPermissions = rolePermissions[user.role] || [];
