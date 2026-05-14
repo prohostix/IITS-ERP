@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'employee'],
+    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde', 'employee'],
   },
   {
     id: 'organizations',
@@ -133,12 +133,13 @@ const navItems: NavItem[] = [
     id: 'sales',
     label: 'Sales & CRM',
     icon: TrendingUp,
-    roles: ['sales_admin', 'ceo'],
+    roles: ['sales_admin', 'bde', 'ceo'],
     children: [
-      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'ceo'] },
-      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'ceo'] },
-      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'ceo'] },
-      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'ceo'] },
+      { id: 'leads', label: 'Leads', icon: Users, roles: ['sales_admin', 'bde', 'ceo'] },
+      { id: 'study_centers', label: 'Center Onboarding', icon: Building, roles: ['sales_admin', 'bde', 'ceo'] },
+      { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'bde', 'ceo'] },
+      { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo'] },
+      { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo'] },
     ],
   },
   {
@@ -168,10 +169,10 @@ const navItems: NavItem[] = [
     id: 'staff',
     label: 'Staff Portal',
     icon: Users,
-    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'],
+    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'],
     children: [
-      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'] },
-      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'] },
+      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
+      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
     ],
   },
   {

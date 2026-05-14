@@ -19,6 +19,7 @@ import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { TeamPerformancePanel } from '@/components/panels/TeamPerformancePanel';
 import { SalesCentersPanel } from '@/components/panels/SalesCentersPanel';
+import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
@@ -43,7 +44,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initialTab?: string; isSubDeptManager?: boolean }) {
   const { user } = useAuth();
-  const isSalesAdmin = user?.role === 'sales_admin' || isSubDeptManager;
+  const isSalesAdmin = user?.role === 'sales_admin' || user?.role === 'bde' || isSubDeptManager;
 
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<any>({});
@@ -86,7 +87,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
       case 'targets': return <TargetsPanel endpoint="/sales/targets" title="Sales Targets" />;
       case 'invite_links': return <SalesInvitePanel />;
       case 'my_team': return <TeamPerformancePanel />;
-      case 'study_centers': return <SalesCentersPanel />;
+      case 'study_centers': return <StudyCentersPanel />;
       case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel />;
@@ -537,7 +538,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'targets': return <TargetsPanel endpoint="/sales/targets" title="My Targets" />;
           case 'invite_links': return <SalesInvitePanel />;
           case 'my_team': return <TeamPerformancePanel />;
-          case 'study_centers': return <SalesCentersPanel />;
+          case 'study_centers': return <StudyCentersPanel />;
           case 'attendance': return <AttendancePanel />;
           case 'leaves': return <LeavesPanel />;
           case 'tasks': return <TasksPanel />;

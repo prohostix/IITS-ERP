@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function StudyCentersPanel() {
   const { user } = useAuth();
-  const canWrite = ['org_admin', 'superadmin'].includes(user?.role || '');
+  const canWrite = ['org_admin', 'superadmin', 'sales_admin', 'bde'].includes(user?.role || '');
   const [centers, setCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);

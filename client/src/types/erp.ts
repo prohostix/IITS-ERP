@@ -9,6 +9,7 @@ export type UserRole =
   | 'finance_admin' 
   | 'hr_admin' 
   | 'sales_admin' 
+  | 'bde' 
   | 'center_admin' 
   | 'employee'
   | 'staff';
