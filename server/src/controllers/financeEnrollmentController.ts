@@ -5,10 +5,10 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
-    where: { orgId: req.user.organizationId },
+    where: { organizationId: req.user.organizationId },
     include: {
       program: { select: { name: true, code: true } },
-      center: { select: { name: true, code: true } }
+      studyCenter: { select: { name: true, code: true } }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -17,8 +17,8 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 
 export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
-    where: { orgId: req.user.organizationId, status: 'finance_review' },
-    include: { program: true, center: true },
+    where: { organizationId: req.user.organizationId, status: 'finance_review' as any },
+    include: { program: true, studyCenter: true },
     orderBy: { createdAt: 'asc' }
   });
   res.json({ success: true, count: enrollments.length, data: enrollments });
@@ -27,7 +27,7 @@ export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: 
 export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
-    data: { status: 'enrolled', financeReviewedBy: req.user.id, financeReviewedAt: new Date() }
+    data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() }
   });
   res.json({ success: true, data: enrollment });
 });
@@ -35,7 +35,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
-    data: { status: 'rejected', financeReviewedBy: req.user.id, financeReviewedAt: new Date(), financeRemarks: req.body.remarks }
+    data: { status: 'rejected' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date(), financeRemarks: req.body.remarks }
   });
   res.json({ success: true, data: enrollment });
 });

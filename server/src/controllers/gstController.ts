@@ -29,13 +29,13 @@ export const deleteGSTSetting = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const getApplicableGST = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const setting = await prisma.gSTSetting.findFirst({ where: { organizationId: req.user.organizationId, feeType: req.params.feeType, status: 'active' } });
+  const setting = await prisma.gSTSetting.findFirst({ where: { organizationId: req.user.organizationId, feeType: req.params.feeType, status: 'active' as any } });
   res.json({ success: true, data: setting });
 });
 
 export const calculateGST = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { amount, feeType } = req.body;
-  const setting = await prisma.gSTSetting.findFirst({ where: { organizationId: req.user.organizationId, feeType, status: 'active' } });
+  const setting = await prisma.gSTSetting.findFirst({ where: { organizationId: req.user.organizationId, feeType, status: 'active' as any } });
   const percentage = setting ? setting.gstPercentage : 0;
   const gstAmount = (amount * percentage) / 100;
   res.json({ success: true, data: { amount, percentage, gstAmount, totalAmount: amount + gstAmount } });

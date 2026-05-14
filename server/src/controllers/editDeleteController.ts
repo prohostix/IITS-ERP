@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const submitEditDeleteRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
   const request = await prisma.editDeleteRequest.create({
-    data: { ...req.body, organizationId: req.user.organizationId, requesterId: req.user.id, requesterName: req.user.name, status: 'pending' }
+    data: { ...req.body, organizationId: req.user.organizationId, requesterId: req.user.id, requesterName: req.user.name, status: 'pending' as any }
   });
   res.status(201).json({ success: true, data: request });
 });

@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getPolls = asyncHandler(async (req: AuthRequest, res: Response) => {
   const polls = await prisma.poll.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { creator: { select: { name: true } } },
+    include: { assigner: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   });
   res.json({ success: true, count: polls.length, data: polls });

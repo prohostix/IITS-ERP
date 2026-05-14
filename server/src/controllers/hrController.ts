@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 // --- Leave Requests ---
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const leaves = await prisma.leaveRequest.findMany({
-    where: { orgId: req.user.organizationId },
+    where: { organizationId: req.user.organizationId },
     include: { user: { select: { name: true, email: true } } },
     orderBy: { createdAt: 'desc' }
   });
@@ -26,7 +26,7 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       userId: req.user.id, 
-      orgId: req.user.organizationId 
+      organizationId: req.user.organizationId 
     }
   });
   res.status(201).json({ success: true, data: leave });
@@ -96,7 +96,7 @@ export const deleteVacancy = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 export const closeVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const vacancy = await prisma.vacancy.update({ where: { id: req.params.id }, data: { status: 'closed' } });
+  const vacancy = await prisma.vacancy.update({ where: { id: req.params.id }, data: { status: 'closed' as any } });
   res.json({ success: true, data: vacancy });
 });
 export const validateVacancyForHiring = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -133,7 +133,7 @@ export const deleteComplaint = asyncHandler(async (req: AuthRequest, res: Respon
   res.json({ success: true, data: {} });
 });
 export const resolveComplaint = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const complaint = await prisma.complaint.update({ where: { id: req.params.id }, data: { status: 'resolved' } });
+  const complaint = await prisma.complaint.update({ where: { id: req.params.id }, data: { status: 'resolved' as any } });
   res.json({ success: true, data: complaint });
 });
 

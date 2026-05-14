@@ -15,7 +15,7 @@ export const getUniversityReviewQueue = asyncHandler(async (req: AuthRequest, re
 
   const enrollments = await prisma.enrollment.findMany({
     where: {
-      status: 'university_review',
+      status: 'university_review' as any,
       program: { universityId },
     },
     include: {
@@ -63,12 +63,12 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
   }
 
   const updatedStatusHistory = ((enrollment as any).statusHistory as any[]) || [];
-  updatedStatusHistory.push({ status: 'enrolled', actorId: req.user.id, timestamp: now.toISOString() });
+  updatedStatusHistory.push({ status: 'enrolled' as any, actorId: req.user.id, timestamp: now.toISOString() });
 
   const updatedEnrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: {
-      status: 'enrolled',
+      status: 'enrolled' as any,
       enrolledAt: now,
       universityReviewedBy: req.user.id,
       universityReviewedAt: now,
@@ -79,11 +79,11 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
   // Notify center_admin users of the partner portal
   try {
     const centerAdmins = await prisma.user.findMany({
-      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin', status: 'active' },
+      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     const opsAdmins = await prisma.user.findMany({
-      where: { organizationId: req.user.organizationId, role: 'ops_admin', status: 'active' },
+      where: { organizationId: req.user.organizationId, role: 'ops_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     const recipients = [...centerAdmins, ...opsAdmins];
@@ -94,7 +94,7 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
           userId: u.id,
           title: 'Enrollment Approved',
           message: `${enrollment.studentName}'s enrollment in ${(enrollment as any).program?.name} has been approved by the university. The student is now officially enrolled.`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'medium',
           link: 'enrollment/enrollments',
         },
@@ -145,12 +145,12 @@ export const rejectUniversityEnrollment = asyncHandler(async (req: AuthRequest, 
   }
 
   const updatedStatusHistory = ((enrollment as any).statusHistory as any[]) || [];
-  updatedStatusHistory.push({ status: 'university_rejected', actorId: req.user.id, timestamp: now.toISOString(), remarks });
+  updatedStatusHistory.push({ status: 'university_rejected' as any, actorId: req.user.id, timestamp: now.toISOString(), remarks });
 
   const updatedEnrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: {
-      status: 'university_rejected',
+      status: 'university_rejected' as any,
       universityRemarks: remarks,
       universityReviewedBy: req.user.id,
       universityReviewedAt: now,
@@ -161,11 +161,11 @@ export const rejectUniversityEnrollment = asyncHandler(async (req: AuthRequest, 
   // Notify center_admin and ops_admin users with the remark
   try {
     const centerAdmins = await prisma.user.findMany({
-      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin', status: 'active' },
+      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     const opsAdmins = await prisma.user.findMany({
-      where: { organizationId: req.user.organizationId, role: 'ops_admin', status: 'active' },
+      where: { organizationId: req.user.organizationId, role: 'ops_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     const recipients = [...centerAdmins, ...opsAdmins];
@@ -176,7 +176,7 @@ export const rejectUniversityEnrollment = asyncHandler(async (req: AuthRequest, 
           userId: u.id,
           title: 'Enrollment Rejected by University',
           message: `${enrollment.studentName}'s enrollment in ${(enrollment as any).program?.name} was rejected by the university. Reason: ${remarks}`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'high',
           link: 'enrollment/enrollments',
         },

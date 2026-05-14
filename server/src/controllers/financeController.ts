@@ -8,7 +8,7 @@ import { hashPassword, generateUserId } from '../utils/authUtils.js';
 export const getInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
   const invoices = await prisma.invoice.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { center: { select: { name: true } }, student: { select: { name: true } } },
+    include: { studyCenter: { select: { name: true } }, student: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: invoices.length, data: invoices });
@@ -44,7 +44,7 @@ export const deleteInvoice = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 export const approveInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: { status: 'approved' } });
+  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: { status: 'approved' as any } });
   res.json({ success: true, data: invoice });
 });
 
@@ -120,7 +120,7 @@ export const deleteExpense = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 export const approveExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data: { status: 'approved', approvedBy: req.user.id, approvedAt: new Date() } });
+  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data: { status: 'approved' as any, approvedBy: req.user.id, approvedAt: new Date() } });
   res.json({ success: true, data: expense });
 });
 
@@ -209,11 +209,11 @@ export const updateAuthFee = asyncHandler(async (req: AuthRequest, res: Response
 
 // Centers
 export const getPendingPaymentCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_payment' } });
+  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_payment' as any } });
   res.json({ success: true, data: centers });
 });
 export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active', financeApprovedBy: req.user.id, financeApprovedAt: new Date() } });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' as any, financeApprovedBy: req.user.id, financeApprovedAt: new Date() } });
   res.json({ success: true, data: center });
 });
 
@@ -228,7 +228,7 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       email,
       contact,
       organizationId: req.user.organizationId,
-      status: 'active',
+      status: 'active' as any,
       financeApprovedBy: req.user.id,
       financeApprovedAt: new Date()
     }
@@ -245,9 +245,9 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       email: email || `admin.${code}@example.com`,
       password: hashedPassword,
       name: `${name} Admin`,
-      role: 'center_admin',
+      role: 'center_admin' as any,
       phone: contact,
-      status: 'active'
+      status: 'active' as any
     }
   });
 
@@ -261,6 +261,6 @@ export const getIncomeExpenditureReport = asyncHandler(async (req: AuthRequest, 
 
 // Sales Users
 export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const users = await prisma.user.findMany({ where: { organizationId: req.user.organizationId, role: 'sales_admin' } });
+  const users = await prisma.user.findMany({ where: { organizationId: req.user.organizationId, role: 'sales_admin' as any } });
   res.json({ success: true, data: users });
 });

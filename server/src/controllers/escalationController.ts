@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getEscalations = asyncHandler(async (req: AuthRequest, res: Response) => {
   const escalations = await prisma.escalation.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { raisedBy: { select: { name: true } } },
+    include: { employee: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: escalations.length, data: escalations });
@@ -33,6 +33,6 @@ export const deleteEscalation = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const resolveEscalation = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const escalation = await prisma.escalation.update({ where: { id: req.params.id }, data: { status: 'resolved', resolvedAt: new Date(), resolvedById: req.user.id } });
+  const escalation = await prisma.escalation.update({ where: { id: req.params.id }, data: { status: 'resolved' as any, resolvedAt: new Date(), resolvedById: req.user.id } });
   res.json({ success: true, data: escalation });
 });

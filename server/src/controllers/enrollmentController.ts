@@ -4,7 +4,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const wallet = await prisma.studyCenterWallet.findUnique({ where: { centerId: req.user.studyCenterId || '' } });
+  const wallet = await prisma.studyCenterWallet.findUnique({ where: { studyCenterId: req.user.studyCenterId || '' } });
   res.json({ success: true, data: wallet });
 });
 
@@ -19,12 +19,12 @@ export const getTopUpHistory = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId, status: 'active' } });
+  const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
   res.json({ success: true, count: programs.length, data: programs });
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollment = await prisma.enrollment.create({ data: { ...req.body, orgId: req.user.organizationId, studyCenterId: req.user.studyCenterId || '' } });
+  const enrollment = await prisma.enrollment.create({ data: { ...req.body, organizationId: req.user.organizationId, studyCenterId: req.user.studyCenterId || '' } });
   res.status(201).json({ success: true, data: enrollment });
 });
 

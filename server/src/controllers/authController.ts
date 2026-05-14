@@ -47,7 +47,7 @@ export const register = asyncHandler(async (req: AuthRequest, res: Response) => 
       phone,
       designation,
       reportingTo,
-      status: 'active',
+      status: 'active' as any,
     },
   });
 

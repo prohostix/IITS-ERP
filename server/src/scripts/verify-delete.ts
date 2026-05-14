@@ -10,13 +10,13 @@ async function verifyDeletion() {
       license = await prisma.license.create({
         data: {
           name: 'Test License',
-          type: 'basic',
+          type: 'basic' as any,
           features: ['test'],
           maxUsers: 10,
           maxStorage: 1024,
           durationMonths: 1,
           price: 0,
-          status: 'active'
+          status: 'active' as any
         }
       });
       console.log('✅ Created Test License');
@@ -29,7 +29,7 @@ async function verifyDeletion() {
         email: `test-${Date.now()}@test.com`,
         phone: '1234567890',
         address: 'Test Address',
-        status: 'active',
+        status: 'active' as any,
         licenseId: license.id
       }
     });
@@ -40,9 +40,9 @@ async function verifyDeletion() {
       data: {
         organizationId: org.id,
         name: 'Test Department',
-        type: 'operations',
+        type: 'operations' as any,
         features: ['test'],
-        status: 'active'
+        status: 'active' as any
       }
     });
     console.log(`✅ Created Dependent Department: ${dept.id}`);
@@ -54,8 +54,8 @@ async function verifyDeletion() {
         email: `testuser-${Date.now()}@test.com`,
         password: 'password123',
         name: 'Test User',
-        role: 'org_admin',
-        status: 'active'
+        role: 'org_admin' as any,
+        status: 'active' as any
       }
     });
     console.log(`✅ Created Dependent User: ${user.id}`);

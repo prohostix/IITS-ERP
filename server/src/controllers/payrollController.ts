@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payrolls = await prisma.payroll.findMany({
-    where: { orgId: req.user.organizationId },
+    where: { organizationId: req.user.organizationId },
     include: { user: { select: { name: true, email: true } } },
     orderBy: { createdAt: 'desc' }
   });
@@ -22,7 +22,7 @@ export const getPayroll = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 export const createPayroll = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const payroll = await prisma.payroll.create({ data: { ...req.body, orgId: req.user.organizationId } });
+  const payroll = await prisma.payroll.create({ data: { ...req.body, organizationId: req.user.organizationId } });
   res.status(201).json({ success: true, data: payroll });
 });
 
@@ -44,7 +44,7 @@ export const deletePayroll = asyncHandler(async (req: AuthRequest, res: Response
 export const processPayroll = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payroll = await prisma.payroll.update({
     where: { id: req.params.id },
-    data: { status: 'processed', processedBy: req.user.id, processedAt: new Date() }
+    data: { status: 'processed' as any, processedBy: req.user.id, processedAt: new Date() }
   });
   res.status(200).json({ success: true, data: payroll });
 });
@@ -52,7 +52,7 @@ export const processPayroll = asyncHandler(async (req: AuthRequest, res: Respons
 export const confirmPayroll = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payroll = await prisma.payroll.update({
     where: { id: req.params.id },
-    data: { status: 'confirmed', financeApprovedAt: new Date() }
+    data: { status: 'confirmed' as any, financeApprovedAt: new Date() }
   });
   res.status(200).json({ success: true, data: payroll });
 });
@@ -60,7 +60,7 @@ export const confirmPayroll = asyncHandler(async (req: AuthRequest, res: Respons
 export const markPayrollPaid = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payroll = await prisma.payroll.update({
     where: { id: req.params.id },
-    data: { status: 'paid', paymentDate: new Date() }
+    data: { status: 'paid' as any, paymentDate: new Date() }
   });
   res.status(200).json({ success: true, data: payroll });
 });
@@ -84,11 +84,11 @@ export const transferToFinance = asyncHandler(async (req: AuthRequest, res: Resp
       employeeCount: payrolls.length,
       transferredBy: req.user.id,
       remarks,
-      status: 'pending_finance_approval'
+      status: 'pending_finance_approval' as any
     }
   });
 
-  await prisma.payroll.updateMany({ where: { id: { in: payrollIds } }, data: { status: 'transferred_to_finance' } });
+  await prisma.payroll.updateMany({ where: { id: { in: payrollIds } }, data: { status: 'transferred_to_finance' as any } });
   res.status(201).json({ success: true, data: batch });
 });
 
@@ -108,7 +108,7 @@ export const getPayrollBatch = asyncHandler(async (req: AuthRequest, res: Respon
 export const financeApprovePayrollBatch = asyncHandler(async (req: AuthRequest, res: Response) => {
   const batch = await prisma.payrollBatch.update({
     where: { id: req.params.id },
-    data: { status: 'approved_by_finance', approvedBy: req.user.id, approvedAt: new Date() }
+    data: { status: 'approved_by_finance' as any, approvedBy: req.user.id, approvedAt: new Date() }
   });
   res.status(200).json({ success: true, data: batch });
 });
@@ -116,7 +116,7 @@ export const financeApprovePayrollBatch = asyncHandler(async (req: AuthRequest, 
 export const financeRejectPayrollBatch = asyncHandler(async (req: AuthRequest, res: Response) => {
   const batch = await prisma.payrollBatch.update({
     where: { id: req.params.id },
-    data: { status: 'rejected_by_finance', remarks: req.body.remarks }
+    data: { status: 'rejected_by_finance' as any, remarks: req.body.remarks }
   });
   res.status(200).json({ success: true, data: batch });
 });
@@ -124,7 +124,7 @@ export const financeRejectPayrollBatch = asyncHandler(async (req: AuthRequest, r
 export const markBatchPaymentInProgress = asyncHandler(async (req: AuthRequest, res: Response) => {
   const batch = await prisma.payrollBatch.update({
     where: { id: req.params.id },
-    data: { status: 'payment_in_progress' }
+    data: { status: 'payment_in_progress' as any }
   });
   res.status(200).json({ success: true, data: batch });
 });
@@ -132,7 +132,7 @@ export const markBatchPaymentInProgress = asyncHandler(async (req: AuthRequest, 
 export const completeBatchPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const batch = await prisma.payrollBatch.update({
     where: { id: req.params.id },
-    data: { status: 'paid', completedAt: new Date() }
+    data: { status: 'paid' as any, completedAt: new Date() }
   });
   res.status(200).json({ success: true, data: batch });
 });

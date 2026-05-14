@@ -25,8 +25,8 @@ export const getCredentialRequests = asyncHandler(async (req: AuthRequest, res: 
 export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
     where: { 
-      orgId: req.user.organizationId,
-      status: 'document_review'
+      organizationId: req.user.organizationId,
+      status: 'document_review' as any
     },
     orderBy: { createdAt: 'asc' }
   });
@@ -45,10 +45,10 @@ export const getSessionRequests = asyncHandler(async (req: AuthRequest, res: Res
 // --- Finance Enrollment Controller ---
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
-    where: { orgId: req.user.organizationId },
+    where: { organizationId: req.user.organizationId },
     include: {
       program: true,
-      center: true
+      studyCenter: true
     },
     orderBy: { createdAt: 'desc' }
   });

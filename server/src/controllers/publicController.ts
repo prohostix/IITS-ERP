@@ -8,12 +8,12 @@ export const validateInviteToken = asyncHandler(async (req: Request, res: Respon
 });
 
 export const publicRegister = asyncHandler(async (req: Request, res: Response) => {
-  const center = await prisma.studyCenter.create({ data: { ...req.body, status: 'pending_verification' } });
+  const center = await prisma.studyCenter.create({ data: { ...req.body, status: 'pending_verification' as any } });
   res.status(201).json({ success: true, data: center });
 });
 
 export const getPaymentStatus = asyncHandler(async (req: Request, res: Response) => {
-  res.json({ success: true, data: { status: 'pending' } });
+  res.json({ success: true, data: { status: 'pending' as any } });
 });
 
 export const submitPaymentProof = asyncHandler(async (req: Request, res: Response) => {
@@ -21,11 +21,11 @@ export const submitPaymentProof = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getPublicUniversities = asyncHandler(async (req: Request, res: Response) => {
-  const universities = await prisma.university.findMany({ where: { status: 'active' } });
+  const universities = await prisma.university.findMany({ where: { status: 'active' as any } });
   res.json({ success: true, count: universities.length, data: universities });
 });
 
 export const getPublicPrograms = asyncHandler(async (req: Request, res: Response) => {
-  const programs = await prisma.program.findMany({ where: { status: 'active' }, include: { university: true } });
+  const programs = await prisma.program.findMany({ where: { status: 'active' as any }, include: { university: true } });
   res.json({ success: true, count: programs.length, data: programs });
 });

@@ -35,7 +35,7 @@ export const validateStudentInviteToken = asyncHandler(async (req: Request, res:
   const programs = await prisma.program.findMany({
     where: {
       organizationId: invite.organizationId,
-      status: 'active',
+      status: 'active' as any,
       ...(invite.programIds.length > 0 ? { id: { in: invite.programIds } } : {}),
       ...(invite.universityIds.length > 0 ? { universityId: { in: invite.universityIds } } : {}),
     },
@@ -84,15 +84,15 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
     return;
   }
 
-  const orgId = invite.organizationId;
+  const organizationId = invite.organizationId;
   const salesUserId = invite.referredBy;
 
   // Validate program belongs to this org and invite's universities
   const program = await prisma.program.findFirst({
     where: {
       id: programId,
-      organizationId: orgId,
-      status: 'active',
+      organizationId: organizationId,
+      status: 'active' as any,
       ...(invite.universityIds.length > 0 ? { universityId: { in: invite.universityIds } } : {}),
     },
   });
@@ -105,7 +105,7 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
   // Find or create a default study center for sales-led enrollments
   // Use a special "Sales Direct" center or the first active center
   let studyCenter = await prisma.studyCenter.findFirst({
-    where: { organizationId: orgId, status: 'active' },
+    where: { organizationId: organizationId, status: 'active' as any },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -116,8 +116,8 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
 
   // Find or use first active session
   let session = sessionId
-    ? await prisma.admissionSession.findFirst({ where: { id: sessionId, organizationId: orgId } })
-    : await prisma.admissionSession.findFirst({ where: { organizationId: orgId, status: 'active' }, orderBy: { createdAt: 'desc' } });
+    ? await prisma.admissionSession.findFirst({ where: { id: sessionId, organizationId: organizationId } })
+    : await prisma.admissionSession.findFirst({ where: { organizationId: organizationId, status: 'active' as any }, orderBy: { createdAt: 'desc' } });
 
   if (!session) {
     res.status(400).json({ success: false, message: 'No active admission session found' });
@@ -126,7 +126,7 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
 
   // Check for duplicate email in same program+session
   const existing = await prisma.enrollment.findFirst({
-    where: { studentEmail, programId, sessionId: session.id, organizationId: orgId },
+    where: { studentEmail, programId, sessionId: session.id, organizationId: organizationId },
   });
   if (existing) {
     res.status(400).json({ success: false, message: 'An application with this email already exists for this program' });
@@ -138,7 +138,7 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
   // Create enrollment with document_review status
   const enrollment = await prisma.enrollment.create({
     data: {
-      organizationId: orgId,
+      organizationId: organizationId,
       studentName,
       studentEmail,
       studentPhone,
@@ -146,18 +146,18 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
       programId,
       studyCenterId: studyCenter.id,
       sessionId: session.id,
-      status: 'document_review',
+      status: 'document_review' as any,
       salesUserId,
       statusHistory: [
         {
-          status: 'submitted',
+          status: 'submitted' as any,
           actorId: 'student',
           actorName: studentName,
           timestamp: now.toISOString(),
           note: 'Student submitted application via sales invite link',
         },
         {
-          status: 'document_review',
+          status: 'document_review' as any,
           actorId: 'system',
           timestamp: now.toISOString(),
           note: 'Forwarded to Operations for document verification',
@@ -170,11 +170,11 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
   try {
     await prisma.notification.create({
       data: {
-        organizationId: orgId,
+        organizationId: organizationId,
         userId: salesUserId,
         title: 'New Student Application',
         message: `${studentName} has submitted an application for ${program.name} via your invite link.`,
-        type: 'general',
+        type: 'general' as any,
         priority: 'medium',
         link: 'student-applications',
       },
@@ -184,17 +184,17 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
   // Notify ops admins
   try {
     const opsAdmins = await prisma.user.findMany({
-      where: { organizationId: orgId, role: 'ops_admin', status: 'active' },
+      where: { organizationId: organizationId, role: 'ops_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     for (const admin of opsAdmins) {
       await prisma.notification.create({
         data: {
-          organizationId: orgId,
+          organizationId: organizationId,
           userId: admin.id,
           title: 'New Student Application for Review',
           message: `${studentName} has applied for ${program.name}. Please review the documents.`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'medium',
           link: 'enrollment_review',
         },
@@ -212,12 +212,12 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
 // ─── Sales: Get all enrollments from their invite links ──────────────────────
 
 export const getSalesEnrollmentPipeline = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const orgId = req.user.organizationId;
+  const organizationId = req.user.organizationId;
   const salesUserId = req.user.id;
 
   const enrollments = await prisma.enrollment.findMany({
     where: {
-      organizationId: orgId,
+      organizationId: organizationId,
       salesUserId,
     },
     include: {
@@ -261,7 +261,7 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
 
   const history = ((enrollment as any).statusHistory as any[]) || [];
   history.push({
-    status: 'finance_review',
+    status: 'finance_review' as any,
     actorId: req.user.id,
     actorName: req.user.name,
     actorRole: 'ops_admin',
@@ -272,7 +272,7 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
   const updated = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: {
-      status: 'finance_review',
+      status: 'finance_review' as any,
       departmentReviewedBy: req.user.id,
       departmentReviewedAt: now,
       statusHistory: history,
@@ -288,7 +288,7 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
           userId: (enrollment as any).salesUserId,
           title: 'Application Verified by Operations',
           message: `${enrollment.studentName}'s application has been verified and forwarded to Finance for payment.`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'medium',
           link: 'student-applications',
         },
@@ -296,7 +296,7 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
     }
     // Notify finance admins
     const financeAdmins = await prisma.user.findMany({
-      where: { organizationId: req.user.organizationId, role: 'finance_admin', status: 'active' },
+      where: { organizationId: req.user.organizationId, role: 'finance_admin' as any, status: 'active' as any },
       select: { id: true },
     });
     for (const admin of financeAdmins) {
@@ -306,7 +306,7 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
           userId: admin.id,
           title: 'Student Application Pending Payment',
           message: `${enrollment.studentName}'s application is ready for payment verification.`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'medium',
           link: 'enrollments_finance',
         },
@@ -335,7 +335,7 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
 
   const history = ((enrollment as any).statusHistory as any[]) || [];
   history.push({
-    status: 'enrolled',
+    status: 'enrolled' as any,
     actorId: req.user.id,
     actorName: req.user.name,
     actorRole: 'finance_admin',
@@ -346,8 +346,8 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
   const updated = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: {
-      status: 'enrolled',
-      financeReviewedBy: req.user.id,
+      status: 'enrolled' as any,
+      reviewedByFinanceId: req.user.id,
       financeReviewedAt: now,
       enrolledAt: now,
       statusHistory: history,
@@ -363,7 +363,7 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
           userId: (enrollment as any).salesUserId,
           title: '🎉 Student Enrolled!',
           message: `${enrollment.studentName} has been successfully enrolled after payment verification.`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'high',
           link: 'student-applications',
         },
@@ -415,7 +415,7 @@ export const rejectSalesEnrollment = asyncHandler(async (req: AuthRequest, res: 
       status: newStatus,
       ...(enrollment.status === 'document_review'
         ? { departmentRemarks: remarks, departmentReviewedBy: req.user.id, departmentReviewedAt: now }
-        : { financeRemarks: remarks, financeReviewedBy: req.user.id, financeReviewedAt: now }),
+        : { financeRemarks: remarks, reviewedByFinanceId: req.user.id, financeReviewedAt: now }),
       statusHistory: history,
     } as any,
   });
@@ -429,7 +429,7 @@ export const rejectSalesEnrollment = asyncHandler(async (req: AuthRequest, res: 
           userId: (enrollment as any).salesUserId,
           title: 'Application Rejected',
           message: `${enrollment.studentName}'s application was rejected by ${req.user.role === 'ops_admin' ? 'Operations' : 'Finance'}. Reason: ${remarks}`,
-          type: 'general',
+          type: 'general' as any,
           priority: 'high',
           link: 'student-applications',
         },

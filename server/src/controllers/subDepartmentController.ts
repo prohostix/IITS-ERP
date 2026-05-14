@@ -224,13 +224,13 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
 
   if (subDept.studyCenters && subDept.studyCenters.length > 0) {
     const centerIds = subDept.studyCenters.map(c => c.id);
-    const orgId = resolveOrgId(req.user.organizationId);
+    const organizationId = resolveOrgId(req.user.organizationId);
 
     // Get enrollment counts by status for assigned centers
     const countsByStatus = await prisma.enrollment.groupBy({
       by: ['status'],
       where: {
-        orgId,
+        organizationId,
         studyCenterId: { in: centerIds }
       },
       _count: true
@@ -247,7 +247,7 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
 
     const monthlyData = await prisma.enrollment.findMany({
       where: {
-        orgId,
+        organizationId,
         studyCenterId: { in: centerIds },
         createdAt: { gte: sixMonthsAgo }
       },

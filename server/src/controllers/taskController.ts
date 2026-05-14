@@ -4,14 +4,14 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const where: any = { orgId: req.user.organizationId };
-  if (req.query.assignedTo) where.assigneeId = req.query.assignedTo as string;
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.query.assignedTo) where.assignedTo = req.query.assignedTo as string;
   if (req.query.status) where.status = req.query.status as string;
   const tasks = await prisma.task.findMany({
     where,
     include: {
       assignee: { select: { name: true, email: true } },
-      creator: { select: { name: true, email: true } },
+      assigner: { select: { name: true, email: true } },
       department: { select: { name: true } },
     },
     orderBy: { createdAt: 'desc' }
@@ -24,7 +24,7 @@ export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
     where: { id: req.params.id },
     include: {
       assignee: { select: { name: true, email: true } },
-      creator: { select: { name: true, email: true } },
+      assigner: { select: { name: true, email: true } },
       department: { select: { name: true } },
     }
   });
@@ -42,12 +42,12 @@ export const createTask = asyncHandler(async (req: AuthRequest, res: Response) =
     data: {
       title,
       description,
-      status: 'pending',
+      status: 'pending' as any,
       priority: priority || 'medium',
-      dueDate: deadline ? new Date(deadline) : null,
-      orgId: req.user.organizationId,
-      creatorId: req.user.id,
-      assigneeId: assignedTo,
+      deadline: deadline ? new Date(deadline) : null,
+      organizationId: req.user.organizationId,
+      createdBy: req.user.id,
+      assignedTo: assignedTo,
       departmentId: departmentId || req.user.departmentId
     }
   });
@@ -60,8 +60,8 @@ export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) =
   const updateData: any = {};
   if (title) updateData.title = title;
   if (description) updateData.description = description;
-  if (assignedTo) updateData.assigneeId = assignedTo;
-  if (deadline) updateData.dueDate = new Date(deadline);
+  if (assignedTo) updateData.assignedTo = assignedTo;
+  if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
   if (priority) updateData.priority = priority;
   if (departmentId) updateData.departmentId = departmentId;
@@ -77,7 +77,7 @@ export const completeTask = asyncHandler(async (req: AuthRequest, res: Response)
   const task = await prisma.task.update({
     where: { id: req.params.id },
     data: {
-      status: 'completed',
+      status: 'completed' as any,
       completedAt: new Date(),
       remarks: req.body.remarks,
     }
@@ -92,7 +92,7 @@ export const deleteTask = asyncHandler(async (req: AuthRequest, res: Response) =
 
 export const getAssignableUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
   const users = await prisma.user.findMany({
-    where: { organizationId: req.user.organizationId, status: 'active' },
+    where: { organizationId: req.user.organizationId, status: 'active' as any },
     select: { id: true, name: true, email: true, designation: true }
   });
   res.status(200).json({ success: true, count: users.length, data: users });

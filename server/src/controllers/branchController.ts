@@ -65,14 +65,14 @@ export const createBranch = asyncHandler(async (req: AuthRequest, res: Response)
     prisma.department.create({
       data: {
         name: `${name} Sales`,
-        type: 'sales',
+        type: 'sales' as any,
         organizationId: req.user.organizationId
       }
     }),
     prisma.department.create({
       data: {
         name: `${name} Operations`,
-        type: 'operations',
+        type: 'operations' as any,
         organizationId: req.user.organizationId
       }
     })

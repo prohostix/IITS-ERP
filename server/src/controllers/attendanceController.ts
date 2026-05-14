@@ -7,7 +7,7 @@ export const punchIn = asyncHandler(async (req: AuthRequest, res: Response) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const attendance = await prisma.attendance.create({
-    data: { userId: req.user.id, orgId: req.user.organizationId, date: today, checkIn: new Date(), status: 'present' }
+    data: { userId: req.user.id, organizationId: req.user.organizationId, date: today, checkIn: new Date(), status: 'present' as any }
   });
   res.status(201).json({ success: true, data: attendance });
 });
@@ -34,7 +34,7 @@ export const getMonthlyLateSummary = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const getAttendances = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const attendances = await prisma.attendance.findMany({ where: { orgId: req.user.organizationId }, include: { user: true } });
+  const attendances = await prisma.attendance.findMany({ where: { organizationId: req.user.organizationId }, include: { user: true } });
   res.json({ success: true, count: attendances.length, data: attendances });
 });
 export const getAttendance = getAttendances;
@@ -49,7 +49,7 @@ export const getAttendanceById = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const createAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const attendance = await prisma.attendance.create({ data: { ...req.body, orgId: req.user.organizationId } });
+  const attendance = await prisma.attendance.create({ data: { ...req.body, organizationId: req.user.organizationId } });
   res.status(201).json({ success: true, data: attendance });
 });
 export const markAttendance = createAttendance;

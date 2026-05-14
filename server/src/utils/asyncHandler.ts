@@ -13,8 +13,8 @@ export const asyncHandler = (fn: AsyncFunction) => {
 };
 
 // Extract the string ID from an organizationId that may be a populated object or plain ObjectId
-export function resolveOrgId(orgId: any): string {
-  if (!orgId) return '';
-  if (typeof orgId === 'object' && orgId._id) return orgId._id.toString();
-  return orgId.toString();
+export function resolveOrgId(organizationId: any): string {
+  if (!organizationId) return '';
+  if (typeof organizationId === 'object' && organizationId._id) return organizationId._id.toString();
+  return organizationId.toString();
 }

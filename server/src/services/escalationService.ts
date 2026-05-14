@@ -24,7 +24,7 @@ export const checkOverdueTasks = async (): Promise<void> => {
       await prisma.task.update({
         where: { id: task.id },
         data: { 
-          status: 'overdue',
+          status: 'overdue' as any,
           escalationStatus: 'grace_period' as any,
           gracePeriodEnd: graceEnd
         }

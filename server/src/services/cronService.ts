@@ -14,10 +14,10 @@ const startInviteExpiryCron = () => {
     try {
       const result = await prisma.studyCenterInvite.updateMany({
         where: {
-          status: 'pending',
+          status: 'pending' as any,
           expiresAt: { lt: new Date() }
         },
-        data: { status: 'expired' }
+        data: { status: 'expired' as any }
       });
       console.log(`✅ Expired ${result.count} invite tokens`);
     } catch (error) {

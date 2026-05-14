@@ -197,7 +197,7 @@ export const addAssistantManager = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Check if already an assistant manager
-  if (department.assistantManagerIds.includes(userId)) {
+  if (department.assistantManagers.includes(userId)) {
     res.status(400).json({ success: false, message: 'User is already an assistant manager' });
     return;
   }
@@ -205,7 +205,7 @@ export const addAssistantManager = asyncHandler(async (req: AuthRequest, res: Re
   const updatedDept = await prisma.department.update({
     where: { id: req.params.id },
     data: {
-      assistantManagerIds: {
+      assistantManagers: {
         push: userId
       }
     }
@@ -236,8 +236,8 @@ export const removeAssistantManager = asyncHandler(async (req: AuthRequest, res:
   const updatedDept = await prisma.department.update({
     where: { id: req.params.id },
     data: {
-      assistantManagerIds: {
-        set: department.assistantManagerIds.filter(id => id !== userId)
+      assistantManagers: {
+        set: department.assistantManagers.filter(id => id !== userId)
       }
     }
   });
@@ -335,7 +335,7 @@ export const getMyDepartments = asyncHandler(async (req: AuthRequest, res: Respo
     where: {
       OR: [
         { managerId: req.user.id },
-        { assistantManagerIds: { has: req.user.id } }
+        { assistantManagers: { has: req.user.id } }
       ]
     },
     include: {

@@ -7,7 +7,7 @@ import crypto from 'crypto';
 export const generateReferralLink = asyncHandler(async (req: AuthRequest, res: Response) => {
   const slug = req.body.customSlug || `${req.user.name.toLowerCase().replace(/\s+/g, '-')}-${crypto.randomBytes(4).toString('hex')}`;
   const link = await prisma.referralLink.create({
-    data: { organizationId: req.user.organizationId, userId: req.user.id, employeeName: req.user.name, slug, fullUrl: `${process.env.FRONTEND_URL}/referral/${slug}`, status: 'active' }
+    data: { organizationId: req.user.organizationId, userId: req.user.id, employeeName: req.user.name, slug, fullUrl: `${process.env.FRONTEND_URL}/referral/${slug}`, status: 'active' as any }
   });
   res.status(201).json({ success: true, data: link });
 });

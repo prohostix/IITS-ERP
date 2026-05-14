@@ -25,7 +25,7 @@ export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ success: true, data: {} });
 });
 export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await prisma.university.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  const university = await prisma.university.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
   res.json({ success: true, data: university });
 });
 
@@ -51,7 +51,7 @@ export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await prisma.program.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  const program = await prisma.program.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
   res.json({ success: true, data: program });
 });
 
@@ -86,11 +86,11 @@ export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   res.json({ success: true, data: {} });
 });
 export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' } });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
   res.json({ success: true, data: center });
 });
 export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'suspended' } });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'suspended' as any } });
   res.json({ success: true, data: center });
 });
 
@@ -116,7 +116,7 @@ export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res:
   res.json({ success: true, data: {} });
 });
 export const approveAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: { status: 'approved', approvedBy: req.user.id, approvedAt: new Date() } });
+  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: { status: 'approved' as any, approvedBy: req.user.id, approvedAt: new Date() } });
   res.json({ success: true, data: session });
 });
 
@@ -162,11 +162,11 @@ export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Res
 
 // Onboarding
 export const getPendingVerificationCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_verification' } });
+  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_verification' as any } });
   res.json({ success: true, data: centers });
 });
 export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'verified' } });
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'verified' as any } });
   res.json({ success: true, data: center });
 });
 

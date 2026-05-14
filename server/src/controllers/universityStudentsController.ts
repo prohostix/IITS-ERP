@@ -6,11 +6,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 // Get all enrolled students for a specific university
 export const getUniversityStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { universityId } = req.params;
-  const orgId = req.user.organizationId;
+  const organizationId = req.user.organizationId;
 
   // Verify university exists and belongs to org
   const university = await prisma.university.findFirst({
-    where: { id: universityId, organizationId: orgId }
+    where: { id: universityId, organizationId: organizationId }
   });
 
   if (!university) {
@@ -20,8 +20,8 @@ export const getUniversityStudents = asyncHandler(async (req: AuthRequest, res: 
 
   // Build query filters
   const where: any = {
-    organizationId: orgId,
-    status: 'enrolled',
+    organizationId: organizationId,
+    status: 'enrolled' as any,
     program: { universityId }
   };
 
@@ -88,10 +88,10 @@ export const getUniversityStudents = asyncHandler(async (req: AuthRequest, res: 
 // Get university dashboard metrics
 export const getUniversityMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { universityId } = req.params;
-  const orgId = req.user.organizationId;
+  const organizationId = req.user.organizationId;
 
   const university = await prisma.university.findFirst({
-    where: { id: universityId, organizationId: orgId }
+    where: { id: universityId, organizationId: organizationId }
   });
 
   if (!university) {
@@ -102,25 +102,25 @@ export const getUniversityMetrics = asyncHandler(async (req: AuthRequest, res: R
   const [totalEnrolled, totalPrograms, totalCenters, recentEnrollments] = await Promise.all([
     prisma.enrollment.count({
       where: {
-        organizationId: orgId,
-        status: 'enrolled',
+        organizationId: organizationId,
+        status: 'enrolled' as any,
         program: { universityId }
       }
     }),
     prisma.program.count({
-      where: { universityId, status: 'active' }
+      where: { universityId, status: 'active' as any }
     }),
     prisma.studyCenter.count({
       where: {
-        organizationId: orgId,
-        status: 'active',
+        organizationId: organizationId,
+        status: 'active' as any,
         universityIds: { has: universityId }
       }
     }),
     prisma.enrollment.count({
       where: {
-        organizationId: orgId,
-        status: 'enrolled',
+        organizationId: organizationId,
+        status: 'enrolled' as any,
         program: { universityId },
         enrolledAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
       }

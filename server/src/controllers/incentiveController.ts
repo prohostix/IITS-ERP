@@ -29,7 +29,7 @@ export const deleteIncentiveStructure = asyncHandler(async (req: AuthRequest, re
 });
 
 export const approveIncentiveStructure = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const structure = await prisma.incentiveStructure.update({ where: { id: req.params.id }, data: { status: 'active', approvedBy: req.user.id, approvedAt: new Date() } });
+  const structure = await prisma.incentiveStructure.update({ where: { id: req.params.id }, data: { status: 'active' as any, approvedBy: req.user.id, approvedAt: new Date() } });
   res.json({ success: true, data: structure });
 });
 
@@ -38,6 +38,6 @@ export const calculateIncentive = asyncHandler(async (req: AuthRequest, res: Res
 });
 
 export const getCurrentActiveIncentives = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const incentives = await prisma.incentiveStructure.findMany({ where: { organizationId: req.user.organizationId, status: 'active' } });
+  const incentives = await prisma.incentiveStructure.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
   res.json({ success: true, data: incentives });
 });

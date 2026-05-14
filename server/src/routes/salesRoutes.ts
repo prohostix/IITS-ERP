@@ -48,6 +48,6 @@ router.get('/team-performance', getTeamPerformance);
 // My study centers (via invite links — self + subordinates)
 router.get('/my-centers', getMyCenters);
 router.get('/my-centers/admissions', getMyCenterAdmissions);
-router.get('/my-centers/:centerId', getMyCenterDetail);
+router.get('/my-centers/:studyCenterId', getMyCenterDetail);
 
 export default router;

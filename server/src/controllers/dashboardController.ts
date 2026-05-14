@@ -4,60 +4,60 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const orgId = req.user.organizationId;
+  const organizationId = req.user.organizationId;
   const role = req.user.role;
 
   const metrics: any = {};
 
   if (role === 'superadmin') {
     metrics.totalOrganizations = await prisma.organization.count();
-    metrics.activeOrganizations = await prisma.organization.count({ where: { status: 'active' } });
+    metrics.activeOrganizations = await prisma.organization.count({ where: { status: 'active' as any } });
   }
 
   if (['superadmin', 'ceo', 'org_admin'].includes(role)) {
     metrics.totalEmployees = await prisma.user.count({
-      where: { organizationId: orgId, NOT: { role: { in: ['ceo', 'org_admin', 'superadmin'] } } }
+      where: { organizationId: organizationId, NOT: { role: { in: ['ceo', 'org_admin', 'superadmin'] } } }
     });
-    metrics.totalStudents = await prisma.student.count({ where: { orgId: orgId } });
-    metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: orgId } });
-    metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: orgId, status: 'active' } });
-    metrics.totalDepartments = await prisma.department.count({ where: { organizationId: orgId } });
-    metrics.totalPrograms = await prisma.program.count({ where: { organizationId: orgId } });
+    metrics.totalStudents = await prisma.student.count({ where: { organizationId: organizationId } });
+    metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId } });
+    metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } });
+    metrics.totalDepartments = await prisma.department.count({ where: { organizationId: organizationId } });
+    metrics.totalPrograms = await prisma.program.count({ where: { organizationId: organizationId } });
   }
 
   if (['hr_admin', 'ceo', 'org_admin'].includes(role)) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    metrics.presentToday = await prisma.attendance.count({ where: { orgId: orgId, date: today, status: 'present' } });
-    metrics.onLeave = await prisma.attendance.count({ where: { orgId: orgId, date: today, status: 'leave' } });
-    metrics.pendingLeaves = await prisma.leaveRequest.count({ where: { orgId: orgId, status: 'pending' } });
-    metrics.totalVacancies = await prisma.vacancy.count({ where: { organizationId: orgId, status: 'open' } });
+    metrics.presentToday = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'present' as any } });
+    metrics.onLeave = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'leave' as any } });
+    metrics.pendingLeaves = await prisma.leaveRequest.count({ where: { organizationId: organizationId, status: 'pending' as any } });
+    metrics.totalVacancies = await prisma.vacancy.count({ where: { organizationId: organizationId, status: 'open' as any } });
   }
 
   if (['finance_admin', 'ceo', 'org_admin'].includes(role)) {
-    const invoices = await prisma.invoice.findMany({ where: { organizationId: orgId, status: 'paid' }, select: { total: true } });
+    const invoices = await prisma.invoice.findMany({ where: { organizationId: organizationId, status: 'paid' as any }, select: { total: true } });
     metrics.totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
-    metrics.pendingInvoices = await prisma.invoice.count({ where: { organizationId: orgId, status: { in: ['draft', 'sent'] } } });
-    metrics.totalPayments = await prisma.paymentEntry.count({ where: { organizationId: orgId } });
-    metrics.pendingExpenses = await prisma.expenseClaim.count({ where: { organizationId: orgId, status: 'pending' } });
+    metrics.pendingInvoices = await prisma.invoice.count({ where: { organizationId: organizationId, status: { in: ['draft', 'sent'] } } });
+    metrics.totalPayments = await prisma.paymentEntry.count({ where: { organizationId: organizationId } });
+    metrics.pendingExpenses = await prisma.expenseClaim.count({ where: { organizationId: organizationId, status: 'pending' as any } });
   }
 
   if (['sales_admin', 'ceo'].includes(role)) {
-    metrics.totalLeads = await prisma.lead.count({ where: { organizationId: orgId } });
-    metrics.convertedLeads = await prisma.lead.count({ where: { organizationId: orgId, status: 'converted' } });
+    metrics.totalLeads = await prisma.lead.count({ where: { organizationId: organizationId } });
+    metrics.convertedLeads = await prisma.lead.count({ where: { organizationId: organizationId, status: 'converted' as any } });
   }
 
   if (role !== 'superadmin') {
-    const taskWhere: any = { orgId: orgId };
-    if (role === 'employee') taskWhere.assigneeId = req.user.id;
+    const taskWhere: any = { organizationId: organizationId };
+    if (role === 'employee') taskWhere.assignedTo = req.user.id;
 
-    metrics.pendingTasks = await prisma.task.count({ where: { ...taskWhere, status: 'pending' } });
-    metrics.completedTasks = await prisma.task.count({ where: { ...taskWhere, status: 'completed' } });
+    metrics.pendingTasks = await prisma.task.count({ where: { ...taskWhere, status: 'pending' as any } });
+    metrics.completedTasks = await prisma.task.count({ where: { ...taskWhere, status: 'completed' as any } });
   }
 
   if (role === 'ceo') {
-    metrics.activeEscalations = await prisma.escalation.count({ where: { organizationId: orgId, status: 'active' } });
+    metrics.activeEscalations = await prisma.escalation.count({ where: { organizationId: organizationId, status: 'active' as any } });
   }
 
   res.status(200).json({ success: true, data: metrics });

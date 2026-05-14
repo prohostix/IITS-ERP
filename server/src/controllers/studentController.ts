@@ -4,7 +4,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const where: any = { orgId: req.user.organizationId };
+  const where: any = { organizationId: req.user.organizationId };
   if (req.query.status) where.status = req.query.status as string;
   const students = await prisma.student.findMany({
     where,
@@ -30,7 +30,7 @@ export const createStudent = asyncHandler(async (req: AuthRequest, res: Response
   const student = await prisma.student.create({
     data: {
       ...req.body,
-      orgId: req.user.organizationId
+      organizationId: req.user.organizationId
     }
   });
   res.status(201).json({ success: true, data: student });
@@ -67,7 +67,7 @@ export const approveStudent = asyncHandler(async (req: AuthRequest, res: Respons
   }
   const student = await prisma.student.update({
     where: { id: req.params.id },
-    data: { status: 'active' }
+    data: { status: 'active' as any }
   });
   res.status(200).json({ success: true, data: student });
 });

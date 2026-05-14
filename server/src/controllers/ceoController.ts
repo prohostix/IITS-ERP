@@ -5,19 +5,19 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getPerformanceMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const [total, completed] = await Promise.all([
-    prisma.task.count({ where: { orgId: req.user.organizationId } }),
-    prisma.task.count({ where: { orgId: req.user.organizationId, status: 'completed' } })
+    prisma.task.count({ where: { organizationId: req.user.organizationId } }),
+    prisma.task.count({ where: { organizationId: req.user.organizationId, status: 'completed' as any } })
   ]);
   res.json({ success: true, data: { taskCompletionRate: total > 0 ? (completed / total) * 100 : 0 } });
 });
 
 export const getRiskMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const overdue = await prisma.task.count({ where: { orgId: req.user.organizationId, status: 'overdue' } });
+  const overdue = await prisma.task.count({ where: { organizationId: req.user.organizationId, status: 'overdue' as any } });
   res.json({ success: true, data: { overdueTasks: overdue } });
 });
 
 export const getEscalations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const escalations = await prisma.escalation.findMany({ where: { organizationId: req.user.organizationId }, include: { raisedBy: true } });
+  const escalations = await prisma.escalation.findMany({ where: { organizationId: req.user.organizationId }, include: { employee: true } });
   res.json({ success: true, count: escalations.length, data: escalations });
 });
 
@@ -36,8 +36,8 @@ export const getDepartmentManagers = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const assignTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { assigneeId, ...rest } = req.body;
-  const task = await prisma.task.create({ data: { ...rest, assigneeId, orgId: req.user.organizationId, creatorId: req.user.id } });
+  const { assignedTo, ...rest } = req.body;
+  const task = await prisma.task.create({ data: { ...rest, assignedTo, organizationId: req.user.organizationId, createdBy: req.user.id } });
   res.status(201).json({ success: true, data: task });
 });
 
@@ -51,6 +51,6 @@ export const getCenterOnboardingOverview = asyncHandler(async (req: AuthRequest,
 });
 
 export const getStudentEnrollmentOverview = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { orgId: req.user.organizationId } });
+  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId } });
   res.json({ success: true, data: enrollments });
 });

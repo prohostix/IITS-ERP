@@ -18,17 +18,17 @@ export const createOrUpdateReregRules = asyncHandler(async (req: AuthRequest, re
 });
 
 export const getPendingReregs = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const pending = await prisma.reregistration.findMany({ where: { organizationId: req.user.organizationId, status: 'pending' } });
+  const pending = await prisma.reregistration.findMany({ where: { organizationId: req.user.organizationId, status: 'pending' as any } });
   res.json({ success: true, count: pending.length, data: pending });
 });
 
 export const getCompletedReregs = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const completed = await prisma.reregistration.findMany({ where: { organizationId: req.user.organizationId, status: 'completed' } });
+  const completed = await prisma.reregistration.findMany({ where: { organizationId: req.user.organizationId, status: 'completed' as any } });
   res.json({ success: true, count: completed.length, data: completed });
 });
 
 export const processRereg = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const rereg = await prisma.reregistration.update({ where: { id: req.params.id }, data: { status: 'completed' } });
+  const rereg = await prisma.reregistration.update({ where: { id: req.params.id }, data: { status: 'completed' as any } });
   res.json({ success: true, data: rereg });
 });
 

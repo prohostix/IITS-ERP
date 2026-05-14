@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getCredentialRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const requests = await prisma.credentialRequest.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { requester: { select: { name: true } } },
+    include: { user: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: requests.length, data: requests });

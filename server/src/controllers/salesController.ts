@@ -25,7 +25,7 @@ export const deleteLead = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: {} });
 });
 export const convertLead = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const lead = await prisma.lead.update({ where: { id: req.params.id }, data: { status: 'converted', convertedAt: new Date() } });
+  const lead = await prisma.lead.update({ where: { id: req.params.id }, data: { status: 'converted' as any, convertedAt: new Date() } });
   res.json({ success: true, data: lead });
 });
 
@@ -81,7 +81,7 @@ export const getMyCenterAdmissions = asyncHandler(async (req: AuthRequest, res: 
   res.json({ success: true, data: [] });
 });
 export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.findUnique({ where: { id: req.params.centerId } });
+  const center = await prisma.studyCenter.findUnique({ where: { id: req.params.studyCenterId } });
   res.json({ success: true, data: center });
 });
 
