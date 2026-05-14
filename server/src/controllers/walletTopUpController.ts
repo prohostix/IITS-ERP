@@ -42,7 +42,7 @@ export const approveWalletTopUp = asyncHandler(async (req: AuthRequest, res: Res
     }),
     prisma.studyCenterWallet.upsert({
       where: { studyCenterId: topUp.studyCenterId },
-      create: { studyCenterId: topUp.studyCenterId, balance: topUp.amount },
+      create: { studyCenterId: topUp.studyCenterId, balance: topUp.amount, organizationId: req.user.organizationId as any },
       update: { balance: { increment: topUp.amount } }
     })
   ]);

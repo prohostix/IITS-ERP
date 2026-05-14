@@ -25,7 +25,7 @@ export const checkOverdueTasks = async (): Promise<void> => {
         where: { id: task.id },
         data: { 
           status: 'overdue',
-          escalationStatus: 'grace_period',
+          escalationStatus: 'grace_period' as any,
           gracePeriodEnd: graceEnd
         }
       });
