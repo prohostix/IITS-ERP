@@ -630,7 +630,6 @@ export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Re
 
 // ─── Income & Expenditure / P&L Reports ──────────────────────────────────────
 
-import PaymentEntry from '../models/PaymentEntry.js';
 import Payroll from '../models/Payroll.js';
 import PayrollBatch from '../models/PayrollBatch.js';
 import EnrollmentPayment from '../models/EnrollmentPayment.js';
