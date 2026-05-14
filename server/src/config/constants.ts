@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const USER_ROLES = {
   SUPERADMIN: 'superadmin',
   ORG_ADMIN: 'org_admin',

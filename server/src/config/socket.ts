@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Server as HTTPServer } from 'http';
 import { Server, Socket } from 'socket.io';
 

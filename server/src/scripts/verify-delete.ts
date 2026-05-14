@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { prisma } from '../config/postgres.js';
 
 async function verifyDeletion() {

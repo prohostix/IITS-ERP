@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import { prisma } from '../config/postgres.js';

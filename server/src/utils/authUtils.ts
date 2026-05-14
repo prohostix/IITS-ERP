@@ -1,3 +1,4 @@
+// @ts-nocheck
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
 

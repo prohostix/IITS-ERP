@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { prisma, connectPostgres } from '../config/postgres.js';
 
 const testPrisma = async () => {

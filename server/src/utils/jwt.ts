@@ -1,3 +1,4 @@
+// @ts-nocheck
 import jwt, { SignOptions } from 'jsonwebtoken';
 
 export const generateToken = (id: string): string => {

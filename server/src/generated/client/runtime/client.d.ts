@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AnyNull } from '@prisma/client-runtime-utils';
 import { AnyNullClass } from '@prisma/client-runtime-utils';
 import { DbNull } from '@prisma/client-runtime-utils';

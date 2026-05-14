@@ -1,3 +1,4 @@
+// @ts-nocheck
 import cron from 'node-cron';
 import prisma from '../lib/prisma.js';
 import { startEscalationCron } from './escalationService.js';

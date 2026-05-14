@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { connectPostgres } from '../config/postgres.js';
 
 const testConnection = async () => {

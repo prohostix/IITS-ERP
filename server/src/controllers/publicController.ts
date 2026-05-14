@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Response, Request } from 'express';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';

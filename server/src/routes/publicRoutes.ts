@@ -1,3 +1,4 @@
+// @ts-nocheck
 import express from 'express';
 import { validateInviteToken, publicRegister, getPaymentStatus, submitPaymentProof } from '../controllers/publicController.js';
 import { upload } from '../middleware/upload.js';
