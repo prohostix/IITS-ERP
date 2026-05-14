@@ -36,6 +36,7 @@ ssh -i $KEY_PATH $SERVER_USER@$SERVER_IP << EOF
     
     echo "📦 Installing client dependencies..."
     cd $PROJECT_DIR/client
+    rm -f .env  # Remove any hardcoded IP env files
     npm install
     
     echo "🏗️ Building client..."
