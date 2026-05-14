@@ -202,7 +202,7 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
     return;
   }
 
-  const subDept = await prisma.subDepartment.findUnique({
+  const subDept: any = await prisma.subDepartment.findUnique({
     where: { id: subDeptId },
     include: {
       parentDept: { select: { name: true, type: true } },
