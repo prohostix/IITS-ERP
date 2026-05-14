@@ -44,6 +44,10 @@ ssh -i $KEY_PATH $SERVER_USER@$SERVER_IP << EOF
     echo "🔄 Restarting backend service..."
     cd $PROJECT_DIR/server
     if command -v pm2 &> /dev/null; then
+        # Stop existing process on port 3677 if it exists
+        pm2 stop pype-server || true
+        pm2 delete pype-server || true
+        
         pm2 restart erp-backend || pm2 start dist/server.js --name erp-backend
     else
         echo "⚠️ PM2 not found. You might need to restart your service manually."
