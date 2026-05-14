@@ -136,7 +136,7 @@ app.get('/health', async (req, res) => {
       success: false,
       message: 'ERP System API is running, but database is disconnected',
       database: 'disconnected',
-      error: error.message,
+      error: (error as any).message,
       timestamp: new Date().toISOString(),
     });
   }

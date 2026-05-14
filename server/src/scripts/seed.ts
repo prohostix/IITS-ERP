@@ -97,7 +97,7 @@ const seedData = async () => {
           email: user.email,
           password: hashedUserPassword,
           name: user.name,
-          role: user.role,
+          role: user.role as any,
           status: 'active',
         }
       });

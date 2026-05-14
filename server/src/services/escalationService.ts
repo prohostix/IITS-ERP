@@ -12,7 +12,7 @@ export const checkOverdueTasks = async (): Promise<void> => {
     const overdueTasks = await prisma.task.findMany({
       where: {
         status: { in: ['pending', 'in_progress', 'overdue'] },
-        dueDate: { lt: now },
+        deadline: { lt: now },
         escalationStatus: 'none',
       },
     });
@@ -25,7 +25,7 @@ export const checkOverdueTasks = async (): Promise<void> => {
         where: { id: task.id },
         data: { 
           status: 'overdue',
-          escalationStatus: 'grace_period',
+          escalationStatus: 'grace_period' as any,
           gracePeriodEnd: graceEnd
         }
       });
