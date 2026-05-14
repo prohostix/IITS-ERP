@@ -1,8 +1,8 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import SessionRequest from '../models/SessionRequest';
-import AdmissionSession from '../models/AdmissionSession';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import SessionRequest from '../models/SessionRequest.js';
+import AdmissionSession from '../models/AdmissionSession.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Create session request (Study Center → Ops)
 // @route   POST /api/v1/sessions/request

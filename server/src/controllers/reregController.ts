@@ -1,8 +1,8 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import ReregRule from '../models/ReregRule';
-import Student from '../models/Student';
-import { asyncHandler, resolveOrgId } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import ReregRule from '../models/ReregRule.js';
+import Student from '../models/Student.js';
+import { asyncHandler, resolveOrgId } from '../utils/asyncHandler.js';
 
 // @desc    Create or update REREG rules
 // @route   POST /api/v1/rereg/rules

@@ -1,8 +1,8 @@
 import cron from 'node-cron';
-import Task from '../models/Task';
-import EscalationLog from '../models/EscalationLog';
-import User from '../models/User';
-import { emitToRole, emitToUser } from '../config/socket';
+import Task from '../models/Task.js';
+import EscalationLog from '../models/EscalationLog.js';
+import User from '../models/User.js';
+import { emitToRole, emitToUser } from '../config/socket.js';
 
 // Grace period in hours (default 48 hours)
 const GRACE_PERIOD_HOURS = parseInt(process.env.ESCALATION_GRACE_PERIOD_HOURS || '48');

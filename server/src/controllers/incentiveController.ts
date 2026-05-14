@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import IncentiveStructure from '../models/IncentiveStructure';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import IncentiveStructure from '../models/IncentiveStructure.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Create incentive structure
 // @route   POST /api/v1/incentives

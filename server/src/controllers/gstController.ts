@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import GSTSetting from '../models/GSTSetting';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import GSTSetting from '../models/GSTSetting.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Create GST setting
 // @route   POST /api/v1/gst/settings

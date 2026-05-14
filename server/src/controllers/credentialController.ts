@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import CredentialRequest from '../models/CredentialRequest';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import CredentialRequest from '../models/CredentialRequest.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Submit credential reveal request (Ops → Finance)
 // @route   POST /api/v1/credentials/request

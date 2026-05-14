@@ -48,6 +48,7 @@ import publicRoutes from './routes/publicRoutes.js';
 import enrollmentRoutes from './routes/enrollmentRoutes.js';
 
 const app: Application = express();
+app.set('trust proxy', 1);
 
 // Connect to database
 connectDatabase();

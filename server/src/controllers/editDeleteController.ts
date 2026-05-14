@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth';
-import EditDeleteRequest from '../models/EditDeleteRequest';
-import { asyncHandler } from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.js';
+import EditDeleteRequest from '../models/EditDeleteRequest.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // @desc    Submit edit/delete request (Ops → Finance)
 // @route   POST /api/v1/edit-delete/request
