@@ -13,6 +13,10 @@ model Organization {
   email                String?               @unique
   phone                String?
   address              String?
+  contactEmail         String?
+  contactPhone         String?
+  plan                 String?
+  slug                 String?               @unique
   logo                 String?
   status               String?               @default("active")
   licenseId            String?
@@ -145,6 +149,7 @@ model User {
   reportingTo                   String?
   status                        String?            @default("active")
   lastLogin                     DateTime?
+  designationId                 String?
   createdAt                     DateTime              @default(now())
   updatedAt                     DateTime              @updatedAt
   approvedSessions              AdmissionSession[]    @relation("SessionApprovedBy")
@@ -671,6 +676,7 @@ model Branch {
   name              String
   code              String              @unique
   city              String?
+  state             String?
   address           String?
   contact           String?
   status            String              @default("active")
@@ -976,6 +982,7 @@ model HRSettings {
   location        Json
   locations       Json         @default("[]")
   requireLocation Boolean      @default(true)
+  requireLocationForCheckIn Boolean?      @default(true)
   biometric       Json
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -1043,6 +1050,15 @@ model Escalation {
   resolvedBy     String?
   handledBy      String?
   chain          Json?            @default("[]")
+  raisedById     String?
+  raisedAt       DateTime?
+  type           String?
+  impact         String?
+  maxLevel       Int?
+  currentLevel   Int?
+  description    String?
+  entityType     String?
+  entityId       String?
   updatedAt      DateTime        @updatedAt
   deptAdmin      User?           @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
   employee       User?           @relation("EscalationEmployee", fields: [employeeId], references: [id])
