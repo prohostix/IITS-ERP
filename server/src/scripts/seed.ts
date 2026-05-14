@@ -48,7 +48,7 @@ const seedData = async () => {
         email: 'superadmin@erp.com',
         password: hashedPassword,
         name: 'Super Admin',
-        role: 'superadmin',
+        role: 'superadmin' as any,
         status: 'active',
       }
     });

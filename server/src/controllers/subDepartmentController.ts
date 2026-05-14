@@ -211,7 +211,7 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
       assignedPrograms: { select: { id: true, name: true, code: true, duration: true, status: true } },
       assignedCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
     }
-  });
+  } as any);
 
   if (!subDept) {
     res.status(404).json({ success: false, message: 'Sub-department not found' });
