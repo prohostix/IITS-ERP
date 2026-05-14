@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.npm
+.eslintcache
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environments
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+/server/src/generated/client/
+/server/dist/
