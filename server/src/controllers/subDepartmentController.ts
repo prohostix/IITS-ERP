@@ -25,11 +25,13 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
   const organizationId = resolveOrgId(req.user.organizationId);
 
   // Check if sub-department already exists within the same parent department
-  const existing = await prisma.subDepartment.findFirst({
+  const existing = await prisma.subDepartment.findUnique({
     where: {
-      organizationId,
-      name,
-      parentDeptId,
+      organizationId_parentDeptId_name: {
+        organizationId,
+        name,
+        parentDeptId,
+      }
     }
   });
 
@@ -79,9 +81,9 @@ export const getSubDepartments = asyncHandler(async (req: AuthRequest, res: Resp
     include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true } },
-      studyCenters: { select: { id: true, name: true, code: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true } },
+      assignedCenters: { select: { id: true, name: true, code: true } },
     },
     orderBy: { name: 'asc' }
   });
@@ -102,9 +104,9 @@ export const getSubDepartment = asyncHandler(async (req: AuthRequest, res: Respo
     include: {
       parentDept: { select: { name: true } },
       manager: { select: { name: true } },
-      universities: { select: { id: true, name: true, code: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true, duration: true } },
+      assignedCenters: { select: { id: true, name: true, code: true, city: true } },
     }
   });
 
@@ -205,9 +207,9 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
     include: {
       parentDept: { select: { name: true, type: true } },
       manager: { select: { name: true, email: true } },
-      universities: { select: { id: true, name: true, code: true, status: true } },
-      programs: { select: { id: true, name: true, code: true, duration: true, status: true } },
-      studyCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
+      assignedUniversities: { select: { id: true, name: true, code: true, status: true } },
+      assignedPrograms: { select: { id: true, name: true, code: true, duration: true, status: true } },
+      assignedCenters: { select: { id: true, name: true, code: true, city: true, state: true, status: true } },
     }
   });
 
@@ -220,8 +222,8 @@ export const getMySubDepartment = asyncHandler(async (req: AuthRequest, res: Res
   let enrollmentStats: any[] = [];
   let monthlyEnrollments: any[] = [];
 
-  if (subDept.assignedCenters && subDept.assignedCenters.length > 0) {
-    const centerIds = subDept.assignedCenters.map(c => c.id);
+  if (subDept.studyCenters && subDept.studyCenters.length > 0) {
+    const centerIds = subDept.studyCenters.map(c => c.id);
     const organizationId = resolveOrgId(req.user.organizationId);
 
     // Get enrollment counts by status for assigned centers

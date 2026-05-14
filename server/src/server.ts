@@ -48,6 +48,7 @@ import publicRoutes from './routes/publicRoutes.js';
 import enrollmentRoutes from './routes/enrollmentRoutes.js';
 
 const app: Application = express();
+app.set('trust proxy', 1);
 
 // Connect to database
 connectDatabase();
@@ -136,7 +137,7 @@ app.get('/health', async (req, res) => {
       success: false,
       message: 'ERP System API is running, but database is disconnected',
       database: 'disconnected',
-      error: (error as any).message,
+      error: error.message,
       timestamp: new Date().toISOString(),
     });
   }

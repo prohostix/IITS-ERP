@@ -17,13 +17,13 @@ const seedData = async () => {
     const premiumLicense = await prisma.license.create({
       data: {
         name: 'Premium Plan',
-        type: 'premium' as any,
+        type: 'premium',
         features: ['all_basic', 'up_to_200_users', '50gb_storage', 'advanced_analytics'],
         maxUsers: 200,
         maxStorage: 51200,
         durationMonths: 12,
         price: 29999,
-        status: 'active' as any,
+        status: 'active',
       }
     });
 
@@ -32,7 +32,7 @@ const seedData = async () => {
       data: {
         id: 'system',
         name: 'System Administration',
-        status: 'active' as any,
+        status: 'active',
         email: 'system@example.com',
         phone: '0000000000',
         address: 'System Address'
@@ -48,8 +48,8 @@ const seedData = async () => {
         email: 'superadmin@erp.com',
         password: hashedPassword,
         name: 'Super Admin',
-        role: 'superadmin' as any,
-        status: 'active' as any,
+        role: 'superadmin',
+        status: 'active',
       }
     });
 
@@ -60,7 +60,7 @@ const seedData = async () => {
         email: 'contact@edutechglobal.com',
         phone: '+1234567891',
         address: '123 Education Street, Tech City, TC 12345',
-        status: 'active' as any,
+        status: 'active',
         licenseId: premiumLicense.id,
         licenseExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       }
@@ -71,21 +71,21 @@ const seedData = async () => {
       data: {
         organizationId: organization.id,
         name: 'Operations',
-        type: 'operations' as any,
+        type: 'operations',
         features: ['universities', 'programs', 'centers', 'students', 'admissions'],
-        status: 'active' as any,
+        status: 'active',
       }
     });
 
     console.log('👥 Creating users...');
     const users = [
-      { id: 'admin', email: 'admin@edutechglobal.com', password: 'orgadmin123', name: 'Organization Admin', role: 'org_admin' as any },
-      { id: 'ceo', email: 'ceo@edutechglobal.com', password: 'ceo123', name: 'CEO', role: 'ceo' as any },
-      { id: 'ops-admin', email: 'ops.admin@edutechglobal.com', password: 'opsadmin123', name: 'Ops Admin', role: 'ops_admin' as any },
-      { id: 'finance-admin', email: 'finance.admin@edutechglobal.com', password: 'finance123', name: 'Finance Admin', role: 'finance_admin' as any },
-      { id: 'hr-admin', email: 'hr.admin@edutechglobal.com', password: 'hradmin123', name: 'HR Admin', role: 'hr_admin' as any },
-      { id: 'sales-admin', email: 'sales.admin@edutechglobal.com', password: 'sales123', name: 'Sales Admin', role: 'sales_admin' as any },
-      { id: 'ops-exec', email: 'ops.executive@edutechglobal.com', password: 'employee123', name: 'Operations Executive', role: 'employee' as any },
+      { id: 'admin', email: 'admin@edutechglobal.com', password: 'orgadmin123', name: 'Organization Admin', role: 'org_admin' },
+      { id: 'ceo', email: 'ceo@edutechglobal.com', password: 'ceo123', name: 'CEO', role: 'ceo' },
+      { id: 'ops-admin', email: 'ops.admin@edutechglobal.com', password: 'opsadmin123', name: 'Ops Admin', role: 'ops_admin' },
+      { id: 'finance-admin', email: 'finance.admin@edutechglobal.com', password: 'finance123', name: 'Finance Admin', role: 'finance_admin' },
+      { id: 'hr-admin', email: 'hr.admin@edutechglobal.com', password: 'hradmin123', name: 'HR Admin', role: 'hr_admin' },
+      { id: 'sales-admin', email: 'sales.admin@edutechglobal.com', password: 'sales123', name: 'Sales Admin', role: 'sales_admin' },
+      { id: 'ops-exec', email: 'ops.executive@edutechglobal.com', password: 'employee123', name: 'Operations Executive', role: 'employee' },
     ];
 
     for (const user of users) {
@@ -97,8 +97,8 @@ const seedData = async () => {
           email: user.email,
           password: hashedUserPassword,
           name: user.name,
-          role: user.role as any,
-          status: 'active' as any,
+          role: user.role,
+          status: 'active',
         }
       });
     }

@@ -29,14 +29,14 @@ export const deleteNotification = asyncHandler(async (req: AuthRequest, res: Res
 
 export const createNotification = async (organizationId: string, userId: string, type: string, title: string, message: string, data?: any) => {
   return await prisma.notification.create({
-    data: { organizationId, userId, type: type as any, title, message, data, read: false }
+    data: { organizationId, userId, type, title, message, data, read: false }
   });
 };
 
 export const broadcastNotification = async (organizationId: string, type: string, title: string, message: string, roles?: string[]) => {
   const users = await prisma.user.findMany({
-    where: { organizationId, role: roles ? { in: roles as any } : undefined }
+    where: { organizationId, role: roles ? { in: roles } : undefined }
   });
-  const notifications = users.map(u => ({ organizationId, userId: u.id, type: type as any, title, message, read: false }));
+  const notifications = users.map(u => ({ organizationId, userId: u.id, type, title, message, read: false }));
   return await prisma.notification.createMany({ data: notifications });
 };

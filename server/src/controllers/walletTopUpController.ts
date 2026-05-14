@@ -35,18 +35,14 @@ export const approveWalletTopUp = asyncHandler(async (req: AuthRequest, res: Res
     prisma.walletTopUp.update({
       where: { id: topUp.id },
       data: {
-        status: 'approved' as any,
+        status: 'approved',
         verifiedBy: req.user.id,
         verifiedAt: new Date(),
       }
     }),
     prisma.studyCenterWallet.upsert({
       where: { studyCenterId: topUp.studyCenterId },
-      create: { 
-        studyCenterId: topUp.studyCenterId, 
-        organizationId: topUp.organizationId,
-        balance: topUp.amount 
-      },
+      create: { studyCenterId: topUp.studyCenterId, balance: topUp.amount },
       update: { balance: { increment: topUp.amount } }
     })
   ]);
@@ -60,7 +56,7 @@ export const rejectWalletTopUp = asyncHandler(async (req: AuthRequest, res: Resp
   const topUp = await prisma.walletTopUp.update({
     where: { id: req.params.id },
     data: {
-      status: 'rejected' as any,
+      status: 'rejected',
       remarks,
       verifiedBy: req.user.id,
       verifiedAt: new Date(),

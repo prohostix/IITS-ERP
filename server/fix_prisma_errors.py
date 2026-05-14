@@ -15,8 +15,15 @@ replacements = {
     r'center:': 'studyCenter:',
     r'raisedBy:': 'employee:',
     r'creator:': 'assigner:',
-    r'requester:': 'user:', # Guess for CredentialRequest
+    r'requester:': 'user:', 
     r'deptReviewedBy:': 'reviewerDept:',
+    # SubDepartment specific
+    r'universities: {': 'assignedUniversities: {',
+    r'programs: {': 'assignedPrograms: {',
+    r'studyCenters: {': 'assignedCenters: {',
+    r'\.universities\b': '.assignedUniversities',
+    r'\.programs\b': '.assignedPrograms',
+    r'\.studyCenters\b': '.assignedCenters',
     # Casting
     r'status: "([^"]+)"': r'status: "\1" as any',
     r"status: '([^']+)'": r"status: '\1' as any",

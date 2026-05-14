@@ -39,6 +39,9 @@ export const getProgramFees = asyncHandler(async (req: AuthRequest, res: Respons
 
 // --- Program Material Controller ---
 export const getProgramMaterials = asyncHandler(async (req: AuthRequest, res: Response) => {
-  // Model ProgramMaterial is missing from schema
-  res.json({ success: true, count: 0, data: [] });
+  const materials = await prisma.programMaterial.findMany({
+    where: { programId: req.params.programId, organizationId: req.user.organizationId },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ success: true, count: materials.length, data: materials });
 });
