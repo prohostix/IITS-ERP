@@ -35,6 +35,7 @@ import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { PollsPanel } from '@/components/panels/PollsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
+import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { useAuth } from '@/hooks/useAuth';
 
 export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
@@ -73,6 +74,7 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
       case 'enrollment_review': return <DeptEnrollmentReviewPanel />;
       case 'sessions': return <AdmissionSessionsPanel />;
       case 'marks': return <InternalMarksPanel />;
+      case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel />;
@@ -106,6 +108,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: 'enrollment_review', label: 'Enrollment Review' },
     { id: 'sessions', label: 'Admission Sessions' },
     { id: 'marks', label: 'Internal Marks' },
+    { id: 'center_admissions', label: 'Centers Admissions' },
     { id: 'announcements', label: 'Announcements' },
     { id: 'tasks', label: 'Tasks' },
     { id: '__portal_section', label: 'My Portal', isSection: true },

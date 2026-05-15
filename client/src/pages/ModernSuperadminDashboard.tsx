@@ -32,6 +32,7 @@ import { UsersPanel } from '@/components/panels/UsersPanel';
 import { DepartmentsPanel } from '@/components/panels/DepartmentsPanel';
 import { LicensesPanel } from '@/components/panels/LicensesPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
+import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
 
 const globalActivity = [
@@ -96,6 +97,7 @@ export function ModernSuperadminDashboard({ initialTab }: { initialTab?: string 
           <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="subdepartments">Sub-Departments</TabsTrigger>
           <TabsTrigger value="licenses">Licenses</TabsTrigger>
+          <TabsTrigger value="center_admissions">Admissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -124,6 +126,9 @@ export function ModernSuperadminDashboard({ initialTab }: { initialTab?: string 
 
         <TabsContent value="licenses">
           <LicensesPanel />
+        </TabsContent>
+        <TabsContent value="center_admissions">
+          <CentersAdmissionsPanel />
         </TabsContent>
       </Tabs>
     </div>

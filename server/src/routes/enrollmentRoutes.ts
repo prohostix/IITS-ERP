@@ -9,6 +9,7 @@ import {
   getMyEnrollments,
   getMyCenterStatus,
   submitMyCenterPayment,
+  getAllEnrollments,
 } from '../controllers/enrollmentController.js';
 import {
   getDeptReviewEnrollments,
@@ -35,6 +36,9 @@ router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
 // Center onboarding status & payment (authenticated)
 router.get('/my-center-status', authorize('center_admin'), getMyCenterStatus);
 router.post('/submit-payment', authorize('center_admin'), upload.single('proofFile'), submitMyCenterPayment);
+
+// Global enrollment list (for admins/staff)
+router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'sales_admin', 'bde', 'employee'), getAllEnrollments);
 
 // Dept/Sub-dept manager review routes
 router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee'), getDeptReviewEnrollments);

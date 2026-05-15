@@ -40,6 +40,7 @@ import { ProfitLossPanel } from '@/components/panels/ProfitLossPanel';
 import { FinanceSalaryApprovalPanel } from '@/components/panels/FinanceSalaryApprovalPanel';
 import { FinanceSalesTargetsPanel } from '@/components/panels/FinanceSalesTargetsPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
+import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -112,6 +113,7 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       case 'program_fees': return <ProgramFeeStructurePanel />;
       case 'wallet_topups': return <WalletTopUpsPanel />;
       case 'enrollments_finance': return <FinanceEnrollmentsPanel />;
+      case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'income_expenditure': return <IncomeExpenditurePanel />;
       case 'profit_loss': return <ProfitLossPanel />;
       case 'salary_approvals': return <FinanceSalaryApprovalPanel />;
@@ -155,6 +157,7 @@ export function getFinanceNavItems() {
     { id: 'program_fees', label: 'Program Fees' },
     { id: 'wallet_topups', label: 'Wallet Top-Ups' },
     { id: 'enrollments_finance', label: 'Enrollments' },
+    { id: 'center_admissions', label: 'Centers Admissions' },
     { id: 'income_expenditure', label: 'Income & Expenditure' },
     { id: 'profit_loss', label: 'Profit & Loss' },
     { id: 'salary_approvals', label: 'Salary Approvals' },

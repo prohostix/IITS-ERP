@@ -68,6 +68,12 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    id: 'center_admissions',
+    label: 'Centers Admissions',
+    icon: GraduationCap,
+    roles: ['superadmin', 'org_admin', 'ceo'],
+  },
+  {
     id: 'departments',
     label: 'Departments',
     icon: Building,
@@ -95,6 +101,7 @@ const navItems: NavItem[] = [
       { id: 'students', label: 'Students', icon: Users, roles: ['ops_admin', 'ceo'] },
       { id: 'marks', label: 'Internal Marks', icon: FileText, roles: ['ops_admin', 'ceo'] },
       { id: 'sessions', label: 'Admission Sessions', icon: Calendar, roles: ['ops_admin', 'ceo'] },
+      { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['ops_admin', 'ceo'] },
     ],
   },
   {
@@ -111,6 +118,7 @@ const navItems: NavItem[] = [
       { id: 'salary_approvals', label: 'Salary Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'payroll-batches', label: 'Payroll Batches', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'approvals', label: 'Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
+      { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['finance_admin', 'ceo'] },
     ],
   },
   {
@@ -143,6 +151,7 @@ const navItems: NavItem[] = [
       { id: 'deals', label: 'Deals', icon: CheckSquare, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
     ],
   },
   {

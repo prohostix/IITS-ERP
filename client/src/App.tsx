@@ -12,6 +12,7 @@ import { getSalesNavItems } from '@/pages/ModernSalesDashboard';
 import { getBranchManagerNavItems } from '@/pages/ModernBranchManagerDashboard';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 
 type ViewMode = 'dashboard' | 'table';
 
@@ -91,6 +92,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Common
   escalations: 'escalations',
   audit_logs: 'overview',
+  center_admissions: 'center_admissions',
 };
 
 function App() {
@@ -220,6 +222,7 @@ function App() {
         { id: 'students', label: 'Students' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'leads', label: 'Leads' },
+        { id: 'center_admissions', label: 'Centers Admissions' },
         { id: 'center_onboarding', label: 'Centers & Enrollment' },
       ];
     }
@@ -237,6 +240,7 @@ function App() {
         { id: 'universities', label: 'Universities' },
         { id: 'programs', label: 'Programs' },
         { id: 'study_centers', label: 'Study Centers' },
+        { id: 'center_admissions', label: 'Centers Admissions' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'payments', label: 'Payments' },
         { id: 'expenses', label: 'Expenses' },
@@ -253,7 +257,8 @@ function App() {
 
     if (user.role === 'ops_admin' || user.role === 'ops_sub_admin') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
-      return getOpsNavItems(isSubDeptManager);
+      const items = getOpsNavItems(isSubDeptManager);
+      return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
 
     if (user.role === 'finance_admin') {
@@ -265,7 +270,8 @@ function App() {
     }
 
     if (user.role === 'sales_admin') {
-      return getSalesNavItems();
+      const items = getSalesNavItems();
+      return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
 
     if (user.role === 'center_admin') {

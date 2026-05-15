@@ -42,3 +42,24 @@ export const getMyCenterStatus = asyncHandler(async (req: AuthRequest, res: Resp
 export const submitMyCenterPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json({ success: true, message: 'Payment submitted' });
 });
+
+export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const where: any = { organizationId: req.user.organizationId };
+
+  // Scoping for Sales users: only show admissions from centers they manually added/referred
+  if (['sales_admin', 'bde'].includes(req.user.role)) {
+    where.studyCenter = { referredById: req.user.id };
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where,
+    include: {
+      studyCenter: { select: { name: true, code: true, referredById: true } },
+      program: {
+        include: { university: { select: { name: true, code: true } } }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ success: true, count: enrollments.length, data: enrollments });
+});
