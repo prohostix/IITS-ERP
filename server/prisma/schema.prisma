@@ -109,6 +109,7 @@ model Department {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   announcements      Announcement[]
+  additionalBranches Branch[]           @relation("BranchAdditionalDepts")
   opsBranch          Branch?            @relation("BranchOpsDept")
   salesBranch        Branch?            @relation("BranchSalesDept")
   manager            User?              @relation("DepartmentManager", fields: [managerId], references: [id])
@@ -690,6 +691,7 @@ model Branch {
   operationsDept    Department?         @relation("BranchOpsDept", fields: [operationsDeptId], references: [id])
   organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   salesDept         Department?         @relation("BranchSalesDept", fields: [salesDeptId], references: [id])
+  additionalDepts   Department[]        @relation("BranchAdditionalDepts")
   designations      Designation[]
   invites           StudyCenterInvite[]
   users             User[]
