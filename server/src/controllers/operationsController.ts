@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { hashPassword, generateUserId } from '../utils/authUtils.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -67,16 +68,49 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isSales = req.user.role === 'sales_admin' || req.user.role === 'bde' || req.user.role === 'employee';
+  const { name, email } = req.body;
 
-  const center = await prisma.studyCenter.create({ 
-    data: { 
-      ...req.body, 
-      organizationId: req.user.organizationId,
-      status: isSales ? 'pending' : (req.body.status || 'pending'),
-      referredById: isSales ? req.user.id : (req.body.referredById || null)
-    } 
+  // Check if user email already exists
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    res.status(400).json({ success: false, message: 'A user with this email already exists' });
+    return;
+  }
+
+  // 1. Generate credentials
+  const rawPassword = `Center@${Math.floor(1000 + Math.random() * 9000)}`;
+  const hashedPassword = await hashPassword(rawPassword);
+  const userId = await generateUserId();
+
+  // 2. Create in transaction
+  const centerWithCreds = await prisma.$transaction(async (tx) => {
+    const center = await tx.studyCenter.create({ 
+      data: { 
+        ...req.body, 
+        organizationId: req.user.organizationId,
+        status: isSales ? 'pending' : (req.body.status || 'pending'),
+        referredById: isSales ? req.user.id : (req.body.referredById || null)
+      } 
+    });
+
+    // 3. Create center admin user
+    await tx.user.create({
+      data: {
+        userId,
+        email,
+        password: hashedPassword,
+        name: `${name} Admin`,
+        role: 'center_admin',
+        organizationId: req.user.organizationId,
+        studyCenterId: center.id,
+        status: 'active' as any
+      }
+    });
+
+    return { ...center, credentials: { userId, password: rawPassword } };
   });
-  res.status(201).json({ success: true, data: center });
+
+  res.status(201).json({ success: true, data: centerWithCreds });
 });
 export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: req.body });
