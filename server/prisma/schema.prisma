@@ -286,7 +286,7 @@ model Task {
 
 model Attendance {
   id               String           @id @default(uuid())
-  employeeId       String
+  userId           String           @map("employeeId")
   organizationId   String
   date             DateTime
   status           AttendanceStatus
@@ -300,10 +300,10 @@ model Attendance {
   notes            String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
-  user             User             @relation(fields: [employeeId], references: [id])
+  user             User             @relation(fields: [userId], references: [id])
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([employeeId, date])
+  @@unique([userId, date])
   @@index([organizationId, date])
   @@index([isLate])
 }
@@ -584,7 +584,7 @@ model Holiday {
 
 model LeaveRequest {
   id               String       @id @default(uuid())
-  employeeId       String
+  userId           String       @map("employeeId")
   organizationId   String
   departmentId     String
   type             LeaveType
@@ -601,11 +601,11 @@ model LeaveRequest {
   updatedAt        DateTime     @updatedAt
   department       Department   @relation(fields: [departmentId], references: [id])
   deptApprover     User?        @relation("DeptApprovedBy", fields: [deptApprovedBy], references: [id])
-  user             User         @relation("EmployeeLeaves", fields: [employeeId], references: [id])
+  user             User         @relation("EmployeeLeaves", fields: [userId], references: [id])
   hrApprover       User?        @relation("HrApprovedBy", fields: [hrApprovedBy], references: [id])
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([employeeId, status])
+  @@index([userId, status])
   @@index([organizationId, status])
 }
 
@@ -1159,7 +1159,7 @@ model Poll {
   createdBy      String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  creator        User         @relation("PollCreatedBy", fields: [createdBy], references: [id])
+  assigner       User         @relation("PollCreatedBy", fields: [createdBy], references: [id])
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
