@@ -33,16 +33,16 @@ router.put('/batches/:id/payment-in-progress', authorize('finance_admin', 'super
 router.put('/batches/:id/complete-payment', authorize('finance_admin', 'superadmin'), completeBatchPayment);
 
 // Payroll actions (must be before /:id to avoid param conflicts)
-router.post('/generate', authorize('hr_admin', 'finance_admin'), generateMonthlyPayroll);
+router.post('/generate', authorize('hr_admin', 'finance_admin', 'superadmin'), generateMonthlyPayroll);
 router.post('/transfer-to-finance', authorize('hr_admin', 'superadmin'), transferToFinance);
 
 // Payroll CRUD
-router.route('/').get(getPayrolls).post(authorize('hr_admin', 'finance_admin'), createPayroll);
-router.route('/:id').get(getPayroll).put(authorize('hr_admin', 'finance_admin'), updatePayroll).delete(authorize('hr_admin', 'finance_admin'), deletePayroll);
+router.route('/').get(getPayrolls).post(authorize('hr_admin', 'finance_admin', 'superadmin'), createPayroll);
+router.route('/:id').get(getPayroll).put(authorize('hr_admin', 'finance_admin', 'superadmin'), updatePayroll).delete(authorize('hr_admin', 'finance_admin', 'superadmin'), deletePayroll);
 
 // Payroll instance actions
-router.put('/:id/process', authorize('hr_admin', 'finance_admin'), processPayroll);
+router.put('/:id/process', authorize('hr_admin', 'finance_admin', 'superadmin'), processPayroll);
 router.put('/:id/confirm', authorize('hr_admin', 'superadmin'), confirmPayroll);
-router.put('/:id/pay', authorize('finance_admin'), markPayrollPaid);
+router.put('/:id/pay', authorize('finance_admin', 'superadmin'), markPayrollPaid);
 
 export default router;

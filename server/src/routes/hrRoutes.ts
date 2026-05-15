@@ -126,21 +126,21 @@ router.route('/holidays/:id')
   .delete(authorize('hr_admin'), deleteHoliday);
 
 // Salary Configuration (per employee)
-router.get('/salary-configs', authorize('hr_admin'), getSalaryConfigs);
+router.get('/salary-configs', authorize('hr_admin', 'org_admin', 'superadmin'), getSalaryConfigs);
 router.route('/salary-configs/:userId')
-  .get(authorize('hr_admin'), getSalaryConfig)
-  .put(authorize('hr_admin'), upsertSalaryConfig)
-  .delete(authorize('hr_admin'), deleteSalaryConfig);
+  .get(authorize('hr_admin', 'org_admin', 'superadmin'), getSalaryConfig)
+  .put(authorize('hr_admin', 'org_admin', 'superadmin'), upsertSalaryConfig)
+  .delete(authorize('hr_admin', 'org_admin', 'superadmin'), deleteSalaryConfig);
 
 // Leave Allocations
-router.get('/leave-allocations', authorize('hr_admin'), getLeaveAllocations);
-router.post('/leave-allocations/bulk-init', authorize('hr_admin'), bulkInitLeaveAllocations);
+router.get('/leave-allocations', authorize('hr_admin', 'org_admin', 'superadmin'), getLeaveAllocations);
+router.post('/leave-allocations/bulk-init', authorize('hr_admin', 'org_admin', 'superadmin'), bulkInitLeaveAllocations);
 router.route('/leave-allocations/:userId')
-  .get(authorize('hr_admin'), getLeaveAllocation)
-  .put(authorize('hr_admin'), upsertLeaveAllocation);
+  .get(authorize('hr_admin', 'org_admin', 'superadmin'), getLeaveAllocation)
+  .put(authorize('hr_admin', 'org_admin', 'superadmin'), upsertLeaveAllocation);
 
 // Smart Payroll Generation (uses salary configs + late deductions)
-router.post('/payroll/generate-smart', authorize('hr_admin'), generateSmartPayroll);
+router.post('/payroll/generate-smart', authorize('hr_admin', 'org_admin', 'superadmin'), generateSmartPayroll);
 
 // Employee Profiles (KPI / KRA / Salary details)
 router.get('/employee-profiles/:userId', authorize('hr_admin'), getEmployeeProfile);
