@@ -12,7 +12,6 @@ import { getSalesNavItems } from '@/pages/ModernSalesDashboard';
 import { getBranchManagerNavItems } from '@/pages/ModernBranchManagerDashboard';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 
 type ViewMode = 'dashboard' | 'table';
 
