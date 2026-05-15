@@ -103,7 +103,13 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{user?.name || 'Sales Dashboard'}</h1>
+          <p className="text-muted-foreground mt-1">{user?.designation || 'Sales Administrator'}</p>
+        </div>
+      </div>
       {renderContent()}
     </div>
   );
@@ -442,8 +448,8 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Sales Portal</h1>
-          <p className="text-muted-foreground mt-1">{subDeptName} — {user?.designation || 'Sales Manager'}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{user?.name || 'Sales Portal'}</h1>
+          <p className="text-muted-foreground mt-1">{user?.designation || 'Sales Executive'}</p>
         </div>
       </div>
 
