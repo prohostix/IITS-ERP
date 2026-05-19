@@ -296,6 +296,8 @@ function App() {
           }
         } else if (deptType === 'sales') {
           return getSalesNavItems();
+        } else if (deptType === 'operations') {
+          return getOpsNavItems(false);
         }
       }
       return EMPLOYEE_NAV_ITEMS;

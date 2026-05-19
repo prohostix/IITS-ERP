@@ -143,6 +143,8 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
         studyCenterId: user.studyCenterId,
         designation: user.designation,
         status: user.status,
+        department: user.department,
+        subDepartment: user.subDepartment,
         ...(centerStatus !== null && { centerStatus }),
       },
       token,
