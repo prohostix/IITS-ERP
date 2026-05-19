@@ -68,7 +68,7 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isSales = req.user.role === 'sales_admin' || req.user.role === 'bde' || req.user.role === 'employee';
-  const { name, email } = req.body;
+  const { name, email, referredById, ...restBody } = req.body;
 
   // Check if user email already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -86,10 +86,12 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   const centerWithCreds = await prisma.$transaction(async (tx) => {
     const center = await tx.studyCenter.create({ 
       data: { 
-        ...req.body, 
+        ...restBody, 
+        name,
+        email,
         organizationId: req.user.organizationId,
         status: isSales ? 'pending' : (req.body.status || 'pending'),
-        referredById: isSales ? req.user.id : (req.body.referredById || null)
+        referredBy: isSales ? req.user.id : (referredById || null)
       } 
     });
 

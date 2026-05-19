@@ -29,7 +29,7 @@ export const updateReferralLinkStatus = asyncHandler(async (req: AuthRequest, re
 });
 
 export const getReferredCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, referredById: req.user.id } });
+  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, referredBy: req.user.id } });
   res.json({ success: true, count: centers.length, data: centers });
 });
 

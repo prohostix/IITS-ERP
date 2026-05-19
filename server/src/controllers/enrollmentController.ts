@@ -48,13 +48,13 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 
   // Scoping for Sales users: only show admissions from centers they manually added/referred
   if (['sales_admin', 'bde'].includes(req.user.role)) {
-    where.studyCenter = { referredById: req.user.id };
+    where.studyCenter = { referredBy: req.user.id };
   }
 
   const enrollments = await prisma.enrollment.findMany({
     where,
     include: {
-      studyCenter: { select: { name: true, code: true, referredById: true } },
+      studyCenter: { select: { name: true, code: true, referredBy: true } },
       program: {
         include: { university: { select: { name: true, code: true } } }
       }

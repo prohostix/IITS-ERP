@@ -9,7 +9,14 @@ export const validateInviteToken = asyncHandler(async (req: Request, res: Respon
 });
 
 export const publicRegister = asyncHandler(async (req: Request, res: Response) => {
-  const center = await prisma.studyCenter.create({ data: { ...req.body, status: 'pending_verification' as any } });
+  const { referredById, ...restBody } = req.body;
+  const center = await prisma.studyCenter.create({
+    data: {
+      ...restBody,
+      status: 'pending_verification' as any,
+      referredBy: referredById || null
+    }
+  });
   res.status(201).json({ success: true, data: center });
 });
 

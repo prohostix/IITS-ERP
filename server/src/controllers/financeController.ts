@@ -219,7 +219,7 @@ export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Re
 });
 
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, code, email, contact, ...rest } = req.body;
+  const { name, code, email, contact, referredById, ...rest } = req.body;
   
   const center = await prisma.studyCenter.create({
     data: {
@@ -231,7 +231,8 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       organizationId: req.user.organizationId,
       status: 'active' as any,
       financeApprovedBy: req.user.id,
-      financeApprovedAt: new Date()
+      financeApprovedAt: new Date(),
+      referredBy: referredById || null
     }
   });
 
