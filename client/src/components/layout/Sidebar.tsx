@@ -206,8 +206,8 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
 
     // Filter department-specific tabs for employee role
     if (item.department && user.role === 'employee') {
-      const userDeptType = typeof user.department === 'object' 
-        ? (user.department as any)?.type 
+      const userDeptType = typeof (user as any).department === 'object' 
+        ? ((user as any).department as any)?.type 
         : null;
       return userDeptType === item.department;
     }
