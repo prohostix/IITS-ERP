@@ -57,7 +57,7 @@ export const getDesignations = asyncHandler(async (req: AuthRequest, res: Respon
     include: {
       department: true,
       subDepartment: true,
-      users: {
+      filledBy: {
         select: {
           id: true,
           name: true,
@@ -79,7 +79,7 @@ export const getDesignations = asyncHandler(async (req: AuthRequest, res: Respon
   // Map relations for frontend compatibility
   const mapped = designations.map(d => ({
     ...d,
-    filledBy: d.users || [],
+    filledBy: d.filledBy || [],
     branchId: d.branch,
     parentDesignationId: d.parentDesignation,
     departmentId: d.department,

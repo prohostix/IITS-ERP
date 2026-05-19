@@ -229,7 +229,7 @@ model User {
   university                    University?           @relation("UniversityAdmin", fields: [universityId], references: [id])
   verifiedWalletTopUps          WalletTopUp[]         @relation("TopUpVerifiedBy")
   assistantManagedDepartments   Department[]          @relation("AssistantManagers")
-  designations                  Designation[]         @relation("DesignationFilledBy")
+  designationRef                Designation?          @relation("DesignationToUsers", fields: [designationId], references: [id])
 
   @@index([organizationId, role])
   @@index([departmentId])
@@ -744,7 +744,7 @@ model Designation {
   parentDesignation   Designation?   @relation("DesignationHierarchy", fields: [parentDesignationId], references: [id])
   childDesignations   Designation[]  @relation("DesignationHierarchy")
   subDepartment       SubDepartment? @relation(fields: [subDepartmentId], references: [id])
-  filledBy            User[]         @relation("DesignationFilledBy")
+  filledBy            User[]         @relation("DesignationToUsers")
 
   @@index([organizationId, departmentId])
   @@index([parentDesignationId])
