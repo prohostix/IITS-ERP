@@ -94,14 +94,15 @@ const navItems: NavItem[] = [
     id: 'operations',
     label: 'Operations',
     icon: GraduationCap,
-    roles: ['ops_admin', 'ceo'],
+    roles: ['ops_admin', 'ceo', 'employee'],
+    department: 'operations',
     children: [
-      { id: 'universities', label: 'Universities', icon: School, roles: ['ops_admin', 'ceo'] },
-      { id: 'centers', label: 'Study Centers', icon: Building, roles: ['ops_admin', 'ceo'] },
-      { id: 'students', label: 'Students', icon: Users, roles: ['ops_admin', 'ceo'] },
-      { id: 'marks', label: 'Internal Marks', icon: FileText, roles: ['ops_admin', 'ceo'] },
-      { id: 'sessions', label: 'Admission Sessions', icon: Calendar, roles: ['ops_admin', 'ceo'] },
-      { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['ops_admin', 'ceo'] },
+      { id: 'universities', label: 'Universities', icon: School, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'centers', label: 'Study Centers', icon: Building, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'students', label: 'Students', icon: Users, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'marks', label: 'Internal Marks', icon: FileText, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'sessions', label: 'Admission Sessions', icon: Calendar, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['ops_admin', 'ceo', 'employee'] },
     ],
   },
   {
@@ -200,9 +201,19 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
 
   if (!user) return null;
 
-  const filteredNavItems = navItems.filter(item => 
-    item.roles.includes(user.role)
-  );
+  const filteredNavItems = navItems.filter(item => {
+    if (!item.roles.includes(user.role)) return false;
+
+    // Filter department-specific tabs for employee role
+    if (item.department && user.role === 'employee') {
+      const userDeptType = typeof user.department === 'object' 
+        ? (user.department as any)?.type 
+        : null;
+      return userDeptType === item.department;
+    }
+
+    return true;
+  });
 
   const handleNavClick = (itemId: string) => {
     onModuleChange(itemId);
