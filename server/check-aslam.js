@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import prisma from './src/lib/prisma.js';
 
 async function main() {
   const user = await prisma.user.findFirst({
