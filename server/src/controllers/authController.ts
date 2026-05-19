@@ -82,9 +82,14 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  // Check for user
-  const user = await prisma.user.findUnique({ 
-    where: { email },
+  // Check for user (by email or unique userId)
+  const user = await prisma.user.findFirst({ 
+    where: {
+      OR: [
+        { email: email },
+        { userId: email }
+      ]
+    },
     include: {
       organization: true,
       department: true,
