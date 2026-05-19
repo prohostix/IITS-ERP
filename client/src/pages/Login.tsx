@@ -46,12 +46,12 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email address
+                Email address or User ID
               </label>
               <Input
                 id="email"
-                type="email"
-                placeholder="name@company.com"
+                type="text"
+                placeholder="name@company.com or User ID"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 border-slate-300 focus:border-[#0F172A] focus:ring-[#0F172A]"
