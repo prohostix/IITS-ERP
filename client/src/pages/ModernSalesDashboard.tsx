@@ -430,9 +430,6 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
     }).finally(() => setLoading(false));
   }, []);
 
-  const subDeptName = typeof user?.subDepartmentId === 'object'
-    ? user.subDepartmentId?.name
-    : user?.designation || 'Sales';
 
   const myLeads = leads.filter((l: any) => {
     const refId = typeof l.referredBy === 'object' ? l.referredBy?.id : l.referredBy;
