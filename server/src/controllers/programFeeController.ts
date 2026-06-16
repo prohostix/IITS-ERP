@@ -22,6 +22,13 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { programId, billingCycle, baseFee, additionalFees } = req.body;
+
+  const existing = await prisma.programFeeStructure.findUnique({ where: { programId } });
+  if (existing) {
+    res.status(400).json({ success: false, message: 'Program fee structure already exists for this program. Please edit the existing one.' });
+    return;
+  }
+
   const fee = await prisma.programFeeStructure.create({
     data: {
       programId,
