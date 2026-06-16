@@ -18,7 +18,12 @@ export const getWalletTopUps = asyncHandler(async (req: AuthRequest, res: Respon
     orderBy: { createdAt: 'desc' }
   });
 
-  res.status(200).json({ success: true, count: topUps.length, data: topUps });
+  const mapped = topUps.map(t => ({
+    ...t,
+    studyCenterId: t.studyCenter || t.studyCenterId
+  }));
+
+  res.status(200).json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const approveWalletTopUp = asyncHandler(async (req: AuthRequest, res: Response) => {

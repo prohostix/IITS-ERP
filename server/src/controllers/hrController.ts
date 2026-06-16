@@ -20,14 +20,35 @@ export const getLeaveRequest = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { startDate, endDate, ...rest } = req.body;
+  const { startDate, endDate, departmentId, ...rest } = req.body;
+  
+  let deptId = departmentId || req.user.departmentId;
+  if (!deptId) {
+    const firstDept = await prisma.department.findFirst({
+      where: { organizationId: req.user.organizationId }
+    });
+    if (firstDept) {
+      deptId = firstDept.id;
+    } else {
+      const defaultDept = await prisma.department.create({
+        data: {
+          name: 'General',
+          organizationId: req.user.organizationId,
+          status: 'active'
+        }
+      });
+      deptId = defaultDept.id;
+    }
+  }
+
   const leave = await prisma.leaveRequest.create({
     data: { 
       ...rest,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       userId: req.user.id, 
-      organizationId: req.user.organizationId 
+      organizationId: req.user.organizationId,
+      departmentId: deptId
     }
   });
   res.status(201).json({ success: true, data: leave });
@@ -54,13 +75,22 @@ export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 
 export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
+  const isHr = req.path.includes('hr-approve') || req.user.role === 'hr_admin';
+
+  const updateData: any = {};
+  if (isHr) {
+    updateData.status = (action === 'approve' ? 'approved' : 'rejected') as any;
+    updateData.hrRemarks = remarks;
+    updateData.hrApprovedBy = req.user.id;
+  } else {
+    updateData.status = (action === 'approve' ? 'dept_approved' : 'rejected') as any;
+    updateData.deptAdminRemarks = remarks;
+    updateData.deptApprovedBy = req.user.id;
+  }
+
   const leave = await prisma.leaveRequest.update({
     where: { id: req.params.id },
-    data: { 
-      status: action === 'approve' ? 'approved' : 'rejected', 
-      statusRemarks: remarks,
-      approvedBy: req.user.id
-    }
+    data: updateData
   });
   res.json({ success: true, data: leave });
 });

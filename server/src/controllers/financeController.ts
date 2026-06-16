@@ -196,20 +196,78 @@ export const approveExpense = asyncHandler(async (req: AuthRequest, res: Respons
 
 // Targets
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const targets = await prisma.target.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, count: targets.length, data: targets });
+  const targets = await prisma.target.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      }
+    }
+  });
+  const mapped = targets.map(t => ({
+    ...t,
+    employeeId: t.employee || t.employeeId
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const target = await prisma.target.findUnique({ where: { id: req.params.id } });
+  const target = await prisma.target.findUnique({
+    where: { id: req.params.id },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      }
+    }
+  });
   if (!target) {
     res.status(404).json({ success: false, message: 'Target not found' });
     return;
   }
-  res.json({ success: true, data: target });
+  const mapped = {
+    ...target,
+    employeeId: target.employee || target.employeeId
+  };
+  res.json({ success: true, data: mapped });
 });
 export const createTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const target = await prisma.target.create({ data: { ...req.body, organizationId: req.user.organizationId } });
-  res.status(201).json({ success: true, data: target });
+  const { employeeId, type, period, target, achieved, incentive, deadline } = req.body;
+  const newTarget = await prisma.target.create({
+    data: {
+      organizationId: req.user.organizationId,
+      employeeId,
+      type,
+      period,
+      target: parseFloat(target),
+      achieved: achieved !== undefined ? parseFloat(achieved) : 0,
+      incentive: incentive !== undefined && incentive !== '' ? parseFloat(incentive) : null,
+      deadline: deadline ? new Date(deadline) : null
+    },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      }
+    }
+  });
+  const mapped = {
+    ...newTarget,
+    employeeId: newTarget.employee || newTarget.employeeId
+  };
+  res.status(201).json({ success: true, data: mapped });
 });
 export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
   const exists = await prisma.target.findUnique({ where: { id: req.params.id } });
@@ -217,8 +275,36 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
     res.status(404).json({ success: false, message: 'Target not found' });
     return;
   }
-  const target = await prisma.target.update({ where: { id: req.params.id }, data: req.body });
-  res.json({ success: true, data: target });
+  const { employeeId, type, period, target, achieved, incentive, deadline, status } = req.body;
+  const data: any = {};
+  if (employeeId !== undefined) data.employeeId = employeeId;
+  if (type !== undefined) data.type = type;
+  if (period !== undefined) data.period = period;
+  if (target !== undefined) data.target = parseFloat(target);
+  if (achieved !== undefined) data.achieved = parseFloat(achieved);
+  if (incentive !== undefined) data.incentive = incentive !== '' && incentive !== null ? parseFloat(incentive) : null;
+  if (deadline !== undefined) data.deadline = deadline ? new Date(deadline) : null;
+  if (status !== undefined) data.status = status;
+
+  const updated = await prisma.target.update({
+    where: { id: req.params.id },
+    data,
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      }
+    }
+  });
+  const mapped = {
+    ...updated,
+    employeeId: updated.employee || updated.employeeId
+  };
+  res.json({ success: true, data: mapped });
 });
 export const deleteTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
   const exists = await prisma.target.findUnique({ where: { id: req.params.id } });
@@ -232,16 +318,30 @@ export const deleteTarget = asyncHandler(async (req: AuthRequest, res: Response)
 
 // Fee Structures
 export const getFeeStructures = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const fees = await prisma.feeStructure.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, count: fees.length, data: fees });
+  const fees = await prisma.feeStructure.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: { program: true }
+  });
+  const mapped = fees.map(f => ({
+    ...f,
+    programId: f.program || f.programId
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getFeeStructure = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const fee = await prisma.feeStructure.findUnique({ where: { id: req.params.id } });
+  const fee = await prisma.feeStructure.findUnique({
+    where: { id: req.params.id },
+    include: { program: true }
+  });
   if (!fee) {
     res.status(404).json({ success: false, message: 'Fee structure not found' });
     return;
   }
-  res.json({ success: true, data: fee });
+  const mapped = {
+    ...fee,
+    programId: fee.program || fee.programId
+  };
+  res.json({ success: true, data: mapped });
 });
 export const createFeeStructure = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { programId, registrationFee, tuitionFee, examFee, otherCharges, gstPercentage } = req.body;
@@ -294,13 +394,86 @@ export const deleteFeeStructure = asyncHandler(async (req: AuthRequest, res: Res
 
 // Auth Fees
 export const getAuthFees = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: [] });
+  const authFees = await prisma.universityAuthFee.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: { university: true }
+  });
+  const formattedFees = authFees.map(fee => {
+    const details = (fee.feeDetails as any) || {};
+    return {
+      id: fee.id,
+      universityId: fee.university,
+      amount: details.amount || 0,
+      currency: details.currency || 'INR',
+      updatedAt: fee.updatedAt
+    };
+  });
+  res.json({ success: true, data: formattedFees });
 });
 export const createAuthFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: {} });
+  const { universityId, amount, currency } = req.body;
+  if (!universityId) {
+    res.status(400).json({ success: false, message: 'University ID is required' });
+    return;
+  }
+  const existing = await prisma.universityAuthFee.findUnique({
+    where: {
+      organizationId_universityId: {
+        organizationId: req.user.organizationId,
+        universityId
+      }
+    }
+  });
+  if (existing) {
+    res.status(400).json({ success: false, message: 'Auth fee already configured for this university' });
+    return;
+  }
+  const authFee = await prisma.universityAuthFee.create({
+    data: {
+      organizationId: req.user.organizationId,
+      universityId,
+      feeDetails: { amount: parseFloat(amount), currency: currency || 'INR' },
+      configuredBy: req.user.id
+    },
+    include: { university: true }
+  });
+  const details = authFee.feeDetails as any;
+  res.status(201).json({
+    success: true,
+    data: {
+      id: authFee.id,
+      universityId: authFee.university,
+      amount: details.amount || 0,
+      currency: details.currency || 'INR',
+      updatedAt: authFee.updatedAt
+    }
+  });
 });
 export const updateAuthFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: {} });
+  const { amount, currency } = req.body;
+  const exists = await prisma.universityAuthFee.findUnique({ where: { id: req.params.id } });
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'Auth fee configuration not found' });
+    return;
+  }
+  const authFee = await prisma.universityAuthFee.update({
+    where: { id: req.params.id },
+    data: {
+      feeDetails: { amount: parseFloat(amount), currency: currency || 'INR' }
+    },
+    include: { university: true }
+  });
+  const details = authFee.feeDetails as any;
+  res.json({
+    success: true,
+    data: {
+      id: authFee.id,
+      universityId: authFee.university,
+      amount: details.amount || 0,
+      currency: details.currency || 'INR',
+      updatedAt: authFee.updatedAt
+    }
+  });
 });
 
 // Centers
@@ -353,11 +526,201 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
 
 // Reports
 export const getIncomeExpenditureReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: { totals: { income: 0, expenditure: 0, netProfit: 0 } } });
+  const fromDate = req.query.from ? new Date(req.query.from as string) : new Date(new Date().getFullYear() + '-04-01');
+  const toDate = req.query.to ? new Date(req.query.to as string) : new Date();
+
+  // Generate list of months in date range
+  const months: string[] = [];
+  let current = new Date(fromDate);
+  while (current <= toDate) {
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const key = `${yyyy}-${mm}`;
+    if (!months.includes(key)) {
+      months.push(key);
+    }
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  // Initialize monthly structure
+  const monthlyData = new Map<string, {
+    month: string;
+    income: { invoices: number; enrollments: number; payments: number; total: number };
+    expenditure: { expenses: number; salaries: number; total: number };
+    net: number;
+  }>();
+
+  for (const m of months) {
+    monthlyData.set(m, {
+      month: m,
+      income: { invoices: 0, enrollments: 0, payments: 0, total: 0 },
+      expenditure: { expenses: 0, salaries: 0, total: 0 },
+      net: 0
+    });
+  }
+
+  // 1. Fetch Invoices
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      createdAt: { gte: fromDate, lte: toDate },
+      status: { not: 'draft' }
+    }
+  });
+  for (const inv of invoices) {
+    const date = new Date(inv.createdAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthlyData.get(key);
+    if (bucket) {
+      bucket.income.invoices += inv.total;
+      bucket.income.total += inv.total;
+    }
+  }
+
+  // 2. Fetch Enrollment Payments
+  const enrollmentPayments = await prisma.enrollmentPayment.findMany({
+    where: {
+      studyCenter: { organizationId: req.user.organizationId },
+      createdAt: { gte: fromDate, lte: toDate }
+    }
+  });
+  for (const ep of enrollmentPayments) {
+    const date = new Date(ep.createdAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthlyData.get(key);
+    if (bucket) {
+      bucket.income.enrollments += ep.amount;
+      bucket.income.total += ep.amount;
+    }
+  }
+
+  // 3. Fetch Payment Entries
+  const paymentEntries = await prisma.paymentEntry.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      receivedAt: { gte: fromDate, lte: toDate }
+    }
+  });
+  for (const pe of paymentEntries) {
+    const date = new Date(pe.receivedAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthlyData.get(key);
+    if (bucket) {
+      bucket.income.payments += pe.amount;
+      bucket.income.total += pe.amount;
+    }
+  }
+
+  // 4. Fetch Expense Claims
+  const expenses = await prisma.expenseClaim.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: { in: ['approved', 'reimbursed'] },
+      createdAt: { gte: fromDate, lte: toDate }
+    }
+  });
+  for (const exp of expenses) {
+    const date = new Date(exp.createdAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthlyData.get(key);
+    if (bucket) {
+      bucket.expenditure.expenses += exp.amount;
+      bucket.expenditure.total += exp.amount;
+    }
+  }
+
+  // 5. Fetch Salaries
+  const payrolls = await prisma.payroll.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: { in: ['paid', 'confirmed', 'transferred_to_finance'] },
+      OR: [
+        { paymentDate: { gte: fromDate, lte: toDate } },
+        { createdAt: { gte: fromDate, lte: toDate } }
+      ]
+    }
+  });
+  for (const pay of payrolls) {
+    const date = pay.paymentDate ? new Date(pay.paymentDate) : new Date(pay.createdAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const bucket = monthlyData.get(key);
+    if (bucket) {
+      bucket.expenditure.salaries += pay.netSalary;
+      bucket.expenditure.total += pay.netSalary;
+    }
+  }
+
+  // Calculate net for each month
+  for (const bucket of monthlyData.values()) {
+    bucket.net = bucket.income.total - bucket.expenditure.total;
+  }
+
+  // Calculate totals and breakdowns
+  const monthly = Array.from(monthlyData.values());
+  let totalIncome = 0;
+  let totalExpenditure = 0;
+  let invoiceTotal = 0;
+  let enrollmentTotal = 0;
+  let paymentTotal = 0;
+  let salaryTotal = 0;
+  let expenseTotal = 0;
+
+  for (const m of monthly) {
+    invoiceTotal += m.income.invoices;
+    enrollmentTotal += m.income.enrollments;
+    paymentTotal += m.income.payments;
+    salaryTotal += m.expenditure.salaries;
+    expenseTotal += m.expenditure.expenses;
+    totalIncome += m.income.total;
+    totalExpenditure += m.expenditure.total;
+  }
+
+  const categoryMap = new Map<string, number>();
+  for (const exp of expenses) {
+    const cat = exp.category || 'Other';
+    categoryMap.set(cat, (categoryMap.get(cat) || 0) + exp.amount);
+  }
+  const byCategory = Array.from(categoryMap.entries()).map(([id, amount]) => ({
+    id,
+    amount,
+    count: expenses.filter(e => e.category === id).length
+  }));
+
+  const netProfit = totalIncome - totalExpenditure;
+  const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0;
+
+  res.json({
+    success: true,
+    data: {
+      period: { from: fromDate.toISOString().slice(0, 10), to: toDate.toISOString().slice(0, 10) },
+      monthly,
+      totals: {
+        income: totalIncome,
+        expenditure: totalExpenditure,
+        netProfit,
+        profitMargin
+      },
+      incomeBreakdown: {
+        invoices: invoiceTotal,
+        enrollments: enrollmentTotal,
+        payments: paymentTotal
+      },
+      expenditureBreakdown: {
+        salaries: salaryTotal,
+        expenses: expenseTotal,
+        byCategory
+      }
+    }
+  });
 });
 
 // Sales Users
 export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const users = await prisma.user.findMany({ where: { organizationId: req.user.organizationId, role: 'sales_admin' as any } });
+  const users = await prisma.user.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      role: { in: ['sales_admin', 'bde'] }
+    }
+  });
   res.json({ success: true, data: users });
 });

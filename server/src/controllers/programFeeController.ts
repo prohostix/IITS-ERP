@@ -9,7 +9,13 @@ export const getProgramFees = asyncHandler(async (req: AuthRequest, res: Respons
     where: { organizationId: req.user.organizationId },
     include: { program: true }
   });
-  res.json({ success: true, count: fees.length, data: fees });
+  const mapped = fees.map(fee => ({
+    ...fee,
+    programId: fee.program || fee.programId,
+    currency: 'INR',
+    effectiveFrom: fee.createdAt
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -17,7 +23,17 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
     where: { id: req.params.id },
     include: { program: true }
   });
-  res.json({ success: true, data: fee });
+  if (fee) {
+    const mapped = {
+      ...fee,
+      programId: fee.program || fee.programId,
+      currency: 'INR',
+      effectiveFrom: fee.createdAt
+    };
+    res.json({ success: true, data: mapped });
+  } else {
+    res.status(404).json({ success: false, message: 'Program fee structure not found' });
+  }
 });
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
