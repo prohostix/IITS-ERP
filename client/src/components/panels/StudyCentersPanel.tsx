@@ -19,18 +19,25 @@ export function StudyCentersPanel() {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [team, setTeam] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     address: '',
     contact: '',
     email: '',
-    status: 'pending'
+    status: 'pending',
+    referredById: ''
   });
   const [creds, setCreds] = useState<{ userId: string; password: string } | null>(null);
   const [showCreds, setShowCreds] = useState(false);
 
-  useEffect(() => { fetchCenters(); }, []);
+  useEffect(() => {
+    fetchCenters();
+    api.get('/sales/team-members')
+      .then(res => setTeam(res.data.data || []))
+      .catch(() => setTeam([]));
+  }, []);
 
   const fetchCenters = async () => {
     setLoading(true);
@@ -47,11 +54,15 @@ export function StudyCentersPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        referredById: formData.referredById === '__none__' || !formData.referredById ? null : formData.referredById
+      };
       if (editingId) {
-        await api.put(`/operations/centers/${editingId}`, formData);
+        await api.put(`/operations/centers/${editingId}`, payload);
         toast.success('Center updated');
       } else {
-        const res = await api.post('/operations/centers', formData);
+        const res = await api.post('/operations/centers', payload);
         if (res.data.data.credentials) {
           setCreds(res.data.data.credentials);
           setShowCreds(true);
@@ -72,14 +83,15 @@ export function StudyCentersPanel() {
   };
 
   const handleEdit = (c: any) => {
-    setEditingId(c.id || c.id);
+    setEditingId(c.id);
     setFormData({
       name: c.name || '',
       code: c.code || '',
       address: c.address || '',
       contact: c.contact || '',
       email: c.email || '',
-      status: c.status || 'pending'
+      status: c.status || 'pending',
+      referredById: c.referredBy || ''
     });
     setDialogOpen(true);
   };
@@ -96,7 +108,7 @@ export function StudyCentersPanel() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending' });
+    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '' });
   };
 
   return (
@@ -140,6 +152,22 @@ export function StudyCentersPanel() {
                   <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
                 </div>
               </div>
+               {team.length > 0 && (
+                <div>
+                  <Label>Assigned Sales Agent</Label>
+                  <Select value={formData.referredById} onValueChange={(v) => setFormData({ ...formData, referredById: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select a sales representative..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {team.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} ({t.role?.replace(/_/g, ' ')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Status</Label>
                 <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
@@ -223,7 +251,12 @@ export function StudyCentersPanel() {
                       <div>
                         <div className="font-medium">{c.name}</div>
                         <div className="text-sm text-muted-foreground">Code: {c.code} • {c.email}</div>
-                        {c.address && <div className="text-xs text-muted-foreground">{c.address}</div>}
+                        {c.referrer && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Assigned Sales Agent: <span className="font-semibold text-foreground">{c.referrer.name}</span> ({c.referrer.role?.replace(/_/g, ' ')})
+                          </div>
+                        )}
+                        {c.address && <div className="text-xs text-muted-foreground mt-0.5">{c.address}</div>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

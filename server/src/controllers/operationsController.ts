@@ -90,11 +90,21 @@ export const activateProgram = asyncHandler(async (req: AuthRequest, res: Respon
 
 // Study Centers
 export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId } });
+  const centers = await prisma.studyCenter.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      referrer: { select: { id: true, name: true, email: true, role: true } }
+    }
+  });
   res.json({ success: true, count: centers.length, data: centers });
 });
 export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.findUnique({ where: { id: req.params.id } });
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: req.params.id },
+    include: {
+      referrer: { select: { id: true, name: true, email: true, role: true } }
+    }
+  });
   res.json({ success: true, data: center });
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
