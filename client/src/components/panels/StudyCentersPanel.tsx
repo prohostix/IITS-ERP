@@ -257,6 +257,11 @@ export function StudyCentersPanel() {
                           </div>
                         )}
                         {c.address && <div className="text-xs text-muted-foreground mt-0.5">{c.address}</div>}
+                        {c.credentials && (user?.role === 'org_admin' || user?.role === 'superadmin' || user?.role === 'ceo') && (
+                          <div className="text-xs text-muted-foreground mt-1 p-2 bg-muted rounded border border-border inline-block">
+                            <span className="font-semibold text-foreground">Credentials:</span> User ID: <span className="font-mono font-bold text-foreground">{c.credentials.userId}</span> | Password: <span className="font-mono font-bold text-foreground">{c.credentials.password}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

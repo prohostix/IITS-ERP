@@ -489,6 +489,10 @@ export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Re
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { name, code, email, contact, referredById, ...rest } = req.body;
   
+  const rawPassword = 'admin123';
+  const hashedPassword = await hashPassword(rawPassword);
+  const userId = await generateUserId();
+
   const center = await prisma.studyCenter.create({
     data: {
       ...rest,
@@ -500,12 +504,10 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       status: 'active' as any,
       financeApprovedBy: req.user.id,
       financeApprovedAt: new Date(),
-      referredBy: referredById || null
+      referredBy: referredById || null,
+      credentials: { userId, password: rawPassword }
     }
   });
-
-  const hashedPassword = await hashPassword('admin123');
-  const userId = await generateUserId();
 
   const user = await prisma.user.create({
     data: {
@@ -521,7 +523,7 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
     }
   });
 
-  res.status(201).json({ success: true, data: { center, user } });
+  res.status(201).json({ success: true, data: { center, user, credentials: { userId, password: rawPassword } } });
 });
 
 // Reports

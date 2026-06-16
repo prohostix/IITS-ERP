@@ -149,7 +149,8 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
         email,
         organizationId: req.user.organizationId,
         status: isSales ? 'pending' : (req.body.status || 'pending'),
-        referredBy: isSales ? req.user.id : (referredById || null)
+        referredBy: isSales ? req.user.id : (referredById || null),
+        credentials: { userId, password: rawPassword }
       } 
     });
 
