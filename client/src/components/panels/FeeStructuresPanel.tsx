@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, IndianRupee } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -174,14 +174,14 @@ export function FeeStructuresPanel() {
                   <div key={fid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-green-600" />
+                        <IndianRupee className="w-5 h-5 text-green-600" />
                       </div>
                       <div>
                         <div className="font-medium">{progName || 'Unknown Program'}</div>
                         <div className="text-sm text-muted-foreground">
-                          Reg: ${f.registrationFee} • Tuition: ${f.tuitionFee} • Exam: ${f.examFee} • GST: {f.gstPercentage}%
+                          Reg: ₹{f.registrationFee} • Tuition: ₹{f.tuitionFee} • Exam: ₹{f.examFee} • GST: {f.gstPercentage}%
                         </div>
-                        <div className="text-xs text-muted-foreground">Total (before GST): ${total}</div>
+                        <div className="text-xs text-muted-foreground">Total (before GST): ₹{total}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

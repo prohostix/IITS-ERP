@@ -235,7 +235,7 @@ export function InvoicesPanel() {
                       <div>
                         <div className="font-medium">{inv.invoiceNo}</div>
                         <div className="text-sm text-muted-foreground">
-                          {centerName && `${centerName} • `}Total: ${inv.total}
+                          {centerName && `${centerName} • `}Total: ₹{inv.total}
                           {inv.dueDate && ` • Due: ${new Date(inv.dueDate).toLocaleDateString()}`}
                         </div>
                       </div>

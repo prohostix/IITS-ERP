@@ -201,7 +201,7 @@ export function LicensesPanel() {
                           <Badge variant={l.status === 'active' ? 'default' : 'outline'}>{l.status}</Badge>
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          {l.maxUsers} users • {l.maxStorage} MB • {l.durationMonths} months • ${l.price}
+                          {l.maxUsers} users • {l.maxStorage} MB • {l.durationMonths} months • ₹{l.price.toLocaleString()}
                         </div>
                         {l.features?.length > 0 && (
                           <div className="text-xs text-muted-foreground mt-1">{l.features.join(', ')}</div>

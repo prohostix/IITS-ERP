@@ -167,7 +167,7 @@ export function ExpensesPanel() {
                         <Receipt className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">${expense.amount} - {expense.category}</div>
+                        <div className="font-medium">₹{expense.amount} - {expense.category}</div>
                         <div className="text-sm text-muted-foreground">{expense.description}</div>
                         <div className="text-xs text-muted-foreground mt-1">
                           By: {expense.employeeId?.name || expense.employee?.name || 'Unknown'} • {expense.submittedAt ? new Date(expense.submittedAt).toLocaleDateString() : 'N/A'}

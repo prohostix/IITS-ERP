@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, IndianRupee } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -126,7 +126,7 @@ export function PaymentsPanel() {
                   <SelectContent>
                     {invoices.filter(inv => inv && (inv.id || inv.id)).map((inv) => (
                       <SelectItem key={inv.id || inv.id} value={(inv.id || inv.id).toString()}>
-                        {inv.invoiceNo || inv.id} - ${inv.total || inv.amount}
+                        {inv.invoiceNo || inv.id} - ₹{inv.total || inv.amount}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -183,10 +183,10 @@ export function PaymentsPanel() {
                   <div key={paymentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
-                        <DollarSign className="w-6 h-6 text-success" />
+                        <IndianRupee className="w-6 h-6 text-success" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">${payment.amount}</div>
+                        <div className="font-medium">₹{payment.amount}</div>
                         <div className="text-sm text-muted-foreground">
                           {payment.method} • {payment.referenceNo || 'No reference'}
                         </div>

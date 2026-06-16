@@ -220,7 +220,7 @@ export function LeadsPanel() {
                     <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
                       <span>Centers: {link.metrics?.centersReferred || 0}</span>
                       <span>Students: {link.metrics?.studentsReferred || 0}</span>
-                      <span>Revenue: ${link.metrics?.revenueGenerated || 0}</span>
+                      <span>Revenue: ₹{link.metrics?.revenueGenerated || 0}</span>
                     </div>
                   </div>
                   <Button
