@@ -73,17 +73,219 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
   res.json({ success: true, data: [] });
 });
 
+// Recursive helper to get all subordinate user IDs
+async function getAllSubordinateIds(managerId: string): Promise<string[]> {
+  const subordinates = await prisma.user.findMany({
+    where: { reportingTo: managerId },
+    select: { id: true }
+  });
+  const ids = subordinates.map(s => s.id);
+  if (ids.length === 0) return [];
+  const subPromises = ids.map(id => getAllSubordinateIds(id));
+  const subIds = await Promise.all(subPromises);
+  return [...ids, ...subIds.flat()];
+}
+
 // Study Centers
 export const getMyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId } });
+  const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  let whereClause: any = { organizationId: req.user.organizationId };
+  
+  if (!isAuth) {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const visibleUserIds = [req.user.id, ...subordinateIds];
+    whereClause.referredBy = { in: visibleUserIds };
+  }
+
+  const centers = await prisma.studyCenter.findMany({
+    where: whereClause,
+    include: {
+      referrer: {
+        select: { id: true, name: true, email: true, role: true }
+      }
+    }
+  });
   res.json({ success: true, data: centers });
 });
+
 export const getMyCenterAdmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: [] });
+  const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  let whereCenterClause: any = { organizationId: req.user.organizationId };
+  
+  if (!isAuth) {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const visibleUserIds = [req.user.id, ...subordinateIds];
+    whereCenterClause.referredBy = { in: visibleUserIds };
+  }
+
+  const visibleCenters = await prisma.studyCenter.findMany({
+    where: whereCenterClause,
+    select: { id: true }
+  });
+
+  const centerIds = visibleCenters.map(c => c.id);
+
+  const admissions = await prisma.enrollment.findMany({
+    where: {
+      studyCenterId: { in: centerIds }
+    },
+    include: {
+      program: { select: { name: true } },
+      studyCenter: { select: { name: true } }
+    }
+  });
+  res.json({ success: true, data: admissions });
 });
+
 export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.findUnique({ where: { id: req.params.studyCenterId } });
-  res.json({ success: true, data: center });
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: req.params.studyCenterId },
+    include: {
+      referrer: { select: { id: true, name: true, email: true, role: true } },
+      allowedPrograms: true,
+      associatedUniversities: true
+    }
+  });
+
+  if (!center) {
+    res.status(404).json({ success: false, message: 'Study center not found' });
+    return;
+  }
+
+  const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  if (!isAuth) {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const visibleUserIds = [req.user.id, ...subordinateIds];
+    if (!center.referredBy || !visibleUserIds.includes(center.referredBy)) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: { studyCenterId: center.id },
+    include: { program: true }
+  });
+
+  // Group by program
+  const byProgramMap = new Map<string, { program: any, students: any[] }>();
+  for (const e of enrollments) {
+    const progId = e.programId;
+    if (!byProgramMap.has(progId)) {
+      byProgramMap.set(progId, {
+        program: e.program,
+        students: []
+      });
+    }
+    byProgramMap.get(progId)!.students.push({
+      id: e.id,
+      studentName: e.studentName,
+      studentEmail: e.studentEmail,
+      enrollmentNumber: e.enrollmentNumber || 'N/A',
+      status: e.status
+    });
+  }
+  const byProgram = Array.from(byProgramMap.values());
+
+  const stats = {
+    totalStudents: enrollments.length,
+    enrolled: enrollments.filter(e => e.status === 'enrolled').length,
+    pending: enrollments.filter(e => ['payment_pending', 'document_review', 'finance_review'].includes(e.status)).length,
+    rejected: enrollments.filter(e => e.status === 'rejected' || e.status === 'department_rejected').length
+  };
+
+  res.json({
+    success: true,
+    data: {
+      center: {
+        ...center,
+        associatedUniversityIds: center.associatedUniversities,
+        allowedProgramIds: center.allowedPrograms
+      },
+      enrollments,
+      byProgram,
+      stats
+    }
+  });
+});
+
+export const getTeamMembers = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  let users;
+  if (isAuth) {
+    users = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        role: { in: ['sales_admin', 'bde', 'employee'] }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      }
+    });
+  } else {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    users = await prisma.user.findMany({
+      where: {
+        id: { in: subordinateIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      }
+    });
+  }
+  res.json({ success: true, data: users });
+});
+
+export const reassignCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { studyCenterId } = req.params;
+  const { newSalesUserId } = req.body;
+
+  if (!newSalesUserId) {
+    res.status(400).json({ success: false, message: 'New sales user ID is required' });
+    return;
+  }
+
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: studyCenterId }
+  });
+
+  if (!center) {
+    res.status(404).json({ success: false, message: 'Study center not found' });
+    return;
+  }
+
+  const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  if (!isAuth) {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    if (!subordinateIds.includes(newSalesUserId)) {
+      res.status(403).json({ success: false, message: 'You can only reassign to sales users on your team' });
+      return;
+    }
+  } else {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: newSalesUserId }
+    });
+    if (!targetUser || targetUser.organizationId !== req.user.organizationId) {
+      res.status(400).json({ success: false, message: 'Invalid target user' });
+      return;
+    }
+  }
+
+  const updatedCenter = await prisma.studyCenter.update({
+    where: { id: studyCenterId },
+    data: { referredBy: newSalesUserId },
+    include: {
+      referrer: { select: { id: true, name: true, email: true, role: true } }
+    }
+  });
+
+  res.json({ success: true, data: updatedCenter });
 });
 
 // Programs
@@ -91,3 +293,4 @@ export const getProgramsByUniversity = asyncHandler(async (req: AuthRequest, res
   const programs = await prisma.program.findMany({ where: { universityId: req.query.universityId as string } });
   res.json({ success: true, data: programs });
 });
+

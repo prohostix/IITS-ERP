@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusColor: Record<string, string> = {
   pending_verification: 'bg-yellow-500/10 text-yellow-600 border-yellow-400/30',
@@ -29,13 +33,42 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
+  const [team, setTeam] = useState<any[]>([]);
+  const [reassigning, setReassigning] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     api.get(`/sales/my-centers/${centerId}`)
       .then(r => setData(r.data.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+
+    api.get('/sales/team-members')
+      .then(r => setTeam(r.data.data || []))
+      .catch(() => setTeam([]));
   }, [centerId]);
+
+  const handleReassign = async () => {
+    if (!selectedUserId) {
+      toast.error('Please select a team member');
+      return;
+    }
+    setReassigning(true);
+    try {
+      await api.put(`/sales/my-centers/${centerId}/reassign`, { newSalesUserId: selectedUserId });
+      toast.success('Center reassigned successfully');
+      setIsDialogOpen(false);
+      // Reload details
+      setLoading(true);
+      const r = await api.get(`/sales/my-centers/${centerId}`);
+      setData(r.data.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reassign center');
+    } finally {
+      setReassigning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -65,22 +98,72 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />Back
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xl font-bold">{center.name}</h2>
-            <span className="text-sm text-muted-foreground">({center.code})</span>
-            <Badge variant="outline" className={cn('text-[10px] uppercase', statusColor[center.status] || '')}>
-              {center.status?.replace(/_/g, ' ')}
-            </Badge>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />Back
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-bold">{center.name}</h2>
+              <span className="text-sm text-muted-foreground">({center.code})</span>
+              <Badge variant="outline" className={cn('text-[10px] uppercase', statusColor[center.status] || '')}>
+                {center.status?.replace(/_/g, ' ')}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {center.email}{center.city ? ` · ${center.city}` : ''}
+            </p>
+            {center.referrer && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Assigned Sales Agent: <span className="font-semibold text-foreground">{center.referrer.name}</span> ({center.referrer.role?.replace(/_/g, ' ')})
+              </p>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {center.email}{center.city ? ` · ${center.city}` : ''}
-          </p>
         </div>
+
+        {team.length > 0 && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-primary/90 hover:bg-primary text-primary-foreground">
+                <Users className="w-4 h-4 mr-2" /> Reassign Center
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Reassign Study Center</DialogTitle>
+                <DialogDescription>
+                  Assign this study center to a different sales representative on your team.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Team Member</label>
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a sales representative..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {team.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} ({t.role?.replace(/_/g, ' ')})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={reassigning}>
+                  Cancel
+                </Button>
+                <Button onClick={handleReassign} disabled={reassigning || !selectedUserId}>
+                  {reassigning ? 'Reassigning...' : 'Confirm Reassign'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

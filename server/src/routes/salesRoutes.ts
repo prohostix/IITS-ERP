@@ -20,6 +20,8 @@ import {
   getMyCenterAdmissions,
   getMyCenterDetail,
   getProgramsByUniversity,
+  getTeamMembers,
+  reassignCenter,
 } from '../controllers/salesController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -46,9 +48,13 @@ router.get('/programs-by-university', getProgramsByUniversity);
 // Team performance
 router.get('/team-performance', getTeamPerformance);
 
+// Team members list for reassignment selection
+router.get('/team-members', getTeamMembers);
+
 // My study centers (via invite links — self + subordinates)
 router.get('/my-centers', getMyCenters);
 router.get('/my-centers/admissions', getMyCenterAdmissions);
 router.get('/my-centers/:studyCenterId', getMyCenterDetail);
+router.put('/my-centers/:studyCenterId/reassign', reassignCenter);
 
 export default router;

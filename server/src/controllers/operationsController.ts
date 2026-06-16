@@ -7,19 +7,50 @@ import { hashPassword, generateUserId } from '../utils/authUtils.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const universities = await prisma.university.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, count: universities.length, data: universities });
+  const universities = await prisma.university.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: { allowedBranches: true }
+  });
+  const mapped = universities.map(u => ({
+    ...u,
+    allowedBranchIds: u.allowedBranches || []
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await prisma.university.findUnique({ where: { id: req.params.id } });
+  const university = await prisma.university.findUnique({
+    where: { id: req.params.id },
+    include: { allowedBranches: true }
+  });
+  if (university) {
+    (university as any).allowedBranchIds = university.allowedBranches || [];
+  }
   res.json({ success: true, data: university });
 });
 export const createUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await prisma.university.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { allowedBranchIds, ...rest } = req.body;
+  const university = await prisma.university.create({
+    data: {
+      ...rest,
+      organizationId: req.user.organizationId,
+      allowedBranches: allowedBranchIds && allowedBranchIds.length > 0
+        ? { connect: allowedBranchIds.map((id: string) => ({ id })) }
+        : undefined
+    }
+  });
   res.status(201).json({ success: true, data: university });
 });
 export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const university = await prisma.university.update({ where: { id: req.params.id }, data: req.body });
+  const { allowedBranchIds, ...rest } = req.body;
+  const university = await prisma.university.update({
+    where: { id: req.params.id },
+    data: {
+      ...rest,
+      allowedBranches: allowedBranchIds
+        ? { set: allowedBranchIds.map((id: string) => ({ id })) }
+        : undefined
+    }
+  });
   res.json({ success: true, data: university });
 });
 export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
