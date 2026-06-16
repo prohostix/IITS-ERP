@@ -9,7 +9,7 @@ import { hashPassword, generateUserId } from '../utils/authUtils.js';
 export const getInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
   const invoices = await prisma.invoice.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { studyCenter: { select: { name: true } }, student: { select: { name: true } } },
+    include: { center: { select: { name: true } }, student: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: invoices.length, data: invoices });
@@ -23,7 +23,21 @@ export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: invoice });
 });
 export const createInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const invoice = await prisma.invoice.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { centerId, studentId, invoiceNo, amount, tax, total, status, items, dueDate } = req.body;
+  const data: any = {
+    centerId,
+    studentId,
+    invoiceNo,
+    amount: amount !== undefined ? parseFloat(amount) : 0,
+    tax: tax !== undefined ? parseFloat(tax) : 0,
+    total: total !== undefined ? parseFloat(total) : 0,
+    status: status || 'draft',
+    items: items || [],
+    organizationId: req.user.organizationId
+  };
+  if (dueDate) data.dueDate = new Date(dueDate);
+
+  const invoice = await prisma.invoice.create({ data });
   res.status(201).json({ success: true, data: invoice });
 });
 export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -32,7 +46,20 @@ export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response
     res.status(404).json({ success: false, message: 'Invoice not found' });
     return;
   }
-  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: req.body });
+  const { centerId, studentId, invoiceNo, amount, tax, total, status, items, dueDate, paidAt } = req.body;
+  const data: any = {};
+  if (centerId !== undefined) data.centerId = centerId;
+  if (studentId !== undefined) data.studentId = studentId;
+  if (invoiceNo !== undefined) data.invoiceNo = invoiceNo;
+  if (amount !== undefined) data.amount = parseFloat(amount);
+  if (tax !== undefined) data.tax = parseFloat(tax);
+  if (total !== undefined) data.total = parseFloat(total);
+  if (status !== undefined) data.status = status;
+  if (items !== undefined) data.items = items;
+  if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null;
+  if (paidAt !== undefined) data.paidAt = paidAt ? new Date(paidAt) : null;
+
+  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: invoice });
 });
 export const deleteInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -63,7 +90,19 @@ export const getPayment = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: payment });
 });
 export const createPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const payment = await prisma.paymentEntry.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { invoiceId, amount, method, referenceNo, receivedAt, notes } = req.body;
+  const payment = await prisma.paymentEntry.create({
+    data: {
+      invoiceId,
+      amount: amount !== undefined ? parseFloat(amount) : 0,
+      method,
+      referenceNo,
+      receivedAt: receivedAt ? new Date(receivedAt) : undefined,
+      notes,
+      organizationId: req.user.organizationId,
+      receivedBy: req.user.id
+    }
+  });
   res.status(201).json({ success: true, data: payment });
 });
 export const updatePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -72,7 +111,16 @@ export const updatePayment = asyncHandler(async (req: AuthRequest, res: Response
     res.status(404).json({ success: false, message: 'Payment not found' });
     return;
   }
-  const payment = await prisma.paymentEntry.update({ where: { id: req.params.id }, data: req.body });
+  const { invoiceId, amount, method, referenceNo, receivedAt, notes } = req.body;
+  const data: any = {};
+  if (invoiceId !== undefined) data.invoiceId = invoiceId;
+  if (amount !== undefined) data.amount = parseFloat(amount);
+  if (method !== undefined) data.method = method;
+  if (referenceNo !== undefined) data.referenceNo = referenceNo;
+  if (receivedAt !== undefined) data.receivedAt = new Date(receivedAt);
+  if (notes !== undefined) data.notes = notes;
+
+  const payment = await prisma.paymentEntry.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: payment });
 });
 export const deletePayment = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -99,7 +147,18 @@ export const getExpense = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: expense });
 });
 export const createExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expense = await prisma.expenseClaim.create({ data: { ...req.body, organizationId: req.user.organizationId, employeeId: req.user.id } });
+  const { amount, category, description, receipts, status } = req.body;
+  const expense = await prisma.expenseClaim.create({
+    data: {
+      amount: amount !== undefined ? parseFloat(amount) : 0,
+      category,
+      description,
+      receipts: receipts || [],
+      status: status || 'pending',
+      organizationId: req.user.organizationId,
+      employeeId: req.user.id
+    }
+  });
   res.status(201).json({ success: true, data: expense });
 });
 export const updateExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -108,7 +167,17 @@ export const updateExpense = asyncHandler(async (req: AuthRequest, res: Response
     res.status(404).json({ success: false, message: 'Expense not found' });
     return;
   }
-  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data: req.body });
+  const { amount, category, description, receipts, status, approvedBy, remarks } = req.body;
+  const data: any = {};
+  if (amount !== undefined) data.amount = parseFloat(amount);
+  if (category !== undefined) data.category = category;
+  if (description !== undefined) data.description = description;
+  if (receipts !== undefined) data.receipts = receipts;
+  if (status !== undefined) data.status = status;
+  if (approvedBy !== undefined) data.approvedBy = approvedBy;
+  if (remarks !== undefined) data.remarks = remarks;
+
+  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: expense });
 });
 export const deleteExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -175,7 +244,18 @@ export const getFeeStructure = asyncHandler(async (req: AuthRequest, res: Respon
   res.json({ success: true, data: fee });
 });
 export const createFeeStructure = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const fee = await prisma.feeStructure.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { programId, registrationFee, tuitionFee, examFee, otherCharges, gstPercentage } = req.body;
+  const fee = await prisma.feeStructure.create({
+    data: {
+      programId,
+      registrationFee: registrationFee !== undefined ? parseFloat(registrationFee) : 0,
+      tuitionFee: tuitionFee !== undefined ? parseFloat(tuitionFee) : 0,
+      examFee: examFee !== undefined ? parseFloat(examFee) : 0,
+      otherCharges: otherCharges || {},
+      gstPercentage: gstPercentage !== undefined ? parseFloat(gstPercentage) : 18,
+      organizationId: req.user.organizationId
+    }
+  });
   res.status(201).json({ success: true, data: fee });
 });
 export const updateFeeStructure = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -184,7 +264,15 @@ export const updateFeeStructure = asyncHandler(async (req: AuthRequest, res: Res
     res.status(404).json({ success: false, message: 'Fee structure not found' });
     return;
   }
-  const fee = await prisma.feeStructure.update({ where: { id: req.params.id }, data: req.body });
+  const { registrationFee, tuitionFee, examFee, otherCharges, gstPercentage } = req.body;
+  const data: any = {};
+  if (registrationFee !== undefined) data.registrationFee = parseFloat(registrationFee);
+  if (tuitionFee !== undefined) data.tuitionFee = parseFloat(tuitionFee);
+  if (examFee !== undefined) data.examFee = parseFloat(examFee);
+  if (otherCharges !== undefined) data.otherCharges = otherCharges;
+  if (gstPercentage !== undefined) data.gstPercentage = parseFloat(gstPercentage);
+
+  const fee = await prisma.feeStructure.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: fee });
 });
 export const deleteFeeStructure = asyncHandler(async (req: AuthRequest, res: Response) => {

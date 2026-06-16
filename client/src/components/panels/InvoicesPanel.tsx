@@ -94,9 +94,9 @@ export function InvoicesPanel() {
   };
 
   const handleEdit = (inv: any) => {
-    const centerId = typeof inv.centerId === 'object'
+    const centerId = inv.center?.id || (typeof inv.centerId === 'object'
       ? (inv.centerId?.id || inv.centerId?.id)
-      : inv.centerId;
+      : inv.centerId);
     const firstItem = inv.items?.[0] || {};
     setEditingId(inv.id || inv.id);
     setFormData({
@@ -225,7 +225,7 @@ export function InvoicesPanel() {
             <div className="space-y-2">
               {invoices.filter(inv => inv && (inv.id || inv.id)).map((inv) => {
                 const invId = inv.id || inv.id;
-                const centerName = typeof inv.centerId === 'object' ? inv.centerId?.name : '';
+                const centerName = inv.center?.name || (typeof inv.centerId === 'object' ? inv.centerId?.name : '');
                 return (
                   <div key={invId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center gap-4">

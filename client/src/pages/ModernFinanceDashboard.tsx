@@ -345,7 +345,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
               recentInvoices.map((inv: any) => (
                 <TransactionItem
                   key={inv.id}
-                  name={inv.studentId?.name || inv.centerId?.name || 'Invoice'}
+                  name={inv.center?.name || inv.student?.name || (typeof inv.centerId === 'object' ? inv.centerId?.name : '') || 'Invoice'}
                   id={`#${inv.id?.slice(-8).toUpperCase()}`}
                   amount={`₹${(inv.total || inv.amount || 0).toLocaleString()}`}
                   status={inv.status}

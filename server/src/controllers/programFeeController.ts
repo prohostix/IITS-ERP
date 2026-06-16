@@ -21,16 +21,30 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { programId, billingCycle, baseFee, additionalFees } = req.body;
   const fee = await prisma.programFeeStructure.create({
-    data: { ...req.body, organizationId: req.user.organizationId, createdBy: req.user.id }
+    data: {
+      programId,
+      billingCycle,
+      baseFee: baseFee !== undefined ? parseFloat(baseFee) : 0,
+      additionalFees: additionalFees || [],
+      organizationId: req.user.organizationId,
+      createdBy: req.user.id
+    }
   });
   res.status(201).json({ success: true, data: fee });
 });
 
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { billingCycle, baseFee, additionalFees } = req.body;
+  const data: any = {};
+  if (billingCycle !== undefined) data.billingCycle = billingCycle;
+  if (baseFee !== undefined) data.baseFee = parseFloat(baseFee);
+  if (additionalFees !== undefined) data.additionalFees = additionalFees;
+
   const fee = await prisma.programFeeStructure.update({
     where: { id: req.params.id },
-    data: req.body
+    data
   });
   res.json({ success: true, data: fee });
 });
