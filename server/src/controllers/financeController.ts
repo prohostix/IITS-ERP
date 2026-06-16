@@ -135,16 +135,34 @@ export const deletePayment = asyncHandler(async (req: AuthRequest, res: Response
 
 // Expenses
 export const getExpenses = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expenses = await prisma.expenseClaim.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, count: expenses.length, data: expenses });
+  const expenses = await prisma.expenseClaim.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    }
+  });
+  const mapped = expenses.map(exp => ({
+    ...exp,
+    employeeId: exp.user || exp.employeeId
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expense = await prisma.expenseClaim.findUnique({ where: { id: req.params.id } });
+  const expense = await prisma.expenseClaim.findUnique({
+    where: { id: req.params.id },
+    include: {
+      user: { select: { id: true, name: true, email: true } }
+    }
+  });
   if (!expense) {
     res.status(404).json({ success: false, message: 'Expense not found' });
     return;
   }
-  res.json({ success: true, data: expense });
+  const mapped = {
+    ...expense,
+    employeeId: expense.user || expense.employeeId
+  };
+  res.json({ success: true, data: mapped });
 });
 export const createExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { amount, category, description, receipts, status } = req.body;
