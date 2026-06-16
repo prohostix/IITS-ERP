@@ -3,7 +3,7 @@ import { prisma } from './src/config/postgres.js';
 async function debugMetrics() {
   try {
     const role = 'superadmin';
-    const orgId = null; // or whatever the superadmin has
+    const orgId: string | undefined = undefined; // or whatever the superadmin has
 
     console.log('Testing superadmin metrics...');
     const metrics: any = {};
