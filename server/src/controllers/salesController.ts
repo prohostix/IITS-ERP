@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
 
 // Leads
 export const getLeads = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -291,6 +292,10 @@ export const reassignCenter = asyncHandler(async (req: AuthRequest, res: Respons
 // Programs
 export const getProgramsByUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const programs = await prisma.program.findMany({ where: { universityId: req.query.universityId as string } });
-  res.json({ success: true, data: programs });
+  const mapped = programs.map(p => ({
+    ...p,
+    courseType: mapPrismaToFrontendCourseType(p.courseType)
+  }));
+  res.json({ success: true, data: mapped });
 });
 

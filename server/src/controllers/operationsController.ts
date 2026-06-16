@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
+import { mapFrontendToPrismaCourseType, mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -65,18 +66,33 @@ export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Res
 // Programs
 export const getPrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
   const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId }, include: { university: true } });
-  res.json({ success: true, count: programs.length, data: programs });
+  const mapped = programs.map(p => ({
+    ...p,
+    courseType: mapPrismaToFrontendCourseType(p.courseType)
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   const program = await prisma.program.findUnique({ where: { id: req.params.id }, include: { university: true } });
+  if (program) {
+    program.courseType = mapPrismaToFrontendCourseType(program.courseType);
+  }
   res.json({ success: true, data: program });
 });
 export const createProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (req.body.courseType) {
+    req.body.courseType = mapFrontendToPrismaCourseType(req.body.courseType);
+  }
   const program = await prisma.program.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  program.courseType = mapPrismaToFrontendCourseType(program.courseType);
   res.status(201).json({ success: true, data: program });
 });
 export const updateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (req.body.courseType) {
+    req.body.courseType = mapFrontendToPrismaCourseType(req.body.courseType);
+  }
   const program = await prisma.program.update({ where: { id: req.params.id }, data: req.body });
+  program.courseType = mapPrismaToFrontendCourseType(program.courseType);
   res.json({ success: true, data: program });
 });
 export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -85,6 +101,7 @@ export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response
 });
 export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   const program = await prisma.program.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
+  program.courseType = mapPrismaToFrontendCourseType(program.courseType);
   res.json({ success: true, data: program });
 });
 
