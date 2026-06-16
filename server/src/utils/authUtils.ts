@@ -20,6 +20,32 @@ export const comparePassword = async (password: string, hashed: string): Promise
  * Generate a unique userId in the format IITSRPS0001
  */
 export const generateUserId = async (): Promise<string> => {
-  const count = await prisma.user.count();
-  return `IITSRPS${String(count + 1).padStart(4, '0')}`;
+  const lastUser = await prisma.user.findFirst({
+    where: {
+      userId: {
+        startsWith: 'IITSRPS'
+      }
+    },
+    orderBy: {
+      userId: 'desc'
+    }
+  });
+
+  let nextNum = 1;
+  if (lastUser && lastUser.userId) {
+    const match = lastUser.userId.match(/IITSRPS(\d+)/);
+    if (match) {
+      nextNum = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  let userId = `IITSRPS${String(nextNum).padStart(4, '0')}`;
+  let exists = await prisma.user.findUnique({ where: { userId } });
+  while (exists) {
+    nextNum++;
+    userId = `IITSRPS${String(nextNum).padStart(4, '0')}`;
+    exists = await prisma.user.findUnique({ where: { userId } });
+  }
+
+  return userId;
 };
