@@ -7,7 +7,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getWalletTopUps = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
   if (req.query.status) where.status = req.query.status as string;
-  else where.status = 'pending';
 
   const topUps = await prisma.walletTopUp.findMany({
     where,

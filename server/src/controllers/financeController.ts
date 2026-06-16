@@ -529,6 +529,10 @@ export const getIncomeExpenditureReport = asyncHandler(async (req: AuthRequest, 
   const fromDate = req.query.from ? new Date(req.query.from as string) : new Date(new Date().getFullYear() + '-04-01');
   const toDate = req.query.to ? new Date(req.query.to as string) : new Date();
 
+  // Set time limits to include whole days
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(23, 59, 59, 999);
+
   // Generate list of months in date range
   const months: string[] = [];
   let current = new Date(fromDate);
