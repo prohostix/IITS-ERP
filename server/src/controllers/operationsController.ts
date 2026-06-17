@@ -174,7 +174,12 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   res.status(201).json({ success: true, data: centerWithCreds });
 });
 export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: req.body });
+  const { referredById, ...rest } = req.body;
+  const data = {
+    ...rest,
+    referredBy: referredById === '__none__' || !referredById ? null : referredById
+  };
+  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: center });
 });
 export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
