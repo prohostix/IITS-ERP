@@ -112,6 +112,7 @@ app.use(`/api/${API_VERSION}/attendance`, attendanceRoutes);
 app.use(`/api/${API_VERSION}/ceo`, ceoRoutes);
 app.use(`/api/${API_VERSION}/org`, orgAdminRoutes);
 app.use(`/api/${API_VERSION}/sub-departments`, subDepartmentRoutes);
+app.use(`/api/${API_VERSION}/subdepartments`, subDepartmentRoutes);
 app.use(`/api/${API_VERSION}/credentials`, credentialRoutes);
 app.use(`/api/${API_VERSION}/edit-delete`, editDeleteRoutes);
 app.use(`/api/${API_VERSION}/rereg`, reregRoutes);

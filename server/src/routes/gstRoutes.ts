@@ -9,6 +9,7 @@ import {
   getApplicableGST,
   calculateGST,
   getGSTSummary,
+  getActiveGSTSettings,
 } from '../controllers/gstController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -22,6 +23,10 @@ router
   .route('/settings')
   .post(authorize('finance_admin'), createGSTSetting)
   .get(authorize('finance_admin', 'ops_admin'), getGSTSettings);
+
+router
+  .route('/active')
+  .get(protect, getActiveGSTSettings);
 
 router
   .route('/settings/:id')

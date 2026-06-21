@@ -55,6 +55,10 @@ router
   .get(authorize(...ALL_ROLES), getReferralMetrics);
 
 router
+  .route('/stats')
+  .get(authorize(...ALL_ROLES), getReferralMetrics);
+
+router
   .route('/leaderboard')
   .get(authorize('sales_admin', 'org_admin', 'ceo', 'superadmin'), getReferralLeaderboard);
 

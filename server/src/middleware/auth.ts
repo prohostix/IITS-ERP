@@ -57,10 +57,24 @@ export const protect = async (
 
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
-    next();
+
+    if (roles.includes(req.user.role)) {
+      return next();
+    }
+
+    // Custom check: If the request is a write operation on programs, and the user has canAddPrograms permission, allow it.
+    const isProgramWrite = (req.baseUrl.endsWith('/operations') || req.baseUrl.includes('/operations/')) &&
+      (req.path.startsWith('/programs') || req.path.includes('/programs/')) &&
+      ['POST', 'PUT', 'DELETE'].includes(req.method);
+
+    if (isProgramWrite && req.user.canAddPrograms) {
+      return next();
+    }
+
+    res.status(403).json({ success: false, message: 'Access denied' });
   };
 };

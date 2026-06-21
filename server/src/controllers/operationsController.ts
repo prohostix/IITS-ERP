@@ -14,6 +14,7 @@ export const getUniversities = asyncHandler(async (req: AuthRequest, res: Respon
   });
   const mapped = universities.map(u => ({
     ...u,
+    _id: u.id,
     allowedBranchIds: u.allowedBranches || []
   }));
   res.json({ success: true, count: mapped.length, data: mapped });
@@ -24,35 +25,43 @@ export const getUniversity = asyncHandler(async (req: AuthRequest, res: Response
     include: { allowedBranches: true }
   });
   if (university) {
+    (university as any)._id = university.id;
     (university as any).allowedBranchIds = university.allowedBranches || [];
   }
   res.json({ success: true, data: university });
 });
 export const createUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { allowedBranchIds, ...rest } = req.body;
+  const data: any = { organizationId: req.user.organizationId };
+  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId']) {
+    if (rest[field] !== undefined) data[field] = rest[field];
+  }
   const university = await prisma.university.create({
     data: {
-      ...rest,
-      organizationId: req.user.organizationId,
+      ...data,
       allowedBranches: allowedBranchIds && allowedBranchIds.length > 0
         ? { connect: allowedBranchIds.map((id: string) => ({ id })) }
         : undefined
     }
   });
-  res.status(201).json({ success: true, data: university });
+  res.status(201).json({ success: true, data: { ...university, _id: university.id } });
 });
 export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { allowedBranchIds, ...rest } = req.body;
+  const data: any = {};
+  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId']) {
+    if (rest[field] !== undefined) data[field] = rest[field];
+  }
   const university = await prisma.university.update({
     where: { id: req.params.id },
     data: {
-      ...rest,
+      ...data,
       allowedBranches: allowedBranchIds
         ? { set: allowedBranchIds.map((id: string) => ({ id })) }
         : undefined
     }
   });
-  res.json({ success: true, data: university });
+  res.json({ success: true, data: { ...university, _id: university.id } });
 });
 export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.university.delete({ where: { id: req.params.id } });
@@ -60,7 +69,7 @@ export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Respo
 });
 export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const university = await prisma.university.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
-  res.json({ success: true, data: university });
+  res.json({ success: true, data: { ...university, _id: university.id } });
 });
 
 // Programs
@@ -68,6 +77,7 @@ export const getPrograms = asyncHandler(async (req: AuthRequest, res: Response) 
   const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId }, include: { university: true } });
   const mapped = programs.map(p => ({
     ...p,
+    _id: p.id,
     courseType: mapPrismaToFrontendCourseType(p.courseType)
   }));
   res.json({ success: true, count: mapped.length, data: mapped });
@@ -75,6 +85,7 @@ export const getPrograms = asyncHandler(async (req: AuthRequest, res: Response) 
 export const getProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   const program = await prisma.program.findUnique({ where: { id: req.params.id }, include: { university: true } });
   if (program) {
+    (program as any)._id = program.id;
     program.courseType = mapPrismaToFrontendCourseType(program.courseType);
   }
   res.json({ success: true, data: program });
@@ -83,17 +94,32 @@ export const createProgram = asyncHandler(async (req: AuthRequest, res: Response
   if (req.body.courseType) {
     req.body.courseType = mapFrontendToPrismaCourseType(req.body.courseType);
   }
-  const program = await prisma.program.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  let { universityId } = req.body;
+  if (!universityId) {
+    const defaultUni = await prisma.university.findFirst({ where: { organizationId: req.user.organizationId } });
+    if (defaultUni) {
+      universityId = defaultUni.id;
+    }
+  }
+  const data: any = { organizationId: req.user.organizationId, universityId };
+  for (const field of ['subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status']) {
+    if (req.body[field] !== undefined) data[field] = req.body[field];
+  }
+  const program = await prisma.program.create({ data });
   program.courseType = mapPrismaToFrontendCourseType(program.courseType);
-  res.status(201).json({ success: true, data: program });
+  res.status(201).json({ success: true, data: { ...program, _id: program.id } });
 });
 export const updateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   if (req.body.courseType) {
     req.body.courseType = mapFrontendToPrismaCourseType(req.body.courseType);
   }
-  const program = await prisma.program.update({ where: { id: req.params.id }, data: req.body });
+  const data: any = {};
+  for (const field of ['universityId', 'subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status']) {
+    if (req.body[field] !== undefined) data[field] = req.body[field];
+  }
+  const program = await prisma.program.update({ where: { id: req.params.id }, data });
   program.courseType = mapPrismaToFrontendCourseType(program.courseType);
-  res.json({ success: true, data: program });
+  res.json({ success: true, data: { ...program, _id: program.id } });
 });
 export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.program.delete({ where: { id: req.params.id } });
@@ -102,7 +128,7 @@ export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response
 export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
   const program = await prisma.program.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
   program.courseType = mapPrismaToFrontendCourseType(program.courseType);
-  res.json({ success: true, data: program });
+  res.json({ success: true, data: { ...program, _id: program.id } });
 });
 
 // Study Centers
@@ -113,7 +139,11 @@ export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Respon
       referrer: { select: { id: true, name: true, email: true, role: true } }
     }
   });
-  res.json({ success: true, count: centers.length, data: centers });
+  const mapped = centers.map(c => ({
+    ...c,
+    _id: c.id
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const center = await prisma.studyCenter.findUnique({
@@ -122,11 +152,20 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
       referrer: { select: { id: true, name: true, email: true, role: true } }
     }
   });
+  if (center) {
+    (center as any)._id = center.id;
+  }
   res.json({ success: true, data: center });
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isSales = req.user.role === 'sales_admin' || req.user.role === 'bde' || req.user.role === 'employee';
-  const { name, email, referredById, ...restBody } = req.body;
+  const { name, referredById, ...restBody } = req.body;
+  const email = req.body.email || req.body.contactEmail;
+
+  if (!email) {
+    res.status(400).json({ success: false, message: 'Email or contactEmail is required' });
+    return;
+  }
 
   // Check if user email already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -142,16 +181,22 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
 
   // 2. Create in transaction
   const centerWithCreds = await prisma.$transaction(async (tx) => {
+    const allowedFields = ['name', 'code', 'address', 'city', 'state', 'status', 'universityIds', 'programIds'];
+    const dbData: any = {
+      organizationId: req.user.organizationId,
+      status: isSales ? 'pending' : (req.body.status || 'pending'),
+      referredBy: isSales ? req.user.id : (referredById === 'null' || !referredById ? null : referredById),
+      credentials: { userId, password: rawPassword },
+      email,
+      contact: req.body.contact || req.body.contactPhone || req.body.contactPerson || 'Not Provided'
+    };
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) dbData[field] = req.body[field];
+    }
+
     const center = await tx.studyCenter.create({ 
-      data: { 
-        ...restBody, 
-        name,
-        email,
-        organizationId: req.user.organizationId,
-        status: isSales ? 'pending' : (req.body.status || 'pending'),
-        referredBy: isSales ? req.user.id : (referredById || null),
-        credentials: { userId, password: rawPassword }
-      } 
+      data: dbData
     });
 
     // 3. Create center admin user
@@ -168,7 +213,7 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       }
     });
 
-    return { ...center, credentials: { userId, password: rawPassword } };
+    return { ...center, _id: center.id, credentials: { userId, password: rawPassword } };
   });
 
   res.status(201).json({ success: true, data: centerWithCreds });
@@ -180,7 +225,7 @@ export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
     referredBy: referredById === '__none__' || !referredById ? null : referredById
   };
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data });
-  res.json({ success: true, data: center });
+  res.json({ success: true, data: { ...center, _id: center.id } });
 });
 export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.studyCenter.delete({ where: { id: req.params.id } });
@@ -188,11 +233,11 @@ export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
 });
 export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
-  res.json({ success: true, data: center });
+  res.json({ success: true, data: { ...center, _id: center.id } });
 });
 export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'suspended' as any } });
-  res.json({ success: true, data: center });
+  res.json({ success: true, data: { ...center, _id: center.id } });
 });
 
 // Admission Sessions

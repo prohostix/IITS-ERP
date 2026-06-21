@@ -79,7 +79,7 @@ router.use(protect);
 
 // Leave Requests
 router.route('/leaves').get(getLeaveRequests).post(createLeaveRequest);
-router.route('/leaves/stats').get(authorize('hr_admin', 'dept_admin'), getLeaveStats);
+router.route('/leaves/stats').get(authorize('hr_admin', 'dept_admin', 'ceo', 'org_admin', 'superadmin'), getLeaveStats);
 router.get('/leaves/my', getMyLeaves);
 router.route('/leaves/:id')
   .get(getLeaveRequest)
@@ -100,15 +100,15 @@ router.route('/attendance/:id')
   .delete(authorize('hr_admin'), deleteAttendance);
 
 // Vacancies
-router.route('/vacancies').get(getVacancies).post(authorize('hr_admin'), createVacancy);
-router.route('/vacancies/stats').get(authorize('hr_admin'), getVacancyStats);
+router.route('/vacancies').get(getVacancies).post(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), createVacancy);
+router.route('/vacancies/stats').get(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), getVacancyStats);
 router.route('/vacancies/:id')
   .get(getVacancy)
-  .put(authorize('hr_admin'), updateVacancy)
-  .delete(authorize('hr_admin'), deleteVacancy);
-router.put('/vacancies/:id/close', authorize('hr_admin'), closeVacancy);
-router.get('/vacancies/:id/validate', authorize('hr_admin'), validateVacancyForHiring);
-router.patch('/vacancies/:id/fill', authorize('hr_admin'), fillVacancyPosition);
+  .put(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), updateVacancy)
+  .delete(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), deleteVacancy);
+router.put('/vacancies/:id/close', authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), closeVacancy);
+router.get('/vacancies/:id/validate', authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), validateVacancyForHiring);
+router.patch('/vacancies/:id/fill', authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), fillVacancyPosition);
 
 // Complaints
 router.route('/complaints').get(getComplaints).post(createComplaint);

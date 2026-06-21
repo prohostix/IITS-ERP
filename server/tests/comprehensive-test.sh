@@ -94,9 +94,9 @@ OPS_RESPONSE=$(curl -s http://localhost:4009/api/v1/auth/login \
 if echo "$OPS_RESPONSE" | grep -q '"success":true'; then
     echo -e "${GREEN}✓ PASS${NC}"
     OPS_TOKEN=$(echo "$OPS_RESPONSE" | jq -r '.data.token')
-    OPS_USER_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user._id')
-    ORG_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user.organizationId._id')
-    DEPT_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user.departmentId._id')
+    OPS_USER_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user.id')
+    ORG_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user.organizationId')
+    DEPT_ID=$(echo "$OPS_RESPONSE" | jq -r '.data.user.departmentId')
     ((PASSED++))
 else
     echo -e "${RED}✗ FAIL${NC}"

@@ -15,12 +15,31 @@ export const getLead = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json({ success: true, data: lead });
 });
 export const createLead = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const lead = await prisma.lead.create({ data: { ...req.body, organizationId: req.user.organizationId } });
-  res.status(201).json({ success: true, data: lead });
+  const { name, contactName, centerName, address } = req.body;
+  const finalContactName = contactName || name || 'Unknown Contact';
+  const finalCenterName = centerName || 'General Center';
+  const finalAddress = address || 'Not Provided';
+
+  const allowedFields = ['email', 'phone', 'source', 'referredBy', 'status', 'notes', 'convertedAt'];
+  const dbData: any = {
+    contactName: finalContactName,
+    centerName: finalCenterName,
+    address: finalAddress,
+    organizationId: req.user.organizationId
+  };
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) dbData[field] = req.body[field];
+  }
+
+  const lead = await prisma.lead.create({
+    data: dbData
+  });
+  res.status(201).json({ success: true, data: { ...lead, _id: lead.id } });
 });
 export const updateLead = asyncHandler(async (req: AuthRequest, res: Response) => {
   const lead = await prisma.lead.update({ where: { id: req.params.id }, data: req.body });
-  res.json({ success: true, data: lead });
+  res.json({ success: true, data: { ...lead, _id: lead.id } });
 });
 export const deleteLead = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.lead.delete({ where: { id: req.params.id } });

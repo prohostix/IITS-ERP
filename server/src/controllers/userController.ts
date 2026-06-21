@@ -12,7 +12,13 @@ export const getUsers = asyncHandler(async (req: AuthRequest, res: Response) => 
     where.organizationId = req.user.organizationId;
   }
 
-  if (req.query.role) where.role = req.query.role as string;
+  if (req.query.role) {
+    where.role = req.query.role as string;
+  } else {
+    // Exclude study center admins from the general user list
+    where.role = { not: 'center_admin' };
+  }
+  
   if (req.query.departmentId) where.departmentId = req.query.departmentId as string;
   if (req.query.status) where.status = req.query.status as string;
 

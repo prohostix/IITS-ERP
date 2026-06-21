@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import bcrypt from 'bcryptjs';
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
@@ -28,13 +29,69 @@ export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 export const createStudent = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const student = await prisma.student.create({
-    data: {
-      ...req.body,
-      organizationId: req.user.organizationId
+  const { firstName, lastName, name, enrollmentNo, centerId, email, programId } = req.body;
+  const finalName = name || `${firstName || ''} ${lastName || ''}`.trim() || 'Unknown Student';
+  const finalEnrollmentNo = enrollmentNo || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  let finalCenterId = centerId;
+  if (!finalCenterId || finalCenterId === 'null') {
+    const center = await prisma.studyCenter.findFirst({ where: { organizationId: req.user.organizationId } });
+    if (center) {
+      finalCenterId = center.id;
     }
+  }
+
+  if (!email) {
+    res.status(400).json({ success: false, message: 'Email is required' });
+    return;
+  }
+
+  // Create User if not exists
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const rawPassword = 'password123';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const userId = `STD-${Date.now()}`;
+    user = await prisma.user.create({
+      data: {
+        userId,
+        email,
+        password: hashedPassword,
+        name: finalName,
+        role: 'student',
+        organizationId: req.user.organizationId,
+        status: 'active'
+      }
+    });
+  }
+
+  let finalProgramId = programId;
+  if (!finalProgramId || finalProgramId === 'null') {
+    const firstProg = await prisma.program.findFirst({ where: { organizationId: req.user.organizationId } });
+    if (firstProg) finalProgramId = firstProg.id;
+  }
+
+  const allowedFields = ['sessionId', 'status', 'joinDate', 'enrolledAt', 'reregStatus', 'referredBy', 'phone', 'address'];
+  const dbData: any = {
+    name: finalName,
+    enrollmentNo: finalEnrollmentNo,
+    organization: { connect: { id: req.user.organizationId } },
+    center: { connect: { id: finalCenterId } },
+    user: { connect: { email: email } }
+  };
+
+  if (finalProgramId) {
+    dbData.program = { connect: { id: finalProgramId } };
+  }
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) dbData[field] = req.body[field];
+  }
+
+  const student = await prisma.student.create({
+    data: dbData
   });
-  res.status(201).json({ success: true, data: student });
+  res.status(201).json({ success: true, data: { ...student, _id: student.id } });
 });
 
 export const updateStudent = asyncHandler(async (req: AuthRequest, res: Response) => {

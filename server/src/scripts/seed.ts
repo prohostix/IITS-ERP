@@ -8,11 +8,16 @@ dotenv.config();
 const seedData = async () => {
   try {
     console.log('🗑️  Clearing existing data...');
-    // In PostgreSQL, we use deleteMany on Prisma models
-    await prisma.user.deleteMany({});
-    await prisma.department.deleteMany({});
-    await prisma.organization.deleteMany({});
-    await prisma.license.deleteMany({});
+    const tablenames = await prisma.$queryRaw`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
+    for (const { tablename } of tablenames) {
+      if (tablename !== '_prisma_migrations') {
+        try {
+          await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tablename}" CASCADE;`);
+        } catch (error) {
+          console.log(`Couldn't truncate ${tablename}:`, error);
+        }
+      }
+    }
 
     console.log('📝 Creating licenses...');
     const premiumLicense = await prisma.license.create({

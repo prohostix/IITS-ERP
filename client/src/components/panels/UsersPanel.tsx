@@ -31,6 +31,7 @@ interface User {
   status: string;
   organizationId?: any;
   departmentId?: any;
+  canAddPrograms?: boolean;
   createdAt: string;
 }
 
@@ -60,6 +61,7 @@ export function UsersPanel() {
     role: 'employee',
     organizationId: '',
     departmentId: '',
+    canAddPrograms: false,
   });
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export function UsersPanel() {
       role: 'employee',
       organizationId: '',
       departmentId: '',
+      canAddPrograms: false,
     });
     setIsDialogOpen(true);
   };
@@ -107,6 +110,7 @@ export function UsersPanel() {
       role: user.role,
       organizationId: user.organizationId?.id || user.organizationId || '',
       departmentId: user.departmentId?.id || user.departmentId || '',
+      canAddPrograms: user.canAddPrograms || false,
     });
     setIsDialogOpen(true);
   };
@@ -409,6 +413,20 @@ export function UsersPanel() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="canAddPrograms"
+                  checked={formData.canAddPrograms}
+                  onChange={(e) =>
+                    setFormData({ ...formData, canAddPrograms: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label htmlFor="canAddPrograms" className="text-sm font-medium cursor-pointer">
+                  Can Add Programs against Universities
+                </Label>
               </div>
             </div>
             <DialogFooter>

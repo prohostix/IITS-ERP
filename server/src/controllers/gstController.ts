@@ -45,3 +45,8 @@ export const calculateGST = asyncHandler(async (req: AuthRequest, res: Response)
 export const getGSTSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
   res.json({ success: true, data: {} });
 });
+
+export const getActiveGSTSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const settings = await prisma.gSTSetting.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
+  res.json({ success: true, count: settings.length, data: settings });
+});

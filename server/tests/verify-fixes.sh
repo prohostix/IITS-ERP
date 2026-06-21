@@ -63,7 +63,6 @@ if [ -n "$UNIV_ID" ]; then
         echo -e "${RED}✗ FAIL${NC}"
         ((FAILED++))
     fi
-    
     # Test 3: Activate University
     echo -n "3. Activate University... "
     ACTIVATE_UNIV=$(curl -s -X PUT "$BASE_URL/operations/universities/$UNIV_ID/activate" \
@@ -77,18 +76,7 @@ if [ -n "$UNIV_ID" ]; then
         ((FAILED++))
     fi
     
-    # Test 4: Delete University
-    echo -n "4. Delete University... "
-    DELETE_UNIV=$(curl -s -X DELETE "$BASE_URL/operations/universities/$UNIV_ID" \
-      -H "Authorization: Bearer $OPS_TOKEN")
-    
-    if echo "$DELETE_UNIV" | grep -q '"success":true'; then
-        echo -e "${GREEN}✓ PASS${NC}"
-        ((PASSED++))
-    else
-        echo -e "${RED}✗ FAIL${NC}"
-        ((FAILED++))
-    fi
+    # Note: University deletion (Test 4) is moved below after Program verification so that universityId constraint is satisfied.
 fi
 
 # Test 5: Dashboard Metrics
@@ -114,7 +102,8 @@ PROG_RESPONSE=$(curl -s $BASE_URL/operations/programs \
     "code": "FTP'$(date +%s)'",
     "type": "undergraduate",
     "duration": 3,
-    "status": "active"
+    "status": "active",
+    "universityId": "'"$UNIV_ID"'"
   }')
 
 if echo "$PROG_RESPONSE" | grep -q '"success":true'; then
@@ -123,6 +112,7 @@ if echo "$PROG_RESPONSE" | grep -q '"success":true'; then
     ((PASSED++))
 else
     echo -e "${RED}✗ FAIL${NC}"
+    echo "Response: $PROG_RESPONSE"
     ((FAILED++))
     PROG_ID=""
 fi
@@ -142,6 +132,26 @@ if [ -n "$PROG_ID" ]; then
     fi
 fi
 
+# Test 4 (Postponed): Delete University
+if [ -n "$UNIV_ID" ]; then
+    if [ -n "$PROG_ID" ]; then
+        curl -s -X DELETE "$BASE_URL/operations/programs/$PROG_ID" \
+          -H "Authorization: Bearer $OPS_TOKEN" > /dev/null
+    fi
+    echo -n "4. Delete University... "
+    DELETE_UNIV=$(curl -s -X DELETE "$BASE_URL/operations/universities/$UNIV_ID" \
+      -H "Authorization: Bearer $OPS_TOKEN")
+    
+    if echo "$DELETE_UNIV" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓ PASS${NC}"
+        ((PASSED++))
+    else
+        echo -e "${RED}✗ FAIL${NC}"
+        echo "Response: $DELETE_UNIV"
+        ((FAILED++))
+    fi
+fi
+
 # Test 8: Create Study Center
 echo -n "8. Create Study Center... "
 CENTER_RESPONSE=$(curl -s $BASE_URL/operations/centers \
@@ -152,7 +162,7 @@ CENTER_RESPONSE=$(curl -s $BASE_URL/operations/centers \
     "code": "FTC'$(date +%s)'",
     "address": "456 Center Rd",
     "contact": "+919876543210",
-    "email": "fixtest@center.com",
+    "email": "fixtest'$(date +%s)'@center.com",
     "status": "pending"
   }')
 
@@ -162,6 +172,7 @@ if echo "$CENTER_RESPONSE" | grep -q '"success":true'; then
     ((PASSED++))
 else
     echo -e "${RED}✗ FAIL${NC}"
+    echo "Response: $CENTER_RESPONSE"
     ((FAILED++))
     CENTER_ID=""
 fi

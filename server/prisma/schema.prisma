@@ -151,6 +151,7 @@ model User {
   status                        String?            @default("active")
   lastLogin                     DateTime?
   designationId                 String?
+  canAddPrograms                Boolean               @default(false)
   createdAt                     DateTime              @default(now())
   updatedAt                     DateTime              @updatedAt
   approvedSessions              AdmissionSession[]    @relation("SessionApprovedBy")

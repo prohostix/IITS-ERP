@@ -39,20 +39,23 @@ export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
 export const createTask = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { title, description, assignedTo, deadline, priority, departmentId } = req.body;
 
+  const cleanAssignedTo = assignedTo === 'null' || !assignedTo ? req.user.id : assignedTo;
+  const cleanDepartmentId = departmentId === 'null' || !departmentId ? null : departmentId;
+
   const task = await prisma.task.create({
     data: {
       title,
       description,
       status: 'pending' as any,
       priority: priority || 'medium',
-      deadline: deadline ? new Date(deadline) : null,
-      organizationId: req.user.organizationId,
-      createdBy: req.user.id,
-      assignedTo: assignedTo,
-      departmentId: departmentId || req.user.departmentId
+      deadline: deadline ? new Date(deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // default 7 days deadline
+      organization: { connect: { id: req.user.organizationId } },
+      assignee: { connect: { id: cleanAssignedTo } },
+      assigner: { connect: { id: req.user.id } },
+      department: cleanDepartmentId ? { connect: { id: cleanDepartmentId } } : undefined
     }
   });
-  res.status(201).json({ success: true, data: task });
+  res.status(201).json({ success: true, data: { ...task, _id: task.id } });
 });
 
 export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -61,17 +64,17 @@ export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) =
   const updateData: any = {};
   if (title) updateData.title = title;
   if (description) updateData.description = description;
-  if (assignedTo) updateData.assignedTo = assignedTo;
+  if (assignedTo) updateData.assignedTo = assignedTo === 'null' ? null : assignedTo;
   if (deadline) updateData.deadline = new Date(deadline);
   if (status) updateData.status = status;
   if (priority) updateData.priority = priority;
-  if (departmentId) updateData.departmentId = departmentId;
+  if (departmentId) updateData.departmentId = departmentId === 'null' ? null : departmentId;
 
   const task = await prisma.task.update({
     where: { id: req.params.id },
     data: updateData
   });
-  res.status(200).json({ success: true, data: task });
+  res.status(200).json({ success: true, data: { ...task, _id: task.id } });
 });
 
 export const completeTask = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -83,7 +86,7 @@ export const completeTask = asyncHandler(async (req: AuthRequest, res: Response)
       remarks: req.body.remarks,
     }
   });
-  res.status(200).json({ success: true, data: task });
+  res.status(200).json({ success: true, data: { ...task, _id: task.id } });
 });
 
 export const deleteTask = asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/metrics', getDashboardMetrics);
+router.get('/', getDashboardMetrics);
 
 export default router;

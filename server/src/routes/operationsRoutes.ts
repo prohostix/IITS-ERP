@@ -55,21 +55,21 @@ const router = express.Router();
 
 router.use(protect);
 
-// Universities — write access restricted to org_admin / superadmin only
-router.route('/universities').get(getUniversities).post(authorize('org_admin', 'superadmin'), createUniversity);
+// Universities — write access restricted to org_admin / superadmin & operations admin
+router.route('/universities').get(getUniversities).post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), createUniversity);
 router.route('/universities/:id')
   .get(getUniversity)
-  .put(authorize('org_admin', 'superadmin'), updateUniversity)
-  .delete(authorize('org_admin', 'superadmin'), deleteUniversity);
-router.put('/universities/:id/activate', authorize('org_admin', 'superadmin'), activateUniversity);
+  .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateUniversity)
+  .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteUniversity);
+router.put('/universities/:id/activate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), activateUniversity);
 
-// Programs — write access restricted to org_admin / superadmin only
-router.route('/programs').get(getPrograms).post(authorize('org_admin', 'superadmin'), createProgram);
+// Programs — write access restricted to org_admin / superadmin & operations admin
+router.route('/programs').get(getPrograms).post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), createProgram);
 router.route('/programs/:id')
   .get(getProgram)
-  .put(authorize('org_admin', 'superadmin'), updateProgram)
-  .delete(authorize('org_admin', 'superadmin'), deleteProgram);
-router.put('/programs/:id/activate', authorize('org_admin', 'superadmin'), activateProgram);
+  .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateProgram)
+  .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteProgram);
+router.put('/programs/:id/activate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), activateProgram);
 
 // Onboarding — document verification (must be before /centers/:id to avoid route conflict)
 router.get('/centers/pending-verification', authorize('ops_admin', 'ops_sub_admin', 'employee'), getPendingVerificationCenters);
@@ -81,17 +81,17 @@ router.route('/centers')
   .post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
 router.route('/centers/:id')
   .get(getStudyCenter)
-  .put(authorize('org_admin', 'superadmin'), updateStudyCenter)
-  .delete(authorize('org_admin', 'superadmin'), deleteStudyCenter);
+  .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateStudyCenter)
+  .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteStudyCenter);
 router.put('/centers/:id/approve', authorize('ops_admin', 'finance_admin'), approveStudyCenter);
-router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin'), suspendStudyCenter);
+router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), suspendStudyCenter);
 
 // Admission Sessions
-router.route('/sessions').get(getAdmissionSessions).post(authorize('org_admin', 'superadmin'), createAdmissionSession);
+router.route('/sessions').get(getAdmissionSessions).post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), createAdmissionSession);
 router.route('/sessions/:id')
   .get(getAdmissionSession)
-  .put(authorize('org_admin', 'superadmin'), updateAdmissionSession)
-  .delete(authorize('org_admin', 'superadmin'), deleteAdmissionSession);
+  .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateAdmissionSession)
+  .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteAdmissionSession);
 router.put('/sessions/:id/approve', authorize('finance_admin'), approveAdmissionSession);
 
 // Internal Marks — study centers enter marks, ops has read-only

@@ -24,8 +24,8 @@ router.route('/marks').get(getInternalMarks).post(authorize('ops_admin', 'employ
 router.route('/marks/:id').get(getInternalMark).put(authorize('ops_admin', 'employee'), updateInternalMark).delete(authorize('ops_admin'), deleteInternalMark);
 
 // Student routes
-router.route('/').get(getStudents).post(authorize('org_admin', 'superadmin', 'center_admin'), createStudent);
-router.route('/:id').get(getStudent).put(authorize('org_admin', 'superadmin', 'center_admin'), updateStudent).delete(authorize('org_admin', 'superadmin'), deleteStudent);
+router.route('/').get(getStudents).post(authorize('org_admin', 'superadmin', 'center_admin', 'ops_admin', 'ops_sub_admin'), createStudent);
+router.route('/:id').get(getStudent).put(authorize('org_admin', 'superadmin', 'center_admin', 'ops_admin', 'ops_sub_admin'), updateStudent).delete(authorize('org_admin', 'superadmin', 'ops_admin'), deleteStudent);
 router.put('/:id/approve', authorize('finance_admin', 'ops_admin'), approveStudent);
 
 export default router;

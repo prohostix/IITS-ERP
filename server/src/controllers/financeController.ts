@@ -24,8 +24,22 @@ export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 export const createInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { centerId, studentId, invoiceNo, amount, tax, total, status, items, dueDate } = req.body;
+  
+  let finalCenterId = centerId;
+  if (!finalCenterId && studentId) {
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    if (student) {
+      finalCenterId = student.centerId;
+    }
+  }
+
+  if (!finalCenterId) {
+    res.status(400).json({ success: false, message: 'centerId is required' });
+    return;
+  }
+
   const data: any = {
-    centerId,
+    centerId: finalCenterId,
     studentId,
     invoiceNo,
     amount: amount !== undefined ? parseFloat(amount) : 0,
@@ -38,7 +52,7 @@ export const createInvoice = asyncHandler(async (req: AuthRequest, res: Response
   if (dueDate) data.dueDate = new Date(dueDate);
 
   const invoice = await prisma.invoice.create({ data });
-  res.status(201).json({ success: true, data: invoice });
+  res.status(201).json({ success: true, data: { ...invoice, _id: invoice.id } });
 });
 export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
   const exists = await prisma.invoice.findUnique({ where: { id: req.params.id } });
@@ -60,7 +74,7 @@ export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response
   if (paidAt !== undefined) data.paidAt = paidAt ? new Date(paidAt) : null;
 
   const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data });
-  res.json({ success: true, data: invoice });
+  res.json({ success: true, data: { ...invoice, _id: invoice.id } });
 });
 export const deleteInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
   const exists = await prisma.invoice.findUnique({ where: { id: req.params.id } });
@@ -90,14 +104,23 @@ export const getPayment = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: payment });
 });
 export const createPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { invoiceId, amount, method, referenceNo, receivedAt, notes } = req.body;
+  const { invoiceId, amount, notes } = req.body;
+  const method = req.body.method || req.body.paymentMethod;
+  const referenceNo = req.body.referenceNo || req.body.transactionId;
+  const rawReceivedAt = req.body.receivedAt || req.body.paymentDate;
+
+  if (!method) {
+    res.status(400).json({ success: false, message: 'Payment method is required' });
+    return;
+  }
+
   const payment = await prisma.paymentEntry.create({
     data: {
       invoiceId,
       amount: amount !== undefined ? parseFloat(amount) : 0,
       method,
       referenceNo,
-      receivedAt: receivedAt ? new Date(receivedAt) : undefined,
+      receivedAt: rawReceivedAt ? new Date(rawReceivedAt) : undefined,
       notes,
       organizationId: req.user.organizationId,
       receivedBy: req.user.id

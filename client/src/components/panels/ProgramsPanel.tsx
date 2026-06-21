@@ -51,7 +51,7 @@ function formatDuration(months: number) {
 
 export function ProgramsPanel() {
   const { user } = useAuth();
-  const isOrgAdmin = ['org_admin', 'superadmin'].includes(user?.role || '');
+  const canManagePrograms = ['org_admin', 'superadmin'].includes(user?.role || '') || (user as any)?.canAddPrograms === true;
   const [programs, setPrograms] = useState<Program[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([]);
@@ -199,7 +199,7 @@ export function ProgramsPanel() {
           <h2 className="text-2xl font-bold">Program Management</h2>
           <p className="text-muted-foreground">Manage academic programs and courses</p>
         </div>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }} disabled={!isOrgAdmin} className={!isOrgAdmin ? 'hidden' : ''}>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }} disabled={!canManagePrograms} className={!canManagePrograms ? 'hidden' : ''}>
           <Plus className="w-4 h-4 mr-2" />Add Program
         </Button>
       </div>
@@ -262,7 +262,7 @@ export function ProgramsPanel() {
                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </button>
                         )}
-                        {isOrgAdmin && (
+                        {canManagePrograms && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(p)}><Edit className="w-3.5 h-3.5" /></Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}><Trash2 className="w-3.5 h-3.5" /></Button>

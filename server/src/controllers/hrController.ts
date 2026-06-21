@@ -115,7 +115,41 @@ export const getVacancy = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: vacancy });
 });
 export const createVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const vacancy = await prisma.vacancy.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const { title, designation, departmentId, count, positions, ...rest } = req.body;
+  const finalDesignation = designation || title || 'Vacancy';
+
+  let finalDeptId = departmentId;
+  if (!finalDeptId || finalDeptId === 'null') {
+    const dept = await prisma.department.findFirst({ where: { organizationId: req.user.organizationId } });
+    if (dept) {
+      finalDeptId = dept.id;
+    } else {
+      const defaultDept = await prisma.department.create({
+        data: {
+          name: 'General Operations',
+          organizationId: req.user.organizationId,
+          status: 'active'
+        }
+      });
+      finalDeptId = defaultDept.id;
+    }
+  }
+
+  const allowedFields = ['status', 'filled'];
+  const dbData: any = {
+    designation: finalDesignation,
+    departmentId: finalDeptId,
+    count: count !== undefined ? parseInt(count) : (positions !== undefined ? parseInt(positions) : 1),
+    organizationId: req.user.organizationId
+  };
+
+  for (const field of allowedFields) {
+    if (req.body[field] !== undefined) dbData[field] = req.body[field];
+  }
+
+  const vacancy = await prisma.vacancy.create({
+    data: dbData
+  });
   res.status(201).json({ success: true, data: vacancy });
 });
 export const updateVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -16,7 +16,10 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Test results
-declare -A TEST_RESULTS
+# Test results
+PASSED_LIST=()
+FAILED_LIST=()
+SKIPPED_LIST=()
 TOTAL_SUITES=0
 PASSED_SUITES=0
 FAILED_SUITES=0
@@ -39,20 +42,21 @@ run_test_suite() {
   echo -e "${CYAN}Running: $name${NC}"
   echo -e "${CYAN}$(printf '─%.0s' {1..70})${NC}"
   
-  if [ -f "$script" ]; then
-    chmod +x "$script"
-    if ./"$script"; then
-      TEST_RESULTS[$name]="PASS"
+  local script_path="$(dirname "$0")/$script"
+  if [ -f "$script_path" ]; then
+    chmod +x "$script_path"
+    if "$script_path"; then
+      PASSED_LIST+=("$name")
       PASSED_SUITES=$((PASSED_SUITES + 1))
       echo -e "${GREEN}✓ $name completed successfully${NC}"
     else
-      TEST_RESULTS[$name]="FAIL"
+      FAILED_LIST+=("$name")
       FAILED_SUITES=$((FAILED_SUITES + 1))
       echo -e "${RED}✗ $name failed${NC}"
     fi
   else
-    TEST_RESULTS[$name]="SKIP"
-    echo -e "${YELLOW}⊘ $name not found${NC}"
+    SKIPPED_LIST+=("$name")
+    echo -e "${YELLOW}⊘ $name not found at $script_path${NC}"
   fi
 }
 
@@ -66,7 +70,7 @@ main() {
   
   # Check if server is running
   echo "Checking if backend server is running..."
-  if ! curl -s http://localhost:4009/api/v1/health > /dev/null 2>&1; then
+  if ! curl -s http://localhost:4009/health > /dev/null 2>&1; then
     echo -e "${YELLOW}Warning: Backend server may not be running on port 4009${NC}"
     echo "Please ensure the server is running before continuing."
     read -p "Continue anyway? (y/n) " -n 1 -r
@@ -97,15 +101,14 @@ main() {
   echo -e "${CYAN}Test Suite Results:${NC}"
   echo -e "${CYAN}$(printf '─%.0s' {1..70})${NC}"
   
-  for suite in "${!TEST_RESULTS[@]}"; do
-    local result=${TEST_RESULTS[$suite]}
-    if [ "$result" = "PASS" ]; then
-      echo -e "  ${GREEN}✓${NC} $suite"
-    elif [ "$result" = "FAIL" ]; then
-      echo -e "  ${RED}✗${NC} $suite"
-    else
-      echo -e "  ${YELLOW}⊘${NC} $suite"
-    fi
+  for suite in "${PASSED_LIST[@]}"; do
+    echo -e "  ${GREEN}✓${NC} $suite"
+  done
+  for suite in "${FAILED_LIST[@]}"; do
+    echo -e "  ${RED}✗${NC} $suite"
+  done
+  for suite in "${SKIPPED_LIST[@]}"; do
+    echo -e "  ${YELLOW}⊘${NC} $suite"
   done
   
   echo ""
