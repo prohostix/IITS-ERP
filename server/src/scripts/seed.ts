@@ -7,6 +7,11 @@ dotenv.config();
 
 const seedData = async () => {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DB_RESET !== 'true') {
+      console.error('❌ DATABASE RESET BLOCKED: Running in production and ALLOW_DB_RESET is not set to "true".');
+      process.exit(1);
+    }
+
     console.log('🗑️  Clearing existing data...');
     const tablenames = await prisma.$queryRaw`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
     for (const { tablename } of tablenames) {
