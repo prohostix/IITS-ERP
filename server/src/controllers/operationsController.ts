@@ -329,3 +329,164 @@ export const removeAllocation = asyncHandler(async (req: AuthRequest, res: Respo
   await prisma.programAllocation.delete({ where: { id: req.params.allocId } });
   res.json({ success: true, data: {} });
 });
+
+export const bulkImportStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { centers } = req.body;
+
+  if (!Array.isArray(centers)) {
+    res.status(400).json({ success: false, message: 'Invalid payload: centers must be an array' });
+    return;
+  }
+
+  const organizationId = req.user.organizationId;
+  if (!organizationId) {
+    res.status(400).json({ success: false, message: 'Organization ID is required' });
+    return;
+  }
+
+  const results = {
+    total: centers.length,
+    successCount: 0,
+    failedCount: 0,
+    errors: [] as any[]
+  };
+
+  const processedCodes = new Set<string>();
+  const processedEmails = new Set<string>();
+
+  for (let i = 0; i < centers.length; i++) {
+    const rawCenter = centers[i];
+    const rowNum = i + 2; // Excel row numbering
+
+    const name = rawCenter.name?.toString().trim();
+    const code = rawCenter.code?.toString().trim().toUpperCase();
+    const email = rawCenter.email?.toString().trim().toLowerCase();
+    const contact = rawCenter.contact?.toString().trim() || 'Not Provided';
+    const city = rawCenter.city?.toString().trim() || '';
+    const state = rawCenter.state?.toString().trim() || '';
+    const address = rawCenter.address?.toString().trim() || '';
+
+    if (!name || !code || !email) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code: code || 'Unknown',
+        message: 'Name, Code, and Email are required fields'
+      });
+      continue;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: 'Invalid email format'
+      });
+      continue;
+    }
+
+    // Check duplicates in payload
+    if (processedCodes.has(code)) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: 'Duplicate Center Code in the upload file'
+      });
+      continue;
+    }
+    processedCodes.add(code);
+
+    if (processedEmails.has(email)) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: 'Duplicate Email in the upload file'
+      });
+      continue;
+    }
+    processedEmails.add(email);
+
+    // Check duplicate code in DB
+    const dbCenterExists = await prisma.studyCenter.findFirst({
+      where: { organizationId, code }
+    });
+    if (dbCenterExists) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: 'A study center with this code already exists'
+      });
+      continue;
+    }
+
+    // Check duplicate email in DB users table
+    const dbUserExists = await prisma.user.findUnique({
+      where: { email }
+    });
+    if (dbUserExists) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: 'A user with this email already exists'
+      });
+      continue;
+    }
+
+    try {
+      const rawPassword = `Center@${Math.floor(1000 + Math.random() * 9000)}`;
+      const hashedPassword = await hashPassword(rawPassword);
+      const userId = await generateUserId();
+
+      await prisma.$transaction(async (tx) => {
+        const center = await tx.studyCenter.create({
+          data: {
+            organizationId,
+            name,
+            code,
+            email,
+            contact,
+            city,
+            state,
+            address,
+            status: 'active', // Default to active for bulk imports
+            credentials: { userId, password: rawPassword }
+          }
+        });
+
+        await tx.user.create({
+          data: {
+            userId,
+            email,
+            password: hashedPassword,
+            name: `${name} Admin`,
+            role: 'center_admin',
+            organizationId,
+            studyCenterId: center.id,
+            status: 'active'
+          }
+        });
+      });
+
+      results.successCount++;
+    } catch (err: any) {
+      results.failedCount++;
+      results.errors.push({
+        row: rowNum,
+        code,
+        message: err.message || 'Database error occurred during creation'
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    data: results
+  });
+});

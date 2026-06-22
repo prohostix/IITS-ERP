@@ -40,6 +40,7 @@ import {
   getProgramAllocations,
   allocateProgram,
   removeAllocation,
+  bulkImportStudyCenters,
 } from '../controllers/operationsController.js';
 import {
   getProgramDetail,
@@ -74,6 +75,9 @@ router.put('/programs/:id/activate', authorize('org_admin', 'superadmin', 'ops_a
 // Onboarding — document verification (must be before /centers/:id to avoid route conflict)
 router.get('/centers/pending-verification', authorize('ops_admin', 'ops_sub_admin', 'employee'), getPendingVerificationCenters);
 router.put('/centers/:id/verify', authorize('ops_admin', 'ops_sub_admin', 'employee'), verifyCenter);
+
+// Study Centers Bulk Import
+router.post('/centers/bulk-import', authorize('org_admin', 'superadmin', 'ops_admin'), bulkImportStudyCenters);
 
 // Study Centers
 router.route('/centers')

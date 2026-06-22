@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Copy, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import * as XLSX from 'xlsx';
 
 export function StudyCentersPanel() {
   const { user } = useAuth();
@@ -31,6 +31,11 @@ export function StudyCentersPanel() {
   });
   const [creds, setCreds] = useState<{ userId: string; password: string } | null>(null);
   const [showCreds, setShowCreds] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importCenters, setImportCenters] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<any | null>(null);
 
   useEffect(() => {
     fetchCenters();
@@ -48,6 +53,121 @@ export function StudyCentersPanel() {
       console.error('Failed to fetch centers:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        Name: 'Delhi Study Center',
+        Code: 'DSC001',
+        Email: 'delhi.admin@example.com',
+        Contact: '+91-9876543210',
+        City: 'New Delhi',
+        State: 'Delhi',
+        Address: '123 Karol Bagh'
+      },
+      {
+        Name: 'Mumbai Study Center',
+        Code: 'MSC001',
+        Email: 'mumbai.admin@example.com',
+        Contact: '+91-9876543211',
+        City: 'Mumbai',
+        State: 'Maharashtra',
+        Address: '456 Andheri West'
+      }
+    ];
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+    XLSX.writeFile(workbook, 'study_centers_import_template.xlsx');
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const parsedData: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+        if (parsedData.length === 0) {
+          toast.error('The uploaded file is empty');
+          return;
+        }
+
+        // Map excel headers to fields
+        const mappedCenters = parsedData.map((row: any) => ({
+          name: row.Name || row.name || '',
+          code: row.Code || row.code || '',
+          email: row.Email || row.email || '',
+          contact: row.Contact || row.contact || '',
+          city: row.City || row.city || '',
+          state: row.State || row.state || '',
+          address: row.Address || row.address || ''
+        }));
+
+        // Client-side validation
+        const errors: any[] = [];
+        const codes = new Set();
+        const emails = new Set();
+
+        mappedCenters.forEach((c, index) => {
+          const rowNum = index + 2;
+          if (!c.name) errors.push({ row: rowNum, message: 'Name is missing' });
+          if (!c.code) {
+            errors.push({ row: rowNum, message: 'Code is missing' });
+          } else {
+            const codeStr = c.code.toString().trim().toUpperCase();
+            if (codes.has(codeStr)) {
+              errors.push({ row: rowNum, message: `Duplicate Code in sheet: ${c.code}` });
+            }
+            codes.add(codeStr);
+          }
+
+          if (!c.email) {
+            errors.push({ row: rowNum, message: 'Email is missing' });
+          } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(c.email)) {
+              errors.push({ row: rowNum, message: `Invalid email format: ${c.email}` });
+            }
+            if (emails.has(c.email.toLowerCase())) {
+              errors.push({ row: rowNum, message: `Duplicate Email in sheet: ${c.email}` });
+            }
+            emails.add(c.email.toLowerCase());
+          }
+        });
+
+        setImportCenters(mappedCenters);
+        setImportErrors(errors);
+        setImportSummary(null);
+      } catch (err: any) {
+        console.error(err);
+        toast.error('Failed to parse Excel file');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleImportSubmit = async () => {
+    if (importCenters.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await api.post('/operations/centers/bulk-import', { centers: importCenters });
+      setImportSummary(res.data.data);
+      toast.success(`Successfully imported ${res.data.data.successCount} study centers`);
+      fetchCenters();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Bulk import failed');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -119,10 +239,29 @@ export function StudyCentersPanel() {
           <p className="text-muted-foreground">Manage study centers and locations</p>
         </div>
         {canWrite && (
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" />Add Study Center</Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                setImportCenters([]);
+                setImportErrors([]);
+                setImportSummary(null);
+                setIsImportDialogOpen(true);
+              }}
+              variant="outline"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import
+            </Button>
+            <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Study Center
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {canWrite && (
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Edit Study Center' : 'Add New Study Center'}</DialogTitle>
@@ -187,8 +326,7 @@ export function StudyCentersPanel() {
             </form>
           </DialogContent>
         </Dialog>
-        )}
-      </div>
+      )}
 
       {/* Credentials Dialog */}
       <Dialog open={showCreds} onOpenChange={setShowCreds}>
@@ -280,6 +418,152 @@ export function StudyCentersPanel() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-h-[90vh] flex flex-col p-0 gap-0 sm:max-w-2xl">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <DialogTitle>Bulk Import Study Centers</DialogTitle>
+            <DialogDescription>
+              Upload an Excel (.xlsx, .xls) or CSV file containing study center details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Step 1: Template and File Upload */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg border bg-muted/40">
+              <div className="space-y-1">
+                <h4 className="font-semibold text-sm">Need a template?</h4>
+                <p className="text-xs text-muted-foreground">Download the Excel template to prepare your study center details.</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} className="w-full sm:w-auto">
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="importCentersFile" className="text-sm font-semibold">Select Excel/CSV File</Label>
+              <Input
+                id="importCentersFile"
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleFileUpload}
+                className="cursor-pointer"
+              />
+            </div>
+
+            {/* Validation Errors */}
+            {importErrors.length > 0 && (
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="w-4 h-4" />
+                  Please fix the following {importErrors.length} errors in your file:
+                </div>
+                <ul className="list-disc pl-5 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {importErrors.map((err, idx) => (
+                    <li key={idx}>
+                      <strong>Row {err.row}:</strong> {err.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Summary display after import */}
+            {importSummary && (
+              <div className={`p-4 rounded-lg border text-sm space-y-3 ${importSummary.failedCount > 0 ? 'bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300' : 'bg-green-500/10 border-green-500/20 text-green-800 dark:text-green-300'}`}>
+                <div className="flex items-center gap-2 font-semibold text-base">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  Import Completed
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-2 rounded bg-background/50">
+                    <div className="font-bold text-lg">{importSummary.total}</div>
+                    <div className="text-xs text-muted-foreground">Total Rows</div>
+                  </div>
+                  <div className="p-2 rounded bg-background/50">
+                    <div className="font-bold text-lg text-green-600 dark:text-green-400">{importSummary.successCount}</div>
+                    <div className="text-xs text-muted-foreground">Succeeded</div>
+                  </div>
+                  <div className="p-2 rounded bg-background/50">
+                    <div className="font-bold text-lg text-destructive">{importSummary.failedCount}</div>
+                    <div className="text-xs text-muted-foreground">Failed</div>
+                  </div>
+                </div>
+
+                {importSummary.errors.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-muted">
+                    <div className="font-semibold text-xs">Import Warnings/Failures:</div>
+                    <ul className="list-disc pl-5 space-y-1 text-xs max-h-40 overflow-y-auto">
+                      {importSummary.errors.map((err: any, idx: number) => (
+                        <li key={idx}>
+                          <strong>Row {err.row} (Code: {err.code}):</strong> {err.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Preview parsed centers */}
+            {importCenters.length > 0 && !importSummary && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm">Preview ({importCenters.length} centers parsed)</h4>
+                </div>
+                <div className="rounded-md border max-h-60 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/80 sticky top-0 font-semibold text-muted-foreground border-b text-left">
+                      <tr>
+                        <th className="p-2 pl-3">Row</th>
+                        <th className="p-2">Name</th>
+                        <th className="p-2">Code</th>
+                        <th className="p-2">Email</th>
+                        <th className="p-2">Contact</th>
+                        <th className="p-2">Location</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {importCenters.map((c, idx) => (
+                        <tr key={idx} className="hover:bg-muted/30">
+                          <td className="p-2 pl-3 text-muted-foreground text-xs">{idx + 2}</td>
+                          <td className="p-2 font-medium">{c.name}</td>
+                          <td className="p-2 font-mono text-xs">{c.code}</td>
+                          <td className="p-2 text-xs truncate max-w-[150px]">{c.email}</td>
+                          <td className="p-2 text-xs">{c.contact || '-'}</td>
+                          <td className="p-2 text-xs text-muted-foreground">
+                            {c.city || c.state ? `${c.city}, ${c.state}` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-6 pt-4 border-t bg-muted/20">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsImportDialogOpen(false)}
+            >
+              {importSummary ? 'Close' : 'Cancel'}
+            </Button>
+            {importCenters.length > 0 && !importSummary && (
+              <Button
+                type="button"
+                onClick={handleImportSubmit}
+                disabled={importErrors.length > 0 || importing}
+              >
+                {importing ? 'Importing...' : `Import ${importCenters.length} Centers`}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
