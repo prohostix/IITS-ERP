@@ -6,12 +6,15 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  bulkImportUsers,
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(protect);
+
+router.post('/bulk-import', authorize('superadmin', 'org_admin', 'hr_admin'), bulkImportUsers);
 
 router
   .route('/')
