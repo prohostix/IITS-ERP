@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Building, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -47,6 +48,7 @@ interface User {
 }
 
 export function DepartmentsPanel() {
+  const { user } = useAuth();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -90,7 +92,7 @@ export function DepartmentsPanel() {
     setFormData({
       name: '',
       type: 'custom',
-      organizationId: '',
+      organizationId: user?.role === 'superadmin' ? '' : (user?.organizationId || ''),
       managerId: '',
     });
     setIsDialogOpen(true);
@@ -101,7 +103,7 @@ export function DepartmentsPanel() {
     setFormData({
       name: dept.name,
       type: dept.type,
-      organizationId: dept.organizationId?.id || dept.organizationId || '',
+      organizationId: dept.organizationId?.id || dept.organizationId || user?.organizationId || '',
       managerId: dept.managerId?.id || dept.managerId || '',
     });
     setIsDialogOpen(true);
@@ -313,27 +315,29 @@ export function DepartmentsPanel() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="organizationId">Organization *</Label>
-                <Select
-                  value={formData.organizationId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, organizationId: value })
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.id}>
-                        {org.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {user?.role === 'superadmin' && (
+                <div className="space-y-2">
+                  <Label htmlFor="organizationId">Organization *</Label>
+                  <Select
+                    value={formData.organizationId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, organizationId: value })
+                    }
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select organization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="type">Type *</Label>
                 <Select
