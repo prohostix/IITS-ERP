@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -36,6 +36,8 @@ export function StudyCentersPanel() {
   const [importErrors, setImportErrors] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<any | null>(null);
+  const [importReferredById, setImportReferredById] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchCenters();
@@ -82,6 +84,10 @@ export function StudyCentersPanel() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
     XLSX.writeFile(workbook, 'study_centers_import_template.xlsx');
   };
+
+  const salesTeam = team.filter((m: any) =>
+    ['sales_admin', 'bde', 'employee', 'ops_admin'].includes(m.role)
+  );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -159,7 +165,11 @@ export function StudyCentersPanel() {
     if (importCenters.length === 0) return;
     setImporting(true);
     try {
-      const res = await api.post('/operations/centers/bulk-import', { centers: importCenters });
+      const centersWithSales = importCenters.map(c => ({
+        ...c,
+        referredById: importReferredById || null
+      }));
+      const res = await api.post('/operations/centers/bulk-import', { centers: centersWithSales });
       setImportSummary(res.data.data);
       toast.success(`Successfully imported ${res.data.data.successCount} study centers`);
       fetchCenters();
@@ -231,6 +241,18 @@ export function StudyCentersPanel() {
     setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '' });
   };
 
+  const filteredCenters = centers.filter((c) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      !q ||
+      c.name?.toLowerCase().includes(q) ||
+      c.code?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.address?.toLowerCase().includes(q) ||
+      c.referrer?.name?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -245,6 +267,7 @@ export function StudyCentersPanel() {
                 setImportCenters([]);
                 setImportErrors([]);
                 setImportSummary(null);
+                setImportReferredById('');
                 setIsImportDialogOpen(true);
               }}
               variant="outline"
@@ -370,15 +393,30 @@ export function StudyCentersPanel() {
       </Dialog>
 
       <Card>
-        <CardHeader><CardTitle>Study Centers</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <CardTitle>Study Centers ({filteredCenters.length}{searchQuery ? ` of ${centers.length}` : ''})</CardTitle>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, code, email…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
-          ) : centers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No study centers found</div>
+          ) : filteredCenters.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchQuery ? 'No centers match your search.' : 'No study centers found'}
+            </div>
           ) : (
             <div className="space-y-2">
-              {centers.filter(c => c && (c.id || c.id)).map((c) => {
+              {filteredCenters.filter(c => c && (c.id || c.id)).map((c) => {
                 const cid = c.id || c.id;
                 return (
                   <div key={cid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
@@ -439,6 +477,26 @@ export function StudyCentersPanel() {
                 <Download className="w-4 h-4 mr-2" />
                 Download Template
               </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="importSalesUser" className="text-sm font-semibold">Assign Sales User <span className="text-muted-foreground font-normal">(optional — applied to all imported centers)</span></Label>
+              <Select
+                value={importReferredById || '__none__'}
+                onValueChange={(v) => setImportReferredById(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger id="importSalesUser">
+                  <SelectValue placeholder="Select a sales user (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {salesTeam.map((m: any) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name} <span className="text-muted-foreground text-xs ml-1">({m.role?.replace(/_/g, ' ')})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -522,21 +580,30 @@ export function StudyCentersPanel() {
                         <th className="p-2">Email</th>
                         <th className="p-2">Contact</th>
                         <th className="p-2">Location</th>
+                        <th className="p-2">Sales User</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {importCenters.map((c, idx) => (
-                        <tr key={idx} className="hover:bg-muted/30">
-                          <td className="p-2 pl-3 text-muted-foreground text-xs">{idx + 2}</td>
-                          <td className="p-2 font-medium">{c.name}</td>
-                          <td className="p-2 font-mono text-xs">{c.code}</td>
-                          <td className="p-2 text-xs truncate max-w-[150px]">{c.email}</td>
-                          <td className="p-2 text-xs">{c.contact || '-'}</td>
-                          <td className="p-2 text-xs text-muted-foreground">
-                            {c.city || c.state ? `${c.city}, ${c.state}` : '-'}
-                          </td>
-                        </tr>
-                      ))}
+                      {importCenters.map((c, idx) => {
+                        const assignedSales = salesTeam.find((m: any) => m.id === importReferredById);
+                        return (
+                          <tr key={idx} className="hover:bg-muted/30">
+                            <td className="p-2 pl-3 text-muted-foreground text-xs">{idx + 2}</td>
+                            <td className="p-2 font-medium">{c.name}</td>
+                            <td className="p-2 font-mono text-xs">{c.code}</td>
+                            <td className="p-2 text-xs truncate max-w-[150px]">{c.email}</td>
+                            <td className="p-2 text-xs">{c.contact || '-'}</td>
+                            <td className="p-2 text-xs text-muted-foreground">
+                              {c.city || c.state ? `${c.city}, ${c.state}` : '-'}
+                            </td>
+                            <td className="p-2 text-xs">
+                              {assignedSales
+                                ? <span className="text-primary font-medium">{assignedSales.name}</span>
+                                : <span className="text-muted-foreground">—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -365,6 +365,7 @@ export const bulkImportStudyCenters = asyncHandler(async (req: AuthRequest, res:
     const city = rawCenter.city?.toString().trim() || '';
     const state = rawCenter.state?.toString().trim() || '';
     const address = rawCenter.address?.toString().trim() || '';
+    const referredById = rawCenter.referredById?.toString().trim() || null;
 
     if (!name || !code || !email) {
       results.failedCount++;
@@ -455,8 +456,9 @@ export const bulkImportStudyCenters = asyncHandler(async (req: AuthRequest, res:
             city,
             state,
             address,
-            status: 'active', // Default to active for bulk imports
-            credentials: { userId, password: rawPassword }
+            status: 'active',
+            credentials: { userId, password: rawPassword },
+            ...(referredById ? { referredBy: referredById } : {})
           }
         });
 

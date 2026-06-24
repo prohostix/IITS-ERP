@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Building2, Shield, Upload, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Building2, Shield, Upload, Download, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +55,7 @@ export function UsersPanel() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -308,6 +309,17 @@ export function UsersPanel() {
     );
   }
 
+  const filteredUsers = users.filter((u) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      !q ||
+      u.name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.role?.toLowerCase().includes(q) ||
+      u.userId?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -338,8 +350,19 @@ export function UsersPanel() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, email, role or user ID…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map((user) => (
+        {filteredUsers.map((user) => (
           <Card key={user.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
@@ -410,18 +433,22 @@ export function UsersPanel() {
         ))}
       </div>
 
-      {users.length === 0 && (
+      {filteredUsers.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <User className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No users found</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {searchQuery ? 'No users match your search' : 'No users found'}
+            </h3>
             <p className="text-muted-foreground text-sm mb-4">
-              Get started by creating your first user
+              {searchQuery ? 'Try a different keyword.' : 'Get started by creating your first user'}
             </p>
-            <Button onClick={handleCreate}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create User
-            </Button>
+            {!searchQuery && (
+              <Button onClick={handleCreate}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create User
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
