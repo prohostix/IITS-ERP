@@ -92,7 +92,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentEmail,
       studentPhone,
       studentAddress,
-      status: 'submitted' as any,
+      status: 'document_review' as any,
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
       organization: { connect: { id: organizationId } },
@@ -111,6 +111,9 @@ export const getMyEnrollments = asyncHandler(async (req: AuthRequest, res: Respo
     include: {
       program: {
         include: { university: { select: { name: true, code: true } } }
+      },
+      session: {
+        select: { name: true }
       }
     },
     orderBy: { createdAt: 'desc' }

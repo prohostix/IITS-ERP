@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText } from 'lucide-react';
+import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText, Edit, ShieldAlert, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -66,6 +67,9 @@ export function EnrollStudentPanel() {
   });
 
   const [uploading, setUploading] = useState(false);
+  
+  // Confirmation Dialog Step
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -145,13 +149,19 @@ export function EnrollStudentPanel() {
     setDocumentList(documentList.filter((_, i) => i !== index));
   };
 
-  const handleEnroll = async () => {
+  const triggerConfirm = () => {
     if (!selectedProgram) return;
     const missing = Object.entries(form).filter(([, v]) => !v.trim()).map(([k]) => k);
     if (missing.length > 0) {
       toast.error(`Missing: ${missing.join(', ')}`);
       return;
     }
+    setConfirmOpen(true);
+  };
+
+  const handleEnroll = async () => {
+    if (!selectedProgram) return;
+    setConfirmOpen(false);
     setSubmitting(true);
     try {
       await api.post('/enrollment/enroll', { 
@@ -361,9 +371,9 @@ export function EnrollStudentPanel() {
                 <div className="space-y-2 border-b pb-4">
                   {documentList.map((doc, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-muted/40 p-2.5 rounded-lg border text-sm">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-primary" />
-                        <span className="truncate max-w-[200px] font-medium">{doc.name}</span>
+                      <div className="flex items-center gap-2 truncate pr-2">
+                        <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate font-medium">{doc.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2">View</a>
@@ -392,8 +402,8 @@ export function EnrollStudentPanel() {
               </div>
 
               <Button
-                className="w-full mt-4"
-                onClick={handleEnroll}
+                className="w-full mt-4 premium-gradient text-white"
+                onClick={triggerConfirm}
                 disabled={!selectedProgram || submitting || (balance < getTotalFee(selectedProgram))}
               >
                 <GraduationCap className="w-4 h-4 mr-2" />
@@ -406,6 +416,120 @@ export function EnrollStudentPanel() {
           </Card>
         </div>
       </div>
+
+      {/* Confirmation & Edit Dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <ShieldAlert className="w-6 h-6 text-amber-500" /> Verify Application Details
+            </DialogTitle>
+            <DialogDescription>
+              Please review all student details, educational history, and uploaded files carefully before submitting.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedProgram && (
+            <div className="space-y-6 py-4">
+              {/* Basic Details */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-foreground">Basic Profile</h4>
+                <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-xl border text-sm">
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Student Name</span>
+                    <span className="font-semibold text-foreground">{form.studentName}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Email Address</span>
+                    <span className="font-semibold text-foreground">{form.studentEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Phone Number</span>
+                    <span className="font-semibold text-foreground">{form.studentPhone}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Residential Address</span>
+                    <span className="font-semibold text-foreground">{form.studentAddress}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Course selection info */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-foreground">Program & Intake Selection</h4>
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 text-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-primary">{selectedProgram.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Code: {selectedProgram.code} {selectedProgram.university ? `· University: ${selectedProgram.university.name}` : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-extrabold text-base text-primary">₹{getTotalFee(selectedProgram).toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{getBillingCycleText(selectedProgram).replace('/', '')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Educational List */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-foreground">Educational History</h4>
+                {educationList.length > 0 ? (
+                  <div className="space-y-2">
+                    {educationList.map((edu, idx) => (
+                      <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                        <div className="col-span-1">
+                          <span className="text-xs text-muted-foreground block">Qualification</span>
+                          <span className="font-semibold">{edu.qualification}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-xs text-muted-foreground block">Institution</span>
+                          <span className="font-medium">{edu.institution}</span>
+                        </div>
+                        <div className="col-span-1 text-right">
+                          <span className="text-xs text-muted-foreground block">Passing / %</span>
+                          <span className="font-medium">{edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic bg-muted/15 p-3 rounded-lg border">No educational history credentials provided.</p>
+                )}
+              </div>
+
+              {/* Uploaded Documents */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-foreground">Uploaded Proofs & Documents</h4>
+                {documentList.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {documentList.map((doc, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate font-medium">{doc.name}</span>
+                        </div>
+                        <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline font-semibold flex-shrink-0">View</a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic bg-muted/15 p-3 rounded-lg border">No files uploaded.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 border-t pt-4">
+            <Button variant="outline" className="flex items-center gap-1.5" onClick={() => setConfirmOpen(false)}>
+              <Edit className="w-4 h-4" /> Edit Details
+            </Button>
+            <Button className="premium-gradient text-white flex items-center gap-1.5" onClick={handleEnroll} disabled={submitting}>
+              <Check className="w-4 h-4" /> Confirm & Submit Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

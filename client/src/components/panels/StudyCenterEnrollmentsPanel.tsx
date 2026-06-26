@@ -17,6 +17,7 @@ interface Enrollment {
   studentAddress: string;
   programId: { name: string; code: string } | string;
   program?: { name: string; code: string; university?: { name: string } };
+  session?: { name: string };
   status: string;
   createdAt: string;
   documents?: { name: string; url: string }[] | null;
@@ -177,16 +178,30 @@ export function StudyCenterEnrollmentsPanel() {
                 {/* Course Details */}
                 <div>
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-primary" /> Program Selection
+                    <GraduationCap className="w-4 h-4 text-primary" /> Program Selection & Intake Session
                   </h4>
-                  <div className="bg-muted/20 p-3 rounded-lg border text-sm">
-                    <p className="font-semibold">{getProgramName(selectedEnrollment)}</p>
+                  <div className="bg-muted/20 p-4 rounded-xl border text-sm space-y-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-medium">Program Name</span>
+                      <span className="font-semibold text-foreground">{getProgramName(selectedEnrollment)}</span>
+                    </div>
                     {getUniversityName(selectedEnrollment) && (
-                      <p className="text-xs text-muted-foreground mt-0.5">University: {getUniversityName(selectedEnrollment)}</p>
+                      <div>
+                        <span className="text-xs text-muted-foreground block font-medium">University</span>
+                        <span className="font-semibold text-foreground">{getUniversityName(selectedEnrollment)}</span>
+                      </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Submitted: {new Date(selectedEnrollment.createdAt).toLocaleString()}
-                    </p>
+                    {selectedEnrollment.session?.name && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block font-medium">Intake Session</span>
+                        <span className="font-semibold text-foreground">{selectedEnrollment.session.name}</span>
+                      </div>
+                    )}
+                    <div className="pt-1 border-t mt-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Submitted on: {new Date(selectedEnrollment.createdAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
