@@ -318,11 +318,11 @@ export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response)
 
 // Allocations
 export const getProgramAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const allocations = await prisma.programAllocation.findMany({ where: { studyCenterId: req.params.id }, include: { program: true } });
+  const allocations = await prisma.programAllocation.findMany({ where: { centerId: req.params.id }, include: { program: true } });
   res.json({ success: true, data: allocations });
 });
 export const allocateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const allocation = await prisma.programAllocation.create({ data: { ...req.body, studyCenterId: req.params.id, organizationId: req.user.organizationId, allocatedBy: req.user.id } });
+  const allocation = await prisma.programAllocation.create({ data: { ...req.body, centerId: req.params.id, organizationId: req.user.organizationId, allocatedBy: req.user.id } });
   res.status(201).json({ success: true, data: allocation });
 });
 export const removeAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {
