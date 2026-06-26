@@ -38,6 +38,7 @@ import { IncomeExpenditurePanel } from '@/components/panels/IncomeExpenditurePan
 import { ProfitLossPanel } from '@/components/panels/ProfitLossPanel';
 import { FinanceSalaryApprovalPanel } from '@/components/panels/FinanceSalaryApprovalPanel';
 import { FinanceSalesTargetsPanel } from '@/components/panels/FinanceSalesTargetsPanel';
+import { FinanceUniversityFeePanel } from '@/components/panels/FinanceUniversityFeePanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
@@ -99,6 +100,7 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       );
       case 'invoices': return <InvoicesPanel />;
       case 'payments': return <PaymentsPanel />;
+      case 'university_fees': return <FinanceUniversityFeePanel />;
       case 'expenses': return <ExpensesPanel />;
       case 'targets': return <TargetsPanel endpoint="/finance/targets" title="Finance Targets" />;
       case 'fees': return <ProgramFeeStructurePanel />;
@@ -143,6 +145,7 @@ export function getFinanceNavItems() {
     { id: 'overview', label: 'Overview' },
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
+    { id: 'university_fees', label: 'University Fees' },
     { id: 'expenses', label: 'Expenses' },
     { id: 'targets', label: 'Targets' },
     { id: 'fees', label: 'Fee Structures' },

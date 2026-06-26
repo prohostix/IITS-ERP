@@ -50,6 +50,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Finance
   invoices: 'invoices',
   payments: 'payments',
+  university_fees: 'university_fees',
   expenses: 'expenses',
   targets: 'targets',
   fee_structures: 'fees',

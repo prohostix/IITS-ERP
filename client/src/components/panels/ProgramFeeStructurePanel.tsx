@@ -24,6 +24,7 @@ interface ProgramFee {
   registrationFee?: number;
   examFee?: number;
   gstPercentage?: number;
+  universityFee?: number;
 }
 
 interface University {
@@ -83,6 +84,7 @@ export function ProgramFeeStructurePanel() {
     baseFee: '0', 
     examFee: '0',
     gstPercentage: '18',
+    universityFee: '0',
     effectiveFrom: '', 
     additionalFees: '' 
   });
@@ -131,6 +133,7 @@ export function ProgramFeeStructurePanel() {
       baseFee: '0', 
       examFee: '0',
       gstPercentage: '18',
+      universityFee: '0',
       effectiveFrom: '', 
       additionalFees: '' 
     });
@@ -164,6 +167,7 @@ export function ProgramFeeStructurePanel() {
       registrationFee: regFeeObj ? String(regFeeObj.amount) : '0',
       examFee: examFeeObj ? String(examFeeObj.amount) : '0',
       gstPercentage: gstObj ? String(gstObj.amount) : '18',
+      universityFee: fee.universityFee ? String(fee.universityFee) : '0',
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
       additionalFees: otherFees.map(f => `${f.label}:${f.amount}`).join(', '),
     });
@@ -208,6 +212,7 @@ export function ProgramFeeStructurePanel() {
         universityId: form.universityId || undefined,
         admissionSessionId: form.admissionSessionId || undefined,
         baseFee: Number(form.baseFee),
+        universityFee: Number(form.universityFee),
         billingCycle: form.billingCycle,
         currency: form.currency,
         effectiveFrom: form.effectiveFrom || undefined,
@@ -470,6 +475,11 @@ export function ProgramFeeStructurePanel() {
                             <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-200">
                               {fee.currency} {fee.baseFee.toLocaleString()} Tuition/Base
                             </Badge>
+                            {fee.universityFee !== undefined && fee.universityFee > 0 && (
+                              <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200">
+                                {fee.currency} {fee.universityFee.toLocaleString()} University Fee
+                              </Badge>
+                            )}
                             {fee.additionalFees.map((f, i) => (
                               <Badge key={i} variant="secondary" className="text-xs">{f.label}: {f.amount}</Badge>
                             ))}
@@ -719,7 +729,7 @@ export function ProgramFeeStructurePanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Registration Fee</Label>
                 <Input type="number" value={form.registrationFee} onChange={e => setForm(f => ({ ...f, registrationFee: e.target.value }))} placeholder="0" />
@@ -727,6 +737,10 @@ export function ProgramFeeStructurePanel() {
               <div className="space-y-1">
                 <Label>Tuition / Base Fee</Label>
                 <Input type="number" value={form.baseFee} onChange={e => setForm(f => ({ ...f, baseFee: e.target.value }))} placeholder="0" />
+              </div>
+              <div className="space-y-1">
+                <Label>University Fee</Label>
+                <Input type="number" value={form.universityFee} onChange={e => setForm(f => ({ ...f, universityFee: e.target.value }))} placeholder="0" />
               </div>
             </div>
 

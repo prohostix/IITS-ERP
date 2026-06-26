@@ -73,7 +73,51 @@ export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response
   if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null;
   if (paidAt !== undefined) data.paidAt = paidAt ? new Date(paidAt) : null;
 
-  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data });
+  const invoice = await prisma.invoice.update({ 
+    where: { id: req.params.id }, 
+    data,
+    include: { student: true }
+  });
+
+  if (invoice.status === 'paid' && invoice.studentId && invoice.student) {
+    const feeStructure = await prisma.programFeeStructure.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        programId: invoice.student.programId
+      }
+    });
+
+    if (feeStructure && feeStructure.universityFee && feeStructure.universityFee > 0) {
+      const existing = await prisma.universityFeePayment.findFirst({
+        where: { invoiceId: invoice.id }
+      });
+
+      if (!existing) {
+        const paidInvoicesCount = await prisma.invoice.count({
+          where: {
+            studentId: invoice.studentId,
+            status: 'paid'
+          }
+        });
+
+        const isSemester = feeStructure.billingCycle === 'per_semester';
+        const count = paidInvoicesCount || 1;
+        const semesterOrYear = isSemester ? `Semester ${count}` : `Year ${count}`;
+
+        await prisma.universityFeePayment.create({
+          data: {
+            organizationId: req.user.organizationId,
+            studentId: invoice.studentId,
+            invoiceId: invoice.id,
+            semesterOrYear,
+            amount: feeStructure.universityFee,
+            status: 'pending'
+          }
+        });
+      }
+    }
+  }
+
   res.json({ success: true, data: { ...invoice, _id: invoice.id } });
 });
 export const deleteInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -770,4 +814,52 @@ export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: R
     }
   });
   res.json({ success: true, data: users });
+});
+
+// University Fee Payments
+export const getUniversityFeePayments = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status } = req.query;
+  const whereClause: any = { organizationId: req.user.organizationId };
+  if (status) {
+    whereClause.status = status;
+  }
+  const payments = await prisma.universityFeePayment.findMany({
+    where: whereClause,
+    include: {
+      student: {
+        include: {
+          program: true,
+          center: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ success: true, count: payments.length, data: payments });
+});
+
+export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { referenceNo, paidAt } = req.body;
+  const screenshot = req.file ? `/uploads/${req.file.filename}` : undefined;
+
+  const payment = await prisma.universityFeePayment.findUnique({
+    where: { id: req.params.id }
+  });
+
+  if (!payment || payment.organizationId !== req.user.organizationId) {
+    res.status(404).json({ success: false, message: 'University fee payment entry not found' });
+    return;
+  }
+
+  const updated = await prisma.universityFeePayment.update({
+    where: { id: req.params.id },
+    data: {
+      status: 'paid',
+      referenceNo: referenceNo || null,
+      paidAt: paidAt ? new Date(paidAt) : new Date(),
+      screenshot: screenshot || payment.screenshot
+    }
+  });
+
+  res.json({ success: true, data: updated });
 });

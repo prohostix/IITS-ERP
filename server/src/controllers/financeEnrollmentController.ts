@@ -28,8 +28,38 @@ export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: 
 export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
-    data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() }
+    data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() },
+    include: { program: true }
   });
+
+  if (enrollment.studentId && enrollment.programId) {
+    const feeStructure = await prisma.programFeeStructure.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        programId: enrollment.programId
+      }
+    });
+
+    if (feeStructure && feeStructure.universityFee && feeStructure.universityFee > 0) {
+      const existing = await prisma.universityFeePayment.findUnique({
+        where: { enrollmentId: enrollment.id }
+      });
+
+      if (!existing) {
+        await prisma.universityFeePayment.create({
+          data: {
+            organizationId: req.user.organizationId,
+            studentId: enrollment.studentId,
+            enrollmentId: enrollment.id,
+            semesterOrYear: feeStructure.billingCycle === 'per_semester' ? 'Semester 1' : 'Year 1',
+            amount: feeStructure.universityFee,
+            status: 'pending'
+          }
+        });
+      }
+    }
+  }
+
   res.json({ success: true, data: enrollment });
 });
 

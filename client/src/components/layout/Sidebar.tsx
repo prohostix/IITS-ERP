@@ -113,6 +113,7 @@ const navItems: NavItem[] = [
     children: [
       { id: 'invoices', label: 'Invoices', icon: Receipt, roles: ['finance_admin', 'ceo'] },
       { id: 'payments', label: 'Payments', icon: Wallet, roles: ['finance_admin', 'ceo'] },
+      { id: 'university_fees', label: 'University Fees', icon: School, roles: ['finance_admin', 'ceo'] },
       { id: 'expenses', label: 'Expenses', icon: Receipt, roles: ['finance_admin', 'ceo'] },
       { id: 'targets', label: 'Targets', icon: Target, roles: ['finance_admin', 'ceo'] },
       { id: 'fees', label: 'Fee Structures', icon: Settings, roles: ['finance_admin', 'ceo'] },

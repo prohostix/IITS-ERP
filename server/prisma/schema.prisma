@@ -8,74 +8,75 @@ datasource db {
 }
 
 model Organization {
-  id                   String                @id @default(uuid())
-  name                 String
-  email                String?               @unique
-  phone                String?
-  address              String?
-  contactEmail         String?
-  contactPhone         String?
-  plan                 String?
-  slug                 String?               @unique
-  logo                 String?
-  status               String?               @default("active")
-  licenseId            String?
-  licenseExpiry        DateTime?
-  metadata             Json?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  sessions             AdmissionSession[]
-  announcements        Announcement[]
-  attendances          Attendance[]
-  auditLogs            AuditLog[]
-  branches             Branch[]
-  ceoPanels            CeoPanel[]
-  complaints           Complaint[]
-  credentialRequests   CredentialRequest[]
-  departments          Department[]
-  designations         Designation[]
-  editDeleteRequests   EditDeleteRequest[]
-  employees            Employee[]
-  employeeProfiles     EmployeeProfile[]
-  enrollments          Enrollment[]
-  escalations          Escalation[]
-  escalationLogs       EscalationLog[]
-  expenseClaims        ExpenseClaim[]
-  feeStructures        FeeStructure[]
-  gstSettings          GSTSetting[]
-  hrSettings           HRSettings?
-  holidays             Holiday[]
-  incentiveStructures  IncentiveStructure[]
-  internalMarks        InternalMark[]
-  invoices             Invoice[]
-  leads                Lead[]
-  leaveAllocations     LeaveAllocation[]
-  leaveRequests        LeaveRequest[]
-  notifications        Notification[]
-  license              License?              @relation(fields: [licenseId], references: [id])
-  payments             PaymentEntry[]
-  payrolls             Payroll[]
-  payrollBatches       PayrollBatch[]
-  polls                Poll[]
-  programs             Program[]
-  programAllocations   ProgramAllocation[]
-  programFeeStructures ProgramFeeStructure[]
-  referralLinks        ReferralLink[]
-  reregRules           ReregRule[]
-  salaryConfigs        SalaryConfig[]
-  sessionReqs          SessionRequest[]
-  students             Student[]
-  studyCenters         StudyCenter[]
-  studyCenterInvites   StudyCenterInvite[]
-  centerWallets        StudyCenterWallet[]
-  subDepartments       SubDepartment[]
-  targets              Target[]
-  tasks                Task[]
-  universities         University[]
-  authFees             UniversityAuthFee[]
-  users                User[]
-  vacancies            Vacancy[]
-  walletTopUps         WalletTopUp[]
+  id                    String                 @id @default(uuid())
+  name                  String
+  email                 String?                @unique
+  phone                 String?
+  address               String?
+  contactEmail          String?
+  contactPhone          String?
+  plan                  String?
+  slug                  String?                @unique
+  logo                  String?
+  status                String?                @default("active")
+  licenseId             String?
+  licenseExpiry         DateTime?
+  metadata              Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              AdmissionSession[]
+  announcements         Announcement[]
+  attendances           Attendance[]
+  auditLogs             AuditLog[]
+  branches              Branch[]
+  ceoPanels             CeoPanel[]
+  complaints            Complaint[]
+  credentialRequests    CredentialRequest[]
+  departments           Department[]
+  designations          Designation[]
+  editDeleteRequests    EditDeleteRequest[]
+  employees             Employee[]
+  employeeProfiles      EmployeeProfile[]
+  enrollments           Enrollment[]
+  escalations           Escalation[]
+  escalationLogs        EscalationLog[]
+  expenseClaims         ExpenseClaim[]
+  feeStructures         FeeStructure[]
+  gstSettings           GSTSetting[]
+  hrSettings            HRSettings?
+  holidays              Holiday[]
+  incentiveStructures   IncentiveStructure[]
+  internalMarks         InternalMark[]
+  invoices              Invoice[]
+  leads                 Lead[]
+  leaveAllocations      LeaveAllocation[]
+  leaveRequests         LeaveRequest[]
+  notifications         Notification[]
+  license               License?               @relation(fields: [licenseId], references: [id])
+  payments              PaymentEntry[]
+  payrolls              Payroll[]
+  payrollBatches        PayrollBatch[]
+  polls                 Poll[]
+  programs              Program[]
+  programAllocations    ProgramAllocation[]
+  programFeeStructures  ProgramFeeStructure[]
+  referralLinks         ReferralLink[]
+  reregRules            ReregRule[]
+  salaryConfigs         SalaryConfig[]
+  sessionReqs           SessionRequest[]
+  students              Student[]
+  studyCenters          StudyCenter[]
+  studyCenterInvites    StudyCenterInvite[]
+  centerWallets         StudyCenterWallet[]
+  subDepartments        SubDepartment[]
+  targets               Target[]
+  tasks                 Task[]
+  universities          University[]
+  authFees              UniversityAuthFee[]
+  users                 User[]
+  universityFeePayments UniversityFeePayment[]
+  vacancies             Vacancy[]
+  walletTopUps          WalletTopUp[]
 
   @@index([status])
 }
@@ -96,34 +97,34 @@ model License {
 }
 
 model Department {
-  id                 String             @id @default(uuid())
+  id                 String          @id @default(uuid())
   organizationId     String
   name               String
   type               String?
   subType            String?
   parentDepartmentId String?
   managerId          String?
-  features           Json?               @default("[]")
-  permissions        Json?               @default("[]")
-  status             String             @default("active")
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  features           Json?           @default("[]")
+  permissions        Json?           @default("[]")
+  status             String          @default("active")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   announcements      Announcement[]
-  additionalBranches Branch[]           @relation("BranchAdditionalDepts")
-  opsBranch          Branch?            @relation("BranchOpsDept")
-  salesBranch        Branch?            @relation("BranchSalesDept")
-  manager            User?              @relation("DepartmentManager", fields: [managerId], references: [id])
-  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parentDepartment   Department?        @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
-  childDepartments   Department[]       @relation("DepartmentHierarchy")
+  additionalBranches Branch[]        @relation("BranchAdditionalDepts")
+  opsBranch          Branch?         @relation("BranchOpsDept")
+  salesBranch        Branch?         @relation("BranchSalesDept")
+  manager            User?           @relation("DepartmentManager", fields: [managerId], references: [id])
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentDepartment   Department?     @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  childDepartments   Department[]    @relation("DepartmentHierarchy")
   designations       Designation[]
   leaveRequests      LeaveRequest[]
   subDepartments     SubDepartment[]
   targets            Target[]
   tasks              Task[]
-  users              User[]             @relation("UserToDepartment")
+  users              User[]          @relation("UserToDepartment")
   vacancies          Vacancy[]
-  assistantManagers  User[]             @relation("AssistantManagers")
+  assistantManagers  User[]          @relation("AssistantManagers")
 
   @@index([organizationId, type])
   @@index([organizationId, status])
@@ -148,7 +149,7 @@ model User {
   phone                         String?
   designation                   String?
   reportingTo                   String?
-  status                        String?            @default("active")
+  status                        String?               @default("active")
   lastLogin                     DateTime?
   designationId                 String?
   canAddPrograms                Boolean               @default(false)
@@ -310,23 +311,23 @@ model Attendance {
 }
 
 model University {
-  id                String              @id @default(uuid())
-  organizationId    String
-  subDepartmentId   String?
-  name              String
-  code              String
-  address           String?
-  contact           String?
-  country           String?
-  status            String              @default("active")
-  admissionSessions AdmissionSession[]
-  programs          Program[]
-  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  authFees          UniversityAuthFee[]
-  admins            User[]              @relation("UniversityAdmin")
-  assignedSubDepts  SubDepartment[]     @relation("SubDeptToUniversity")
-  allowedBranches   Branch[]            @relation("UniversityToBranch")
-  studyCenters      StudyCenter[]       @relation("UniversityToStudyCenter")
+  id                   String                @id @default(uuid())
+  organizationId       String
+  subDepartmentId      String?
+  name                 String
+  code                 String
+  address              String?
+  contact              String?
+  country              String?
+  status               String                @default("active")
+  admissionSessions    AdmissionSession[]
+  programs             Program[]
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authFees             UniversityAuthFee[]
+  admins               User[]                @relation("UniversityAdmin")
+  assignedSubDepts     SubDepartment[]       @relation("SubDeptToUniversity")
+  allowedBranches      Branch[]              @relation("UniversityToBranch")
+  studyCenters         StudyCenter[]         @relation("UniversityToStudyCenter")
   programFeeStructures ProgramFeeStructure[]
 
   @@unique([organizationId, code])
@@ -334,29 +335,29 @@ model University {
 }
 
 model Program {
-  id                  String               @id @default(uuid())
+  id                  String                @id @default(uuid())
   universityId        String
   organizationId      String
   subDepartmentId     String?
   name                String
   code                String
-  courseType          CourseType           @default(OnlineDegree)
+  courseType          CourseType            @default(OnlineDegree)
   duration            Int
-  hasSemesters        Boolean              @default(false)
-  semesters           Json                 @default("[]")
-  specialisations     Json                 @default("[]")
-  status              String               @default("active")
+  hasSemesters        Boolean               @default(false)
+  semesters           Json                  @default("[]")
+  specialisations     Json                  @default("[]")
+  status              String                @default("active")
   admissionSessions   AdmissionSession[]
   enrollments         Enrollment[]
   feeStructure        FeeStructure?
-  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  university          University           @relation(fields: [universityId], references: [id])
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  university          University            @relation(fields: [universityId], references: [id])
   programAllocations  ProgramAllocation[]
   programFeeStructure ProgramFeeStructure[]
   reregRules          ReregRule[]
   students            Student[]
-  studyCenters        StudyCenter[]        @relation("ProgramToStudyCenter")
-  assignedSubDepts    SubDepartment[]      @relation("SubDeptToProgram")
+  studyCenters        StudyCenter[]         @relation("ProgramToStudyCenter")
+  assignedSubDepts    SubDepartment[]       @relation("SubDeptToProgram")
 
   @@index([universityId])
   @@index([organizationId])
@@ -414,31 +415,32 @@ model StudyCenter {
 }
 
 model Student {
-  id             String         @id @default(uuid())
-  centerId       String
-  organizationId String
-  enrollmentNo   String         @unique
-  name           String
-  email          String         @unique
-  phone          String
-  address        String
-  programId      String
-  sessionId      String?
-  status         String         @default("pending")
-  joinDate       DateTime       @default(now())
-  enrolledAt     DateTime?
-  reregStatus    Json?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  referredBy     String?
-  enrollments    Enrollment[]
-  internalMarks  InternalMark[]
-  invoices       Invoice[]
-  center         StudyCenter    @relation(fields: [centerId], references: [id])
-  user           User           @relation(fields: [email], references: [email])
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  program        Program        @relation(fields: [programId], references: [id])
-  referrer       User?          @relation("StudentReferredBy", fields: [referredBy], references: [id])
+  id                    String                 @id @default(uuid())
+  centerId              String
+  organizationId        String
+  enrollmentNo          String                 @unique
+  name                  String
+  email                 String                 @unique
+  phone                 String
+  address               String
+  programId             String
+  sessionId             String?
+  status                String                 @default("pending")
+  joinDate              DateTime               @default(now())
+  enrolledAt            DateTime?
+  reregStatus           Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  referredBy            String?
+  enrollments           Enrollment[]
+  internalMarks         InternalMark[]
+  invoices              Invoice[]
+  universityFeePayments UniversityFeePayment[] @relation("StudentUniFeePayments")
+  center                StudyCenter            @relation(fields: [centerId], references: [id])
+  user                  User                   @relation(fields: [email], references: [email])
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  program               Program                @relation(fields: [programId], references: [id])
+  referrer              User?                  @relation("StudentReferredBy", fields: [referredBy], references: [id])
 
   @@index([organizationId, status])
   @@index([centerId])
@@ -771,30 +773,30 @@ model Vacancy {
 }
 
 model AdmissionSession {
-  id              String         @id @default(uuid())
-  organizationId  String
-  name            String
-  startDate       DateTime
-  endDate         DateTime
-  status          String         @default("active")
-  programId       String?
-  universityId    String?
-  studyCenterId   String?
-  capacity        Int?           @default(0)
-  createdBy       String?
-  approvedBy      String?
-  approvedAt      DateTime?
-  subDepartmentId String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  approver        User?          @relation("SessionApprovedBy", fields: [approvedBy], references: [id])
-  creator         User?          @relation("SessionCreatedBy", fields: [createdBy], references: [id])
-  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  program         Program?       @relation(fields: [programId], references: [id])
-  studyCenter     StudyCenter?   @relation(fields: [studyCenterId], references: [id])
-  subDepartment   SubDepartment? @relation(fields: [subDepartmentId], references: [id])
-  university      University?    @relation(fields: [universityId], references: [id])
-  enrollments     Enrollment[]
+  id                   String                @id @default(uuid())
+  organizationId       String
+  name                 String
+  startDate            DateTime
+  endDate              DateTime
+  status               String                @default("active")
+  programId            String?
+  universityId         String?
+  studyCenterId        String?
+  capacity             Int?                  @default(0)
+  createdBy            String?
+  approvedBy           String?
+  approvedAt           DateTime?
+  subDepartmentId      String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  approver             User?                 @relation("SessionApprovedBy", fields: [approvedBy], references: [id])
+  creator              User?                 @relation("SessionCreatedBy", fields: [createdBy], references: [id])
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  program              Program?              @relation(fields: [programId], references: [id])
+  studyCenter          StudyCenter?          @relation(fields: [studyCenterId], references: [id])
+  subDepartment        SubDepartment?        @relation(fields: [subDepartmentId], references: [id])
+  university           University?           @relation(fields: [universityId], references: [id])
+  enrollments          Enrollment[]
   programFeeStructures ProgramFeeStructure[]
 
   @@index([organizationId])
@@ -981,18 +983,18 @@ model EmployeeProfile {
 }
 
 model HRSettings {
-  id              String       @id @default(uuid())
-  organizationId  String       @unique
-  officeHours     Json
-  latePolicy      Json
-  location        Json
-  locations       Json         @default("[]")
-  requireLocation Boolean      @default(true)
-  requireLocationForCheckIn Boolean?      @default(true)
-  biometric       Json
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                        String       @id @default(uuid())
+  organizationId            String       @unique
+  officeHours               Json
+  latePolicy                Json
+  location                  Json
+  locations                 Json         @default("[]")
+  requireLocation           Boolean      @default(true)
+  requireLocationForCheckIn Boolean?     @default(true)
+  biometric                 Json
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+  organization              Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model CeoPanel {
@@ -1055,7 +1057,7 @@ model Escalation {
   resolvedAt     DateTime?
   resolvedBy     String?
   handledBy      String?
-  chain          Json?            @default("[]")
+  chain          Json?           @default("[]")
   raisedById     String?
   raisedAt       DateTime?
   type           String?
@@ -1072,7 +1074,7 @@ model Escalation {
   handler        User?           @relation("EscalationHandledBy", fields: [handledBy], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   resolver       User?           @relation("EscalatedResolvedBy", fields: [resolvedBy], references: [id])
-  task           Task?            @relation(fields: [taskId], references: [id])
+  task           Task?           @relation(fields: [taskId], references: [id])
   logs           EscalationLog[]
 
   @@index([organizationId, status])
@@ -1350,6 +1352,7 @@ model ProgramFeeStructure {
   organizationId     String
   billingCycle       String
   baseFee            Float
+  universityFee      Float             @default(0)
   additionalFees     Json              @default("[]")
   createdBy          String
   createdAt          DateTime          @default(now())
@@ -1361,6 +1364,27 @@ model ProgramFeeStructure {
   admissionSession   AdmissionSession? @relation(fields: [admissionSessionId], references: [id])
 
   @@index([organizationId])
+}
+
+model UniversityFeePayment {
+  id             String       @id @default(uuid())
+  organizationId String
+  studentId      String
+  enrollmentId   String?      @unique
+  invoiceId      String?
+  semesterOrYear String       @default("1")
+  amount         Float
+  status         String       @default("pending") // "pending", "paid"
+  referenceNo    String?
+  paidAt         DateTime?
+  screenshot     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  student        Student      @relation("StudentUniFeePayments", fields: [studentId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([studentId])
 }
 
 enum OrganizationStatus {
