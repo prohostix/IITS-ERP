@@ -17,6 +17,7 @@ import { OrgHierarchyPanel } from '@/components/panels/OrgHierarchyPanel';
 import { BranchesPanel } from '@/components/panels/BranchesPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
+import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
 import api from '@/lib/api';
@@ -55,6 +56,7 @@ export function ModernOrgAdminDashboard({ initialTab }: { initialTab?: string })
             <TabsTrigger value="students" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Students</TabsTrigger>
             <TabsTrigger value="universities" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Universities</TabsTrigger>
             <TabsTrigger value="programs" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Programs</TabsTrigger>
+            <TabsTrigger value="sessions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Sessions</TabsTrigger>
             <TabsTrigger value="centers" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Study Centers</TabsTrigger>
             <TabsTrigger value="invoices" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Invoices</TabsTrigger>
             <TabsTrigger value="payments" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Payments</TabsTrigger>
@@ -89,6 +91,7 @@ export function ModernOrgAdminDashboard({ initialTab }: { initialTab?: string })
         <TabsContent value="students"><StudentsPanel /></TabsContent>
         <TabsContent value="universities"><UniversitiesPanel /></TabsContent>
         <TabsContent value="programs"><ProgramsPanel /></TabsContent>
+        <TabsContent value="sessions"><OrgAdminSessionsPanel /></TabsContent>
         <TabsContent value="centers"><StudyCentersPanel /></TabsContent>
         <TabsContent value="invoices"><InvoicesPanel /></TabsContent>
         <TabsContent value="payments"><PaymentsPanel /></TabsContent>
