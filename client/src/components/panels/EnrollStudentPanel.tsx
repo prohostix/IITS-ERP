@@ -14,7 +14,13 @@ interface Program {
   name: string;
   code: string;
   university?: { name: string };
-  programFeeStructure?: { baseFee: number; currency: string; billingCycle?: string; additionalFees: { label: string; amount: number }[] }[];
+  programFeeStructure?: {
+    baseFee: number;
+    currency: string;
+    billingCycle?: string;
+    gstPercentage?: number;
+    additionalFees: { label: string; amount: number }[];
+  }[];
 }
 
 interface WalletData {
@@ -51,7 +57,13 @@ export function EnrollStudentPanel() {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
     const fs = p.programFeeStructure[0];
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
-    return fs.baseFee + addFees.reduce((s, f) => s + f.amount, 0);
+    // Filter out the GST entry from additionalFees (it's a percentage, not a flat fee)
+    const nonGstFees = addFees.filter(f => f.label !== 'GST');
+    const subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);
+    // Apply GST percentage on top of subtotal
+    const gstEntry = addFees.find(f => f.label === 'GST');
+    const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
+    return subtotal + gstAmount;
   };
 
   const getBillingCycleText = (p: Program) => {
@@ -150,7 +162,12 @@ export function EnrollStudentPanel() {
                       {p.programFeeStructure && p.programFeeStructure.length > 0 && p.programFeeStructure[0].additionalFees.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">
                           {p.programFeeStructure[0].additionalFees.map((f, i) => (
-                            <Badge key={i} variant="secondary" className="text-[10px]">{f.label}: ₹{f.amount}</Badge>
+                            <Badge key={i} variant="secondary" className="text-[10px]">
+                              {f.label === 'GST'
+                                ? `GST: ${f.amount}%`
+                                : `${f.label}: ₹${f.amount.toLocaleString()}`
+                              }
+                            </Badge>
                           ))}
                         </div>
                       )}
