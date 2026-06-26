@@ -14,7 +14,7 @@ interface Program {
   name: string;
   code: string;
   university?: { name: string };
-  programFeeStructure?: { baseFee: number; currency: string; additionalFees: { label: string; amount: number }[] }[];
+  programFeeStructure?: { baseFee: number; currency: string; billingCycle?: string; additionalFees: { label: string; amount: number }[] }[];
 }
 
 interface WalletData {
@@ -52,6 +52,15 @@ export function EnrollStudentPanel() {
     const fs = p.programFeeStructure[0];
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
     return fs.baseFee + addFees.reduce((s, f) => s + f.amount, 0);
+  };
+
+  const getBillingCycleText = (p: Program) => {
+    if (!p.programFeeStructure || p.programFeeStructure.length === 0) return '';
+    const cycle = p.programFeeStructure[0].billingCycle;
+    if (cycle === 'per_year') return ' / year';
+    if (cycle === 'per_semester') return ' / sem';
+    if (cycle === 'full_program') return ' / program';
+    return ` / ${cycle}`;
   };
 
   const handleEnroll = async () => {
@@ -129,7 +138,12 @@ export function EnrollStudentPanel() {
                           <p className="text-xs text-muted-foreground">{p.code} {p.university ? `• ${p.university.name}` : ''}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-sm">₹{total.toLocaleString()}</p>
+                          <p className="font-bold text-sm">
+                            ₹{total.toLocaleString()}
+                            <span className="text-[10px] text-muted-foreground font-normal lowercase">
+                              {getBillingCycleText(p)}
+                            </span>
+                          </p>
                           {!canAfford && <Badge variant="destructive" className="text-[9px]">Insufficient</Badge>}
                         </div>
                       </div>
