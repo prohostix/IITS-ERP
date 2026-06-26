@@ -61,6 +61,7 @@ export function ProgramsPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>('all');
   
   // Chip input state for specialisations
   const [specInput, setSpecInput] = useState('');
@@ -221,7 +222,16 @@ export function ProgramsPanel() {
 
   // If a program is selected, show its detail panel
   if (selectedProgramId) {
-    return <ProgramDetailPanel programId={selectedProgramId} onBack={() => setSelectedProgramId(null)} />;
+    return (
+      <ProgramDetailPanel 
+        programId={selectedProgramId} 
+        initialSemester={selectedSemesterId}
+        onBack={() => {
+          setSelectedProgramId(null);
+          setSelectedSemesterId('all');
+        }} 
+      />
+    );
   }
 
   return (
@@ -321,7 +331,14 @@ export function ProgramsPanel() {
                       <div className="border-t bg-slate-50 px-4 py-3">
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                           {p.semesters.map(s => (
-                            <div key={s.number} className="bg-white border rounded-lg px-3 py-2 text-center">
+                            <div 
+                              key={s.number} 
+                              onClick={() => {
+                                setSelectedSemesterId(String(s.number));
+                                setSelectedProgramId(p.id);
+                              }}
+                              className="bg-white border rounded-lg px-3 py-2 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                            >
                               <p className="text-xs font-semibold text-slate-700">{s.name}</p>
                               <p className="text-[10px] text-muted-foreground mt-0.5">{s.durationMonths} months</p>
                             </div>

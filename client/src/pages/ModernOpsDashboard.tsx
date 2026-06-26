@@ -23,6 +23,7 @@ import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { AdmissionSessionsPanel } from '@/components/panels/AdmissionSessionsPanel';
 import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { AnnouncementsPanel } from '@/components/panels/AnnouncementsPanel';
+import { BroadcastNotificationsPanel } from '@/components/panels/BroadcastNotificationsPanel';
 import { TasksPanel } from '@/components/panels/TasksPanel';
 import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
 import { OpsProgramAllocationPanel } from '@/components/panels/OpsProgramAllocationPanel';
@@ -76,6 +77,7 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
       case 'marks': return <InternalMarksPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'announcements': return <AnnouncementsPanel />;
+      case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel />;
       case 'my_attendance': return <AttendancePanel />;
@@ -110,6 +112,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: 'marks', label: 'Internal Marks' },
     { id: 'center_admissions', label: 'Centers Admissions' },
     { id: 'announcements', label: 'Announcements' },
+    { id: 'broadcast_notifications', label: 'Send Notifications' },
     { id: 'tasks', label: 'Tasks' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },

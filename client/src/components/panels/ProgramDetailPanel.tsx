@@ -76,9 +76,11 @@ function getFileIcon(mimeType: string) {
  */
 export function ProgramDetailPanel({
   programId,
+  initialSemester,
   onBack,
 }: {
   programId: string;
+  initialSemester?: string;
   onBack: () => void;
 }) {
   const { user } = useAuth();
@@ -93,6 +95,7 @@ export function ProgramDetailPanel({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [selectedSemester, setSelectedSemester] = useState<string>(initialSemester || 'all');
 
   // Upload form state
   const [uploadForm, setUploadForm] = useState({
@@ -179,7 +182,12 @@ export function ProgramDetailPanel({
 
   const resetUploadForm = () => {
     setEditingId(null);
-    setUploadForm({ title: '', description: '', category: 'study_material', semesterNumber: '' });
+    setUploadForm({ 
+      title: '', 
+      description: '', 
+      category: 'study_material', 
+      semesterNumber: selectedSemester === 'all' ? '' : selectedSemester 
+    });
     setUploadFile(null);
   };
 
@@ -200,7 +208,8 @@ export function ProgramDetailPanel({
       m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.fileName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCategory = activeTab === 'all' || m.category === activeTab;
-    return matchSearch && matchCategory;
+    const matchSemester = selectedSemester === 'all' || String(m.semesterNumber) === selectedSemester;
+    return matchSearch && matchCategory && matchSemester;
   });
 
   if (loading) {
@@ -266,11 +275,26 @@ export function ProgramDetailPanel({
 
       {/* Semester breakdown if applicable */}
       {program.hasSemesters && program.semesters?.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-2 pb-1">
+          <div 
+            onClick={() => setSelectedSemester('all')} 
+            className={cn(
+              "border rounded-lg px-3 py-1.5 text-center shrink-0 min-w-[100px] cursor-pointer transition-all hover:bg-muted/50 text-xs font-semibold",
+              selectedSemester === 'all' ? "border-primary bg-primary/5 text-primary" : "bg-card"
+            )}
+          >
+            All Semesters
+          </div>
           {program.semesters.map(s => (
-            <div key={s.number} className="border rounded-lg px-3 py-2 text-center shrink-0 min-w-[100px] bg-card">
-              <p className="text-xs font-semibold">{s.name}</p>
-              <p className="text-[10px] text-muted-foreground">{s.durationMonths} months</p>
+            <div 
+              key={s.number} 
+              onClick={() => setSelectedSemester(String(s.number))}
+              className={cn(
+                "border rounded-lg px-3 py-1.5 text-center shrink-0 min-w-[100px] cursor-pointer transition-all hover:bg-muted/50 text-xs font-semibold",
+                selectedSemester === String(s.number) ? "border-primary bg-primary/5 text-primary" : "bg-card"
+              )}
+            >
+              {s.name}
             </div>
           ))}
         </div>
