@@ -529,7 +529,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
     );
   }
 
-  const statusEntries = Object.entries(data.statusCounts);
+  const statusEntries = Object.entries(data.statusCounts || {});
   const COLORS = ['hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--error))'];
 
   const barData = statusEntries.map(([status, count], i) => ({

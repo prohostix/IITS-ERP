@@ -283,11 +283,11 @@ export function SalesCenterOnboardingPanel() {
                       </div>
 
                       {/* Status history timeline */}
-                      {center.statusHistory.length > 0 && (
+                      {(center.statusHistory?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Timeline</p>
                           <div className="space-y-2">
-                            {center.statusHistory.map((h, i) => {
+                            {(center.statusHistory || []).map((h, i) => {
                               const hcfg = STATUS_CONFIG[h.status];
                               return (
                                 <div key={i} className="flex items-start gap-3 text-xs">
@@ -308,11 +308,11 @@ export function SalesCenterOnboardingPanel() {
                       )}
 
                       {/* Universities */}
-                      {center.associatedUniversityIds.length > 0 && (
+                      {(center.associatedUniversityIds?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Universities</p>
                           <div className="flex flex-wrap gap-1">
-                            {center.associatedUniversityIds.map((u: any) => (
+                            {(center.associatedUniversityIds || []).map((u: any) => (
                               <Badge key={u.id || u.name} variant="outline" className="text-[10px]">{u.name}</Badge>
                             ))}
                           </div>

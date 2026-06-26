@@ -102,13 +102,13 @@ export function OpsCenterVerificationPanel() {
                     <p className="text-xs text-muted-foreground">{c.email} · {c.contact}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{c.address}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {c.associatedUniversityIds.map(u => (
+                      {(c.associatedUniversityIds || []).map(u => (
                         <Badge key={u.id} variant="secondary" className="text-[10px]">{u.name}</Badge>
                       ))}
                     </div>
-                    {c.pendingDocuments.length > 0 && (
+                    {(c.pendingDocuments?.length ?? 0) > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {c.pendingDocuments.map((doc, i) => (
+                        {(c.pendingDocuments || []).map((doc, i) => (
                           <a
                             key={i}
                             href={doc.url}

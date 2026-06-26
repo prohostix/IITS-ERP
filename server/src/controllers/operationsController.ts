@@ -102,7 +102,7 @@ export const createProgram = asyncHandler(async (req: AuthRequest, res: Response
     }
   }
   const data: any = { organizationId: req.user.organizationId, universityId };
-  for (const field of ['subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status']) {
+  for (const field of ['subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status', 'specialisations']) {
     if (req.body[field] !== undefined) data[field] = req.body[field];
   }
   const program = await prisma.program.create({ data });
@@ -114,7 +114,7 @@ export const updateProgram = asyncHandler(async (req: AuthRequest, res: Response
     req.body.courseType = mapFrontendToPrismaCourseType(req.body.courseType);
   }
   const data: any = {};
-  for (const field of ['universityId', 'subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status']) {
+  for (const field of ['universityId', 'subDepartmentId', 'name', 'code', 'courseType', 'duration', 'hasSemesters', 'semesters', 'status', 'specialisations']) {
     if (req.body[field] !== undefined) data[field] = req.body[field];
   }
   const program = await prisma.program.update({ where: { id: req.params.id }, data });

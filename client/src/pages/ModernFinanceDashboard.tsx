@@ -19,7 +19,6 @@ import { InvoicesPanel } from '@/components/panels/InvoicesPanel';
 import { PaymentsPanel } from '@/components/panels/PaymentsPanel';
 import { ExpensesPanel } from '@/components/panels/ExpensesPanel';
 import { TargetsPanel } from '@/components/panels/TargetsPanel';
-import { FeeStructuresPanel } from '@/components/panels/FeeStructuresPanel';
 import { TasksPanel } from '@/components/panels/TasksPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { PayrollBatchesPanel } from '@/components/panels/PayrollBatchesPanel';
@@ -102,7 +101,7 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       case 'payments': return <PaymentsPanel />;
       case 'expenses': return <ExpensesPanel />;
       case 'targets': return <TargetsPanel endpoint="/finance/targets" title="Finance Targets" />;
-      case 'fees': return <FeeStructuresPanel />;
+      case 'fees': return <ProgramFeeStructurePanel />;
       case 'payroll': return <PayrollPanel />;
       case 'payroll-batches': return <PayrollBatchesPanel />;
       case 'students': return <StudentsPanel />;

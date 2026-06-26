@@ -43,6 +43,7 @@ import reregRoutes from './routes/reregRoutes.js';
 import referralRoutes from './routes/referralRoutes.js';
 import sessionRequestRoutes from './routes/sessionRequestRoutes.js';
 import gstRoutes from './routes/gstRoutes.js';
+import backupRoutes from './routes/backupRoutes.js';
 import incentiveRoutes from './routes/incentiveRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
@@ -123,6 +124,7 @@ app.use(`/api/${API_VERSION}/incentives`, incentiveRoutes);
 app.use(`/api/${API_VERSION}/notifications`, notificationRoutes);
 app.use(`/api/${API_VERSION}/public`, publicRoutes);
 app.use(`/api/${API_VERSION}/enrollment`, enrollmentRoutes);
+app.use(`/api/${API_VERSION}/backups`, backupRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

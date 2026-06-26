@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { ProgramDetailPanel } from './ProgramDetailPanel';
+import { toast } from 'sonner';
 
 type CourseType = 'Skill Course' | 'Online Degree' | 'B.Voc Degree' | 'Credit Transfer';
 
@@ -20,7 +21,6 @@ const COURSE_TYPES: { value: CourseType; label: string; color: string; bg: strin
   { value: 'Credit Transfer',  label: 'Credit Transfer',  color: '#16a34a', bg: '#f0fdf4' },
 ];
 
-// Duration options: 3 months → 48 months (4 years)
 const DURATION_OPTIONS = [
   { value: 3,  label: '3 months' },
   { value: 6,  label: '6 months' },
@@ -41,6 +41,7 @@ interface Program {
   id: string; name: string; code: string; courseType: CourseType;
   duration: number; hasSemesters: boolean; semesters: Semester[];
   status: string; universityId: any; subDepartmentId?: any;
+  specialisations?: string[];
 }
 
 function formatDuration(months: number) {
@@ -60,6 +61,9 @@ export function ProgramsPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  
+  // Chip input state for specialisations
+  const [specInput, setSpecInput] = useState('');
 
   const [form, setForm] = useState({
     name: '', code: '', universityId: '',
@@ -67,6 +71,7 @@ export function ProgramsPanel() {
     courseType: 'Online Degree' as CourseType,
     duration: 12, status: 'active',
     hasSemesters: false,
+    specialisations: [] as string[]
   });
   const [semesters, setSemesters] = useState<Semester[]>([]);
 
@@ -134,6 +139,27 @@ export function ProgramsPanel() {
     setSemesters(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, number: i + 1, name: `Semester ${i + 1}` })));
   };
 
+  // Specialisations listing actions
+  const handleAddSpecialisation = () => {
+    if (!specInput.trim()) return;
+    if (form.specialisations.includes(specInput.trim())) {
+      toast.error('Specialisation already added');
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      specialisations: [...f.specialisations, specInput.trim()]
+    }));
+    setSpecInput('');
+  };
+
+  const handleRemoveSpecialisation = (spec: string) => {
+    setForm(f => ({
+      ...f,
+      specialisations: f.specialisations.filter(s => s !== spec)
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -167,6 +193,7 @@ export function ProgramsPanel() {
       duration: p.duration,
       status: p.status,
       hasSemesters: p.hasSemesters || false,
+      specialisations: p.specialisations || []
     });
     setSemesters(p.semesters || []);
     setDialogOpen(true);
@@ -180,7 +207,13 @@ export function ProgramsPanel() {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({ name: '', code: '', universityId: '', subDepartmentId: '', courseType: 'Online Degree', duration: 12, status: 'active', hasSemesters: false });
+    setForm({ 
+      name: '', code: '', universityId: '', 
+      subDepartmentId: '', courseType: 'Online Degree', 
+      duration: 12, status: 'active', hasSemesters: false,
+      specialisations: [] 
+    });
+    setSpecInput('');
     setSemesters([]);
   };
 
@@ -252,6 +285,15 @@ export function ProgramsPanel() {
                               </span>
                             )}
                           </div>
+                          
+                          {/* Specialisation tags in listing */}
+                          {p.specialisations && p.specialisations.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {p.specialisations.map((spec, i) => (
+                                <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0">{spec}</Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -297,11 +339,11 @@ export function ProgramsPanel() {
 
       {/* ── Add / Edit Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle>{editingId ? 'Edit Program' : 'Add New Program'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-5 py-1">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
 
             {/* Basic info */}
             <div className="grid grid-cols-2 gap-3">
@@ -338,6 +380,44 @@ export function ProgramsPanel() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Specialisations listing chips selection */}
+            <div className="space-y-2">
+              <Label>Specialisations <span className="text-muted-foreground text-xs">(optional — add multiple)</span></Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={specInput} 
+                  onChange={e => setSpecInput(e.target.value)} 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSpecialisation();
+                    }
+                  }}
+                  placeholder="e.g. Computer Science, then press Enter" 
+                />
+                <Button type="button" onClick={handleAddSpecialisation} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  Add
+                </Button>
+              </div>
+
+              {form.specialisations.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1.5">
+                  {form.specialisations.map((spec, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1.5 px-2 py-1">
+                      {spec}
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveSpecialisation(spec)} 
+                        className="text-muted-foreground hover:text-destructive text-xs font-bold font-mono"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Course Type */}
@@ -449,8 +529,8 @@ export function ProgramsPanel() {
               </Select>
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <Button type="submit" className="flex-1">
+            <div className="flex gap-2 pt-4 border-t">
+              <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
                 {editingId ? 'Save Changes' : 'Create Program'}
               </Button>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

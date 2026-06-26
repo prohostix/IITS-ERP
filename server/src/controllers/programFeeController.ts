@@ -7,7 +7,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getProgramFees = asyncHandler(async (req: AuthRequest, res: Response) => {
   const fees = await prisma.programFeeStructure.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { program: true }
+    include: { 
+      program: true,
+      university: true,
+      admissionSession: true
+    }
   });
   const mapped = fees.map(fee => ({
     ...fee,
@@ -21,7 +25,11 @@ export const getProgramFees = asyncHandler(async (req: AuthRequest, res: Respons
 export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
   const fee = await prisma.programFeeStructure.findUnique({
     where: { id: req.params.id },
-    include: { program: true }
+    include: { 
+      program: true,
+      university: true,
+      admissionSession: true
+    }
   });
   if (fee) {
     const mapped = {
@@ -37,17 +45,41 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { programId, billingCycle, baseFee, additionalFees } = req.body;
+  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, additionalFees } = req.body;
 
-  const existing = await prisma.programFeeStructure.findUnique({ where: { programId } });
-  if (existing) {
-    res.status(400).json({ success: false, message: 'Program fee structure already exists for this program. Please edit the existing one.' });
-    return;
+  // For program level, check if structure already exists
+  if (level === 'program' && programId) {
+    const existing = await prisma.programFeeStructure.findFirst({ 
+      where: { 
+        level: 'program', 
+        programId,
+        admissionSessionId: admissionSessionId || null
+      } 
+    });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'Program fee structure already exists for this program and session. Please edit the existing one.' });
+      return;
+    }
+  } else if (level === 'university' && universityId) {
+    const existing = await prisma.programFeeStructure.findFirst({ 
+      where: { 
+        level: 'university', 
+        universityId,
+        admissionSessionId: admissionSessionId || null
+      } 
+    });
+    if (existing) {
+      res.status(400).json({ success: false, message: 'University fee structure already exists for this university and session. Please edit the existing one.' });
+      return;
+    }
   }
 
   const fee = await prisma.programFeeStructure.create({
     data: {
-      programId,
+      level: level || 'program',
+      programId: level === 'program' ? programId : null,
+      universityId: universityId || null,
+      admissionSessionId: admissionSessionId || null,
       billingCycle,
       baseFee: baseFee !== undefined ? parseFloat(baseFee) : 0,
       additionalFees: additionalFees || [],
@@ -59,8 +91,12 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { billingCycle, baseFee, additionalFees } = req.body;
+  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, additionalFees } = req.body;
   const data: any = {};
+  if (level !== undefined) data.level = level;
+  if (programId !== undefined) data.programId = level === 'program' ? programId : null;
+  if (universityId !== undefined) data.universityId = universityId || null;
+  if (admissionSessionId !== undefined) data.admissionSessionId = admissionSessionId || null;
   if (billingCycle !== undefined) data.billingCycle = billingCycle;
   if (baseFee !== undefined) data.baseFee = parseFloat(baseFee);
   if (additionalFees !== undefined) data.additionalFees = additionalFees;

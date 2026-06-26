@@ -229,13 +229,22 @@ function BranchSection({
   // Branch manager controls Sales and Operations only — Finance and HR are org-wide
   const BRANCH_CONTROLLED_TYPES = new Set(['sales', 'operations']);
   const controlledDepts: Array<{ id: string; name: string; type: string }> = [];
-  if (branch.salesDeptId) controlledDepts.push({ ...branch.salesDeptId, type: 'sales' });
-  if (branch.operationsDeptId) controlledDepts.push({ ...branch.operationsDeptId, type: 'operations' });
+  const salesDeptObj = typeof branch.salesDeptId === 'object' && branch.salesDeptId ? branch.salesDeptId : (branch as any).salesDept;
+  const operationsDeptObj = typeof branch.operationsDeptId === 'object' && branch.operationsDeptId ? branch.operationsDeptId : (branch as any).operationsDept;
+
+  if (salesDeptObj && salesDeptObj.id) {
+    controlledDepts.push({ id: salesDeptObj.id, name: salesDeptObj.name, type: 'sales' });
+  }
+  if (operationsDeptObj && operationsDeptObj.id) {
+    controlledDepts.push({ id: operationsDeptObj.id, name: operationsDeptObj.name, type: 'operations' });
+  }
   if (branch.additionalDeptIds) {
     branch.additionalDeptIds
       .filter(d => BRANCH_CONTROLLED_TYPES.has(d.type))
       .forEach(d => {
-        if (!controlledDepts.find(x => x.id === d.id)) controlledDepts.push(d);
+        if (d && d.id && !controlledDepts.find(x => x.id === d.id)) {
+          controlledDepts.push({ id: d.id, name: d.name, type: d.type });
+        }
       });
   }
 

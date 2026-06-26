@@ -237,7 +237,7 @@ export function ManagerAssignmentPanel() {
                       </Badge>
                       {hasSubs && (
                         <span className="text-xs text-muted-foreground">
-                          {dept.subDepartments!.length} sub-dept{dept.subDepartments!.length !== 1 ? 's' : ''}
+                          {(dept.subDepartments?.length ?? 0)} sub-dept{(dept.subDepartments?.length ?? 0) !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>

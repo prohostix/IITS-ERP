@@ -327,6 +327,7 @@ model University {
   assignedSubDepts  SubDepartment[]     @relation("SubDeptToUniversity")
   allowedBranches   Branch[]            @relation("UniversityToBranch")
   studyCenters      StudyCenter[]       @relation("UniversityToStudyCenter")
+  programFeeStructures ProgramFeeStructure[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -343,6 +344,7 @@ model Program {
   duration            Int
   hasSemesters        Boolean              @default(false)
   semesters           Json                 @default("[]")
+  specialisations     Json                 @default("[]")
   status              String               @default("active")
   admissionSessions   AdmissionSession[]
   enrollments         Enrollment[]
@@ -350,7 +352,7 @@ model Program {
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   university          University           @relation(fields: [universityId], references: [id])
   programAllocations  ProgramAllocation[]
-  programFeeStructure ProgramFeeStructure?
+  programFeeStructure ProgramFeeStructure[]
   reregRules          ReregRule[]
   students            Student[]
   studyCenters        StudyCenter[]        @relation("ProgramToStudyCenter")
@@ -793,6 +795,7 @@ model AdmissionSession {
   subDepartment   SubDepartment? @relation(fields: [subDepartmentId], references: [id])
   university      University?    @relation(fields: [universityId], references: [id])
   enrollments     Enrollment[]
+  programFeeStructures ProgramFeeStructure[]
 
   @@index([organizationId])
 }
@@ -1339,18 +1342,23 @@ model IncentiveStructure {
 }
 
 model ProgramFeeStructure {
-  id             String       @id @default(uuid())
-  programId      String       @unique
-  organizationId String
-  billingCycle   String
-  baseFee        Float
-  additionalFees Json         @default("[]")
-  createdBy      String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  creator        User         @relation("ProgramFeeCreatedBy", fields: [createdBy], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  program        Program      @relation(fields: [programId], references: [id])
+  id                 String            @id @default(uuid())
+  level              String            @default("program") // "program" or "university"
+  programId          String?
+  universityId       String?
+  admissionSessionId String?
+  organizationId     String
+  billingCycle       String
+  baseFee            Float
+  additionalFees     Json              @default("[]")
+  createdBy          String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  creator            User              @relation("ProgramFeeCreatedBy", fields: [createdBy], references: [id])
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  program            Program?          @relation(fields: [programId], references: [id])
+  university         University?       @relation(fields: [universityId], references: [id])
+  admissionSession   AdmissionSession? @relation(fields: [admissionSessionId], references: [id])
 
   @@index([organizationId])
 }

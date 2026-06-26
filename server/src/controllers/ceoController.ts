@@ -52,6 +52,56 @@ export const getCenterOnboardingOverview = asyncHandler(async (req: AuthRequest,
 });
 
 export const getStudentEnrollmentOverview = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, data: enrollments });
+  const enrollments = await prisma.enrollment.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      program: true,
+      studyCenter: true,
+      session: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const statusCounts: Record<string, number> = {};
+  enrollments.forEach(e => {
+    statusCounts[e.status] = (statusCounts[e.status] || 0) + 1;
+  });
+
+  const monthlyMap: Record<string, { month: string; total: number; enrolled: number; pending: number; rejected: number }> = {};
+  
+  enrollments.forEach(e => {
+    const date = new Date(e.createdAt);
+    const monthStr = date.toLocaleString('default', { month: 'short', year: '2-digit' });
+    
+    if (!monthlyMap[monthStr]) {
+      monthlyMap[monthStr] = { month: monthStr, total: 0, enrolled: 0, pending: 0, rejected: 0 };
+    }
+    
+    monthlyMap[monthStr].total += 1;
+    if (e.status === 'enrolled') {
+      monthlyMap[monthStr].enrolled += 1;
+    } else if (e.status === 'rejected' || e.status === 'department_rejected') {
+      monthlyMap[monthStr].rejected += 1;
+    } else {
+      monthlyMap[monthStr].pending += 1;
+    }
+  });
+
+  const sortedMonths = Object.keys(monthlyMap).sort((a, b) => {
+    const dateA = new Date('01 ' + a);
+    const dateB = new Date('01 ' + b);
+    return dateA.getTime() - dateB.getTime();
+  });
+  
+  const monthly = sortedMonths.map(m => monthlyMap[m]);
+
+  res.json({
+    success: true,
+    data: {
+      statusCounts,
+      total: enrollments.length,
+      enrollments,
+      monthly
+    }
+  });
 });

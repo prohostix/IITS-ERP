@@ -196,7 +196,7 @@ export function SalesInvitePanel() {
                   </div>
                   <p className="text-sm font-mono text-muted-foreground truncate">{inv.token.substring(0, 24)}...</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {inv.universityIds.map(u => (
+                    {(inv.universityIds || []).map(u => (
                       <Badge key={u.id} variant="outline" className="text-[10px]">{u.name}</Badge>
                     ))}
                   </div>
