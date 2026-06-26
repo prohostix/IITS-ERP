@@ -37,6 +37,16 @@ router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
 router.get('/my-center-status', authorize('center_admin'), getMyCenterStatus);
 router.post('/submit-payment', authorize('center_admin'), upload.single('proofFile'), submitMyCenterPayment);
 
+// Dedicated file upload for enrollment documents
+router.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const uploadPath = process.env.UPLOAD_PATH || './uploads';
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ success: true, url: fileUrl, filename: req.file.originalname });
+});
+
 // Global enrollment list (for admins/staff)
 router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'sales_admin', 'bde', 'employee'), getAllEnrollments);
 

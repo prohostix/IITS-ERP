@@ -46,7 +46,7 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { studentName, studentEmail, studentPhone, studentAddress, programId } = req.body;
+  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
 
@@ -93,6 +93,8 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentPhone,
       studentAddress,
       status: 'submitted' as any,
+      documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
+      educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
       organization: { connect: { id: organizationId } },
       program:      { connect: { id: programId } },
       studyCenter:  { connect: { id: studyCenterId } },
@@ -104,7 +106,15 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
 
 
 export const getMyEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { studyCenterId: req.user.studyCenterId || '' } });
+  const enrollments = await prisma.enrollment.findMany({
+    where: { studyCenterId: req.user.studyCenterId || '' },
+    include: {
+      program: {
+        include: { university: { select: { name: true, code: true } } }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 

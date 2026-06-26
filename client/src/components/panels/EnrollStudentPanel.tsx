@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, RefreshCw } from 'lucide-react';
+import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,13 +27,45 @@ interface WalletData {
   balance: number;
 }
 
+interface EducationDetail {
+  qualification: string;
+  institution: string;
+  passingYear: string;
+  percentage: string;
+}
+
+interface DocumentFile {
+  name: string;
+  url: string;
+}
+
 export function EnrollStudentPanel() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-  const [form, setForm] = useState({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '' });
+  
+  const [form, setForm] = useState({
+    studentName: '',
+    studentEmail: '',
+    studentPhone: '',
+    studentAddress: ''
+  });
+
+  // Dynamic lists for documents and education details
+  const [educationList, setEducationList] = useState<EducationDetail[]>([]);
+  const [documentList, setDocumentList] = useState<DocumentFile[]>([]);
+  
+  // Single entry helper state for educational details form
+  const [tempEdu, setTempEdu] = useState<EducationDetail>({
+    qualification: '',
+    institution: '',
+    passingYear: '',
+    percentage: ''
+  });
+
+  const [uploading, setUploading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -57,10 +89,8 @@ export function EnrollStudentPanel() {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
     const fs = p.programFeeStructure[0];
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
-    // Filter out the GST entry from additionalFees (it's a percentage, not a flat fee)
     const nonGstFees = addFees.filter(f => f.label !== 'GST');
     const subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);
-    // Apply GST percentage on top of subtotal
     const gstEntry = addFees.find(f => f.label === 'GST');
     const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
     return subtotal + gstAmount;
@@ -75,6 +105,46 @@ export function EnrollStudentPanel() {
     return ` / ${cycle}`;
   };
 
+  const handleAddEducation = () => {
+    if (!tempEdu.qualification.trim() || !tempEdu.institution.trim() || !tempEdu.passingYear.trim()) {
+      toast.error('Please fill qualification, institution, and passing year.');
+      return;
+    }
+    setEducationList([...educationList, tempEdu]);
+    setTempEdu({ qualification: '', institution: '', passingYear: '', percentage: '' });
+  };
+
+  const handleRemoveEducation = (index: number) => {
+    setEducationList(educationList.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+    try {
+      const res = await api.post('/enrollment/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        setDocumentList([...documentList, { name: res.data.filename || file.name, url: res.data.url }]);
+        toast.success('Document uploaded successfully');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'File upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveDocument = (index: number) => {
+    setDocumentList(documentList.filter((_, i) => i !== index));
+  };
+
   const handleEnroll = async () => {
     if (!selectedProgram) return;
     const missing = Object.entries(form).filter(([, v]) => !v.trim()).map(([k]) => k);
@@ -84,9 +154,16 @@ export function EnrollStudentPanel() {
     }
     setSubmitting(true);
     try {
-      await api.post('/enrollment/enroll', { ...form, programId: selectedProgram.id });
+      await api.post('/enrollment/enroll', { 
+        ...form, 
+        programId: selectedProgram.id,
+        documents: documentList,
+        educationalDetails: educationList
+      });
       toast.success('Enrollment submitted successfully');
       setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '' });
+      setEducationList([]);
+      setDocumentList([]);
       setSelectedProgram(null);
       fetchData();
     } catch (e: any) {
@@ -180,45 +257,154 @@ export function EnrollStudentPanel() {
         </Card>
 
         {/* Student Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Details</CardTitle>
-            <CardDescription>
-              {selectedProgram
-                ? `Enrolling in: ${selectedProgram.name} — Fee: ₹${getTotalFee(selectedProgram).toLocaleString()}`
-                : 'Select a program first'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label>Full Name</Label>
-              <Input value={form.studentName} onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))} placeholder="Student full name" />
-            </div>
-            <div className="space-y-1">
-              <Label>Email</Label>
-              <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} placeholder="student@email.com" />
-            </div>
-            <div className="space-y-1">
-              <Label>Phone</Label>
-              <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value }))} placeholder="+91 XXXXX XXXXX" />
-            </div>
-            <div className="space-y-1">
-              <Label>Address</Label>
-              <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Full address" />
-            </div>
-            <Button
-              className="w-full mt-2"
-              onClick={handleEnroll}
-              disabled={!selectedProgram || submitting || (balance < getTotalFee(selectedProgram))}
-            >
-              <GraduationCap className="w-4 h-4 mr-2" />
-              {submitting ? 'Enrolling...' : 'Enroll Student'}
-            </Button>
-            {selectedProgram && balance < getTotalFee(selectedProgram) && (
-              <p className="text-xs text-destructive text-center">Insufficient wallet balance. Please top up first.</p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Student Details</CardTitle>
+              <CardDescription>
+                {selectedProgram
+                  ? `Enrolling in: ${selectedProgram.name} — Fee: ₹${getTotalFee(selectedProgram).toLocaleString()}`
+                  : 'Select a program first'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label>Full Name</Label>
+                <Input value={form.studentName} onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))} placeholder="Student full name" />
+              </div>
+              <div className="space-y-1">
+                <Label>Email</Label>
+                <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} placeholder="student@email.com" />
+              </div>
+              <div className="space-y-1">
+                <Label>Phone</Label>
+                <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value }))} placeholder="+91 XXXXX XXXXX" />
+              </div>
+              <div className="space-y-1">
+                <Label>Address</Label>
+                <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Full address" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Educational Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Educational History</CardTitle>
+              <CardDescription>Add the candidate's qualification credentials</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {educationList.length > 0 && (
+                <div className="space-y-2 border-b pb-4">
+                  {educationList.map((edu, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-muted/40 p-2.5 rounded-lg border text-sm">
+                      <div>
+                        <p className="font-semibold">{edu.qualification}</p>
+                        <p className="text-xs text-muted-foreground">{edu.institution} ({edu.passingYear}) {edu.percentage ? `· ${edu.percentage}%` : ''}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveEducation(idx)}>
+                        <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Qualification</Label>
+                  <Input 
+                    placeholder="e.g. 10th / 12th / BCA" 
+                    value={tempEdu.qualification} 
+                    onChange={e => setTempEdu({ ...tempEdu, qualification: e.target.value })} 
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Institution</Label>
+                  <Input 
+                    placeholder="School / College Name" 
+                    value={tempEdu.institution} 
+                    onChange={e => setTempEdu({ ...tempEdu, institution: e.target.value })} 
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Passing Year</Label>
+                  <Input 
+                    placeholder="e.g. 2024" 
+                    value={tempEdu.passingYear} 
+                    onChange={e => setTempEdu({ ...tempEdu, passingYear: e.target.value })} 
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Percentage / CGPA (Optional)</Label>
+                  <Input 
+                    placeholder="e.g. 85%" 
+                    value={tempEdu.percentage} 
+                    onChange={e => setTempEdu({ ...tempEdu, percentage: e.target.value })} 
+                  />
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="w-full mt-1" onClick={handleAddEducation}>
+                <Plus className="w-4 h-4 mr-2" /> Add Qualification
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Upload Documents */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents Upload</CardTitle>
+              <CardDescription>Upload marksheets, identity proof, photo etc.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {documentList.length > 0 && (
+                <div className="space-y-2 border-b pb-4">
+                  {documentList.map((doc, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-muted/40 p-2.5 rounded-lg border text-sm">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-primary" />
+                        <span className="truncate max-w-[200px] font-medium">{doc.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2">View</a>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(idx)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <Label className="block mb-2">Upload File</Label>
+                <div className="relative border-2 border-dashed rounded-xl p-6 hover:bg-muted/30 transition-all flex flex-col items-center justify-center cursor-pointer">
+                  <Input 
+                    type="file" 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    onChange={handleFileUpload} 
+                    disabled={uploading} 
+                  />
+                  <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-semibold">{uploading ? 'Uploading...' : 'Click or drag files here to upload'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG up to 10MB</p>
+                </div>
+              </div>
+
+              <Button
+                className="w-full mt-4"
+                onClick={handleEnroll}
+                disabled={!selectedProgram || submitting || (balance < getTotalFee(selectedProgram))}
+              >
+                <GraduationCap className="w-4 h-4 mr-2" />
+                {submitting ? 'Enrolling...' : 'Submit Application'}
+              </Button>
+              {selectedProgram && balance < getTotalFee(selectedProgram) && (
+                <p className="text-xs text-destructive text-center">Insufficient wallet balance. Please top up first.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

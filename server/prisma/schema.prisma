@@ -823,6 +823,8 @@ model Enrollment {
   financeReviewedAt    DateTime?
   enrolledAt           DateTime?
   statusHistory        Json               @default("[]")
+  documents            Json?              @default("[]")
+  educationalDetails   Json?              @default("[]")
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   universityRemarks    String?
