@@ -58,6 +58,7 @@ model Organization {
   payrollBatches        PayrollBatch[]
   polls                 Poll[]
   programs              Program[]
+  programMaterials      ProgramMaterial[]
   programAllocations    ProgramAllocation[]
   programFeeStructures  ProgramFeeStructure[]
   referralLinks         ReferralLink[]
@@ -221,6 +222,7 @@ model User {
   createdTasks                  Task[]                @relation("CreatedTasks")
   escalatedTasks                Task[]                @relation("EscalatedTasks")
   configuredAuthFees            UniversityAuthFee[]   @relation("AuthFeeConfiguredBy")
+  uploadedMaterials             ProgramMaterial[]     @relation("MaterialUploader")
   branch                        Branch?               @relation(fields: [branchId], references: [id])
   department                    Department?           @relation("UserToDepartment", fields: [departmentId], references: [id])
   organization                  Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -349,6 +351,7 @@ model Program {
   status              String                @default("active")
   admissionSessions   AdmissionSession[]
   enrollments         Enrollment[]
+  materials           ProgramMaterial[]
   feeStructure        FeeStructure?
   organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   university          University            @relation(fields: [universityId], references: [id])
@@ -1387,6 +1390,28 @@ model UniversityFeePayment {
 
   @@index([organizationId])
   @@index([studentId])
+}
+
+model ProgramMaterial {
+  id             String       @id @default(uuid())
+  programId      String
+  organizationId String
+  title          String
+  description    String?
+  category       String       @default("study_material")
+  semesterNumber String?
+  fileUrl        String
+  fileName       String
+  uploadedBy     String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  program        Program      @relation(fields: [programId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader       User         @relation("MaterialUploader", fields: [uploadedBy], references: [id])
+
+  @@index([programId])
+  @@index([organizationId])
 }
 
 enum OrganizationStatus {

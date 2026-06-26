@@ -7,25 +7,53 @@ import bcrypt from 'bcryptjs';
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
-  if (req.query.status) where.status = req.query.status as string;
+  if (req.user.role === 'student') {
+    where.email = req.user.email;
+  } else if (req.query.status) {
+    where.status = req.query.status as string;
+  }
+
   const students = await prisma.student.findMany({
     where,
-    include: { enrollments: true },
+    include: { 
+      enrollments: true,
+      center: true,
+      program: true
+    },
     orderBy: { createdAt: 'desc' }
   });
-  res.status(200).json({ success: true, count: students.length, data: students });
+
+  // Map center/program to centerId/programId for frontend object checks compatibility
+  const mappedStudents = students.map((s) => ({
+    ...s,
+    centerId: s.center,
+    programId: s.program
+  }));
+
+  res.status(200).json({ success: true, count: mappedStudents.length, data: mappedStudents });
 });
 
 export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) => {
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
-    include: { enrollments: true }
+    include: { 
+      enrollments: true,
+      center: true,
+      program: true
+    }
   });
   if (!student) {
     res.status(404).json({ success: false, message: 'Student not found' });
     return;
   }
-  res.status(200).json({ success: true, data: student });
+
+  const mappedStudent = {
+    ...student,
+    centerId: student.center,
+    programId: student.program
+  };
+
+  res.status(200).json({ success: true, data: mappedStudent });
 });
 
 export const createStudent = asyncHandler(async (req: AuthRequest, res: Response) => {

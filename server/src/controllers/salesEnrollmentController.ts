@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import { prisma } from '../config/postgres.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import bcrypt from 'bcryptjs';
 
 // ─── Public: Validate invite token and get form data ─────────────────────────
 
@@ -344,14 +345,53 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
     note: 'Payment verified by Finance. Student enrolled.',
   });
 
+  // Create/find User
+  let user = await prisma.user.findUnique({ where: { email: enrollment.studentEmail } });
+  if (!user) {
+    const rawPassword = 'password123';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const userId = `STD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    user = await prisma.user.create({
+      data: {
+        userId,
+        email: enrollment.studentEmail,
+        password: hashedPassword,
+        name: enrollment.studentName,
+        role: 'student',
+        organizationId: req.user.organizationId,
+        status: 'active'
+      }
+    });
+  }
+
+  // Generate enrollment number
+  const enrollmentNo = enrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  // Create Student
+  const student = await prisma.student.create({
+    data: {
+      name: enrollment.studentName,
+      enrollmentNo,
+      phone: enrollment.studentPhone,
+      address: enrollment.studentAddress,
+      status: 'active',
+      organization: { connect: { id: req.user.organizationId } },
+      center: { connect: { id: enrollment.studyCenterId } },
+      user: { connect: { id: user.id } },
+      program: { connect: { id: enrollment.programId } }
+    }
+  });
+
   const updated = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: {
       status: 'enrolled' as any,
-      reviewedByFinanceId: req.user.id,
+      financeReviewer: { connect: { id: req.user.id } },
       financeReviewedAt: now,
       enrolledAt: now,
       statusHistory: history,
+      studentId: student.id,
+      enrollmentNumber: student.enrollmentNo
     } as any,
   });
 
@@ -415,8 +455,8 @@ export const rejectSalesEnrollment = asyncHandler(async (req: AuthRequest, res: 
     data: {
       status: newStatus,
       ...(enrollment.status === 'document_review'
-        ? { departmentRemarks: remarks, departmentReviewedBy: req.user.id, departmentReviewedAt: now }
-        : { financeRemarks: remarks, reviewedByFinanceId: req.user.id, financeReviewedAt: now }),
+        ? { departmentRemarks: remarks, departmentReviewer: { connect: { id: req.user.id } }, departmentReviewedAt: now }
+        : { financeRemarks: remarks, financeReviewer: { connect: { id: req.user.id } }, financeReviewedAt: now }),
       statusHistory: history,
     } as any,
   });

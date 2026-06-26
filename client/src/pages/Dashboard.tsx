@@ -13,6 +13,7 @@ import { ModernEmployeeDashboard } from './ModernEmployeeDashboard';
 import { ModernStaffPortal } from './ModernStaffPortal';
 import { ModernBranchManagerDashboard } from './ModernBranchManagerDashboard';
 import { CenterOnboardingGate } from '@/components/CenterOnboardingGate';
+import { ModernStudentDashboard } from './ModernStudentDashboard';
 
 interface DashboardProps {
   onNavigateToTable?: (table: string) => void;
@@ -170,6 +171,10 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
         <ModernStudyCenterDashboard />
       </CenterOnboardingGate>
     );
+  }
+
+  if ((user as any)?.role === 'student') {
+    return <ModernStudentDashboard />;
   }
 
   if (user?.role === 'employee') {

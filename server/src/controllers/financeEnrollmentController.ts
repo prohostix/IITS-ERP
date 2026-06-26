@@ -3,13 +3,15 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import bcrypt from 'bcryptjs';
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
     where: { organizationId: req.user.organizationId },
     include: {
       program: { select: { name: true, code: true } },
-      studyCenter: { select: { name: true, code: true } }
+      studyCenter: { select: { name: true, code: true } },
+      payment: true
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -19,7 +21,7 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
     where: { organizationId: req.user.organizationId, status: 'finance_review' as any },
-    include: { program: true, studyCenter: true },
+    include: { program: true, studyCenter: true, payment: true },
     orderBy: { createdAt: 'asc' }
   });
   res.json({ success: true, count: enrollments.length, data: enrollments });
@@ -85,10 +87,53 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       }
     });
 
-    // Update enrollment status to enrolled
+    // Create/find User
+    let user = await tx.user.findUnique({ where: { email: dbEnrollment.studentEmail } });
+    if (!user) {
+      const rawPassword = 'password123';
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
+      const userId = `STD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      user = await tx.user.create({
+        data: {
+          userId,
+          email: dbEnrollment.studentEmail,
+          password: hashedPassword,
+          name: dbEnrollment.studentName,
+          role: 'student',
+          organizationId: req.user.organizationId,
+          status: 'active'
+        }
+      });
+    }
+
+    // Generate enrollment number
+    const enrollmentNo = dbEnrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Create Student
+    const student = await tx.student.create({
+      data: {
+        name: dbEnrollment.studentName,
+        enrollmentNo,
+        phone: dbEnrollment.studentPhone,
+        address: dbEnrollment.studentAddress,
+        status: 'active',
+        organization: { connect: { id: req.user.organizationId } },
+        center: { connect: { id: dbEnrollment.studyCenterId } },
+        user: { connect: { id: user.id } },
+        program: { connect: { id: dbEnrollment.programId } }
+      }
+    });
+
+    // Link enrollment to student
     return await tx.enrollment.update({
       where: { id: dbEnrollment.id },
-      data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() },
+      data: {
+        status: 'enrolled' as any,
+        financeReviewer: { connect: { id: req.user.id } },
+        financeReviewedAt: new Date(),
+        studentId: student.id,
+        enrollmentNumber: student.enrollmentNo
+      },
       include: { program: true }
     });
   });
@@ -114,13 +159,87 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     }
   }
 
+  // Create notifications
+  try {
+    // Notify Center Admins
+    const centerAdmins = await prisma.user.findMany({
+      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
+    });
+    for (const admin of centerAdmins) {
+      await prisma.notification.create({
+        data: {
+          organizationId: req.user.organizationId,
+          userId: admin.id,
+          title: '🎉 Student Enrolled',
+          message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: 'enrollments'
+        }
+      });
+    }
+
+    // Notify Sales User if exists
+    if (enrollment.salesUserId) {
+      await prisma.notification.create({
+        data: {
+          organizationId: req.user.organizationId,
+          userId: enrollment.salesUserId,
+          title: '🎉 Student Enrolled',
+          message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: 'student-applications'
+        }
+      });
+    }
+  } catch (_) {}
+
   res.json({ success: true, data: enrollment });
 });
 
 export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
-    data: { status: 'rejected' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date(), financeRemarks: req.body.remarks }
+    data: { status: 'rejected' as any, financeReviewer: { connect: { id: req.user.id } }, financeReviewedAt: new Date(), financeRemarks: req.body.remarks },
+    include: { program: true }
   });
+
+  // Create notifications
+  try {
+    // Notify Center Admins
+    const centerAdmins = await prisma.user.findMany({
+      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
+    });
+    for (const admin of centerAdmins) {
+      await prisma.notification.create({
+        data: {
+          organizationId: req.user.organizationId,
+          userId: admin.id,
+          title: '❌ Enrollment Rejected by Finance',
+          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: 'enrollments'
+        }
+      });
+    }
+
+    // Notify Sales User if exists
+    if (enrollment.salesUserId) {
+      await prisma.notification.create({
+        data: {
+          organizationId: req.user.organizationId,
+          userId: enrollment.salesUserId,
+          title: '❌ Enrollment Rejected by Finance',
+          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: 'student-applications'
+        }
+      });
+    }
+  } catch (_) {}
+
   res.json({ success: true, data: enrollment });
 });

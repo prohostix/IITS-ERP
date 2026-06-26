@@ -6,30 +6,78 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getProgramMaterials = asyncHandler(async (req: AuthRequest, res: Response) => {
   const materials = await prisma.programMaterial.findMany({
-    where: { programId: req.params.programId, organizationId: req.user.organizationId, isActive: true },
+    where: { 
+      programId: req.params.programId, 
+      organizationId: req.user.organizationId, 
+      isActive: true 
+    },
+    include: {
+      uploader: {
+        select: { name: true }
+      }
+    },
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: materials.length, data: materials });
 });
 
 export const getProgramDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const program = await prisma.program.findUnique({ where: { id: req.params.programId }, include: { university: true } });
+  const program = await prisma.program.findUnique({ 
+    where: { id: req.params.programId }, 
+    include: { university: true } 
+  });
   res.json({ success: true, data: program });
 });
 
 export const uploadProgramMaterial = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ success: false, message: 'Please upload a file' });
+    return;
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  const fileName = req.file.originalname;
+
   const material = await prisma.programMaterial.create({
-    data: { ...req.body, programId: req.params.programId, organizationId: req.user.organizationId, uploadedBy: req.user.id }
+    data: {
+      title: req.body.title || 'Untitled',
+      description: req.body.description,
+      category: req.body.category || 'study_material',
+      semesterNumber: req.body.semesterNumber ? String(req.body.semesterNumber) : null,
+      fileUrl,
+      fileName,
+      isActive: true,
+      program: { connect: { id: req.params.programId } },
+      organization: { connect: { id: req.user.organizationId } },
+      uploader: { connect: { id: req.user.id } }
+    }
   });
   res.status(201).json({ success: true, data: material });
 });
 
 export const updateProgramMaterial = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const material = await prisma.programMaterial.update({ where: { id: req.params.materialId }, data: req.body });
+  const data: any = {
+    title: req.body.title,
+    description: req.body.description,
+    category: req.body.category,
+    semesterNumber: req.body.semesterNumber ? String(req.body.semesterNumber) : null,
+  };
+
+  if (req.file) {
+    data.fileUrl = `/uploads/${req.file.filename}`;
+    data.fileName = req.file.originalname;
+  }
+
+  const material = await prisma.programMaterial.update({ 
+    where: { id: req.params.materialId }, 
+    data 
+  });
   res.json({ success: true, data: material });
 });
 
 export const deleteProgramMaterial = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await prisma.programMaterial.update({ where: { id: req.params.materialId }, data: { isActive: false } });
+  await prisma.programMaterial.update({ 
+    where: { id: req.params.materialId }, 
+    data: { isActive: false } 
+  });
   res.json({ success: true, data: {} });
 });

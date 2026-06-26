@@ -17,10 +17,12 @@ interface Enrollment {
   studentPhone: string;
   programId: { name: string; code: string } | string;
   studyCenterId: { name: string; code: string } | string;
+  program?: { name: string; code: string } | null;
+  studyCenter?: { name: string; code: string } | null;
   status: string;
   departmentRemarks?: string;
   financeRemarks?: string;
-  payment?: { amount: number; debitedAt: string } | null;
+  payment?: { amount: number; debitedAt: string; walletId?: string } | null;
   createdAt: string;
   enrolledAt?: string;
 }
@@ -112,10 +114,14 @@ export function FinanceEnrollmentsPanel() {
   };
 
   const getProgramName = (e: Enrollment) =>
-    typeof e.programId === 'object' ? `${e.programId.name} (${e.programId.code})` : e.programId;
+    e.program && typeof e.program === 'object'
+      ? `${e.program.name} (${e.program.code})`
+      : (typeof e.programId === 'object' ? `${(e.programId as any).name} (${(e.programId as any).code})` : e.programId);
 
   const getCenterName = (e: Enrollment) =>
-    typeof e.studyCenterId === 'object' ? `${e.studyCenterId.name}` : e.studyCenterId;
+    e.studyCenter && typeof e.studyCenter === 'object'
+      ? `${e.studyCenter.name} (${e.studyCenter.code})`
+      : (typeof e.studyCenterId === 'object' ? `${(e.studyCenterId as any).name}` : e.studyCenterId);
 
   return (
     <div className="space-y-6">
@@ -220,7 +226,15 @@ export function FinanceEnrollmentsPanel() {
                     <td className="p-3 hidden lg:table-cell text-muted-foreground">{getCenterName(e)}</td>
                     <td className="p-3 hidden sm:table-cell">
                       {e.payment ? (
-                        <span className="text-green-600 font-medium">₹{e.payment.amount.toLocaleString()}</span>
+                        <div className="space-y-0.5">
+                          <span className="text-green-600 font-semibold block">₹{e.payment.amount.toLocaleString()}</span>
+                          <span className="text-[10px] text-muted-foreground block">
+                            Paid: {new Date(e.payment.debitedAt || e.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block font-mono">
+                            Wallet: {e.payment.walletId ? e.payment.walletId.slice(0, 8) : 'N/A'}
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
                       )}

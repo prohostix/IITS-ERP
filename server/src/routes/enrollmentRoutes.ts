@@ -12,6 +12,7 @@ import {
   getAllEnrollments,
 } from '../controllers/enrollmentController.js';
 import {
+  getPendingReviews,
   getDeptReviewEnrollments,
   approveDeptEnrollment,
   rejectDeptEnrollment,
@@ -51,7 +52,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
 router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'sales_admin', 'bde', 'employee'), getAllEnrollments);
 
 // Dept/Sub-dept manager review routes
-router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee'), getDeptReviewEnrollments);
+router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee'), getPendingReviews);
 router.put('/review/:id/approve', authorize('ops_admin', 'ops_sub_admin', 'employee'), approveDeptEnrollment);
 router.put('/review/:id/reject', authorize('ops_admin', 'ops_sub_admin', 'employee'), rejectDeptEnrollment);
 

@@ -15,7 +15,7 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.activeOrganizations = await prisma.organization.count({ where: { status: 'active' as any } });
   }
 
-  if (['superadmin', 'ceo', 'org_admin'].includes(role)) {
+  if (role !== 'superadmin') {
     metrics.totalEmployees = await prisma.user.count({
       where: { organizationId: organizationId, NOT: { role: { in: ['ceo', 'org_admin', 'superadmin'] } } }
     });
@@ -24,6 +24,12 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } });
     metrics.totalDepartments = await prisma.department.count({ where: { organizationId: organizationId } });
     metrics.totalPrograms = await prisma.program.count({ where: { organizationId: organizationId } });
+    metrics.totalOrganizations = await prisma.university.count({ where: { organizationId: organizationId } });
+    
+    // Pipeline stats
+    metrics.totalLeads = await prisma.lead.count({ where: { organizationId: organizationId } });
+    metrics.pendingApplications = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'pending' as any } });
+    metrics.verifiedApplications = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'enrolled' as any } });
   }
 
   if (['hr_admin', 'ceo', 'org_admin'].includes(role)) {
@@ -42,6 +48,9 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.pendingInvoices = await prisma.invoice.count({ where: { organizationId: organizationId, status: { in: ['draft', 'sent'] } } });
     metrics.totalPayments = await prisma.paymentEntry.count({ where: { organizationId: organizationId } });
     metrics.pendingExpenses = await prisma.expenseClaim.count({ where: { organizationId: organizationId, status: 'pending' as any } });
+    metrics.pendingWalletTopUps = await prisma.walletTopUp.count({ where: { organizationId: organizationId, status: 'pending' as any } });
+    metrics.pendingEnrollments = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'finance_review' as any } });
+    metrics.pendingCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'pending_payment' as any } });
   }
 
   if (['sales_admin', 'ceo'].includes(role)) {
