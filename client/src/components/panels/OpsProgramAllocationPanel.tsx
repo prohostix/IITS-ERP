@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 interface Center { id: string; name: string; code: string; }
 interface Program { id: string; name: string; code: string; courseType?: string; }
-interface Allocation { id: string; programId: Program; allocatedAt: string; }
+interface Allocation { id: string; programId: string; program: Program; allocatedAt: string; }
 
 export function OpsProgramAllocationPanel() {
   const [centers, setCenters] = useState<Center[]>([]);
@@ -72,7 +72,7 @@ export function OpsProgramAllocationPanel() {
     }
   };
 
-  const allocatedProgramIds = allocations.map(a => a.programId.id);
+  const allocatedProgramIds = allocations.map(a => a.programId);
   const availablePrograms = programs.filter(p => !allocatedProgramIds.includes(p.id));
 
   return (
@@ -119,10 +119,10 @@ export function OpsProgramAllocationPanel() {
               {allocations.map(a => (
                 <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
                   <div>
-                    <span className="font-medium text-sm">{a.programId.name}</span>
-                    <span className="text-muted-foreground text-xs ml-2">({a.programId.code})</span>
-                    {a.programId.courseType && (
-                      <Badge variant="outline" className="ml-2 text-[10px]">{a.programId.courseType}</Badge>
+                    <span className="font-medium text-sm">{a.program?.name}</span>
+                    <span className="text-muted-foreground text-xs ml-2">({a.program?.code})</span>
+                    {a.program?.courseType && (
+                      <Badge variant="outline" className="ml-2 text-[10px]">{a.program?.courseType}</Badge>
                     )}
                   </div>
                   <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemove(a.id)}>
