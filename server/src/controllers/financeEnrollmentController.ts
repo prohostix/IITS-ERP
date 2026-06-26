@@ -26,21 +26,75 @@ export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollment = await prisma.enrollment.update({
+  // 1. Fetch enrollment details first to inspect program and studyCenterId
+  const dbEnrollment = await prisma.enrollment.findUnique({
     where: { id: req.params.id },
-    data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() },
     include: { program: true }
   });
 
-  if (enrollment.studentId && enrollment.programId) {
-    const feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: req.user.organizationId,
-        programId: enrollment.programId
+  if (!dbEnrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  // 2. Fetch program fee structure
+  const feeStructure = await prisma.programFeeStructure.findFirst({
+    where: {
+      organizationId: req.user.organizationId,
+      programId: dbEnrollment.programId
+    }
+  });
+
+  if (!feeStructure) {
+    res.status(400).json({ success: false, message: 'Program fee structure is not configured' });
+    return;
+  }
+
+  // Calculate total fee
+  const addFees = Array.isArray(feeStructure.additionalFees) ? feeStructure.additionalFees : [];
+  const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
+  const subtotal = feeStructure.baseFee + nonGstFees.reduce((s: number, f: any) => s + f.amount, 0);
+  const gstEntry = addFees.find((f: any) => f.label === 'GST');
+  const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
+  const totalFee = subtotal + gstAmount;
+
+  // 3. Perform wallet check and deduction inside a transaction
+  const enrollment = await prisma.$transaction(async (tx) => {
+    // Lock and get StudyCenterWallet
+    const wallet = await tx.studyCenterWallet.findUnique({
+      where: { studyCenterId: dbEnrollment.studyCenterId }
+    });
+
+    if (!wallet || wallet.balance < totalFee) {
+      throw new Error(`Insufficient wallet balance in study center. Available: ₹${wallet?.balance || 0}, Required: ₹${totalFee}`);
+    }
+
+    // Deduct wallet balance
+    const updatedWallet = await tx.studyCenterWallet.update({
+      where: { id: wallet.id },
+      data: { balance: { decrement: totalFee } }
+    });
+
+    // Create EnrollmentPayment record
+    await tx.enrollmentPayment.create({
+      data: {
+        enrollmentId: dbEnrollment.id,
+        studyCenterId: dbEnrollment.studyCenterId,
+        walletId: wallet.id,
+        amount: totalFee
       }
     });
 
-    if (feeStructure && feeStructure.universityFee && feeStructure.universityFee > 0) {
+    // Update enrollment status to enrolled
+    return await tx.enrollment.update({
+      where: { id: dbEnrollment.id },
+      data: { status: 'enrolled' as any, reviewedByFinanceId: req.user.id, financeReviewedAt: new Date() },
+      include: { program: true }
+    });
+  });
+
+  if (enrollment.studentId && enrollment.programId) {
+    if (feeStructure.universityFee && feeStructure.universityFee > 0) {
       const existing = await prisma.universityFeePayment.findUnique({
         where: { enrollmentId: enrollment.id }
       });
