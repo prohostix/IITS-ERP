@@ -56,6 +56,7 @@ export function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 border-slate-300 focus:border-[#0F172A] focus:ring-[#0F172A]"
                 required
+                autoComplete="username"
               />
             </div>
 
@@ -71,6 +72,7 @@ export function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 border-slate-300 focus:border-[#0F172A] focus:ring-[#0F172A]"
                 required
+                autoComplete="current-password"
               />
             </div>
 
