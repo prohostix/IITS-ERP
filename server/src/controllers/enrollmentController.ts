@@ -46,9 +46,62 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollment = await prisma.enrollment.create({ data: { ...req.body, organizationId: req.user.organizationId, studyCenterId: req.user.studyCenterId || '' } });
+  const { studentName, studentEmail, studentPhone, studentAddress, programId } = req.body;
+  const organizationId = req.user.organizationId;
+  const studyCenterId = req.user.studyCenterId;
+
+  if (!studentName || !studentEmail || !studentPhone || !studentAddress || !programId) {
+    res.status(400).json({ success: false, message: 'Missing required fields' });
+    return;
+  }
+  if (!studyCenterId) {
+    res.status(400).json({ success: false, message: 'No study center assigned to your account' });
+    return;
+  }
+
+  // Auto-find the active admission session for this program/org
+  const session = await prisma.admissionSession.findFirst({
+    where: {
+      organizationId,
+      status: 'active',
+      OR: [
+        { programId },
+        { programId: null }
+      ]
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (!session) {
+    res.status(400).json({ success: false, message: 'No active admission session found for this program. Please contact admin.' });
+    return;
+  }
+
+  // Check for duplicate email in same program+session
+  const existing = await prisma.enrollment.findFirst({
+    where: { studentEmail, programId, sessionId: session.id, organizationId }
+  });
+  if (existing) {
+    res.status(400).json({ success: false, message: 'An application with this email already exists for this program and session' });
+    return;
+  }
+
+  const enrollment = await prisma.enrollment.create({
+    data: {
+      studentName,
+      studentEmail,
+      studentPhone,
+      studentAddress,
+      status: 'submitted' as any,
+      organization: { connect: { id: organizationId } },
+      program:      { connect: { id: programId } },
+      studyCenter:  { connect: { id: studyCenterId } },
+      session:      { connect: { id: session.id } },
+    }
+  });
   res.status(201).json({ success: true, data: enrollment });
 });
+
 
 export const getMyEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({ where: { studyCenterId: req.user.studyCenterId || '' } });
