@@ -170,14 +170,14 @@ export function OrgAdminSessionsPanel() {
                 <div>
                   <Label>University</Label>
                   <Select 
-                    value={formData.universityId} 
-                    onValueChange={(v) => setFormData({ ...formData, universityId: v, programId: '' })}
+                    value={formData.universityId || 'none'} 
+                    onValueChange={(v) => setFormData({ ...formData, universityId: v === 'none' ? '' : v, programId: '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All Universities" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Universities</SelectItem>
+                      <SelectItem value="none">All Universities</SelectItem>
                       {universities.map((u) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                       ))}
@@ -188,15 +188,15 @@ export function OrgAdminSessionsPanel() {
                 <div>
                   <Label>Program</Label>
                   <Select 
-                    value={formData.programId} 
-                    onValueChange={(v) => setFormData({ ...formData, programId: v })}
+                    value={formData.programId || 'none'} 
+                    onValueChange={(v) => setFormData({ ...formData, programId: v === 'none' ? '' : v })}
                     disabled={!formData.universityId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={formData.universityId ? "Select Program" : "Select University First"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Programs</SelectItem>
+                      <SelectItem value="none">All Programs</SelectItem>
                       {filteredPrograms.map((p) => (
                         <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                       ))}
