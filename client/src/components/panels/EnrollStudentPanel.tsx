@@ -13,8 +13,8 @@ interface Program {
   id: string;
   name: string;
   code: string;
-  universityId?: { name: string };
-  feeStructure?: { baseFee: number; currency: string; additionalFees: { label: string; amount: number }[] };
+  university?: { name: string };
+  programFeeStructure?: { baseFee: number; currency: string; additionalFees: { label: string; amount: number }[] }[];
 }
 
 interface WalletData {
@@ -48,8 +48,10 @@ export function EnrollStudentPanel() {
   useEffect(() => { fetchData(); }, []);
 
   const getTotalFee = (p: Program) => {
-    if (!p.feeStructure) return 0;
-    return p.feeStructure.baseFee + p.feeStructure.additionalFees.reduce((s, f) => s + f.amount, 0);
+    if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
+    const fs = p.programFeeStructure[0];
+    const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
+    return fs.baseFee + addFees.reduce((s, f) => s + f.amount, 0);
   };
 
   const handleEnroll = async () => {
@@ -124,16 +126,16 @@ export function EnrollStudentPanel() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-sm">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">{p.code} {p.universityId ? `• ${p.universityId.name}` : ''}</p>
+                          <p className="text-xs text-muted-foreground">{p.code} {p.university ? `• ${p.university.name}` : ''}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-sm">₹{total.toLocaleString()}</p>
                           {!canAfford && <Badge variant="destructive" className="text-[9px]">Insufficient</Badge>}
                         </div>
                       </div>
-                      {p.feeStructure && p.feeStructure.additionalFees.length > 0 && (
+                      {p.programFeeStructure && p.programFeeStructure.length > 0 && p.programFeeStructure[0].additionalFees.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">
-                          {p.feeStructure.additionalFees.map((f, i) => (
+                          {p.programFeeStructure[0].additionalFees.map((f, i) => (
                             <Badge key={i} variant="secondary" className="text-[10px]">{f.label}: ₹{f.amount}</Badge>
                           ))}
                         </div>

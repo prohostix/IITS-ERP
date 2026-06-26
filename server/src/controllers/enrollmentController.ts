@@ -20,7 +20,28 @@ export const getTopUpHistory = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
+  const where: any = { organizationId: req.user.organizationId, status: 'active' as any };
+  
+  if (req.user.studyCenterId) {
+    where.programAllocations = {
+      some: {
+        centerId: req.user.studyCenterId,
+        isActive: true
+      }
+    };
+  }
+
+  const programs = await prisma.program.findMany({
+    where,
+    include: {
+      university: { select: { id: true, name: true, code: true } },
+      programFeeStructure: {
+        where: {
+          organizationId: req.user.organizationId
+        }
+      }
+    }
+  });
   res.json({ success: true, count: programs.length, data: programs });
 });
 
