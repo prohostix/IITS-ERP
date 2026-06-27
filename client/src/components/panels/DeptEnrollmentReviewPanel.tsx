@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Mail, Phone, MapPin, GraduationCap, FileText, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,10 +15,17 @@ interface Enrollment {
   enrollmentNumber?: string;
   studentName: string;
   studentEmail: string;
-  programId: { name: string; code: string } | string;
-  studyCenterId: { name: string } | string;
+  studentPhone?: string;
+  studentAddress?: string;
+  programId: string;
+  studyCenterId: string;
   status: string;
   createdAt: string;
+  program?: { name: string; code: string };
+  studyCenter?: { name: string };
+  session?: { name: string };
+  documents?: { name: string; url: string }[];
+  educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
 }
 
 export function DeptEnrollmentReviewPanel() {
@@ -26,6 +33,7 @@ export function DeptEnrollmentReviewPanel() {
   const [loading, setLoading] = useState(false);
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
   const [remarks, setRemarks] = useState('');
+  const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
 
   const fetch = async () => {
     setLoading(true);
@@ -45,6 +53,7 @@ export function DeptEnrollmentReviewPanel() {
     try {
       await api.put(`/enrollment/review/${id}/approve`);
       toast.success('Enrollment approved — forwarded to Finance');
+      setSelectedEnrollment(null);
       fetch();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to approve');
@@ -56,6 +65,7 @@ export function DeptEnrollmentReviewPanel() {
       await api.put(`/enrollment/review/${rejectDialog.id}/reject`, { remarks });
       toast.success('Enrollment rejected');
       setRejectDialog({ open: false, id: '' });
+      setSelectedEnrollment(null);
       setRemarks('');
       fetch();
     } catch (e: any) {
@@ -64,10 +74,14 @@ export function DeptEnrollmentReviewPanel() {
   };
 
   const getProgramName = (e: Enrollment) =>
-    typeof e.programId === 'object' ? `${e.programId.name} (${e.programId.code})` : e.programId;
+    e.program && typeof e.program === 'object'
+      ? `${e.program.name} (${e.program.code})`
+      : (typeof e.programId === 'object' ? `${(e.programId as any).name} (${(e.programId as any).code})` : e.programId);
 
   const getCenterName = (e: Enrollment) =>
-    typeof e.studyCenterId === 'object' ? e.studyCenterId.name : e.studyCenterId;
+    e.studyCenter && typeof e.studyCenter === 'object'
+      ? e.studyCenter.name
+      : (typeof e.studyCenterId === 'object' ? (e.studyCenterId as any).name : e.studyCenterId);
 
   return (
     <div className="space-y-6">
@@ -90,14 +104,17 @@ export function DeptEnrollmentReviewPanel() {
           {enrollments.map(e => (
             <Card key={e.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5 flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
                       {e.status.replace(/_/g, ' ')}
                     </Badge>
                     {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
                   </div>
-                  <h4 className="font-semibold">{e.studentName}</h4>
+                  <h4 className="font-semibold text-base group-hover/item:text-primary transition-colors flex items-center gap-1.5">
+                    {e.studentName}
+                    <span className="text-[10px] text-primary opacity-0 group-hover/item:opacity-100 transition-opacity font-normal">(Click to review details)</span>
+                  </h4>
                   <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                     <span>{e.studentEmail}</span>
                     <span>{getProgramName(e)}</span>
@@ -130,6 +147,158 @@ export function DeptEnrollmentReviewPanel() {
             <Button variant="outline" onClick={() => setRejectDialog({ open: false, id: '' })}>Cancel</Button>
             <Button variant="destructive" onClick={handleReject} disabled={!remarks.trim()}>Reject</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedEnrollment} onOpenChange={o => !o && setSelectedEnrollment(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedEnrollment && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <DialogTitle>Review Enrollment Details</DialogTitle>
+                  <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
+                    {selectedEnrollment.status.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* Contact details */}
+                <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Email</p>
+                      <p className="font-medium">{selectedEnrollment.studentEmail}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Phone</p>
+                      <p className="font-medium">{selectedEnrollment.studentPhone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Address</p>
+                      <p className="font-medium">{selectedEnrollment.studentAddress || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Course Details */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-primary" /> Program & Session Info
+                  </h4>
+                  <div className="bg-muted/10 p-4 rounded-xl border text-sm space-y-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground block">Program</span>
+                      <span className="font-semibold">{getProgramName(selectedEnrollment)}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block">Study Center</span>
+                      <span className="font-semibold">{getCenterName(selectedEnrollment)}</span>
+                    </div>
+                    {selectedEnrollment.session?.name && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block font-medium">Intake Session</span>
+                        <span className="font-semibold">{selectedEnrollment.session.name}</span>
+                      </div>
+                    )}
+                    <div className="pt-1 border-t mt-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Submitted on: {new Date(selectedEnrollment.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Educational Details */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-primary" /> Educational History
+                  </h4>
+                  {selectedEnrollment.educationalDetails && selectedEnrollment.educationalDetails.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedEnrollment.educationalDetails.map((edu, idx) => (
+                        <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                          <div className="col-span-1">
+                            <span className="text-xs text-muted-foreground block">Qualification</span>
+                            <span className="font-semibold">{edu.qualification}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-xs text-muted-foreground block">Institution</span>
+                            <span className="font-medium">{edu.institution}</span>
+                          </div>
+                          <div className="col-span-1 text-right">
+                            <span className="text-xs text-muted-foreground block">Passing / %</span>
+                            <span className="font-medium">{edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No educational credentials added.</p>
+                  )}
+                </div>
+
+                {/* Uploaded Documents */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
+                  </h4>
+                  {selectedEnrollment.documents && selectedEnrollment.documents.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedEnrollment.documents.map((doc, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
+                          <div className="flex items-center gap-2 truncate pr-2">
+                            <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate font-medium">{doc.name}</span>
+                          </div>
+                          <a
+                            href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
+                          >
+                            View
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No documents uploaded.</p>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setSelectedEnrollment(null)}>
+                  Close
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="text-white bg-destructive hover:bg-destructive/90"
+                  onClick={() => {
+                    setRejectDialog({ open: true, id: selectedEnrollment.id });
+                    setRemarks('');
+                  }}
+                >
+                  <XCircle className="w-4 h-4 mr-1" /> Reject
+                </Button>
+                <Button
+                  className="text-white bg-success hover:bg-success/90"
+                  onClick={() => handleApprove(selectedEnrollment.id)}
+                >
+                  <CheckCircle className="w-4 h-4 mr-1" /> Approve
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

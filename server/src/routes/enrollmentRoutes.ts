@@ -10,6 +10,7 @@ import {
   getMyCenterStatus,
   submitMyCenterPayment,
   getAllEnrollments,
+  getActiveSessions,
 } from '../controllers/enrollmentController.js';
 import {
   getPendingReviews,
@@ -31,6 +32,7 @@ router.get('/wallet/topups', authorize('center_admin'), getTopUpHistory);
 
 // Study Center enrollment routes
 router.get('/programs', authorize('center_admin'), getEnrollablePrograms);
+router.get('/sessions', authorize('center_admin'), getActiveSessions);
 router.post('/enroll', authorize('center_admin'), createEnrollment);
 router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
 

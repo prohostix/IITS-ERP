@@ -40,12 +40,20 @@ interface DocumentFile {
   url: string;
 }
 
+interface Session {
+  id: string;
+  name: string;
+  programId?: string | null;
+}
+
 export function EnrollStudentPanel() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   
   const [form, setForm] = useState({
     studentName: '',
@@ -74,12 +82,14 @@ export function EnrollStudentPanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [progsRes, walletRes] = await Promise.all([
+      const [progsRes, walletRes, sessionsRes] = await Promise.all([
         api.get('/enrollment/programs'),
         api.get('/enrollment/wallet'),
+        api.get('/enrollment/sessions'),
       ]);
       setPrograms(progsRes.data.data || []);
       setWallet(walletRes.data.data);
+      setSessions(sessionsRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
     } finally {
@@ -88,6 +98,14 @@ export function EnrollStudentPanel() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    setSelectedSessionId('');
+  }, [selectedProgram]);
+
+  const availableSessions = sessions.filter(
+    s => !selectedProgram || s.programId === null || s.programId === selectedProgram.id
+  );
 
   const getTotalFee = (p: Program) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
@@ -151,6 +169,10 @@ export function EnrollStudentPanel() {
 
   const triggerConfirm = () => {
     if (!selectedProgram) return;
+    if (!selectedSessionId) {
+      toast.error('Please select an intake admission session');
+      return;
+    }
     const missing = Object.entries(form).filter(([, v]) => !v.trim()).map(([k]) => k);
     if (missing.length > 0) {
       toast.error(`Missing: ${missing.join(', ')}`);
@@ -161,17 +183,23 @@ export function EnrollStudentPanel() {
 
   const handleEnroll = async () => {
     if (!selectedProgram) return;
+    if (!selectedSessionId) {
+      toast.error('Please select an intake admission session');
+      return;
+    }
     setConfirmOpen(false);
     setSubmitting(true);
     try {
       await api.post('/enrollment/enroll', { 
         ...form, 
         programId: selectedProgram.id,
+        sessionId: selectedSessionId,
         documents: documentList,
         educationalDetails: educationList
       });
       toast.success('Enrollment submitted successfully');
       setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '' });
+      setSelectedSessionId('');
       setEducationList([]);
       setDocumentList([]);
       setSelectedProgram(null);
@@ -294,6 +322,24 @@ export function EnrollStudentPanel() {
                 <Label>Address</Label>
                 <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Full address" />
               </div>
+              {selectedProgram && (
+                <div className="space-y-1">
+                  <Label>Intake Admission Session <span className="text-destructive">*</span></Label>
+                  <select
+                    value={selectedSessionId}
+                    onChange={e => setSelectedSessionId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                  >
+                    <option value="">-- Select Intake Session --</option>
+                    {availableSessions.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </CardContent>
           </Card>
 

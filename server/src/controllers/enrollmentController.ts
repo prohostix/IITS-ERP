@@ -46,7 +46,7 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails } = req.body;
+  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
 
@@ -59,27 +59,44 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
-  // Auto-find the active admission session for this program/org
-  const session = await prisma.admissionSession.findFirst({
-    where: {
-      organizationId,
-      status: 'active',
-      OR: [
-        { programId },
-        { programId: null }
-      ]
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  let finalSessionId = sessionId;
 
-  if (!session) {
-    res.status(400).json({ success: false, message: 'No active admission session found for this program. Please contact admin.' });
-    return;
+  if (finalSessionId) {
+    const chosenSession = await prisma.admissionSession.findFirst({
+      where: {
+        id: finalSessionId,
+        organizationId,
+        status: 'active'
+      }
+    });
+    if (!chosenSession) {
+      res.status(400).json({ success: false, message: 'Selected admission session is invalid or inactive' });
+      return;
+    }
+  } else {
+    // Auto-find the active admission session for this program/org
+    const session = await prisma.admissionSession.findFirst({
+      where: {
+        organizationId,
+        status: 'active',
+        OR: [
+          { programId },
+          { programId: null }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!session) {
+      res.status(400).json({ success: false, message: 'No active admission session found for this program. Please contact admin.' });
+      return;
+    }
+    finalSessionId = session.id;
   }
 
   // Check for duplicate email in same program+session
   const existing = await prisma.enrollment.findFirst({
-    where: { studentEmail, programId, sessionId: session.id, organizationId }
+    where: { studentEmail, programId, sessionId: finalSessionId, organizationId }
   });
   if (existing) {
     res.status(400).json({ success: false, message: 'An application with this email already exists for this program and session' });
@@ -98,7 +115,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       organization: { connect: { id: organizationId } },
       program:      { connect: { id: programId } },
       studyCenter:  { connect: { id: studyCenterId } },
-      session:      { connect: { id: session.id } },
+      session:      { connect: { id: finalSessionId } },
     }
   });
   res.status(201).json({ success: true, data: enrollment });
@@ -149,4 +166,15 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
     orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: enrollments.length, data: enrollments });
+});
+
+export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const sessions = await prisma.admissionSession.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: 'active'
+    },
+    orderBy: { name: 'asc' }
+  });
+  res.json({ success: true, count: sessions.length, data: sessions });
 });
