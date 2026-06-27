@@ -131,7 +131,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         status: 'enrolled' as any,
         financeReviewer: { connect: { id: req.user.id } },
         financeReviewedAt: new Date(),
-        studentId: student.id,
+        student: { connect: { id: student.id } },
         enrollmentNumber: student.enrollmentNo
       },
       include: { program: true }

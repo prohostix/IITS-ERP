@@ -390,7 +390,7 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
       financeReviewedAt: now,
       enrolledAt: now,
       statusHistory: history,
-      studentId: student.id,
+      student: { connect: { id: student.id } },
       enrollmentNumber: student.enrollmentNo
     } as any,
   });
