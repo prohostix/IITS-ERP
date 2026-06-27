@@ -325,7 +325,7 @@ export function PrismaLayout({
             
             <div className="h-8 w-px bg-border mx-1" />
             
-            <NotificationBell userId={userId} organizationId={organizationId} />
+            <NotificationBell userId={userId} organizationId={organizationId} onNavigate={onTableChange} />
             
             {/* Settings dropdown */}
             <div className="relative">
