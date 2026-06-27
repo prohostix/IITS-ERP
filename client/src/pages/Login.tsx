@@ -32,9 +32,7 @@ export function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-10">
-          <div className="w-12 h-12 bg-[#0F172A] rounded-xl flex items-center justify-center shadow-lg">
-            <Building2 className="w-7 h-7 text-white" />
-          </div>
+          <img src="/logo.png" alt="PYPE ERP" className="w-12 h-12 object-contain rounded-xl shadow-lg" />
           <span className="text-3xl font-bold text-[#0F172A] tracking-tight">PYPE ERP</span>
         </div>
 
