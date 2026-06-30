@@ -428,6 +428,7 @@ model Student {
   address               String
   programId             String
   sessionId             String?
+  specialisation        String?
   status                String                 @default("pending")
   joinDate              DateTime               @default(now())
   enrolledAt            DateTime?
@@ -812,6 +813,7 @@ model Enrollment {
   programId            String
   studyCenterId        String
   sessionId            String
+  specialisation       String?
   enrollmentNumber     String?            @unique
   studentName          String
   studentEmail         String

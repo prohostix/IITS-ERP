@@ -14,6 +14,7 @@ interface Program {
   id: string;
   name: string;
   code: string;
+  specialisations?: string[];
   university?: { name: string };
   programFeeStructure?: {
     baseFee: number;
@@ -59,7 +60,8 @@ export function EnrollStudentPanel() {
     studentName: '',
     studentEmail: '',
     studentPhone: '',
-    studentAddress: ''
+    studentAddress: '',
+    specialisation: ''
   });
 
   // Dynamic lists for documents and education details
@@ -173,7 +175,13 @@ export function EnrollStudentPanel() {
       toast.error('Please select an intake admission session');
       return;
     }
-    const missing = Object.entries(form).filter(([, v]) => !v.trim()).map(([k]) => k);
+    if (selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && !form.specialisation.trim()) {
+      toast.error('Please select a specialisation combo');
+      return;
+    }
+    const missing = Object.entries(form)
+      .filter(([k, v]) => k !== 'specialisation' && !v.trim())
+      .map(([k]) => k);
     if (missing.length > 0) {
       toast.error(`Missing: ${missing.join(', ')}`);
       return;
@@ -187,6 +195,10 @@ export function EnrollStudentPanel() {
       toast.error('Please select an intake admission session');
       return;
     }
+    if (selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && !form.specialisation.trim()) {
+      toast.error('Please select a specialisation combo');
+      return;
+    }
     setConfirmOpen(false);
     setSubmitting(true);
     try {
@@ -198,7 +210,7 @@ export function EnrollStudentPanel() {
         educationalDetails: educationList
       });
       toast.success('Enrollment submitted successfully');
-      setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '' });
+      setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '', specialisation: '' });
       setSelectedSessionId('');
       setEducationList([]);
       setDocumentList([]);
@@ -335,6 +347,24 @@ export function EnrollStudentPanel() {
                     {availableSessions.map(s => (
                       <option key={s.id} value={s.id}>
                         {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {selectedProgram && selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Specialisation Combo <span className="text-destructive">*</span></Label>
+                  <select
+                    value={form.specialisation}
+                    onChange={e => setForm(f => ({ ...f, specialisation: e.target.value }))}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                  >
+                    <option value="">-- Select Specialisation Combo --</option>
+                    {selectedProgram.specialisations.map((spec, idx) => (
+                      <option key={idx} value={spec}>
+                        {spec}
                       </option>
                     ))}
                   </select>

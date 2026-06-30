@@ -46,7 +46,7 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId } = req.body;
+  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
 
@@ -109,6 +109,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentEmail,
       studentPhone,
       studentAddress,
+      specialisation,
       status: 'document_review' as any,
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
