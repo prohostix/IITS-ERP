@@ -55,12 +55,12 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
                 <OverviewCard
                   icon={<GraduationCap className="w-5 h-5 text-success" />}
                   label="Total Enrollments"
-                  value="—"
+                  value={metrics.totalEnrollments !== undefined ? metrics.totalEnrollments.toString() : '0'}
                 />
                 <OverviewCard
                   icon={<ClipboardList className="w-5 h-5 text-warning" />}
                   label="Pending Review"
-                  value="—"
+                  value={metrics.pendingReview !== undefined ? metrics.pendingReview.toString() : '0'}
                 />
               </div>
               <div className="mt-6 p-6 rounded-xl border border-border bg-card/60">

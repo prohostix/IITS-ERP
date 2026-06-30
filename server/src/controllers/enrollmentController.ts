@@ -5,8 +5,27 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const wallet = await prisma.studyCenterWallet.findUnique({ where: { studyCenterId: req.user.studyCenterId || '' } });
-  res.json({ success: true, data: wallet });
+  const centerId = req.user.studyCenterId || '';
+  const [wallet, totalEnrollments, pendingReview] = await Promise.all([
+    prisma.studyCenterWallet.findUnique({ where: { studyCenterId: centerId } }),
+    prisma.enrollment.count({ where: { studyCenterId: centerId } }),
+    prisma.enrollment.count({
+      where: {
+        studyCenterId: centerId,
+        status: { in: ['document_review', 'dept_review', 'finance_review'] }
+      }
+    })
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      ...(wallet || {}),
+      balance: wallet?.balance || 0,
+      totalEnrollments,
+      pendingReview
+    }
+  });
 });
 
 export const submitTopUp = asyncHandler(async (req: AuthRequest, res: Response) => {
