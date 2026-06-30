@@ -7,6 +7,7 @@ import {
   getWalletTransactions,
   getEnrollablePrograms,
   createEnrollment,
+  updateEnrollment,
   getMyEnrollments,
   getMyCenterStatus,
   submitMyCenterPayment,
@@ -36,6 +37,7 @@ router.get('/wallet/transactions', authorize('center_admin'), getWalletTransacti
 router.get('/programs', authorize('center_admin'), getEnrollablePrograms);
 router.get('/sessions', authorize('center_admin'), getActiveSessions);
 router.post('/enroll', authorize('center_admin'), createEnrollment);
+router.put('/enroll/:id', authorize('center_admin'), updateEnrollment);
 router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
 
 // Center onboarding status & payment (authenticated)

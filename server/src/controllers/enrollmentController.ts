@@ -243,3 +243,67 @@ export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Resp
   });
   res.json({ success: true, count: sessions.length, data: sessions });
 });
+
+export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation } = req.body;
+  const organizationId = req.user.organizationId;
+  const studyCenterId = req.user.studyCenterId;
+
+  if (!studyCenterId) {
+    res.status(400).json({ success: false, message: 'No study center assigned to your account' });
+    return;
+  }
+
+  const enrollment = await prisma.enrollment.findFirst({
+    where: { id, studyCenterId }
+  });
+
+  if (!enrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  if (enrollment.status !== 'rejected') {
+    res.status(400).json({ success: false, message: 'Only rejected enrollments can be edited and re-submitted' });
+    return;
+  }
+
+  let finalSessionId = sessionId || enrollment.sessionId;
+  const targetProgramId = programId || enrollment.programId;
+
+  // Check for duplicate email in same program+session (excluding this enrollment)
+  const existing = await prisma.enrollment.findFirst({
+    where: {
+      studentEmail: studentEmail || enrollment.studentEmail,
+      programId: targetProgramId,
+      sessionId: finalSessionId,
+      organizationId,
+      id: { not: id }
+    }
+  });
+  if (existing) {
+    res.status(400).json({ success: false, message: 'An application with this email already exists for this program and session' });
+    return;
+  }
+
+  // Update enrollment details and change status back to document_review
+  const updatedEnrollment = await prisma.enrollment.update({
+    where: { id },
+    data: {
+      studentName: studentName !== undefined ? studentName : enrollment.studentName,
+      studentEmail: studentEmail !== undefined ? studentEmail : enrollment.studentEmail,
+      studentPhone: studentPhone !== undefined ? studentPhone : enrollment.studentPhone,
+      studentAddress: studentAddress !== undefined ? studentAddress : enrollment.studentAddress,
+      specialisation: specialisation !== undefined ? specialisation : enrollment.specialisation,
+      programId: targetProgramId,
+      sessionId: finalSessionId,
+      status: 'document_review' as any,
+      departmentRemarks: null, // Clear remarks since it is re-submitted
+      documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : enrollment.documents,
+      educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : enrollment.educationalDetails,
+    }
+  });
+
+  res.status(200).json({ success: true, data: updatedEnrollment });
+});
