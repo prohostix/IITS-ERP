@@ -407,3 +407,145 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
 
   res.status(200).json({ success: true, data: result });
 });
+
+export const submitStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { requestedStatus, reason } = req.body;
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  if (req.user.role === 'center_admin' && student.centerId !== req.user.studyCenterId) {
+    res.status(403).json({ success: false, message: 'Unauthorized access to student' });
+    return;
+  }
+
+  if (!['hold', 'dropout'].includes(requestedStatus)) {
+    res.status(400).json({ success: false, message: 'Invalid status requested. Must be hold or dropout.' });
+    return;
+  }
+
+  const statusRequest = await prisma.studentStatusRequest.create({
+    data: {
+      studentId: student.id,
+      organizationId: req.user.organizationId,
+      requestedStatus,
+      reason,
+      status: 'pending_operations',
+      createdBy: req.user.id
+    }
+  });
+
+  res.status(201).json({ success: true, data: statusRequest });
+});
+
+export const getStatusChangeRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { requestedStatus, status } = req.query;
+  const where: any = { organizationId: req.user.organizationId };
+
+  if (req.user.role === 'center_admin') {
+    where.student = { centerId: req.user.studyCenterId || '' };
+  }
+
+  if (requestedStatus) {
+    where.requestedStatus = requestedStatus as string;
+  }
+
+  if (status) {
+    where.status = status as string;
+  }
+
+  const requests = await prisma.studentStatusRequest.findMany({
+    where,
+    include: {
+      student: {
+        include: {
+          program: true,
+          center: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  res.status(200).json({ success: true, count: requests.length, data: requests });
+});
+
+export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { action, remarks } = req.body; // action: "verify" or "reject"
+  const request = await prisma.studentStatusRequest.findUnique({
+    where: { id: req.params.requestId }
+  });
+
+  if (!request) {
+    res.status(404).json({ success: false, message: 'Status change request not found' });
+    return;
+  }
+
+  if (request.status !== 'pending_operations') {
+    res.status(400).json({ success: false, message: 'Request is not pending operations review' });
+    return;
+  }
+
+  let nextStatus = 'rejected';
+  if (action === 'verify') {
+    nextStatus = 'pending_finance';
+  }
+
+  const updated = await prisma.studentStatusRequest.update({
+    where: { id: request.id },
+    data: {
+      status: nextStatus,
+      operationsRemarks: remarks
+    }
+  });
+
+  res.status(200).json({ success: true, data: updated });
+});
+
+export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { action, remarks } = req.body; // action: "confirm" or "reject"
+  const request = await prisma.studentStatusRequest.findUnique({
+    where: { id: req.params.requestId }
+  });
+
+  if (!request) {
+    res.status(404).json({ success: false, message: 'Status change request not found' });
+    return;
+  }
+
+  if (request.status !== 'pending_finance') {
+    res.status(400).json({ success: false, message: 'Request is not pending finance confirmation' });
+    return;
+  }
+
+  let nextStatus = 'rejected';
+  if (action === 'confirm') {
+    nextStatus = 'approved';
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.studentStatusRequest.update({
+      where: { id: request.id },
+      data: {
+        status: nextStatus,
+        financeRemarks: remarks
+      }
+    });
+
+    if (action === 'confirm') {
+      await tx.student.update({
+        where: { id: request.studentId },
+        data: { status: request.requestedStatus }
+      });
+    }
+
+    return updated;
+  });
+
+  res.status(200).json({ success: true, data: result });
+});

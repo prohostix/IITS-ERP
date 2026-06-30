@@ -37,6 +37,7 @@ import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { PollsPanel } from '@/components/panels/PollsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
+import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { useAuth } from '@/hooks/useAuth';
 
 export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
@@ -73,6 +74,7 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
       case 'pending_verification': return <OpsCenterVerificationPanel />;
       case 'program_allocations': return <OpsProgramAllocationPanel />;
       case 'enrollment_review': return <DeptEnrollmentReviewPanel />;
+      case 'status_requests': return <StatusRequestsPanel type="operations" />;
       case 'sessions': return <AdmissionSessionsPanel />;
       case 'marks': return <InternalMarksPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
@@ -108,6 +110,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: 'pending_verification', label: 'Pending Verification' },
     { id: 'program_allocations', label: 'Program Allocations' },
     { id: 'enrollment_review', label: 'Enrollment Review' },
+    { id: 'status_requests', label: 'Status Requests' },
     { id: 'sessions', label: 'Admission Sessions' },
     { id: 'marks', label: 'Internal Marks' },
     { id: 'center_admissions', label: 'Centers Admissions' },

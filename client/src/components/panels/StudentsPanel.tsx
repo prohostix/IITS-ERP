@@ -38,6 +38,33 @@ export function StudentsPanel() {
   const [fetchingInstallments, setFetchingInstallments] = useState(false);
   const [payingInstallment, setPayingInstallment] = useState(false);
 
+  // Status Change Request state
+  const [requestStatusOpen, setRequestStatusOpen] = useState(false);
+  const [requestedStatus, setRequestedStatus] = useState<'hold' | 'dropout'>('hold');
+  const [statusReason, setStatusReason] = useState('');
+  const [submittingStatusReq, setSubmittingStatusReq] = useState(false);
+
+  const handleRequestStatusChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    setSubmittingStatusReq(true);
+    try {
+      await api.post(`/students/${selectedStudent.id}/status-request`, {
+        requestedStatus,
+        reason: statusReason
+      });
+      toast.success(`Request to ${requestedStatus} student submitted successfully!`);
+      setRequestStatusOpen(false);
+      setStatusReason('');
+      setSelectedStudent(null);
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to submit status request');
+    } finally {
+      setSubmittingStatusReq(false);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
@@ -314,11 +341,22 @@ export function StudentsPanel() {
           {selectedStudent && (
             <>
               <DialogHeader>
-                <div className="flex items-center gap-2">
-                  <DialogTitle>Student Details</DialogTitle>
-                  <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
-                    {selectedStudent.status}
-                  </Badge>
+                <div className="flex items-center justify-between w-full pr-6">
+                  <div className="flex items-center gap-2">
+                    <DialogTitle>Student Details</DialogTitle>
+                    <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
+                      {selectedStudent.status}
+                    </Badge>
+                  </div>
+                  {user?.role === 'center_admin' && !['hold', 'dropout'].includes(selectedStudent.status) && (
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => setRequestStatusOpen(true)}
+                    >
+                      Request Hold / Dropout
+                    </Button>
+                  )}
                 </div>
               </DialogHeader>
 
@@ -495,6 +533,49 @@ export function StudentsPanel() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={requestStatusOpen} onOpenChange={setRequestStatusOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Status Change</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRequestStatusChange} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label>Requested Status</Label>
+              <Select 
+                value={requestedStatus} 
+                onValueChange={(val: 'hold' | 'dropout') => setRequestedStatus(val)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hold">Hold</SelectItem>
+                  <SelectItem value="dropout">Dropout</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Reason / Remarks</Label>
+              <textarea
+                className="w-full min-h-[100px] border rounded-md p-2 text-sm bg-background"
+                value={statusReason}
+                onChange={e => setStatusReason(e.target.value)}
+                placeholder="Please explain the reason for this request..."
+                required
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setRequestStatusOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submittingStatusReq} className="bg-destructive hover:bg-destructive/90 text-white">
+                {submittingStatusReq ? 'Submitting...' : 'Submit Request'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
