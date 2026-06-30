@@ -223,13 +223,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
     include: {
-      program: {
-        include: {
-          programFeeStructure: {
-            where: { organizationId: req.user.organizationId }
-          }
-        }
-      },
+      program: true,
       invoices: true
     }
   });
@@ -239,7 +233,34 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
     return;
   }
 
-  const feeStructure = student.program?.programFeeStructure?.[0];
+  // Find the exact fee structure matching program, university, and student's session
+  const feeStructure = await prisma.programFeeStructure.findFirst({
+    where: {
+      organizationId: req.user.organizationId,
+      OR: [
+        {
+          programId: student.programId,
+          OR: [
+            { admissionSessionId: student.sessionId },
+            { admissionSessionId: null }
+          ]
+        },
+        {
+          universityId: student.program.universityId,
+          level: 'university',
+          OR: [
+            { admissionSessionId: student.sessionId },
+            { admissionSessionId: null }
+          ]
+        }
+      ]
+    },
+    orderBy: [
+      { level: 'asc' }, // "program" level preferred over "university"
+      { admissionSessionId: 'desc' } // specific session preferred over null
+    ]
+  });
+
   if (!feeStructure) {
     res.status(200).json({ success: true, installments: [] });
     return;
