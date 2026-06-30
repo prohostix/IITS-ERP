@@ -12,7 +12,9 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     where.email = req.user.email;
   } else if (req.user.role === 'center_admin') {
     where.centerId = req.user.studyCenterId || '';
-  } else if (req.query.status) {
+  }
+  
+  if (req.query.status) {
     where.status = req.query.status as string;
   }
 

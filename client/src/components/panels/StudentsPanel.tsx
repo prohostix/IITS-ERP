@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -65,16 +66,19 @@ export function StudentsPanel() {
     }
   };
 
+  const [statusFilter, setStatusFilter] = useState('');
+
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
     fetchCenters();
-  }, []);
+  }, [statusFilter]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/students');
+      const params = statusFilter ? `?status=${statusFilter}` : '';
+      const response = await api.get(`/students${params}`);
       setStudents(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch students:', error);
@@ -287,6 +291,28 @@ export function StudentsPanel() {
           </DialogContent>
         </Dialog>
         )}
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-4">
+        {[
+          { key: '', label: 'All' },
+          { key: 'active', label: 'Active' },
+          { key: 'hold', label: 'Hold' },
+          { key: 'dropout', label: 'Dropout' }
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+              statusFilter === tab.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-muted text-muted-foreground border-border hover:border-primary/40'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <Card>
