@@ -214,8 +214,15 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
 
 
 export const getMyEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status } = req.query;
+  const where: any = { studyCenterId: req.user.studyCenterId || '' };
+
+  if (status) {
+    where.status = status as string;
+  }
+
   const enrollments = await prisma.enrollment.findMany({
-    where: { studyCenterId: req.user.studyCenterId || '' },
+    where,
     include: {
       program: {
         include: { university: { select: { name: true, code: true } } }
