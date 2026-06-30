@@ -15,6 +15,7 @@ import api from '@/lib/api';
 export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const [metrics, setMetrics] = useState<any>({});
+  const [centerConfig, setCenterConfig] = useState<any>(null);
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -22,6 +23,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
 
   useEffect(() => {
     api.get('/enrollment/wallet').then(r => setMetrics(r.data.data || {})).catch(() => {});
+    api.get('/enrollment/my-center-status').then(r => setCenterConfig(r.data.data)).catch(() => {});
   }, []);
 
   return (
@@ -38,7 +40,9 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
           <TabsTrigger value="enroll">Enroll Student</TabsTrigger>
           <TabsTrigger value="enrollments">My Enrollments</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="marks">Internal Marks</TabsTrigger>
+          {centerConfig?.allowInternalMarks && (
+            <TabsTrigger value="marks">Internal Marks</TabsTrigger>
+          )}
           <TabsTrigger value="programs">Programs & Materials</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
         </TabsList>
@@ -89,7 +93,9 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
         <TabsContent value="enroll"><EnrollStudentPanel /></TabsContent>
         <TabsContent value="enrollments"><StudyCenterEnrollmentsPanel /></TabsContent>
         <TabsContent value="students"><StudentsPanel /></TabsContent>
-        <TabsContent value="marks"><InternalMarksPanel /></TabsContent>
+        {centerConfig?.allowInternalMarks && (
+          <TabsContent value="marks"><InternalMarksPanel /></TabsContent>
+        )}
         <TabsContent value="programs"><ProgramsPanel /></TabsContent>
         <TabsContent value="tasks"><TasksPanel /></TabsContent>
       </Tabs>

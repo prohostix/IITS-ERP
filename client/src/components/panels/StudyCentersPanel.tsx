@@ -43,6 +43,7 @@ export function StudyCentersPanel() {
   const [configOpen, setConfigOpen] = useState(false);
   const [configCenterId, setConfigCenterId] = useState<string | null>(null);
   const [fieldConfig, setFieldConfig] = useState<Record<string, 'required' | 'optional' | 'hidden'>>({});
+  const [allowInternalMarks, setAllowInternalMarks] = useState(false);
 
   const CUSTOMISABLE_FIELDS = [
     { key: 'abcId', label: 'ABCID' },
@@ -60,6 +61,7 @@ export function StudyCentersPanel() {
 
   const handleOpenConfig = (c: any) => {
     setConfigCenterId(c.id);
+    setAllowInternalMarks(!!c.allowInternalMarks);
     let currentConfig = {};
     if (c.customEnrollmentFields) {
       currentConfig = typeof c.customEnrollmentFields === 'string' 
@@ -78,7 +80,8 @@ export function StudyCentersPanel() {
     if (!configCenterId) return;
     try {
       await api.put(`/operations/centers/${configCenterId}`, {
-        customEnrollmentFields: fieldConfig
+        customEnrollmentFields: fieldConfig,
+        allowInternalMarks
       });
       toast.success('Enrollment form customization saved successfully!');
       setConfigOpen(false);
@@ -726,6 +729,21 @@ export function StudyCentersPanel() {
                 </div>
               </div>
             ))}
+
+            <div className="border-t pt-4 mt-2">
+              <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allowInternalMarks}
+                  onChange={e => setAllowInternalMarks(e.target.checked)}
+                  className="h-4.5 w-4.5 text-primary rounded border-gray-300 focus:ring-primary"
+                />
+                <span>Enable Internal Marks Access for this branch</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1 ml-7">
+                If checked, the Center Portal dashboard will display the "Internal Marks" entry page tab for this study center.
+              </p>
+            </div>
           </div>
 
           <DialogFooter className="pt-2 border-t mt-4">
