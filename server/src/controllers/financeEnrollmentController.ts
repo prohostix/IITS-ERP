@@ -6,16 +6,58 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import bcrypt from 'bcryptjs';
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({
-    where: { organizationId: req.user.organizationId },
-    include: {
-      program: { select: { name: true, code: true } },
-      studyCenter: { select: { name: true, code: true } },
-      payment: true
-    },
-    orderBy: { createdAt: 'desc' }
+  const { status, search } = req.query;
+  const where: any = { organizationId: req.user.organizationId };
+
+  if (status) {
+    where.status = status as string;
+  }
+
+  if (search) {
+    where.OR = [
+      { studentName: { contains: search as string, mode: 'insensitive' } },
+      { studentEmail: { contains: search as string, mode: 'insensitive' } },
+      { studentPhone: { contains: search as string, mode: 'insensitive' } },
+      { enrollmentNumber: { contains: search as string, mode: 'insensitive' } },
+    ];
+  }
+
+  const [enrollments, allEnrollmentsForSummary] = await Promise.all([
+    prisma.enrollment.findMany({
+      where,
+      include: {
+        program: { select: { name: true, code: true } },
+        studyCenter: { select: { name: true, code: true } },
+        payment: true
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.enrollment.findMany({
+      where: { organizationId: req.user.organizationId },
+      select: { status: true }
+    })
+  ]);
+
+  // Compute summary counts
+  const summary = {
+    payment_pending: 0,
+    document_review: 0,
+    finance_review: 0,
+    enrolled: 0,
+    rejected: 0,
+    department_rejected: 0
+  };
+
+  allEnrollmentsForSummary.forEach(e => {
+    if (e.status === 'payment_pending') summary.payment_pending++;
+    else if (e.status === 'document_review') summary.document_review++;
+    else if (e.status === 'finance_review') summary.finance_review++;
+    else if (e.status === 'enrolled') summary.enrolled++;
+    else if (e.status === 'rejected') summary.rejected++;
+    else if (e.status === 'department_rejected') summary.department_rejected++;
   });
-  res.status(200).json({ success: true, count: enrollments.length, data: enrollments });
+
+  res.status(200).json({ success: true, count: enrollments.length, data: enrollments, summary });
 });
 
 export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
