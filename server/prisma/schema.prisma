@@ -395,6 +395,7 @@ model StudyCenter {
   paymentProof           Json?
   credentials            Json?
   statusHistory          Json                @default("[]")
+  customEnrollmentFields Json?               @default("[]")
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
   admissionSessions      AdmissionSession[]
@@ -434,6 +435,15 @@ model Student {
   programId             String
   sessionId             String?
   specialisation        String?
+  abcId                 String?
+  debId                 String?
+  dob                   String?
+  religion              String?
+  caste                 String?
+  fatherName            String?
+  motherName            String?
+  parentMobile          String?
+  studentPhoto          String?
   status                String                 @default("pending")
   joinDate              DateTime               @default(now())
   enrolledAt            DateTime?
@@ -820,6 +830,16 @@ model Enrollment {
   studyCenterId        String
   sessionId            String
   specialisation       String?
+  abcId                String?
+  debId                String?
+  dob                  String?
+  religion             String?
+  caste                String?
+  fatherName           String?
+  motherName           String?
+  parentMobile         String?
+  studentPhoto         String?
+  admissionDate        DateTime?          @default(now())
   enrollmentNumber     String?            @unique
   studentName          String
   studentEmail         String

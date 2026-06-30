@@ -155,7 +155,10 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation } = req.body;
+  const { 
+    studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
+    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate
+  } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
 
@@ -166,6 +169,27 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   if (!studyCenterId) {
     res.status(400).json({ success: false, message: 'No study center assigned to your account' });
     return;
+  }
+
+  // Form customisation validation
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: studyCenterId }
+  });
+  if (center?.customEnrollmentFields) {
+    const config = typeof center.customEnrollmentFields === 'string' 
+      ? JSON.parse(center.customEnrollmentFields) 
+      : center.customEnrollmentFields;
+    if (config && typeof config === 'object' && !Array.isArray(config)) {
+      for (const [field, requirement] of Object.entries(config)) {
+        if (requirement === 'required') {
+          const val = req.body[field];
+          if (val === undefined || val === null || String(val).trim() === '') {
+            res.status(400).json({ success: false, message: `Field '${field}' is required by this center's configuration` });
+            return;
+          }
+        }
+      }
+    }
   }
 
   let finalSessionId = sessionId;
@@ -219,6 +243,16 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentPhone,
       studentAddress,
       specialisation,
+      abcId,
+      debId,
+      dob,
+      religion,
+      caste,
+      fatherName,
+      motherName,
+      parentMobile,
+      studentPhoto,
+      admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
       status: 'document_review' as any,
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
@@ -298,7 +332,10 @@ export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Resp
 
 export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation } = req.body;
+  const { 
+    studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
+    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate
+  } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
 
@@ -319,6 +356,27 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   if (enrollment.status !== 'rejected') {
     res.status(400).json({ success: false, message: 'Only rejected enrollments can be edited and re-submitted' });
     return;
+  }
+
+  // Form customisation validation
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: studyCenterId }
+  });
+  if (center?.customEnrollmentFields) {
+    const config = typeof center.customEnrollmentFields === 'string' 
+      ? JSON.parse(center.customEnrollmentFields) 
+      : center.customEnrollmentFields;
+    if (config && typeof config === 'object' && !Array.isArray(config)) {
+      for (const [field, requirement] of Object.entries(config)) {
+        if (requirement === 'required') {
+          const val = req.body[field] !== undefined ? req.body[field] : (enrollment as any)[field];
+          if (val === undefined || val === null || String(val).trim() === '') {
+            res.status(400).json({ success: false, message: `Field '${field}' is required by this center's configuration` });
+            return;
+          }
+        }
+      }
+    }
   }
 
   let finalSessionId = sessionId || enrollment.sessionId;
@@ -348,6 +406,16 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentPhone: studentPhone !== undefined ? studentPhone : enrollment.studentPhone,
       studentAddress: studentAddress !== undefined ? studentAddress : enrollment.studentAddress,
       specialisation: specialisation !== undefined ? specialisation : enrollment.specialisation,
+      abcId: abcId !== undefined ? abcId : enrollment.abcId,
+      debId: debId !== undefined ? debId : enrollment.debId,
+      dob: dob !== undefined ? dob : enrollment.dob,
+      religion: religion !== undefined ? religion : enrollment.religion,
+      caste: caste !== undefined ? caste : enrollment.caste,
+      fatherName: fatherName !== undefined ? fatherName : enrollment.fatherName,
+      motherName: motherName !== undefined ? motherName : enrollment.motherName,
+      parentMobile: parentMobile !== undefined ? parentMobile : enrollment.parentMobile,
+      studentPhoto: studentPhoto !== undefined ? studentPhoto : enrollment.studentPhoto,
+      admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
       programId: targetProgramId,
       sessionId: finalSessionId,
       status: 'document_review' as any,

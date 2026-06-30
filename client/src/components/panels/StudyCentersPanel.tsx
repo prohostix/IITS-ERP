@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -38,6 +38,53 @@ export function StudyCentersPanel() {
   const [importSummary, setImportSummary] = useState<any | null>(null);
   const [importReferredById, setImportReferredById] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Form Config customization state
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configCenterId, setConfigCenterId] = useState<string | null>(null);
+  const [fieldConfig, setFieldConfig] = useState<Record<string, 'required' | 'optional' | 'hidden'>>({});
+
+  const CUSTOMISABLE_FIELDS = [
+    { key: 'abcId', label: 'ABCID' },
+    { key: 'debId', label: 'DEBID' },
+    { key: 'dob', label: 'Date of Birth (DOB)' },
+    { key: 'religion', label: 'Religion' },
+    { key: 'caste', label: 'Caste' },
+    { key: 'fatherName', label: "Father's Name" },
+    { key: 'motherName', label: "Mother's Name" },
+    { key: 'parentMobile', label: "Parent's Mobile Number" },
+    { key: 'studentPhoto', label: 'Student Photo' }
+  ];
+
+  const handleOpenConfig = (c: any) => {
+    setConfigCenterId(c.id);
+    let currentConfig = {};
+    if (c.customEnrollmentFields) {
+      currentConfig = typeof c.customEnrollmentFields === 'string' 
+        ? JSON.parse(c.customEnrollmentFields) 
+        : c.customEnrollmentFields;
+    }
+    const initialConfig: Record<string, any> = {};
+    CUSTOMISABLE_FIELDS.forEach(f => {
+      initialConfig[f.key] = (currentConfig as any)[f.key] || 'optional';
+    });
+    setFieldConfig(initialConfig);
+    setConfigOpen(true);
+  };
+
+  const handleSaveConfig = async () => {
+    if (!configCenterId) return;
+    try {
+      await api.put(`/operations/centers/${configCenterId}`, {
+        customEnrollmentFields: fieldConfig
+      });
+      toast.success('Enrollment form customization saved successfully!');
+      setConfigOpen(false);
+      fetchCenters();
+    } catch (err: any) {
+      toast.error('Failed to save configuration');
+    }
+  };
 
   useEffect(() => {
     fetchCenters();
@@ -444,6 +491,16 @@ export function StudyCentersPanel() {
                       <Badge>{c.status}</Badge>
                       {canWrite && (
                         <>
+                          {(user?.role === 'org_admin' || user?.role === 'superadmin') && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleOpenConfig(c)}
+                              title="Customize Enrollment Form"
+                            >
+                              <Settings className="w-4 h-4 text-primary" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(c)}><Edit className="w-4 h-4" /></Button>
                           <Button variant="ghost" size="sm" onClick={() => handleDelete(cid)}><Trash2 className="w-4 h-4" /></Button>
                         </>
@@ -628,6 +685,54 @@ export function StudyCentersPanel() {
                 {importing ? 'Importing...' : `Import ${importCenters.length} Centers`}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customize Enrollment Form Fields</DialogTitle>
+            <DialogDescription>
+              Configure the visibility and requirement level of optional student fields for this study center branch.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-3 font-semibold text-xs text-muted-foreground border-b pb-2">
+              <span className="col-span-1">Field Name</span>
+              <span className="col-span-2 text-right">Requirement Status</span>
+            </div>
+
+            {CUSTOMISABLE_FIELDS.map(field => (
+              <div key={field.key} className="grid grid-cols-3 items-center border-b pb-3 pt-1 text-sm">
+                <span className="col-span-1 font-medium">{field.label}</span>
+                <div className="col-span-2 flex justify-end gap-3">
+                  {['required', 'optional', 'hidden'].map(status => (
+                    <label key={status} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                      <input
+                        type="radio"
+                        name={field.key}
+                        value={status}
+                        checked={fieldConfig[field.key] === status}
+                        onChange={() => setFieldConfig({ ...fieldConfig, [field.key]: status as any })}
+                        className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300"
+                      />
+                      <span className="capitalize">{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="pt-2 border-t mt-4">
+            <Button type="button" variant="outline" onClick={() => setConfigOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSaveConfig}>
+              Save Config
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

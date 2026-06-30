@@ -70,12 +70,24 @@ export function EnrollStudentPanel() {
     p => p.university?.id === selectedUniversityId
   );
   
+  const [centerConfig, setCenterConfig] = useState<any>(null);
+  
   const [form, setForm] = useState({
     studentName: '',
     studentEmail: '',
     studentPhone: '',
     studentAddress: '',
-    specialisation: ''
+    specialisation: '',
+    abcId: '',
+    debId: '',
+    dob: '',
+    religion: '',
+    caste: '',
+    fatherName: '',
+    motherName: '',
+    parentMobile: '',
+    studentPhoto: '',
+    admissionDate: new Date().toISOString().substring(0, 10)
   });
 
   // Dynamic lists for documents and education details
@@ -98,14 +110,16 @@ export function EnrollStudentPanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [progsRes, walletRes, sessionsRes] = await Promise.all([
+      const [progsRes, walletRes, sessionsRes, centerRes] = await Promise.all([
         api.get('/enrollment/programs'),
         api.get('/enrollment/wallet'),
         api.get('/enrollment/sessions'),
+        api.get('/enrollment/center-status').catch(() => ({ data: { data: null } }))
       ]);
       setPrograms(progsRes.data.data || []);
       setWallet(walletRes.data.data);
       setSessions(sessionsRes.data.data || []);
+      setCenterConfig(centerRes.data.data);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
     } finally {
@@ -183,6 +197,82 @@ export function EnrollStudentPanel() {
     setDocumentList(documentList.filter((_, i) => i !== index));
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    setUploading(true);
+    try {
+      const res = await api.post('/enrollment/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        setForm(prev => ({ ...prev, studentPhoto: res.data.url }));
+        toast.success('Student photo uploaded successfully');
+      }
+    } catch (err: any) {
+      toast.error('Student photo upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' = 'text') => {
+    const config = centerConfig?.customEnrollmentFields;
+    const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+    const status = parsedConfig?.[key] || 'optional';
+
+    if (status === 'hidden') return null;
+
+    const isRequired = status === 'required';
+
+    if (type === 'file') {
+      return (
+        <div key={key} className="space-y-1">
+          <Label className="flex items-center gap-1">
+            {label} {isRequired && <span className="text-destructive">*</span>}
+          </Label>
+          <div className="flex gap-3 items-center pt-1.5">
+            {form.studentPhoto ? (
+              <Badge className="bg-green-100 text-green-800">Uploaded</Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground">No photo uploaded</span>
+            )}
+            <div className="relative">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={uploading}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <Button type="button" variant="outline" size="sm" disabled={uploading}>
+                <Upload className="w-3.5 h-3.5 mr-1" />
+                Upload Photo
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={key} className="space-y-1">
+        <Label>
+          {label} {isRequired && <span className="text-destructive">*</span>}
+        </Label>
+        <Input
+          type={type}
+          value={(form as any)[key]}
+          onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+          placeholder={`Enter ${label.toLowerCase()}`}
+          required={isRequired}
+        />
+      </div>
+    );
+  };
+
   const triggerConfirm = () => {
     if (!selectedProgram) return;
     if (!selectedSessionId) {
@@ -193,11 +283,32 @@ export function EnrollStudentPanel() {
       toast.error('Please select a specialisation combo');
       return;
     }
-    const missing = Object.entries(form)
-      .filter(([k, v]) => k !== 'specialisation' && !v.trim())
-      .map(([k]) => k);
+    
+    // Validate standard base required fields
+    const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
+    const missing = [];
+    for (const key of baseRequired) {
+      if (!(form as any)[key]?.trim()) {
+        missing.push(key);
+      }
+    }
+    
+    // Validate branch customized required fields
+    const config = centerConfig?.customEnrollmentFields;
+    const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+    if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
+      for (const [field, requirement] of Object.entries(parsedConfig)) {
+        if (requirement === 'required') {
+          const val = (form as any)[field];
+          if (val === undefined || val === null || String(val).trim() === '') {
+            missing.push(field);
+          }
+        }
+      }
+    }
+
     if (missing.length > 0) {
-      toast.error(`Missing: ${missing.join(', ')}`);
+      toast.error(`Missing required fields: ${missing.join(', ')}`);
       return;
     }
     setConfirmOpen(true);
@@ -224,7 +335,23 @@ export function EnrollStudentPanel() {
         educationalDetails: educationList
       });
       toast.success('Enrollment submitted successfully');
-      setForm({ studentName: '', studentEmail: '', studentPhone: '', studentAddress: '', specialisation: '' });
+      setForm({ 
+        studentName: '', 
+        studentEmail: '', 
+        studentPhone: '', 
+        studentAddress: '', 
+        specialisation: '',
+        abcId: '',
+        debId: '',
+        dob: '',
+        religion: '',
+        caste: '',
+        fatherName: '',
+        motherName: '',
+        parentMobile: '',
+        studentPhoto: '',
+        admissionDate: new Date().toISOString().substring(0, 10)
+      });
       setSelectedSessionId('');
       setEducationList([]);
       setDocumentList([]);
@@ -416,6 +543,18 @@ export function EnrollStudentPanel() {
                   </select>
                 </div>
               )}
+
+              {/* Dynamic Branch Custom Enrollment Fields */}
+              {renderField('admissionDate', 'Admission Date', 'date')}
+              {renderField('abcId', 'ABCID')}
+              {renderField('debId', 'DEBID')}
+              {renderField('dob', 'Date of Birth', 'date')}
+              {renderField('religion', 'Religion')}
+              {renderField('caste', 'Caste')}
+              {renderField('fatherName', "Father's Name")}
+              {renderField('motherName', "Mother's Name")}
+              {renderField('parentMobile', "Parent's Mobile Number")}
+              {renderField('studentPhoto', 'Student Photo', 'file')}
             </CardContent>
           </Card>
 
