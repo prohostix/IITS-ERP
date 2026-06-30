@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, GraduationCap } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,6 +30,7 @@ export function StudentsPanel() {
     centerId: '',
     status: 'pending'
   });
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -234,7 +235,7 @@ export function StudentsPanel() {
                 const programName = typeof student.programId === 'object' ? student.programId?.name : '';
                 return (
                   <div key={studentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => setSelectedStudent(student)}>
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <GraduationCap className="w-6 h-6 text-primary" />
                       </div>
@@ -265,6 +266,145 @@ export function StudentsPanel() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedStudent} onOpenChange={o => !o && setSelectedStudent(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedStudent && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <DialogTitle>Student Details</DialogTitle>
+                  <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
+                    {selectedStudent.status}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* Contact details */}
+                <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Email</p>
+                      <p className="font-medium">{selectedStudent.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Phone</p>
+                      <p className="font-medium">{selectedStudent.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Address</p>
+                      <p className="font-medium">{selectedStudent.address || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Course Details */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-primary" /> Program & Session Info
+                  </h4>
+                  <div className="bg-muted/10 p-4 rounded-xl border text-sm space-y-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground block">Program</span>
+                      <span className="font-semibold">{selectedStudent.program?.name || 'N/A'} ({selectedStudent.program?.code || ''})</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block">Study Center</span>
+                      <span className="font-semibold">{selectedStudent.center?.name || 'N/A'} ({selectedStudent.center?.code || ''})</span>
+                    </div>
+                    {selectedStudent.specialisation && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Specialisation Combo</span>
+                        <span className="font-semibold text-indigo-600">{selectedStudent.specialisation}</span>
+                      </div>
+                    )}
+                    <div className="pt-1 border-t mt-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> Joined on: {new Date(selectedStudent.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Original Enrollment Info */}
+                {selectedStudent.enrollments && selectedStudent.enrollments.length > 0 && (
+                  <>
+                    {/* Educational Details */}
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-primary" /> Educational History
+                      </h4>
+                      {selectedStudent.enrollments[0].educationalDetails && selectedStudent.enrollments[0].educationalDetails.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedStudent.enrollments[0].educationalDetails.map((edu: any, idx: number) => (
+                            <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                              <div className="col-span-1">
+                                <span className="text-xs text-muted-foreground block">Qualification</span>
+                                <span className="font-semibold">{edu.qualification}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-xs text-muted-foreground block">Institution</span>
+                                <span className="font-medium">{edu.institution}</span>
+                              </div>
+                              <div className="col-span-1 text-right">
+                                <span className="text-xs text-muted-foreground block">Passing / %</span>
+                                <span className="font-medium">{edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No educational credentials added.</p>
+                      )}
+                    </div>
+
+                    {/* Uploaded Documents */}
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
+                      </h4>
+                      {selectedStudent.enrollments[0].documents && selectedStudent.enrollments[0].documents.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          {selectedStudent.enrollments[0].documents.map((doc: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
+                              <div className="flex items-center gap-2 truncate pr-2">
+                                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate font-medium">{doc.name}</span>
+                              </div>
+                              <a
+                                href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
+                              >
+                                View
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No documents uploaded.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedStudent(null)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
