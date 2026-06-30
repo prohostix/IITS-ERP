@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Mail, Phone, MapPin, GraduationCap, FileText, Calendar } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Mail, Phone, MapPin, GraduationCap, FileText, Calendar, ShieldAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -21,6 +22,7 @@ interface Enrollment {
   studyCenterId: string;
   status: string;
   createdAt: string;
+  departmentRemarks?: string;
   program?: { name: string; code: string };
   studyCenter?: { name: string };
   session?: { name: string };
@@ -28,9 +30,19 @@ interface Enrollment {
   educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
 }
 
+const STATUS_COLOR: Record<string, string> = {
+  payment_pending: 'bg-muted text-muted-foreground',
+  document_review: 'bg-info/10 text-info',
+  dept_review: 'bg-warning/10 text-warning',
+  finance_review: 'bg-orange-100 text-orange-700',
+  enrolled: 'bg-success/10 text-success',
+  rejected: 'bg-destructive/10 text-destructive',
+};
+
 export function DeptEnrollmentReviewPanel() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
   const [remarks, setRemarks] = useState('');
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
@@ -38,7 +50,7 @@ export function DeptEnrollmentReviewPanel() {
   const fetch = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/enrollment/review');
+      const res = await api.get(`/enrollment/review?history=${activeTab === 'history'}`);
       setEnrollments(res.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
@@ -47,7 +59,7 @@ export function DeptEnrollmentReviewPanel() {
     }
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetch(); }, [activeTab]);
 
   const handleApprove = async (id: string) => {
     try {
@@ -95,46 +107,90 @@ export function DeptEnrollmentReviewPanel() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
-      ) : enrollments.length === 0 ? (
-        <Card><CardContent className="py-16 text-center text-muted-foreground">No enrollments pending review.</CardContent></Card>
-      ) : (
-        <div className="space-y-3">
-          {enrollments.map(e => (
-            <Card key={e.id} className="hover:border-primary/30 transition-colors">
-              <CardContent className="p-5 flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
-                      {e.status.replace(/_/g, ' ')}
-                    </Badge>
-                    {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
-                  </div>
-                  <h4 className="font-semibold text-base group-hover/item:text-primary transition-colors flex items-center gap-1.5">
-                    {e.studentName}
-                    <span className="text-[10px] text-primary opacity-0 group-hover/item:opacity-100 transition-opacity font-normal">(Click to review details)</span>
-                  </h4>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-                    <span>{e.studentEmail}</span>
-                    <span>{getProgramName(e)}</span>
-                    <span>{getCenterName(e)}</span>
-                    <span>{new Date(e.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(e.id)}>
-                    <CheckCircle className="w-4 h-4 mr-1" />Approve
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: e.id }); setRemarks(''); }}>
-                    <XCircle className="w-4 h-4 mr-1" />Reject
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <Tabs defaultValue="pending" value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="pending">Pending Reviews</TabsTrigger>
+          <TabsTrigger value="history">Review History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="space-y-4">
+          {loading ? (
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
+          ) : enrollments.length === 0 ? (
+            <Card><CardContent className="py-16 text-center text-muted-foreground">No enrollments pending review.</CardContent></Card>
+          ) : (
+            <div className="space-y-3">
+              {enrollments.map(e => (
+                <Card key={e.id} className="hover:border-primary/30 transition-colors">
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
+                          {e.status.replace(/_/g, ' ')}
+                        </Badge>
+                        {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
+                      </div>
+                      <h4 className="font-semibold text-base group-hover/item:text-primary transition-colors flex items-center gap-1.5">
+                        {e.studentName}
+                        <span className="text-[10px] text-primary opacity-0 group-hover/item:opacity-100 transition-opacity font-normal">(Click to review details)</span>
+                      </h4>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+                        <span>{e.studentEmail}</span>
+                        <span>{getProgramName(e)}</span>
+                        <span>{getCenterName(e)}</span>
+                        <span>{new Date(e.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="text-success border-success/30 hover:bg-success/10" onClick={() => handleApprove(e.id)}>
+                        <CheckCircle className="w-4 h-4 mr-1" />Approve
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => { setRejectDialog({ open: true, id: e.id }); setRemarks(''); }}>
+                        <XCircle className="w-4 h-4 mr-1" />Reject
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          {loading ? (
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
+          ) : enrollments.length === 0 ? (
+            <Card><CardContent className="py-16 text-center text-muted-foreground">No historical reviews found.</CardContent></Card>
+          ) : (
+            <div className="space-y-3">
+              {enrollments.map(e => (
+                <Card key={e.id} className="hover:border-primary/30 transition-colors">
+                  <CardContent className="p-5 flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[e.status] || 'bg-muted text-muted-foreground')}>
+                          {e.status.replace(/_/g, ' ')}
+                        </Badge>
+                        {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
+                      </div>
+                      <h4 className="font-semibold text-base group-hover/item:text-primary transition-colors flex items-center gap-1.5">
+                        {e.studentName}
+                        <span className="text-[10px] text-primary opacity-0 group-hover/item:opacity-100 transition-opacity font-normal">(Click to view details)</span>
+                      </h4>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+                        <span>{e.studentEmail}</span>
+                        <span>{getProgramName(e)}</span>
+                        <span>{getCenterName(e)}</span>
+                        <span>{new Date(e.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={rejectDialog.open} onOpenChange={o => setRejectDialog(d => ({ ...d, open: o }))}>
         <DialogContent>
@@ -157,13 +213,21 @@ export function DeptEnrollmentReviewPanel() {
               <DialogHeader>
                 <div className="flex items-center gap-2">
                   <DialogTitle>Review Enrollment Details</DialogTitle>
-                  <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
+                  <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[selectedEnrollment.status] || 'bg-muted text-muted-foreground')}>
                     {selectedEnrollment.status.replace(/_/g, ' ')}
                   </Badge>
                 </div>
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {/* Rejection remarks */}
+                {selectedEnrollment.status === 'rejected' && (
+                  <div className="bg-destructive/10 text-destructive border border-destructive/20 p-4 rounded-xl text-sm">
+                    <p className="font-bold flex items-center gap-1.5"><ShieldAlert className="w-4 h-4" /> Rejection Remarks:</p>
+                    <p className="mt-1 font-medium italic">{selectedEnrollment.departmentRemarks || 'No remarks provided.'}</p>
+                  </div>
+                )}
+
                 {/* Contact details */}
                 <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
                   <div className="flex items-center gap-2">
@@ -280,22 +344,26 @@ export function DeptEnrollmentReviewPanel() {
                 <Button variant="outline" onClick={() => setSelectedEnrollment(null)}>
                   Close
                 </Button>
-                <Button
-                  variant="destructive"
-                  className="text-white bg-destructive hover:bg-destructive/90"
-                  onClick={() => {
-                    setRejectDialog({ open: true, id: selectedEnrollment.id });
-                    setRemarks('');
-                  }}
-                >
-                  <XCircle className="w-4 h-4 mr-1" /> Reject
-                </Button>
-                <Button
-                  className="text-white bg-success hover:bg-success/90"
-                  onClick={() => handleApprove(selectedEnrollment.id)}
-                >
-                  <CheckCircle className="w-4 h-4 mr-1" /> Approve
-                </Button>
+                {activeTab === 'pending' && (
+                  <>
+                    <Button
+                      variant="destructive"
+                      className="text-white bg-destructive hover:bg-destructive/90"
+                      onClick={() => {
+                        setRejectDialog({ open: true, id: selectedEnrollment.id });
+                        setRemarks('');
+                      }}
+                    >
+                      <XCircle className="w-4 h-4 mr-1" /> Reject
+                    </Button>
+                    <Button
+                      className="text-white bg-success hover:bg-success/90"
+                      onClick={() => handleApprove(selectedEnrollment.id)}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" /> Approve
+                    </Button>
+                  </>
+                )}
               </DialogFooter>
             </>
           )}

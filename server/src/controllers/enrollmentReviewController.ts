@@ -5,11 +5,19 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const isHistory = req.query.history === 'true';
+  const where: any = {
+    organizationId: req.user.organizationId
+  };
+
+  if (isHistory) {
+    where.status = { in: ['finance_review', 'enrolled', 'rejected'] } as any;
+  } else {
+    where.status = { in: ['submitted', 'document_review'] } as any;
+  }
+
   const enrollments = await prisma.enrollment.findMany({
-    where: {
-      organizationId: req.user.organizationId,
-      status: { in: ['submitted', 'document_review'] } as any
-    },
+    where,
     include: { program: true, studyCenter: true, session: true }
   });
   res.json({ success: true, count: enrollments.length, data: enrollments });
