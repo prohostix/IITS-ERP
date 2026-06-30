@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import bcrypt from 'bcryptjs';
+import { createNotification, broadcastNotification } from './notificationController.js';
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
@@ -440,6 +441,15 @@ export const submitStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     }
   });
 
+  // Broadcast notification to operations department roles
+  await broadcastNotification(
+    req.user.organizationId,
+    'student_status_request',
+    'New Status Change Request',
+    `A request has been submitted to mark student ${student.name} as ${requestedStatus.toUpperCase()}.`,
+    ['ops_admin', 'ops_sub_admin', 'employee']
+  );
+
   res.status(201).json({ success: true, data: statusRequest });
 });
 
@@ -478,7 +488,8 @@ export const getStatusChangeRequests = asyncHandler(async (req: AuthRequest, res
 export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body; // action: "verify" or "reject"
   const request = await prisma.studentStatusRequest.findUnique({
-    where: { id: req.params.requestId }
+    where: { id: req.params.requestId },
+    include: { student: true }
   });
 
   if (!request) {
@@ -504,13 +515,35 @@ export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     }
   });
 
+  // Notify next parties
+  if (action === 'verify') {
+    // Notify Finance roles
+    await broadcastNotification(
+      request.organizationId,
+      'student_status_request',
+      'Status Change Request Verified',
+      `Operations verified a request to mark student ${request.student?.name} as ${request.requestedStatus.toUpperCase()}. Pending finance confirmation.`,
+      ['finance_admin', 'employee']
+    );
+  } else {
+    // Notify the requester (study center)
+    await createNotification(
+      request.organizationId,
+      request.createdBy,
+      'student_status_request_rejected',
+      'Status Request Rejected',
+      `Operations rejected the status change request for student ${request.student?.name}.`
+    );
+  }
+
   res.status(200).json({ success: true, data: updated });
 });
 
 export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body; // action: "confirm" or "reject"
   const request = await prisma.studentStatusRequest.findUnique({
-    where: { id: req.params.requestId }
+    where: { id: req.params.requestId },
+    include: { student: true }
   });
 
   if (!request) {
@@ -546,6 +579,25 @@ export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, 
 
     return updated;
   });
+
+  // Notify the requester
+  if (action === 'confirm') {
+    await createNotification(
+      request.organizationId,
+      request.createdBy,
+      'student_status_request_approved',
+      'Status Request Approved',
+      `Finance confirmed the status change request for student ${request.student?.name}. The student status has been updated to ${request.requestedStatus.toUpperCase()}.`
+    );
+  } else {
+    await createNotification(
+      request.organizationId,
+      request.createdBy,
+      'student_status_request_rejected',
+      'Status Request Rejected',
+      `Finance rejected the status change request for student ${request.student?.name}.`
+    );
+  }
 
   res.status(200).json({ success: true, data: result });
 });
