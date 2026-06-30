@@ -227,6 +227,19 @@ export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: { ...center, _id: center.id } });
 });
+
+export const updateBranchSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { branchName, ...settings } = req.body;
+  if (!branchName) {
+    res.status(400).json({ success: false, message: 'branchName is required' });
+    return;
+  }
+  const result = await prisma.studyCenter.updateMany({
+    where: { organizationId: req.user.organizationId, branchName },
+    data: settings
+  });
+  res.json({ success: true, message: `Updated ${result.count} center(s) in branch "${branchName}"`, count: result.count });
+});
 export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.studyCenter.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });

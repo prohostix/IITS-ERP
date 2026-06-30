@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings, ChevronDown, ChevronRight, Building2, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -27,8 +27,16 @@ export function StudyCentersPanel() {
     contact: '',
     email: '',
     status: 'pending',
-    referredById: ''
+    referredById: '',
+    branchName: ''
   });
+  // Branch-level settings state
+  const [branchConfigOpen, setBranchConfigOpen] = useState(false);
+  const [branchConfigName, setBranchConfigName] = useState('');
+  const [branchAllowInternalMarks, setBranchAllowInternalMarks] = useState(false);
+  const [branchFieldConfig, setBranchFieldConfig] = useState<Record<string, 'required'|'optional'|'hidden'>>({});
+  // Expanded branches state
+  const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({});
   const [creds, setCreds] = useState<{ userId: string; password: string } | null>(null);
   const [showCreds, setShowCreds] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -273,9 +281,38 @@ export function StudyCentersPanel() {
       contact: c.contact || '',
       email: c.email || '',
       status: c.status || 'pending',
-      referredById: c.referredBy || ''
+      referredById: c.referredBy || '',
+      branchName: c.branchName || ''
     });
     setDialogOpen(true);
+  };
+
+  const handleOpenBranchConfig = (branchName: string, centersInBranch: any[]) => {
+    setBranchConfigName(branchName);
+    const first = centersInBranch[0] || {};
+    setBranchAllowInternalMarks(!!first.allowInternalMarks);
+    const currentConfig = typeof first.customEnrollmentFields === 'string'
+      ? (JSON.parse(first.customEnrollmentFields) || {})
+      : (first.customEnrollmentFields || {});
+    const cfg: Record<string, any> = {};
+    CUSTOMISABLE_FIELDS.forEach(f => { cfg[f.key] = currentConfig[f.key] || 'optional'; });
+    setBranchFieldConfig(cfg);
+    setBranchConfigOpen(true);
+  };
+
+  const handleSaveBranchConfig = async () => {
+    try {
+      const res = await api.put('/operations/centers/branch-settings', {
+        branchName: branchConfigName,
+        allowInternalMarks: branchAllowInternalMarks,
+        customEnrollmentFields: branchFieldConfig
+      });
+      toast.success(res.data.message || 'Branch settings saved!');
+      setBranchConfigOpen(false);
+      fetchCenters();
+    } catch (err: any) {
+      toast.error('Failed to save branch settings');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -290,20 +327,32 @@ export function StudyCentersPanel() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '' });
+    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '', branchName: '' });
   };
 
-  const filteredCenters = centers.filter((c) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      !q ||
-      c.name?.toLowerCase().includes(q) ||
-      c.code?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.address?.toLowerCase().includes(q) ||
-      c.referrer?.name?.toLowerCase().includes(q)
-    );
-  });
+  // Derive unique branch names for datalist autocomplete
+  const existingBranchNames = useMemo(() =>
+    [...new Set(centers.map((c: any) => c.branchName).filter(Boolean))]
+  , [centers]);
+
+  // Group centers by branchName
+  const branchGroups = useMemo(() => {
+    const filtered = centers.filter((c: any) => {
+      const q = searchQuery.toLowerCase();
+      return !q || c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) || c.address?.toLowerCase().includes(q) ||
+        c.branchName?.toLowerCase().includes(q) || c.referrer?.name?.toLowerCase().includes(q);
+    });
+    const groups: Record<string, any[]> = {};
+    filtered.forEach((c: any) => {
+      const key = c.branchName?.trim() || '__unassigned__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(c);
+    });
+    return groups;
+  }, [centers, searchQuery]);
+
+
 
   return (
     <div className="space-y-6">
@@ -394,6 +443,19 @@ export function StudyCentersPanel() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Branch Name <span className="text-xs text-muted-foreground font-normal">(groups centers together)</span></Label>
+                <Input
+                  list="branch-names-list"
+                  placeholder="e.g. Kochi Branch, Delhi North…"
+                  value={formData.branchName}
+                  onChange={(e) => setFormData({ ...formData, branchName: e.target.value })}
+                />
+                <datalist id="branch-names-list">
+                  {existingBranchNames.map((b: any) => <option key={b} value={b} />)}
+                </datalist>
+                <p className="text-xs text-muted-foreground mt-1">Type or select an existing branch to group this center under it.</p>
+              </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1">Save</Button>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -444,14 +506,17 @@ export function StudyCentersPanel() {
         </DialogContent>
       </Dialog>
 
+      {/* Branch-Grouped Center List */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle>Study Centers ({filteredCenters.length}{searchQuery ? ` of ${centers.length}` : ''})</CardTitle>
+            <CardTitle>
+              Study Centers ({centers.length} total · {Object.keys(branchGroups).filter(k => k !== '__unassigned__').length} branches)
+            </CardTitle>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, code, email…"
+                placeholder="Search centers or branches…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-9"
@@ -462,64 +527,105 @@ export function StudyCentersPanel() {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
-          ) : filteredCenters.length === 0 ? (
+          ) : Object.keys(branchGroups).length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {searchQuery ? 'No centers match your search.' : 'No study centers found'}
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredCenters.filter(c => c && (c.id || c.id)).map((c) => {
-                const cid = c.id || c.id;
-                return (
-                  <div key={cid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <MapPin className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{c.name}</div>
-                        <div className="text-sm text-muted-foreground">Code: {c.code} • {c.email}</div>
-                        {c.referrer && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Assigned Sales Agent: <span className="font-semibold text-foreground">{c.referrer.name}</span> ({c.referrer.role?.replace(/_/g, ' ')})
-                          </div>
-                        )}
-                        {c.address && <div className="text-xs text-muted-foreground mt-0.5">{c.address}</div>}
-                        {c.credentials && (user?.role === 'org_admin' || user?.role === 'superadmin' || user?.role === 'ceo') && (
-                          <div className="text-xs text-muted-foreground mt-1 p-2 bg-muted rounded border border-border inline-block">
-                            <span className="font-semibold text-foreground">Credentials:</span> User ID: <span className="font-mono font-bold text-foreground">{c.credentials.userId}</span> | Password: <span className="font-mono font-bold text-foreground">{c.credentials.password}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap justify-end">
-                      <Badge>{c.status}</Badge>
-                      {c.allowInternalMarks && (
-                        <Badge variant="outline" className="text-xs border-violet-400 text-violet-600 bg-violet-50">
-                          Internal Marks ✓
-                        </Badge>
-                      )}
-                      {canWrite && (
-                        <>
-                          {(user?.role === 'org_admin' || user?.role === 'superadmin') && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="flex items-center gap-1.5 text-xs"
-                              onClick={() => handleOpenConfig(c)}
-                            >
-                              <Settings className="w-3.5 h-3.5" />
-                              Branch Settings
-                            </Button>
+            <div className="space-y-3">
+              {Object.entries(branchGroups)
+                .sort(([a], [b]) => a === '__unassigned__' ? 1 : b === '__unassigned__' ? -1 : a.localeCompare(b))
+                .map(([branchKey, branchCenters]) => {
+                  const isUnassigned = branchKey === '__unassigned__';
+                  const isExpanded = expandedBranches[branchKey] !== false; // default expanded
+                  const allInternalMarks = branchCenters.every((c: any) => c.allowInternalMarks);
+                  return (
+                    <div key={branchKey} className="border rounded-xl overflow-hidden">
+                      {/* Branch Header */}
+                      <div
+                        className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${
+                          isUnassigned ? 'bg-muted/40' : 'bg-primary/5 border-b border-primary/10'
+                        }`}
+                        onClick={() => setExpandedBranches(prev => ({ ...prev, [branchKey]: !isExpanded }))}
+                      >
+                        <div className="flex items-center gap-3">
+                          {isExpanded
+                            ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                          {isUnassigned
+                            ? <Building2 className="w-4 h-4 text-muted-foreground" />
+                            : <GitBranch className="w-4 h-4 text-primary" />}
+                          <span className={`font-semibold text-sm ${isUnassigned ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {isUnassigned ? 'Unassigned Centers' : branchKey}
+                          </span>
+                          <Badge variant="secondary" className="text-xs">{branchCenters.length} center{branchCenters.length !== 1 ? 's' : ''}</Badge>
+                          {!isUnassigned && allInternalMarks && (
+                            <Badge variant="outline" className="text-xs border-violet-400 text-violet-600 bg-violet-50">Internal Marks ✓</Badge>
                           )}
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(c)}><Edit className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(cid)}><Trash2 className="w-4 h-4" /></Button>
-                        </>
+                        </div>
+                        {!isUnassigned && (user?.role === 'org_admin' || user?.role === 'superadmin') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1.5 text-xs"
+                            onClick={(e) => { e.stopPropagation(); handleOpenBranchConfig(branchKey, branchCenters); }}
+                          >
+                            <Settings className="w-3.5 h-3.5" />
+                            Branch Settings
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Centers under this branch */}
+                      {isExpanded && (
+                        <div className="divide-y">
+                          {branchCenters.map((c: any) => (
+                            <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  <MapPin className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-sm">{c.name}</div>
+                                  <div className="text-xs text-muted-foreground">Code: {c.code}{c.email ? ` • ${c.email}` : ''}</div>
+                                  {c.referrer && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                      Agent: <span className="font-semibold text-foreground">{c.referrer.name}</span>
+                                    </div>
+                                  )}
+                                  {c.address && <div className="text-xs text-muted-foreground">{c.address}</div>}
+                                  {c.credentials && (user?.role === 'org_admin' || user?.role === 'superadmin' || user?.role === 'ceo') && (
+                                    <div className="text-xs text-muted-foreground mt-1 p-1.5 bg-muted rounded border inline-block">
+                                      <span className="font-semibold text-foreground">ID:</span> <span className="font-mono">{c.credentials.userId}</span>
+                                      {' | '}<span className="font-semibold text-foreground">Pass:</span> <span className="font-mono">{c.credentials.password}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap justify-end">
+                                <Badge className="text-xs">{c.status}</Badge>
+                                {c.allowInternalMarks && (
+                                  <Badge variant="outline" className="text-xs border-violet-400 text-violet-600 bg-violet-50">Marks ✓</Badge>
+                                )}
+                                {canWrite && (
+                                  <>
+                                    {(user?.role === 'org_admin' || user?.role === 'superadmin') && (
+                                      <Button variant="ghost" size="sm" onClick={() => handleOpenConfig(c)} title="Center Settings">
+                                        <Settings className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
+                                    <Button variant="ghost" size="sm" onClick={() => handleEdit(c)}><Edit className="w-4 h-4" /></Button>
+                                    <Button variant="ghost" size="sm" onClick={() => handleDelete(c.id)}><Trash2 className="w-4 h-4" /></Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </CardContent>
@@ -696,6 +802,77 @@ export function StudyCentersPanel() {
                 {importing ? 'Importing...' : `Import ${importCenters.length} Centers`}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Branch-Level Settings Dialog */}
+      <Dialog open={branchConfigOpen} onOpenChange={setBranchConfigOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-primary" />
+              Branch Settings — {branchConfigName}
+            </DialogTitle>
+            <DialogDescription>
+              These settings will be applied to <strong>all centers</strong> under the "{branchConfigName}" branch simultaneously.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b pb-2">Enrollment Form Fields</p>
+            <div className="grid grid-cols-3 font-semibold text-xs text-muted-foreground pb-2">
+              <span className="col-span-1">Field Name</span>
+              <span className="col-span-2 text-right">Requirement Status</span>
+            </div>
+            {CUSTOMISABLE_FIELDS.map(field => (
+              <div key={field.key} className="grid grid-cols-3 items-center border-b pb-3 pt-1 text-sm">
+                <span className="col-span-1 font-medium">{field.label}</span>
+                <div className="col-span-2 flex justify-end gap-3">
+                  {['required', 'optional', 'hidden'].map(status => (
+                    <label key={status} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                      <input
+                        type="radio"
+                        name={`branch-${field.key}`}
+                        value={status}
+                        checked={branchFieldConfig[field.key] === status}
+                        onChange={() => setBranchFieldConfig({ ...branchFieldConfig, [field.key]: status as any })}
+                        className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300"
+                      />
+                      <span className="capitalize">{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="border-t pt-4 mt-2 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground pb-1">Feature Access</p>
+              <div className="flex items-start gap-3 p-3 rounded-xl border bg-violet-50/60 border-violet-200">
+                <input
+                  id="branch-allow-internal-marks"
+                  type="checkbox"
+                  checked={branchAllowInternalMarks}
+                  onChange={e => setBranchAllowInternalMarks(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 text-violet-600 rounded border-gray-300 focus:ring-violet-500 cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="branch-allow-internal-marks" className="text-sm font-semibold text-slate-800 cursor-pointer">
+                    Enable Internal Marks
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Enables the <strong>Internal Marks</strong> tab for all centers in this branch.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t mt-4 gap-2">
+            <Button type="button" variant="outline" onClick={() => setBranchConfigOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={handleSaveBranchConfig} className="flex items-center gap-1.5">
+              <GitBranch className="w-3.5 h-3.5" />
+              Apply to All Centers in Branch
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

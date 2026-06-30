@@ -44,6 +44,7 @@ import {
   allocateUniversity,
   removeUniversityAllocation,
   bulkImportStudyCenters,
+  updateBranchSettings,
 } from '../controllers/operationsController.js';
 import {
   getProgramDetail,
@@ -81,6 +82,9 @@ router.put('/centers/:id/verify', authorize('ops_admin', 'ops_sub_admin', 'emplo
 
 // Study Centers Bulk Import
 router.post('/centers/bulk-import', authorize('org_admin', 'superadmin', 'ops_admin'), bulkImportStudyCenters);
+
+// Branch-level settings (must be before /centers/:id)
+router.put('/centers/branch-settings', authorize('org_admin', 'superadmin'), updateBranchSettings);
 
 // Study Centers
 router.route('/centers')
