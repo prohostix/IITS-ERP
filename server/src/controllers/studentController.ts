@@ -334,6 +334,10 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
       }
     }
 
+    if (student.status === 'dropout' && status !== 'paid') {
+      continue;
+    }
+
     installments.push({
       name,
       amount: baseFee,
