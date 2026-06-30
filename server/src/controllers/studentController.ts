@@ -224,7 +224,8 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
     where: { id: req.params.id },
     include: {
       program: true,
-      invoices: true
+      invoices: true,
+      enrollments: true
     }
   });
 
@@ -232,6 +233,9 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
     res.status(404).json({ success: false, message: 'Student not found' });
     return;
   }
+
+  // Fallback to enrollment sessionId if student sessionId is null
+  const sessionId = student.sessionId || student.enrollments?.[0]?.sessionId || null;
 
   // Find the exact fee structure matching program, university, and student's session
   const feeStructure = await prisma.programFeeStructure.findFirst({
@@ -241,7 +245,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         {
           programId: student.programId,
           OR: [
-            { admissionSessionId: student.sessionId },
+            { admissionSessionId: sessionId },
             { admissionSessionId: null }
           ]
         },
@@ -249,7 +253,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
           universityId: student.program.universityId,
           level: 'university',
           OR: [
-            { admissionSessionId: student.sessionId },
+            { admissionSessionId: sessionId },
             { admissionSessionId: null }
           ]
         }
