@@ -168,7 +168,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
   if (user?.role === 'center_admin') {
     return (
       <CenterOnboardingGate>
-        <ModernStudyCenterDashboard />
+        <ModernStudyCenterDashboard initialTab={initialTab} />
       </CenterOnboardingGate>
     );
   }
