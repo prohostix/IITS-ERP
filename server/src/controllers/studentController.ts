@@ -444,7 +444,7 @@ export const submitStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
   // Broadcast notification to operations department roles
   await broadcastNotification(
     req.user.organizationId,
-    'student_status_request',
+    'system',
     'New Status Change Request',
     `A request has been submitted to mark student ${student.name} as ${requestedStatus.toUpperCase()}.`,
     ['ops_admin', 'ops_sub_admin', 'employee']
@@ -520,7 +520,7 @@ export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     // Notify Finance roles
     await broadcastNotification(
       request.organizationId,
-      'student_status_request',
+      'system',
       'Status Change Request Verified',
       `Operations verified a request to mark student ${request.student?.name} as ${request.requestedStatus.toUpperCase()}. Pending finance confirmation.`,
       ['finance_admin', 'employee']
@@ -530,7 +530,7 @@ export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     await createNotification(
       request.organizationId,
       request.createdBy,
-      'student_status_request_rejected',
+      'system',
       'Status Request Rejected',
       `Operations rejected the status change request for student ${request.student?.name}.`
     );
@@ -585,7 +585,7 @@ export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, 
     await createNotification(
       request.organizationId,
       request.createdBy,
-      'student_status_request_approved',
+      'system',
       'Status Request Approved',
       `Finance confirmed the status change request for student ${request.student?.name}. The student status has been updated to ${request.requestedStatus.toUpperCase()}.`
     );
@@ -593,7 +593,7 @@ export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, 
     await createNotification(
       request.organizationId,
       request.createdBy,
-      'student_status_request_rejected',
+      'system',
       'Status Request Rejected',
       `Finance rejected the status change request for student ${request.student?.name}.`
     );
