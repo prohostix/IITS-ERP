@@ -492,18 +492,24 @@ export function StudyCentersPanel() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                       <Badge>{c.status}</Badge>
+                      {c.allowInternalMarks && (
+                        <Badge variant="outline" className="text-xs border-violet-400 text-violet-600 bg-violet-50">
+                          Internal Marks ✓
+                        </Badge>
+                      )}
                       {canWrite && (
                         <>
                           {(user?.role === 'org_admin' || user?.role === 'superadmin') && (
                             <Button 
-                              variant="ghost" 
-                              size="sm" 
+                              variant="outline" 
+                              size="sm"
+                              className="flex items-center gap-1.5 text-xs"
                               onClick={() => handleOpenConfig(c)}
-                              title="Customize Enrollment Form"
                             >
-                              <Settings className="w-4 h-4 text-primary" />
+                              <Settings className="w-3.5 h-3.5" />
+                              Branch Settings
                             </Button>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(c)}><Edit className="w-4 h-4" /></Button>
@@ -697,14 +703,15 @@ export function StudyCentersPanel() {
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Customize Enrollment Form Fields</DialogTitle>
+            <DialogTitle>Branch Settings</DialogTitle>
             <DialogDescription>
-              Configure the visibility and requirement level of optional student fields for this study center branch.
+              Configure enrollment form fields and feature access for this study center branch.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-3 font-semibold text-xs text-muted-foreground border-b pb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b pb-2">Enrollment Form Fields</p>
+            <div className="grid grid-cols-3 font-semibold text-xs text-muted-foreground pb-2">
               <span className="col-span-1">Field Name</span>
               <span className="col-span-2 text-right">Requirement Status</span>
             </div>
@@ -730,19 +737,25 @@ export function StudyCentersPanel() {
               </div>
             ))}
 
-            <div className="border-t pt-4 mt-2">
-              <label className="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-700">
+            <div className="border-t pt-4 mt-2 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground pb-1">Feature Access</p>
+              <div className="flex items-start gap-3 p-3 rounded-xl border bg-violet-50/60 border-violet-200">
                 <input
+                  id="allow-internal-marks"
                   type="checkbox"
                   checked={allowInternalMarks}
                   onChange={e => setAllowInternalMarks(e.target.checked)}
-                  className="h-4.5 w-4.5 text-primary rounded border-gray-300 focus:ring-primary"
+                  className="mt-0.5 h-4 w-4 text-violet-600 rounded border-gray-300 focus:ring-violet-500 cursor-pointer"
                 />
-                <span>Enable Internal Marks Access for this branch</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1 ml-7">
-                If checked, the Center Portal dashboard will display the "Internal Marks" entry page tab for this study center.
-              </p>
+                <div>
+                  <label htmlFor="allow-internal-marks" className="text-sm font-semibold text-slate-800 cursor-pointer">
+                    Enable Internal Marks
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    When enabled, the <strong>Internal Marks</strong> tab will appear in this branch's Study Center Portal for submitting student marks.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
