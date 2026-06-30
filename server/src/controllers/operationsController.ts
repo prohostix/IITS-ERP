@@ -330,6 +330,19 @@ export const removeAllocation = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ success: true, data: {} });
 });
 
+export const getUniversityAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const allocations = await prisma.universityAllocation.findMany({ where: { centerId: req.params.id }, include: { university: true } });
+  res.json({ success: true, data: allocations });
+});
+export const allocateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const allocation = await prisma.universityAllocation.create({ data: { ...req.body, centerId: req.params.id, organizationId: req.user.organizationId, allocatedBy: req.user.id } });
+  res.status(201).json({ success: true, data: allocation });
+});
+export const removeUniversityAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {
+  await prisma.universityAllocation.delete({ where: { id: req.params.allocId } });
+  res.json({ success: true, data: {} });
+});
+
 export const bulkImportStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { centers } = req.body;
 

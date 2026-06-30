@@ -60,6 +60,7 @@ model Organization {
   programs              Program[]
   programMaterials      ProgramMaterial[]
   programAllocations    ProgramAllocation[]
+  universityAllocations UniversityAllocation[]
   programFeeStructures  ProgramFeeStructure[]
   referralLinks         ReferralLink[]
   reregRules            ReregRule[]
@@ -203,6 +204,7 @@ model User {
   batchTransferred              PayrollBatch[]        @relation("BatchTransferredBy")
   createdPolls                  Poll[]                @relation("PollCreatedBy")
   programAllocations            ProgramAllocation[]   @relation("AllocatedBy")
+  universityAllocations         UniversityAllocation[] @relation("UniAllocatedBy")
   createdProgramFees            ProgramFeeStructure[] @relation("ProgramFeeCreatedBy")
   referralLink                  ReferralLink?
   salaryApproved                SalaryConfig[]        @relation("SalaryApprovedBy")
@@ -331,6 +333,7 @@ model University {
   allowedBranches      Branch[]              @relation("UniversityToBranch")
   studyCenters         StudyCenter[]         @relation("UniversityToStudyCenter")
   programFeeStructures ProgramFeeStructure[]
+  universityAllocations UniversityAllocation[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -399,6 +402,7 @@ model StudyCenter {
   internalMarks          InternalMark[]
   invoices               Invoice[]
   programAllocations     ProgramAllocation[]
+  universityAllocations  UniversityAllocation[]
   sessionRequests        SessionRequest[]
   students               Student[]
   approver               User?               @relation("FinanceApprovedBy", fields: [financeApprovedBy], references: [id])
@@ -1192,6 +1196,24 @@ model ProgramAllocation {
   program        Program      @relation(fields: [programId], references: [id])
 
   @@unique([organizationId, centerId, programId])
+}
+
+model UniversityAllocation {
+  id             String       @id @default(uuid())
+  organizationId String
+  centerId       String
+  universityId   String
+  allocatedBy    String
+  allocatedAt    DateTime     @default(now())
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  allocatedByMgr User         @relation("UniAllocatedBy", fields: [allocatedBy], references: [id])
+  center         StudyCenter  @relation(fields: [centerId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  university     University   @relation(fields: [universityId], references: [id])
+
+  @@unique([organizationId, centerId, universityId])
 }
 
 model ReferralLink {

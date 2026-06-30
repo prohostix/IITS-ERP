@@ -40,6 +40,9 @@ import {
   getProgramAllocations,
   allocateProgram,
   removeAllocation,
+  getUniversityAllocations,
+  allocateUniversity,
+  removeUniversityAllocation,
   bulkImportStudyCenters,
 } from '../controllers/operationsController.js';
 import {
@@ -114,6 +117,12 @@ router.route('/centers/:id/allocations')
   .get(authorize('ops_admin', 'ops_sub_admin', 'employee'), getProgramAllocations)
   .post(authorize('ops_admin', 'ops_sub_admin', 'employee'), allocateProgram);
 router.delete('/centers/:id/allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'employee'), removeAllocation);
+
+// Onboarding — university allocation
+router.route('/centers/:id/uni-allocations')
+  .get(authorize('ops_admin', 'ops_sub_admin', 'employee'), getUniversityAllocations)
+  .post(authorize('ops_admin', 'ops_sub_admin', 'employee'), allocateUniversity);
+router.delete('/centers/:id/uni-allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'employee'), removeUniversityAllocation);
 
 // Program detail & materials
 router.get('/programs/:programId/detail', getProgramDetail);

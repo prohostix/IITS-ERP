@@ -15,7 +15,7 @@ interface Program {
   name: string;
   code: string;
   specialisations?: string[];
-  university?: { name: string };
+  university?: { id: string; name: string; code: string };
   programFeeStructure?: {
     baseFee: number;
     currency: string;
@@ -55,6 +55,20 @@ export function EnrollStudentPanel() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
+  const [selectedUniversityId, setSelectedUniversityId] = useState<string>('');
+
+  // Get unique universities from the list of enrollable programs
+  const uniqueUniversities = Array.from(
+    new Map(
+      programs
+        .filter((p): p is Program & { university: { id: string; name: string; code: string } } => !!p.university)
+        .map(p => [p.university.id, p.university])
+    ).values()
+  );
+
+  const filteredPrograms = programs.filter(
+    p => p.university?.id === selectedUniversityId
+  );
   
   const [form, setForm] = useState({
     studentName: '',
@@ -215,6 +229,7 @@ export function EnrollStudentPanel() {
       setEducationList([]);
       setDocumentList([]);
       setSelectedProgram(null);
+      setSelectedUniversityId('');
       fetchData();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Enrollment failed');
@@ -247,60 +262,91 @@ export function EnrollStudentPanel() {
         {/* Program Selection */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Program</CardTitle>
-            <CardDescription>Programs available for enrollment</CardDescription>
+            <CardTitle>Select University & Program</CardTitle>
+            <CardDescription>First choose a university, then select a program</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {loading ? (
               <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}</div>
             ) : programs.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No programs available for enrollment.</p>
             ) : (
-              <div className="space-y-3">
-                {programs.map(p => {
-                  const total = getTotalFee(p);
-                  const canAfford = balance >= total;
-                  const isSelected = selectedProgram?.id === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedProgram(isSelected ? null : p)}
-                      className={cn(
-                        'w-full text-left p-4 rounded-xl border transition-all',
-                        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
-                        !canAfford && 'opacity-60'
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">{p.code} {p.university ? `• ${p.university.name}` : ''}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-sm">
-                            ₹{total.toLocaleString()}
-                            <span className="text-[10px] text-muted-foreground font-normal lowercase">
-                              {getBillingCycleText(p)}
-                            </span>
-                          </p>
-                          {!canAfford && <Badge variant="destructive" className="text-[9px]">Insufficient</Badge>}
-                        </div>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>University <span className="text-destructive">*</span></Label>
+                  <select
+                    value={selectedUniversityId}
+                    onChange={e => {
+                      setSelectedUniversityId(e.target.value);
+                      setSelectedProgram(null);
+                    }}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">-- Select University --</option>
+                    {uniqueUniversities.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedUniversityId && (
+                  <div className="space-y-3 pt-2 border-t">
+                    <Label className="text-sm font-semibold">Available Programs</Label>
+                    {filteredPrograms.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No programs available under this university.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredPrograms.map(p => {
+                          const total = getTotalFee(p);
+                          const canAfford = balance >= total;
+                          const isSelected = selectedProgram?.id === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setSelectedProgram(isSelected ? null : p)}
+                              className={cn(
+                                'w-full text-left p-4 rounded-xl border transition-all',
+                                isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
+                                !canAfford && 'opacity-60'
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-semibold text-sm">{p.name}</p>
+                                  <p className="text-xs text-muted-foreground">{p.code} {p.university ? `• ${p.university.name}` : ''}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-sm">
+                                    ₹{total.toLocaleString()}
+                                    <span className="text-[10px] text-muted-foreground font-normal lowercase">
+                                      {getBillingCycleText(p)}
+                                    </span>
+                                  </p>
+                                  {!canAfford && <Badge variant="destructive" className="text-[9px]">Insufficient</Badge>}
+                                </div>
+                              </div>
+                              {p.programFeeStructure && p.programFeeStructure.length > 0 && p.programFeeStructure[0].additionalFees.length > 0 && (
+                                <div className="flex gap-1 mt-2 flex-wrap">
+                                  {p.programFeeStructure[0].additionalFees.map((f, i) => (
+                                    <Badge key={i} variant="secondary" className="text-[10px]">
+                                      {f.label === 'GST'
+                                        ? `GST: ${f.amount}%`
+                                        : `${f.label}: ₹${f.amount.toLocaleString()}`
+                                      }
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
-                      {p.programFeeStructure && p.programFeeStructure.length > 0 && p.programFeeStructure[0].additionalFees.length > 0 && (
-                        <div className="flex gap-1 mt-2 flex-wrap">
-                          {p.programFeeStructure[0].additionalFees.map((f, i) => (
-                            <Badge key={i} variant="secondary" className="text-[10px]">
-                              {f.label === 'GST'
-                                ? `GST: ${f.amount}%`
-                                : `${f.label}: ₹${f.amount.toLocaleString()}`
-                              }
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

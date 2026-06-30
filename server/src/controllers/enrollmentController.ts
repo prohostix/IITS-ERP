@@ -23,12 +23,26 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
   const where: any = { organizationId: req.user.organizationId, status: 'active' as any };
   
   if (req.user.studyCenterId) {
-    where.programAllocations = {
-      some: {
-        centerId: req.user.studyCenterId,
-        isActive: true
+    where.OR = [
+      {
+        programAllocations: {
+          some: {
+            centerId: req.user.studyCenterId,
+            isActive: true
+          }
+        }
+      },
+      {
+        university: {
+          universityAllocations: {
+            some: {
+              centerId: req.user.studyCenterId,
+              isActive: true
+            }
+          }
+        }
       }
-    };
+    ];
   }
 
   const programs = await prisma.program.findMany({

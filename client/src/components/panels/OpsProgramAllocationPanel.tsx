@@ -11,29 +11,41 @@ import { cn } from '@/lib/utils';
 
 interface Center { id: string; name: string; code: string; }
 interface Program { id: string; name: string; code: string; courseType?: string; }
+interface University { id: string; name: string; code: string; }
 interface Allocation { id: string; programId: string; program: Program; allocatedAt: string; }
+interface UniAllocation { id: string; universityId: string; university: University; allocatedAt: string; }
 
 export function OpsProgramAllocationPanel() {
   const [centers, setCenters] = useState<Center[]>([]);
   const [selectedCenter, setSelectedCenter] = useState('');
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [uniAllocations, setUniAllocations] = useState<UniAllocation[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [uniOpen, setUniOpen] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState('');
+  const [selectedUniversity, setSelectedUniversity] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'programs' | 'universities'>('programs');
 
   useEffect(() => {
     api.get('/operations/centers?status=active').then(r => setCenters(r.data.data || [])).catch(() => {});
     api.get('/operations/programs').then(r => setPrograms(r.data.data || [])).catch(() => {});
+    api.get('/operations/universities?status=active').then(r => setUniversities(r.data.data || [])).catch(() => {});
   }, []);
 
   const fetchAllocations = async (centerId: string) => {
     if (!centerId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/operations/centers/${centerId}/allocations`);
-      setAllocations(res.data.data || []);
+      const [progRes, uniRes] = await Promise.all([
+        api.get(`/operations/centers/${centerId}/allocations`),
+        api.get(`/operations/centers/${centerId}/uni-allocations`),
+      ]);
+      setAllocations(progRes.data.data || []);
+      setUniAllocations(uniRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load allocations');
     } finally {
@@ -62,6 +74,22 @@ export function OpsProgramAllocationPanel() {
     }
   };
 
+  const handleAllocateUniversity = async () => {
+    if (!selectedUniversity) { toast.error('Select a university'); return; }
+    setSubmitting(true);
+    try {
+      await api.post(`/operations/centers/${selectedCenter}/uni-allocations`, { universityId: selectedUniversity });
+      toast.success('University allocated');
+      setUniOpen(false);
+      setSelectedUniversity('');
+      fetchAllocations(selectedCenter);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to allocate university');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleRemove = async (allocId: string) => {
     try {
       await api.delete(`/operations/centers/${selectedCenter}/allocations/${allocId}`);
@@ -72,14 +100,27 @@ export function OpsProgramAllocationPanel() {
     }
   };
 
+  const handleRemoveUniversity = async (allocId: string) => {
+    try {
+      await api.delete(`/operations/centers/${selectedCenter}/uni-allocations/${allocId}`);
+      toast.success('University allocation removed');
+      fetchAllocations(selectedCenter);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to remove university');
+    }
+  };
+
   const allocatedProgramIds = allocations.map(a => a.programId);
   const availablePrograms = programs.filter(p => !allocatedProgramIds.includes(p.id));
+
+  const allocatedUniIds = uniAllocations.map(a => a.universityId);
+  const availableUniversities = universities.filter(u => !allocatedUniIds.includes(u.id));
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Program Allocations</h2>
-        <p className="text-muted-foreground text-sm mt-1">Manage which programs each active study center can enroll students into.</p>
+        <h2 className="text-2xl font-bold">Allocations</h2>
+        <p className="text-muted-foreground text-sm mt-1">Manage which programs and universities each active study center is allocated to enroll students in.</p>
       </div>
 
       <div className="flex items-center gap-3">
@@ -98,43 +139,99 @@ export function OpsProgramAllocationPanel() {
             <Button variant="outline" size="sm" onClick={() => fetchAllocations(selectedCenter)} disabled={loading}>
               <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
             </Button>
-            <Button size="sm" onClick={() => setOpen(true)} disabled={availablePrograms.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />Add Program
-            </Button>
+            {activeSubTab === 'programs' ? (
+              <Button size="sm" onClick={() => setOpen(true)} disabled={availablePrograms.length === 0}>
+                <Plus className="w-4 h-4 mr-2" />Add Program
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setUniOpen(true)} disabled={availableUniversities.length === 0}>
+                <Plus className="w-4 h-4 mr-2" />Add University
+              </Button>
+            )}
           </>
         )}
       </div>
 
       {selectedCenter && (
-        loading ? (
-          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />)}</div>
-        ) : allocations.length === 0 ? (
-          <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">
-            No programs allocated yet.
-          </CardContent></Card>
-        ) : (
-          <Card>
-            <CardHeader><CardTitle className="text-base">Allocated Programs ({allocations.length})</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {allocations.map(a => (
-                <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
-                  <div>
-                    <span className="font-medium text-sm">{a.program?.name}</span>
-                    <span className="text-muted-foreground text-xs ml-2">({a.program?.code})</span>
-                    {a.program?.courseType && (
-                      <Badge variant="outline" className="ml-2 text-[10px]">{a.program?.courseType}</Badge>
-                    )}
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemove(a.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )
+        <>
+          {/* Sub tabs */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setActiveSubTab('programs')}
+              className={cn(
+                'px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors',
+                activeSubTab === 'programs' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Program Allocations
+            </button>
+            <button
+              onClick={() => setActiveSubTab('universities')}
+              className={cn(
+                'px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors',
+                activeSubTab === 'universities' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              University Allocations
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />)}</div>
+          ) : activeSubTab === 'programs' ? (
+            allocations.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">
+                No programs allocated yet.
+              </CardContent></Card>
+            ) : (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Allocated Programs ({allocations.length})</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {allocations.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+                      <div>
+                        <span className="font-medium text-sm">{a.program?.name}</span>
+                        <span className="text-muted-foreground text-xs ml-2">({a.program?.code})</span>
+                        {a.program?.courseType && (
+                          <Badge variant="outline" className="ml-2 text-[10px]">{a.program?.courseType}</Badge>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemove(a.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )
+          ) : (
+            uniAllocations.length === 0 ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">
+                No universities allocated yet.
+              </CardContent></Card>
+            ) : (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Allocated Universities ({uniAllocations.length})</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {uniAllocations.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+                      <div>
+                        <span className="font-medium text-sm">{a.university?.name}</span>
+                        <span className="text-muted-foreground text-xs ml-2">({a.university?.code})</span>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-error hover:text-error" onClick={() => handleRemoveUniversity(a.id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )
+          )}
+        </>
       )}
 
+      {/* Program Allocation Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Allocate Program</DialogTitle></DialogHeader>
@@ -153,6 +250,31 @@ export function OpsProgramAllocationPanel() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setOpen(false); setSelectedProgram(''); }}>Cancel</Button>
             <Button onClick={handleAllocate} disabled={submitting || !selectedProgram}>
+              {submitting ? 'Allocating...' : 'Allocate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* University Allocation Dialog */}
+      <Dialog open={uniOpen} onOpenChange={setUniOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Allocate University</DialogTitle></DialogHeader>
+          <div className="py-2">
+            <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a university" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUniversities.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name} ({u.code})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUniOpen(false); setSelectedUniversity(''); }}>Cancel</Button>
+            <Button onClick={handleAllocateUniversity} disabled={submitting || !selectedUniversity}>
               {submitting ? 'Allocating...' : 'Allocate'}
             </Button>
           </DialogFooter>
