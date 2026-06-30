@@ -237,33 +237,39 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   // Fallback to enrollment sessionId if student sessionId is null
   const sessionId = student.sessionId || student.enrollments?.[0]?.sessionId || null;
 
-  // Find the exact fee structure matching program, university, and student's session
-  const feeStructure = await prisma.programFeeStructure.findFirst({
+  // Find all candidate fee structures matching program or university
+  const candidates = await prisma.programFeeStructure.findMany({
     where: {
       organizationId: req.user.organizationId,
       OR: [
-        {
-          programId: student.programId,
-          OR: [
-            { admissionSessionId: sessionId },
-            { admissionSessionId: null }
-          ]
-        },
-        {
-          universityId: student.program.universityId,
-          level: 'university',
-          OR: [
-            { admissionSessionId: sessionId },
-            { admissionSessionId: null }
-          ]
-        }
+        { programId: student.programId },
+        { universityId: student.program.universityId, level: 'university' }
       ]
-    },
-    orderBy: [
-      { level: 'asc' }, // "program" level preferred over "university"
-      { admissionSessionId: 'desc' } // specific session preferred over null
-    ]
+    }
   });
+
+  // Rank candidate fee structures in memory:
+  // 1. Program-level and exact session match -> 100
+  // 2. Program-level and standard/null session match -> 80
+  // 3. Program-level and any other session match -> 60
+  // 4. University-level and exact session match -> 40
+  // 5. University-level and standard/null session match -> 20
+  // 6. University-level and other session match -> 10
+  const sorted = candidates.map(c => {
+    let score = 0;
+    if (c.level === 'program' && c.programId === student.programId) {
+      if (c.admissionSessionId === sessionId) score = 100;
+      else if (c.admissionSessionId === null) score = 80;
+      else score = 60;
+    } else if (c.level === 'university' && c.universityId === student.program.universityId) {
+      if (c.admissionSessionId === sessionId) score = 40;
+      else if (c.admissionSessionId === null) score = 20;
+      else score = 10;
+    }
+    return { c, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const feeStructure = sorted[0]?.c;
 
   if (!feeStructure) {
     res.status(200).json({ success: true, installments: [] });
