@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Wallet, RefreshCw, Upload } from 'lucide-react';
+import { Wallet, RefreshCw, Upload, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ const STATUS_COLOR: Record<string, string> = {
 export function StudyCenterWalletPanel() {
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [topUps, setTopUps] = useState<TopUp[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ amount: '', paymentMethod: 'offline', referenceNumber: '' });
@@ -41,14 +43,16 @@ export function StudyCenterWalletPanel() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [walletRes, topUpsRes] = await Promise.all([
+      const [walletRes, topUpsRes, txRes] = await Promise.all([
         api.get('/enrollment/wallet'),
         api.get('/enrollment/wallet/topups'),
+        api.get('/enrollment/wallet/transactions'),
       ]);
       setWallet(walletRes.data.data);
       setTopUps(topUpsRes.data.data || []);
+      setTransactions(txRes.data.data || []);
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to load wallet');
+      toast.error(e.response?.data?.message || 'Failed to load wallet data');
     } finally {
       setLoading(false);
     }
@@ -103,38 +107,91 @@ export function StudyCenterWalletPanel() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Top-Up History</CardTitle>
-          <CardDescription>All wallet top-up requests and their status.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
-          ) : topUps.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No top-up requests yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {topUps.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[t.status] || 'bg-muted text-muted-foreground')}>
-                        {t.status}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{t.paymentMethod}</span>
+      <Tabs defaultValue="ledger" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="ledger">Wallet Ledger</TabsTrigger>
+          <TabsTrigger value="topups">Top-Up Requests</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ledger">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Ledger</CardTitle>
+              <CardDescription>Statements of all deposits and enrollment charges.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
+              ) : transactions.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No transactions found.</p>
+              ) : (
+                <div className="divide-y divide-border border rounded-xl overflow-hidden bg-card">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+                          tx.type === 'credit' ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                        )}>
+                          {tx.type === 'credit' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{tx.description}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Ref: {tx.reference} • Method: {tx.method}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={cn(
+                          "text-sm font-bold",
+                          tx.type === 'credit' ? "text-success" : "text-destructive"
+                        )}>
+                          {tx.type === 'credit' ? '+' : '-'} ₹{tx.amount.toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(tx.date).toLocaleString()}</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-semibold mt-1">₹{t.amount.toLocaleString()}</p>
-                    {t.referenceNumber && <p className="text-xs text-muted-foreground">Ref: {t.referenceNumber}</p>}
-                    {t.remarks && <p className="text-xs text-destructive mt-1">{t.remarks}</p>}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="topups">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top-Up History</CardTitle>
+              <CardDescription>All wallet top-up requests and their status.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
+              ) : topUps.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No top-up requests yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {topUps.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[t.status] || 'bg-muted text-muted-foreground')}>
+                            {t.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{t.paymentMethod}</span>
+                        </div>
+                        <p className="text-sm font-semibold mt-1">₹{t.amount.toLocaleString()}</p>
+                        {t.referenceNumber && <p className="text-xs text-muted-foreground">Ref: {t.referenceNumber}</p>}
+                        {t.remarks && <p className="text-xs text-destructive mt-1">{t.remarks}</p>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

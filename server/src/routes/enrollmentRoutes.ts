@@ -4,6 +4,7 @@ import {
   getWallet,
   submitTopUp,
   getTopUpHistory,
+  getWalletTransactions,
   getEnrollablePrograms,
   createEnrollment,
   getMyEnrollments,
@@ -29,6 +30,7 @@ router.use(protect);
 router.get('/wallet', authorize('center_admin'), getWallet);
 router.post('/wallet/topup', authorize('center_admin'), upload.single('proofDocument'), submitTopUp);
 router.get('/wallet/topups', authorize('center_admin'), getTopUpHistory);
+router.get('/wallet/transactions', authorize('center_admin'), getWalletTransactions);
 
 // Study Center enrollment routes
 router.get('/programs', authorize('center_admin'), getEnrollablePrograms);

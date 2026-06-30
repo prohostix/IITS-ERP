@@ -19,6 +19,56 @@ export const getTopUpHistory = asyncHandler(async (req: AuthRequest, res: Respon
   res.json({ success: true, count: topUps.length, data: topUps });
 });
 
+export const getWalletTransactions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const centerId = req.user.studyCenterId || '';
+
+  // Get approved top-ups
+  const topUps = await prisma.walletTopUp.findMany({
+    where: { studyCenterId: centerId, status: 'approved' },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Get enrollment debits
+  const debits = await prisma.enrollmentPayment.findMany({
+    where: { studyCenterId: centerId },
+    include: {
+      enrollment: {
+        include: {
+          program: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Map into a unified ledger structure
+  const ledger = [
+    ...topUps.map(t => ({
+      id: t.id,
+      date: t.verifiedAt || t.createdAt,
+      type: 'credit',
+      amount: t.amount,
+      method: t.paymentMethod,
+      reference: t.referenceNumber || 'N/A',
+      description: 'Wallet Top-Up Approved'
+    })),
+    ...debits.map(d => ({
+      id: d.id,
+      date: d.debitedAt || d.createdAt,
+      type: 'debit',
+      amount: d.amount,
+      method: 'wallet_debit',
+      reference: d.enrollment?.enrollmentNumber || 'N/A',
+      description: `Enrollment: ${d.enrollment?.studentName || 'Student'} (${d.enrollment?.program?.name || 'Program'})`
+    }))
+  ];
+
+  // Sort by date descending
+  ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  res.json({ success: true, count: ledger.length, data: ledger });
+});
+
 export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId, status: 'active' as any };
   
