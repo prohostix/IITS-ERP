@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText, Edit, ShieldAlert, Check } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -72,6 +72,8 @@ export function EnrollStudentPanel() {
   
   const [centerConfig, setCenterConfig] = useState<any>(null);
   
+  const [activeStep, setActiveStep] = useState(1);
+  
   const [form, setForm] = useState({
     studentName: '',
     studentEmail: '',
@@ -87,7 +89,9 @@ export function EnrollStudentPanel() {
     motherName: '',
     parentMobile: '',
     studentPhoto: '',
-    admissionDate: new Date().toISOString().substring(0, 10)
+    admissionDate: new Date().toISOString().substring(0, 10),
+    pincode: '',
+    alternativePhone: ''
   });
 
   // Dynamic lists for documents and education details
@@ -350,6 +354,8 @@ export function EnrollStudentPanel() {
         motherName: '',
         parentMobile: '',
         studentPhoto: '',
+        pincode: '',
+        alternativePhone: '',
         admissionDate: new Date().toISOString().substring(0, 10)
       });
       setSelectedSessionId('');
@@ -365,40 +371,157 @@ export function EnrollStudentPanel() {
     }
   };
 
+  const validateStep = (stepNum: number) => {
+    if (stepNum === 1) {
+      if (!selectedUniversityId) {
+        toast.error('Please select a University');
+        return false;
+      }
+      if (!selectedProgram) {
+        toast.error('Please select a Program');
+        return false;
+      }
+      if (!selectedSessionId) {
+        toast.error('Please select an intake session');
+        return false;
+      }
+      if (selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && !form.specialisation.trim()) {
+        toast.error('Please select a specialisation combo');
+        return false;
+      }
+      // Check customized fields for Step 1
+      const config = centerConfig?.customEnrollmentFields;
+      const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+      if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
+        for (const field of ['admissionDate', 'abcId', 'debId']) {
+          if (parsedConfig[field] === 'required') {
+            const val = (form as any)[field];
+            if (val === undefined || val === null || String(val).trim() === '') {
+              toast.error(`Field '${field}' is required by this center's configuration`);
+              return false;
+            }
+          }
+        }
+      }
+    } else if (stepNum === 2) {
+      // Validate Step 2: studentName, studentEmail, studentPhone, studentAddress
+      const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
+      for (const key of baseRequired) {
+        if (!(form as any)[key]?.trim()) {
+          toast.error(`Field '${key.replace('student', '')}' is required`);
+          return false;
+        }
+      }
+      // Check customized fields for Step 2
+      const config = centerConfig?.customEnrollmentFields;
+      const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+      if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
+        for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob']) {
+          if (parsedConfig[field] === 'required') {
+            const val = (form as any)[field];
+            if (val === undefined || val === null || String(val).trim() === '') {
+              toast.error(`Field '${field}' is required by this center's configuration`);
+              return false;
+            }
+          }
+        }
+      }
+    } else if (stepNum === 3) {
+      // Validate Step 3: fatherName, motherName, parentMobile, studentPhoto
+      const config = centerConfig?.customEnrollmentFields;
+      const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+      if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
+        for (const field of ['fatherName', 'motherName', 'parentMobile', 'studentPhoto']) {
+          if (parsedConfig[field] === 'required') {
+            const val = (form as any)[field];
+            if (val === undefined || val === null || String(val).trim() === '') {
+              toast.error(`Field '${field}' is required by this center's configuration`);
+              return false;
+            }
+          }
+        }
+      }
+    }
+    return true;
+  };
+
   const balance = wallet?.balance || 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Enroll a Student</h2>
-          <p className="text-muted-foreground text-sm mt-1">Select a program and fill in student details to enroll.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest">Wallet Balance</p>
-            <p className="text-lg font-bold text-primary">₹{balance.toLocaleString()}</p>
+      {/* Stepper Header */}
+      <div className="bg-white rounded-2xl border p-5 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+          <div>
+            <h2 className="text-xl font-extrabold text-slate-800">Add New Student Record</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Please fill all required student documents and info step-by-step.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Wallet Balance</p>
+              <p className="text-lg font-extrabold text-primary">₹{balance.toLocaleString()}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Dynamic Multi-Step Navigation Buttons */}
+        <div className="flex flex-wrap items-center justify-start gap-2.5">
+          {[
+            { step: 1, label: 'Admission Info', icon: GraduationCap },
+            { step: 2, label: 'Personal Details', icon: Edit },
+            { step: 3, label: 'Family Info', icon: Plus },
+            { step: 4, label: 'Documents', icon: FileText }
+          ].map((item) => {
+            const IconComp = item.icon;
+            const isActive = activeStep === item.step;
+            const isCompleted = activeStep > item.step;
+            return (
+              <button
+                key={item.step}
+                type="button"
+                onClick={() => {
+                  if (item.step < activeStep) {
+                    setActiveStep(item.step);
+                  } else if (item.step > activeStep) {
+                    let canGo = true;
+                    for (let s = activeStep; s < item.step; s++) {
+                      if (!validateStep(s)) {
+                        canGo = false;
+                        break;
+                      }
+                    }
+                    if (canGo) {
+                      setActiveStep(item.step);
+                    }
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold transition-all border",
+                  isActive 
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                    : isCompleted
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                )}
+              >
+                <IconComp className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Program Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Select University & Program</CardTitle>
-            <CardDescription>First choose a university, then select a program</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}</div>
-            ) : programs.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No programs available for enrollment.</p>
-            ) : (
-              <div className="space-y-4">
+      {/* Active Step Panel Content */}
+      <Card className="border shadow-sm rounded-2xl">
+        <CardContent className="p-6">
+          {activeStep === 1 && (
+            <div className="space-y-6">
+              <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 1: Program & Session Allocation</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>University <span className="text-destructive">*</span></Label>
                   <select
@@ -407,7 +530,7 @@ export function EnrollStudentPanel() {
                       setSelectedUniversityId(e.target.value);
                       setSelectedProgram(null);
                     }}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
                     <option value="">-- Select University --</option>
                     {uniqueUniversities.map(u => (
@@ -419,264 +542,256 @@ export function EnrollStudentPanel() {
                 </div>
 
                 {selectedUniversityId && (
-                  <div className="space-y-3 pt-2 border-t">
-                    <Label className="text-sm font-semibold">Available Programs</Label>
-                    {filteredPrograms.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No programs available under this university.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredPrograms.map(p => {
-                          const total = getTotalFee(p);
-                          const canAfford = balance >= total;
-                          const isSelected = selectedProgram?.id === p.id;
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => setSelectedProgram(isSelected ? null : p)}
-                              className={cn(
-                                'w-full text-left p-4 rounded-xl border transition-all',
-                                isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
-                                !canAfford && 'opacity-60'
-                              )}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-semibold text-sm">{p.name}</p>
-                                  <p className="text-xs text-muted-foreground">{p.code} {p.university ? `• ${p.university.name}` : ''}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-bold text-sm">
-                                    ₹{total.toLocaleString()}
-                                    <span className="text-[10px] text-muted-foreground font-normal lowercase">
-                                      {getBillingCycleText(p)}
-                                    </span>
-                                  </p>
-                                  {!canAfford && <Badge variant="destructive" className="text-[9px]">Insufficient</Badge>}
-                                </div>
-                              </div>
-                              {p.programFeeStructure && p.programFeeStructure.length > 0 && p.programFeeStructure[0].additionalFees.length > 0 && (
-                                <div className="flex gap-1 mt-2 flex-wrap">
-                                  {p.programFeeStructure[0].additionalFees.map((f, i) => (
-                                    <Badge key={i} variant="secondary" className="text-[10px]">
-                                      {f.label === 'GST'
-                                        ? `GST: ${f.amount}%`
-                                        : `${f.label}: ₹${f.amount.toLocaleString()}`
-                                      }
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                  <div className="space-y-1.5">
+                    <Label>Program <span className="text-destructive">*</span></Label>
+                    <select
+                      value={selectedProgram?.id || ''}
+                      onChange={e => {
+                        const p = programs.find(x => x.id === e.target.value);
+                        setSelectedProgram(p || null);
+                      }}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    >
+                      <option value="">-- Select Program --</option>
+                      {filteredPrograms.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.code})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Student Details */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Details</CardTitle>
-              <CardDescription>
-                {selectedProgram
-                  ? `Enrolling in: ${selectedProgram.name} — Fee: ₹${getTotalFee(selectedProgram).toLocaleString()}`
-                  : 'Select a program first'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Label>Full Name</Label>
-                <Input value={form.studentName} onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))} placeholder="Student full name" />
+                {selectedProgram && (
+                  <div className="space-y-1.5">
+                    <Label>Intake Admission Session <span className="text-destructive">*</span></Label>
+                    <select
+                      value={selectedSessionId}
+                      onChange={e => setSelectedSessionId(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    >
+                      <option value="">-- Select Intake Session --</option>
+                      {availableSessions.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {selectedProgram && selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Specialisation Combo <span className="text-destructive">*</span></Label>
+                    <select
+                      value={form.specialisation}
+                      onChange={e => setForm(f => ({ ...f, specialisation: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    >
+                      <option value="">-- Select Specialisation Combo --</option>
+                      {selectedProgram.specialisations.map((spec, idx) => (
+                        <option key={idx} value={spec}>
+                          {spec}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {renderField('admissionDate', 'Admission Date', 'date')}
+                {renderField('abcId', 'ABCID')}
+                {renderField('debId', 'DEBID')}
               </div>
-              <div className="space-y-1">
-                <Label>Email</Label>
-                <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} placeholder="student@email.com" />
-              </div>
-              <div className="space-y-1">
-                <Label>Phone</Label>
-                <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value }))} placeholder="+91 XXXXX XXXXX" />
-              </div>
-              <div className="space-y-1">
-                <Label>Address</Label>
-                <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Full address" />
-              </div>
-              {selectedProgram && (
+            </div>
+          )}
+
+          {activeStep === 2 && (
+            <div className="space-y-6">
+              <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 2: Candidate Personal Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label>Intake Admission Session <span className="text-destructive">*</span></Label>
-                  <select
-                    value={selectedSessionId}
-                    onChange={e => setSelectedSessionId(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    required
-                  >
-                    <option value="">-- Select Intake Session --</option>
-                    {availableSessions.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Label>Full Name <span className="text-destructive">*</span></Label>
+                  <Input value={form.studentName} onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))} placeholder="Student's name" />
                 </div>
-              )}
-              {selectedProgram && selectedProgram.specialisations && selectedProgram.specialisations.length > 0 && (
                 <div className="space-y-1">
-                  <Label>Specialisation Combo <span className="text-destructive">*</span></Label>
-                  <select
-                    value={form.specialisation}
-                    onChange={e => setForm(f => ({ ...f, specialisation: e.target.value }))}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    required
-                  >
-                    <option value="">-- Select Specialisation Combo --</option>
-                    {selectedProgram.specialisations.map((spec, idx) => (
-                      <option key={idx} value={spec}>
-                        {spec}
-                      </option>
-                    ))}
-                  </select>
+                  <Label>Email Address <span className="text-destructive">*</span></Label>
+                  <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} placeholder="student@example.com" />
                 </div>
-              )}
-
-              {/* Dynamic Branch Custom Enrollment Fields */}
-              {renderField('admissionDate', 'Admission Date', 'date')}
-              {renderField('abcId', 'ABCID')}
-              {renderField('debId', 'DEBID')}
-              {renderField('dob', 'Date of Birth', 'date')}
-              {renderField('religion', 'Religion')}
-              {renderField('caste', 'Caste')}
-              {renderField('fatherName', "Father's Name")}
-              {renderField('motherName', "Mother's Name")}
-              {renderField('parentMobile', "Parent's Mobile Number")}
-              {renderField('studentPhoto', 'Student Photo', 'file')}
-            </CardContent>
-          </Card>
-
-          {/* Educational Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Educational History</CardTitle>
-              <CardDescription>Add the candidate's qualification credentials</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {educationList.length > 0 && (
-                <div className="space-y-2 border-b pb-4">
-                  {educationList.map((edu, idx) => (
-                    <div key={idx} className="flex justify-between items-center bg-muted/40 p-2.5 rounded-lg border text-sm">
-                      <div>
-                        <p className="font-semibold">{edu.qualification}</p>
-                        <p className="text-xs text-muted-foreground">{edu.institution} ({edu.passingYear}) {edu.percentage ? `· ${edu.percentage}%` : ''}</p>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => handleRemoveEducation(idx)}>
-                        <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
-                      </Button>
-                    </div>
-                  ))}
+                <div className="space-y-1">
+                  <Label>Phone Number <span className="text-destructive">*</span></Label>
+                  <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value }))} placeholder="Primary phone" />
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Qualification</Label>
-                  <Input 
-                    placeholder="e.g. 10th / 12th / BCA" 
-                    value={tempEdu.qualification} 
-                    onChange={e => setTempEdu({ ...tempEdu, qualification: e.target.value })} 
-                  />
+                {renderField('dob', 'Date of Birth', 'date')}
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Home Address <span className="text-destructive">*</span></Label>
+                  <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Permanent address" />
                 </div>
-                <div>
-                  <Label className="text-xs">Institution</Label>
-                  <Input 
-                    placeholder="School / College Name" 
-                    value={tempEdu.institution} 
-                    onChange={e => setTempEdu({ ...tempEdu, institution: e.target.value })} 
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Passing Year</Label>
-                  <Input 
-                    placeholder="e.g. 2024" 
-                    value={tempEdu.passingYear} 
-                    onChange={e => setTempEdu({ ...tempEdu, passingYear: e.target.value })} 
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Percentage / CGPA (Optional)</Label>
-                  <Input 
-                    placeholder="e.g. 85%" 
-                    value={tempEdu.percentage} 
-                    onChange={e => setTempEdu({ ...tempEdu, percentage: e.target.value })} 
-                  />
-                </div>
+                {renderField('pincode', 'Pincode')}
+                {renderField('alternativePhone', 'Alternative Phone')}
+                {renderField('religion', 'Religion')}
+                {renderField('caste', 'Caste / Category')}
               </div>
-              <Button type="button" variant="outline" size="sm" className="w-full mt-1" onClick={handleAddEducation}>
-                <Plus className="w-4 h-4 mr-2" /> Add Qualification
-              </Button>
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* Upload Documents */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents Upload</CardTitle>
-              <CardDescription>Upload marksheets, identity proof, photo etc.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {documentList.length > 0 && (
-                <div className="space-y-2 border-b pb-4">
-                  {documentList.map((doc, idx) => (
-                    <div key={idx} className="flex justify-between items-center bg-muted/40 p-2.5 rounded-lg border text-sm">
-                      <div className="flex items-center gap-2 truncate pr-2">
-                        <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="truncate font-medium">{doc.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2">View</a>
-                        <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(idx)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
+          {activeStep === 3 && (
+            <div className="space-y-6">
+              <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 3: Family Information & Photo</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderField('fatherName', "Father's Name")}
+                {renderField('motherName', "Mother's Name")}
+                {renderField('parentMobile', "Mobile Number")}
+                {renderField('studentPhoto', 'Student Photo', 'file')}
+              </div>
+            </div>
+          )}
+
+          {activeStep === 4 && (
+            <div className="space-y-6">
+              <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 4: Academic Background & Uploads</h3>
+              
+              {/* Qualifications */}
+              <div className="space-y-3">
+                <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">Qualifications History</Label>
+                {educationList.length > 0 && (
+                  <div className="space-y-2 border rounded-xl p-3 bg-slate-50/50">
+                    {educationList.map((edu, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border text-sm shadow-sm">
+                        <div>
+                          <p className="font-semibold text-slate-700">{edu.qualification}</p>
+                          <p className="text-xs text-muted-foreground">{edu.institution} ({edu.passingYear}) {edu.percentage ? `· ${edu.percentage}%` : ''}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemoveEducation(idx)}>
+                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
                         </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
 
-              <div>
-                <Label className="block mb-2">Upload File</Label>
-                <div className="relative border-2 border-dashed rounded-xl p-6 hover:bg-muted/30 transition-all flex flex-col items-center justify-center cursor-pointer">
-                  <Input 
-                    type="file" 
-                    className="absolute inset-0 opacity-0 cursor-pointer" 
-                    onChange={handleFileUpload} 
-                    disabled={uploading} 
-                  />
-                  <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                  <p className="text-sm font-semibold">{uploading ? 'Uploading...' : 'Click or drag files here to upload'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG up to 10MB</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border">
+                  <div>
+                    <Label className="text-xs">Qualification</Label>
+                    <Input 
+                      placeholder="e.g. 10th / 12th / BCA" 
+                      value={tempEdu.qualification} 
+                      onChange={e => setTempEdu({ ...tempEdu, qualification: e.target.value })} 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Institution</Label>
+                    <Input 
+                      placeholder="School / College Name" 
+                      value={tempEdu.institution} 
+                      onChange={e => setTempEdu({ ...tempEdu, institution: e.target.value })} 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Passing Year</Label>
+                    <Input 
+                      placeholder="e.g. 2024" 
+                      value={tempEdu.passingYear} 
+                      onChange={e => setTempEdu({ ...tempEdu, passingYear: e.target.value })} 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Percentage / CGPA (Optional)</Label>
+                    <Input 
+                      placeholder="e.g. 85%" 
+                      value={tempEdu.percentage} 
+                      onChange={e => setTempEdu({ ...tempEdu, percentage: e.target.value })} 
+                    />
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="md:col-span-2 w-full mt-1" onClick={handleAddEducation}>
+                    <Plus className="w-4 h-4 mr-2" /> Add Qualification
+                  </Button>
                 </div>
               </div>
 
+              {/* Upload Documents */}
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">Documents (SSLC, Plus Two, Aadhaar, etc.)</Label>
+                {documentList.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {documentList.map((doc, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border text-sm shadow-sm">
+                        <div className="flex items-center gap-2 truncate pr-2">
+                          <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                          <span className="truncate font-medium text-slate-700">{doc.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2 font-medium">View</a>
+                          <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(idx)}>
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <div className="relative border-2 border-dashed rounded-xl p-6 hover:bg-slate-50 transition-all flex flex-col items-center justify-center cursor-pointer bg-white">
+                    <Input 
+                      type="file" 
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading} 
+                    />
+                    <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                    <p className="text-sm font-semibold text-slate-600">{uploading ? 'Uploading...' : 'Click or drag files here to upload'}</p>
+                    <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG up to 10MB</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stepper Footer Controls */}
+          <div className="flex items-center justify-between border-t pt-5 mt-8 bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={activeStep === 1}
+              onClick={() => setActiveStep(activeStep - 1)}
+              className="flex items-center gap-1 text-slate-600"
+            >
+              &larr; Back
+            </Button>
+            
+            <span className="text-xs font-semibold text-slate-500">
+              Step {activeStep} of 4
+            </span>
+
+            {activeStep < 4 ? (
               <Button
-                className="w-full mt-4 premium-gradient text-white"
+                type="button"
+                onClick={() => {
+                  if (validateStep(activeStep)) {
+                    setActiveStep(activeStep + 1);
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1"
+              >
+                Next &rarr;
+              </Button>
+            ) : (
+              <Button
+                type="button"
                 onClick={triggerConfirm}
                 disabled={!selectedProgram || submitting || (balance < getTotalFee(selectedProgram))}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-semibold"
               >
-                <GraduationCap className="w-4 h-4 mr-2" />
+                <GraduationCap className="w-4.5 h-4.5" />
                 {submitting ? 'Enrolling...' : 'Submit Application'}
               </Button>
-              {selectedProgram && balance < getTotalFee(selectedProgram) && (
-                <p className="text-xs text-destructive text-center">Insufficient wallet balance. Please top up first.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
+          </div>
+          {activeStep === 4 && selectedProgram && balance < getTotalFee(selectedProgram) && (
+            <p className="text-xs text-destructive text-center mt-3">Insufficient wallet balance. Please top up first.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Confirmation & Edit Dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

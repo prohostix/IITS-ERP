@@ -444,6 +444,8 @@ model Student {
   motherName            String?
   parentMobile          String?
   studentPhoto          String?
+  pincode               String?
+  alternativePhone      String?
   status                String                 @default("pending")
   joinDate              DateTime               @default(now())
   enrolledAt            DateTime?
@@ -839,6 +841,8 @@ model Enrollment {
   motherName           String?
   parentMobile         String?
   studentPhoto         String?
+  pincode              String?
+  alternativePhone     String?
   admissionDate        DateTime?          @default(now())
   enrollmentNumber     String?            @unique
   studentName          String

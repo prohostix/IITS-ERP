@@ -53,7 +53,9 @@ export function StudyCentersPanel() {
     { key: 'fatherName', label: "Father's Name" },
     { key: 'motherName', label: "Mother's Name" },
     { key: 'parentMobile', label: "Parent's Mobile Number" },
-    { key: 'studentPhoto', label: 'Student Photo' }
+    { key: 'studentPhoto', label: 'Student Photo' },
+    { key: 'pincode', label: 'Pincode' },
+    { key: 'alternativePhone', label: 'Alternative Phone' }
   ];
 
   const handleOpenConfig = (c: any) => {

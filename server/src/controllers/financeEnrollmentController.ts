@@ -169,6 +169,8 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         motherName: dbEnrollment.motherName,
         parentMobile: dbEnrollment.parentMobile,
         studentPhoto: dbEnrollment.studentPhoto,
+        pincode: dbEnrollment.pincode,
+        alternativePhone: dbEnrollment.alternativePhone,
         status: 'active',
         organization: { connect: { id: req.user.organizationId } },
         center: { connect: { id: dbEnrollment.studyCenterId } },

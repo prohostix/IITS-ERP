@@ -157,7 +157,8 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
-    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate
+    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
+    pincode, alternativePhone
   } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
@@ -252,6 +253,8 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       motherName,
       parentMobile,
       studentPhoto,
+      pincode,
+      alternativePhone,
       admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
       status: 'document_review' as any,
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
@@ -334,7 +337,8 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   const { id } = req.params;
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
-    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate
+    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
+    pincode, alternativePhone
   } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
@@ -415,6 +419,8 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       motherName: motherName !== undefined ? motherName : enrollment.motherName,
       parentMobile: parentMobile !== undefined ? parentMobile : enrollment.parentMobile,
       studentPhoto: studentPhoto !== undefined ? studentPhoto : enrollment.studentPhoto,
+      pincode: pincode !== undefined ? pincode : enrollment.pincode,
+      alternativePhone: alternativePhone !== undefined ? alternativePhone : enrollment.alternativePhone,
       admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
       programId: targetProgramId,
       sessionId: finalSessionId,
