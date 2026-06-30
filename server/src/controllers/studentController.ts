@@ -267,15 +267,17 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   }
 
   const billingCycle = feeStructure.billingCycle;
-  const duration = student.program.duration;
-  const hasSemesters = student.program.hasSemesters;
+  const durationInMonths = student.program.duration || 12; // stored in months, default to 12
 
-  let totalCycles = duration;
-  let cycleLabel = 'Year';
+  let totalCycles = 1;
+  let cycleLabel = 'Installment';
 
   if (billingCycle === 'per_semester') {
-    totalCycles = duration * 2;
+    totalCycles = Math.ceil(durationInMonths / 6);
     cycleLabel = 'Semester';
+  } else if (billingCycle === 'per_year' || billingCycle === 'yearly') {
+    totalCycles = Math.ceil(durationInMonths / 12);
+    cycleLabel = 'Year';
   }
 
   const baseFee = feeStructure.baseFee;
