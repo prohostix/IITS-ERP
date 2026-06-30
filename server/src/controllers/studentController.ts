@@ -9,6 +9,8 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   const where: any = { organizationId: req.user.organizationId };
   if (req.user.role === 'student') {
     where.email = req.user.email;
+  } else if (req.user.role === 'center_admin') {
+    where.centerId = req.user.studyCenterId || '';
   } else if (req.query.status) {
     where.status = req.query.status as string;
   }
@@ -215,4 +217,160 @@ export const deleteInternalMark = asyncHandler(async (req: AuthRequest, res: Res
   }
   await prisma.internalMark.delete({ where: { id: req.params.id } });
   res.status(200).json({ success: true, data: {} });
+});
+
+export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      program: {
+        include: {
+          programFeeStructure: {
+            where: { organizationId: req.user.organizationId }
+          }
+        }
+      },
+      invoices: true
+    }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  const feeStructure = student.program?.programFeeStructure?.[0];
+  if (!feeStructure) {
+    res.status(200).json({ success: true, installments: [] });
+    return;
+  }
+
+  const billingCycle = feeStructure.billingCycle;
+  const duration = student.program.duration;
+  const hasSemesters = student.program.hasSemesters;
+
+  let totalCycles = duration;
+  let cycleLabel = 'Year';
+
+  if (billingCycle === 'per_semester') {
+    totalCycles = duration * 2;
+    cycleLabel = 'Semester';
+  }
+
+  const baseFee = feeStructure.baseFee;
+  const installments = [];
+
+  // Year 1 / Semester 1 is paid during enrollment
+  installments.push({
+    name: `${cycleLabel} 1`,
+    amount: baseFee,
+    status: 'paid',
+    dueDate: student.enrolledAt || student.createdAt,
+    paidAt: student.enrolledAt || student.createdAt
+  });
+
+  const invoices = student.invoices;
+
+  for (let i = 2; i <= totalCycles; i++) {
+    const name = `${cycleLabel} ${i}`;
+    const matchingInvoice = invoices.find((inv: any) => {
+      const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
+      return items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
+    });
+
+    let status = 'upcoming';
+    let paidAt = null;
+    let dueDate = new Date(student.createdAt);
+
+    if (cycleLabel === 'Semester') {
+      dueDate.setMonth(dueDate.getMonth() + (i - 1) * 6);
+    } else {
+      dueDate.setFullYear(dueDate.getFullYear() + (i - 1));
+    }
+
+    if (matchingInvoice) {
+      if (matchingInvoice.status === 'paid') {
+        status = 'paid';
+        paidAt = matchingInvoice.paidAt || matchingInvoice.updatedAt;
+      } else {
+        status = 'unpaid';
+        dueDate = matchingInvoice.dueDate || dueDate;
+      }
+    }
+
+    installments.push({
+      name,
+      amount: baseFee,
+      status,
+      dueDate,
+      paidAt,
+      invoiceId: matchingInvoice?.id
+    });
+  }
+
+  res.status(200).json({ success: true, installments });
+});
+
+export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { installmentName, amount } = req.body;
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: { program: true }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  const wallet = await prisma.studyCenterWallet.findUnique({
+    where: { studyCenterId: req.user.studyCenterId || '' }
+  });
+
+  if (!wallet || wallet.balance < amount) {
+    res.status(400).json({ success: false, message: `Insufficient wallet balance. Available: ₹${wallet?.balance || 0}` });
+    return;
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Deduct wallet
+    await tx.studyCenterWallet.update({
+      where: { id: wallet.id },
+      data: { balance: { decrement: amount } }
+    });
+
+    // 2. Create Invoice
+    const invoiceNo = `INV-STU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const invoice = await tx.invoice.create({
+      data: {
+        organizationId: req.user.organizationId,
+        centerId: req.user.studyCenterId || '',
+        studentId: student.id,
+        invoiceNo,
+        amount,
+        tax: 0,
+        total: amount,
+        status: 'paid',
+        dueDate: new Date(),
+        paidAt: new Date(),
+        items: [{ description: `Fee for ${installmentName} (${student.program.name})`, quantity: 1, rate: amount, amount }]
+      }
+    });
+
+    // 3. Create PaymentEntry
+    await tx.paymentEntry.create({
+      data: {
+        organizationId: req.user.organizationId,
+        invoiceId: invoice.id,
+        amount,
+        method: 'wallet_debit',
+        receivedBy: req.user.id,
+        notes: `Paid in advance by study center for student ${student.name} - ${installmentName}`
+      }
+    });
+
+    return invoice;
+  });
+
+  res.status(200).json({ success: true, data: result });
 });

@@ -41,6 +41,23 @@ export const getWalletTransactions = asyncHandler(async (req: AuthRequest, res: 
     orderBy: { createdAt: 'desc' }
   });
 
+  // Get student invoices paid by center wallet
+  const studentInvoices = await prisma.invoice.findMany({
+    where: { 
+      centerId, 
+      studentId: { not: null },
+      status: 'paid'
+    },
+    include: {
+      student: {
+        include: {
+          program: true
+        }
+      }
+    },
+    orderBy: { paidAt: 'desc' }
+  });
+
   // Map into a unified ledger structure
   const ledger = [
     ...topUps.map(t => ({
@@ -60,6 +77,15 @@ export const getWalletTransactions = asyncHandler(async (req: AuthRequest, res: 
       method: 'wallet_debit',
       reference: d.enrollment?.enrollmentNumber || 'N/A',
       description: `Enrollment: ${d.enrollment?.studentName || 'Student'} (${d.enrollment?.program?.name || 'Program'})`
+    })),
+    ...studentInvoices.map(inv => ({
+      id: inv.id,
+      date: inv.paidAt || inv.createdAt,
+      type: 'debit',
+      amount: inv.total,
+      method: 'wallet_debit',
+      reference: inv.invoiceNo,
+      description: `Student Fee: ${inv.student?.name || 'Student'} (${inv.student?.program?.name || 'Program'}) - ${inv.items?.[0]?.description || 'Installment'}`
     }))
   ];
 

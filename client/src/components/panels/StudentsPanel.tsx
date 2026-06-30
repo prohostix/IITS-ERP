@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export function StudentsPanel() {
   const { user } = useAuth();
@@ -31,6 +32,11 @@ export function StudentsPanel() {
     status: 'pending'
   });
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+
+  // Installments state
+  const [installments, setInstallments] = useState<any[]>([]);
+  const [fetchingInstallments, setFetchingInstallments] = useState(false);
+  const [payingInstallment, setPayingInstallment] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -65,6 +71,42 @@ export function StudentsPanel() {
       setCenters(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch centers:', error);
+    }
+  };
+
+  const fetchInstallments = async (studentId: string) => {
+    setFetchingInstallments(true);
+    try {
+      const res = await api.get(`/students/${studentId}/installments`);
+      setInstallments(res.data.installments || []);
+    } catch (err) {
+      console.error('Failed to fetch installments:', err);
+    } finally {
+      setFetchingInstallments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedStudent) {
+      fetchInstallments(selectedStudent.id);
+    } else {
+      setInstallments([]);
+    }
+  }, [selectedStudent]);
+
+  const handlePayInstallment = async (installmentName: string, amount: number) => {
+    if (!selectedStudent) return;
+    if (!confirm(`Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} using your study center wallet?`)) return;
+
+    setPayingInstallment(true);
+    try {
+      await api.post(`/students/${selectedStudent.id}/pay-installment`, { installmentName, amount });
+      toast.success(`${installmentName} paid successfully!`);
+      fetchInstallments(selectedStudent.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to pay installment');
+    } finally {
+      setPayingInstallment(false);
     }
   };
 
@@ -334,11 +376,61 @@ export function StudentsPanel() {
                   </div>
                 </div>
 
+                {/* Future Payments & Installments */}
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-primary" /> Fees & Installments
+                  </h4>
+                  {fetchingInstallments ? (
+                    <div className="text-xs text-muted-foreground animate-pulse py-2">Loading installment schedules...</div>
+                  ) : installments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No installment structure found.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {installments.map((inst, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-muted/5 p-3 rounded-lg border text-sm hover:bg-muted/10 transition-colors">
+                          <div>
+                            <span className="font-semibold text-foreground">{inst.name}</span>
+                            <span className="text-xs text-muted-foreground block">
+                              Due Date: {new Date(inst.dueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-foreground">₹{inst.amount.toLocaleString()}</span>
+                            {inst.status === 'paid' ? (
+                              <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/30 font-semibold text-xs flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> Paid
+                              </Badge>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30 font-semibold text-xs flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" /> Pending
+                                </Badge>
+                                {user?.role === 'center_admin' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs font-semibold text-primary hover:bg-primary/10 border-primary/30"
+                                    onClick={() => handlePayInstallment(inst.name, inst.amount)}
+                                    disabled={payingInstallment}
+                                  >
+                                    Pay Advance
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Original Enrollment Info */}
                 {selectedStudent.enrollments && selectedStudent.enrollments.length > 0 && (
                   <>
                     {/* Educational Details */}
-                    <div>
+                    <div className="border-t pt-4">
                       <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-primary" /> Educational History
                       </h4>
@@ -367,7 +459,7 @@ export function StudentsPanel() {
                     </div>
 
                     {/* Uploaded Documents */}
-                    <div>
+                    <div className="border-t pt-4">
                       <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
                         <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                       </h4>

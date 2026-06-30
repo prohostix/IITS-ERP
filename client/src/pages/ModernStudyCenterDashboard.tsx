@@ -6,6 +6,7 @@ import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { StudyCenterWalletPanel } from '@/components/panels/StudyCenterWalletPanel';
 import { EnrollStudentPanel } from '@/components/panels/EnrollStudentPanel';
 import { StudyCenterEnrollmentsPanel } from '@/components/panels/StudyCenterEnrollmentsPanel';
+import { StudentsPanel } from '@/components/panels/StudentsPanel';
 import { TasksPanel } from '@/components/panels/TasksPanel';
 import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
@@ -36,6 +37,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="enroll">Enroll Student</TabsTrigger>
           <TabsTrigger value="enrollments">My Enrollments</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="marks">Internal Marks</TabsTrigger>
           <TabsTrigger value="programs">Programs & Materials</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -86,6 +88,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
         <TabsContent value="wallet"><StudyCenterWalletPanel /></TabsContent>
         <TabsContent value="enroll"><EnrollStudentPanel /></TabsContent>
         <TabsContent value="enrollments"><StudyCenterEnrollmentsPanel /></TabsContent>
+        <TabsContent value="students"><StudentsPanel /></TabsContent>
         <TabsContent value="marks"><InternalMarksPanel /></TabsContent>
         <TabsContent value="programs"><ProgramsPanel /></TabsContent>
         <TabsContent value="tasks"><TasksPanel /></TabsContent>
