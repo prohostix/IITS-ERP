@@ -300,6 +300,12 @@ export function ProgramFeeStructurePanel() {
     return selectedUniversityId === 'all' || pUniId === selectedUniversityId;
   });
 
+  // Filter programs based on selected university in the dialog form
+  const dialogFilteredPrograms = programs.filter(p => {
+    const pUniId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
+    return !form.universityId || pUniId === form.universityId;
+  });
+
   // Filter fee structures based on selected university
   const filteredFees = fees.filter(f => {
     if (f.level === 'university') {
@@ -693,7 +699,7 @@ export function ProgramFeeStructurePanel() {
                   required
                 >
                   <option value="">Select program...</option>
-                  {filteredPrograms.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+                  {dialogFilteredPrograms.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
                 </select>
               </div>
             )}
