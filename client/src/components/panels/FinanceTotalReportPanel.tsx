@@ -17,6 +17,16 @@ const statusColor = (s: string) => {
   return 'bg-blue-100 text-blue-700';
 };
 
+const fmtDate = (d: string | null | undefined): string => {
+  if (!d) return '-';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '-';
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const yyyy = dt.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
 interface FilterState {
   universityId: string;
   programId: string;
@@ -90,7 +100,7 @@ export function FinanceTotalReportPanel() {
       '#': i + 1,
       'Student': r.studentName,
       'Enrollment No': r.enrollmentNumber || '',
-      'Admission Date': r.admissionDate ? new Date(r.admissionDate).toLocaleDateString('en-IN') : '',
+      'Admission Date': fmtDate(r.admissionDate),
       'Admission Session': r.admissionSession,
       'Center Name': r.centerName,
       'Sub Center / Branch': r.subCenterName || '',
@@ -243,7 +253,7 @@ export function FinanceTotalReportPanel() {
                       <td className="px-3 py-2.5 font-medium whitespace-nowrap">{r.studentName}</td>
                       <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{r.enrollmentNumber || '-'}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap text-xs">
-                        {r.admissionDate ? new Date(r.admissionDate).toLocaleDateString('en-IN') : '-'}
+                        {fmtDate(r.admissionDate)}
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">{r.admissionSession || '-'}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">{r.centerName || '-'}</td>
