@@ -83,6 +83,7 @@ function LocationCard({ loc, index, onChange, onRemove, onSetDefault }: {
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const [expanded, setExpanded] = useState(index === 0);
+  const [mapLoaded, setMapLoaded] = useState(false); // track map init for render
 
   const initMap = () => {
     if (!mapRef.current || leafletMap.current) return;
@@ -112,6 +113,7 @@ function LocationCard({ loc, index, onChange, onRemove, onSetDefault }: {
       onChange({ ...loc, latitude: la, longitude: ln });
     });
     leafletMap.current = map;
+    setMapLoaded(true); // trigger re-render to hide the placeholder overlay
   };
 
   const useMyLocation = () => {
@@ -168,7 +170,7 @@ function LocationCard({ loc, index, onChange, onRemove, onSetDefault }: {
             onMouseEnter={initMap}
             onClick={initMap}
           >
-            {!leafletMap.current && (
+            {!mapLoaded && (
               <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 gap-2">
                 <MapPin className="w-6 h-6 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Click to load map</p>

@@ -122,14 +122,14 @@ export function CEOTasksPanel() {
     try {
       const res = await api.get('/departments');
       setDepartments(res.data.data || []);
-    } catch {}
+    } catch { /* intentionally silent */ }
   };
 
   const fetchManagers = async () => {
     try {
       const res = await api.get('/ceo/managers');
       setManagers(res.data.data || []);
-    } catch {}
+    } catch { /* intentionally silent */ }
   };
 
   useEffect(() => {

@@ -64,7 +64,7 @@ export function SalesInvitePanel() {
     try {
       const res = await api.get('/operations/universities');
       setUniversities(res.data.data || []);
-    } catch (_) {}
+    } catch (_ignored) { /* intentionally silent */ }
   };
 
   const fetchPrograms = async (uniIds: string[]) => {
@@ -73,7 +73,7 @@ export function SalesInvitePanel() {
     try {
       const res = await api.get(`/sales/programs-by-university?universityIds=${uniIds.join(',')}`);
       setPrograms(res.data.data || []);
-    } catch (_) {
+    } catch (_ignored) {
       setPrograms([]);
     } finally {
       setLoadingPrograms(false);

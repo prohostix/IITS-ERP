@@ -99,6 +99,7 @@ export function LeavesPanel() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchLeaves(); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {

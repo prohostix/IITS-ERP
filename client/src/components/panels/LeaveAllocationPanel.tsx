@@ -50,6 +50,7 @@ export function LeaveAllocationPanel() {
     sickLeave: 12, casualLeave: 12, earnedLeave: 15, complementaryLeave: 0,
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll(); }, [year]);
 
   const fetchAll = async () => {

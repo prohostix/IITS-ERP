@@ -53,6 +53,7 @@ export function ProfitLossPanel() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchReport(); }, []);
 
   const isProfit = (data?.totals.netProfit ?? 0) >= 0;

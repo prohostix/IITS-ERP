@@ -49,7 +49,7 @@ export function CommissionsPanel() {
       ]);
       setCommIn(inRes.data.data || []);
       setCommOut(outRes.data.data || []);
-    } catch (e) {
+    } catch (_ignored) {
       toast.error('Failed to load commissions data');
     } finally {
       setLoading(false);

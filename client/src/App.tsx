@@ -172,7 +172,7 @@ function App() {
           const res = await api.get('/sub-departments/my');
           const parentType = res.data.data?.subDepartment?.parentDeptId?.type;
           if (parentType) { setDeptType(parentType); return; }
-        } catch (_) {}
+        } catch (_ignored) { /* intentionally silent */ }
       } catch (err) {
         console.error('Failed to fetch dept type for nav:', err);
       }
@@ -185,9 +185,7 @@ function App() {
   // Only intercept if user is not logged in, to avoid breaking logged-in users with token params
   const urlParams = new URLSearchParams(window.location.search);
   const hasInviteToken = urlParams.has('token');
-  if (window.location.pathname === '/register' || (hasInviteToken && !user)) {
-    return <PublicRegisterPage />;
-  }
+  const isRegisterPage = window.location.pathname === '/register' || (hasInviteToken && !user);
 
   // Define available tables based on user role
   const getAvailableTables = () => {
@@ -307,14 +305,21 @@ function App() {
     return baseTables;
   };
 
-  const tables = useMemo(() => getAvailableTables(), [user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, deptType]);
+  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, deptType]);
 
   // Fetch data for active table — only when in table view mode
   useEffect(() => {
-    if (user && activeTable !== 'dashboard' && viewMode === 'table') {
+    if (!isRegisterPage && user && activeTable !== 'dashboard' && viewMode === 'table') {
       fetchTableData();
     }
-  }, [activeTable, user, viewMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRegisterPage, activeTable, user, viewMode]);
+
+  // Public register page early return — must be AFTER all hooks
+  if (isRegisterPage) {
+    return <PublicRegisterPage />;
+  }
+
 
   const handleTableChange = (table: string) => {
     // Section headers are non-clickable

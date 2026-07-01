@@ -259,6 +259,7 @@ export function EmployeeActivityReportPanel() {
     api.get('/departments').then(r => setDeptList(r.data.data || [])).catch(() => {});
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchReport(); }, [date, deptFilter]);
 
   const fetchReport = async () => {

@@ -79,6 +79,7 @@ export function FinanceEnrollmentsPanel() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(); }, []);
 
   const handleTabChange = (key: string) => {

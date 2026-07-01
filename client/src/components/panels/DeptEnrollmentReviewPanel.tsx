@@ -59,6 +59,7 @@ export function DeptEnrollmentReviewPanel() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetch(); }, [activeTab]);
 
   const handleApprove = async (id: string) => {

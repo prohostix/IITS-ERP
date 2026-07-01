@@ -25,26 +25,12 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
   const { user } = useAuth();
   const [departmentType, setDepartmentType] = useState<string | null>(null);
   const isBranchManager = Boolean((user as any)?.branchId);
-  // If this is an employee with a dept, start loading=true to prevent wrong-panel flash
   const [deptLoading, setDeptLoading] = useState(Boolean(useDepartmentDashboard) && !isBranchManager);
 
   const subDeptId = (user as any)?.subDepartmentId;
   const hasSubDept = Boolean(subDeptId);
 
-  // Branch managers always get the branch dashboard — skip all other routing
-  if (isBranchManager) {
-    return <ModernBranchManagerDashboard initialTab={initialTab} />;
-  }
-
-  useEffect(() => {
-    if (useDepartmentDashboard && (user?.departmentId || hasSubDept)) {
-      setDeptLoading(true);
-      fetchDepartmentType().finally(() => setDeptLoading(false));
-    } else if (useDepartmentDashboard) {
-      setDeptLoading(false);
-    }
-  }, [useDepartmentDashboard, user?.departmentId, hasSubDept]);
-
+  // fetchDepartmentType defined before useEffect so it can be in deps safely
   const fetchDepartmentType = async () => {
     try {
       // Try direct department object or departmentId first
@@ -89,13 +75,28 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
           const res = await api.get('/sub-departments/my');
           const parentType = res.data.data?.subDepartment?.parentDeptId?.type;
           if (parentType) { setDepartmentType(parentType); return; }
-        } catch (_) {}
+        } catch (_ignored) { /* intentionally silent */ }
       }
     } catch (error) {
       console.error('Failed to fetch department type:', error);
       setDepartmentType(null);
     }
   };
+
+  useEffect(() => {
+    if (useDepartmentDashboard && (user?.departmentId || hasSubDept)) {
+      setDeptLoading(true);
+      fetchDepartmentType().finally(() => setDeptLoading(false));
+    } else if (useDepartmentDashboard) {
+      setDeptLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useDepartmentDashboard, user?.departmentId, hasSubDept]);
+
+  // Branch managers always get the branch dashboard — skip all other routing
+  if (isBranchManager) {
+    return <ModernBranchManagerDashboard initialTab={initialTab} />;
+  }
 
   // While fetching department type, don't render anything yet to avoid flash
   if (useDepartmentDashboard && deptLoading) {

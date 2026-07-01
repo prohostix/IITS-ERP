@@ -321,10 +321,10 @@ export function HRPanel({ activeModule }: HRPanelProps) {
         columns={employeeColumns}
         title="All Employees"
         searchFields={['name', 'employeeId', 'email', 'designation']}
-        actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-          { label: 'Delete', onClick: () => console.log('Delete', row.id), variant: 'destructive' },
+        actions={() => [
+          { label: 'View', onClick: () => { /* view not yet implemented */ } },
+          { label: 'Edit', onClick: () => { /* edit not yet implemented */ } },
+          { label: 'Delete', onClick: () => { /* delete not yet implemented */ }, variant: 'destructive' },
         ]}
       />
     </div>
@@ -378,10 +378,10 @@ export function HRPanel({ activeModule }: HRPanelProps) {
         columns={vacancyColumns}
         title="All Vacancies"
         searchFields={['designation']}
-        actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-          { label: 'Close', onClick: () => console.log('Close', row.id) },
+        actions={() => [
+          { label: 'View', onClick: () => { /* view not yet implemented */ } },
+          { label: 'Edit', onClick: () => { /* edit not yet implemented */ } },
+          { label: 'Close', onClick: () => { /* close not yet implemented */ } },
         ]}
       />
     </div>
@@ -477,9 +477,9 @@ export function HRPanel({ activeModule }: HRPanelProps) {
             columns={leaveColumns}
             title="Pending Requests"
             searchFields={['reason']}
-            actions={(row) => [
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
+            actions={() => [
+              { label: 'Approve', onClick: () => { /* approve not yet implemented */ } },
+              { label: 'Reject', onClick: () => { /* reject not yet implemented */ }, variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -528,9 +528,9 @@ export function HRPanel({ activeModule }: HRPanelProps) {
             columns={complaintColumns}
             title="Open Complaints"
             searchFields={['subject', 'category']}
-            actions={(row) => [
-              { label: 'View', onClick: () => console.log('View', row.id) },
-              { label: 'Resolve', onClick: () => console.log('Resolve', row.id) },
+            actions={() => [
+              { label: 'View', onClick: () => { /* view not yet implemented */ } },
+              { label: 'Resolve', onClick: () => { /* resolve not yet implemented */ } },
             ]}
           />
         </TabsContent>

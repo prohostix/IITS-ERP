@@ -119,6 +119,7 @@ export function ProgramDetailPanel({
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchDetail(); }, [programId]);
 
   const handleUpload = async (e: React.FormEvent) => {

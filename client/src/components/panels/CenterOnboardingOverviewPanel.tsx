@@ -155,6 +155,7 @@ export function CenterOnboardingOverviewPanel({ mode = 'ceo' }: { mode?: 'ceo' |
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(); }, [mode]);
 
   const filteredCenters = statusFilter === 'all'

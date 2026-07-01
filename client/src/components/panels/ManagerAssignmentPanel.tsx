@@ -104,7 +104,7 @@ export function ManagerAssignmentPanel() {
       setDepartments(deptsWithSubs);
       // Filter out superadmin/org_admin for manager candidates
       setUsers(allUsers.filter((u) => !['superadmin', 'org_admin'].includes(u.role)));
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to load hierarchy data');
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export function ManagerAssignmentPanel() {
   const toggleExpand = (deptId: string) => {
     setExpandedDepts((prev) => {
       const next = new Set(prev);
-      next.has(deptId) ? next.delete(deptId) : next.add(deptId);
+      if (next.has(deptId)) { next.delete(deptId); } else { next.add(deptId); }
       return next;
     });
   };

@@ -59,6 +59,7 @@ export function IncomeExpenditurePanel() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchReport(); }, []);
 
   const chartData = data?.monthly.map(m => ({

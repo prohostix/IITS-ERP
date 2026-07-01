@@ -138,7 +138,7 @@ export function NotificationBell({ userId, organizationId, onNavigate }: Notific
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {}
+    } catch { /* intentionally silent */ }
   };
 
   const markAllRead = async () => {
@@ -146,7 +146,7 @@ export function NotificationBell({ userId, organizationId, onNavigate }: Notific
       await api.put('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch {}
+    } catch { /* intentionally silent */ }
   };
 
   const deleteNotif = async (id: string, wasUnread: boolean) => {
@@ -154,7 +154,7 @@ export function NotificationBell({ userId, organizationId, onNavigate }: Notific
       await api.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {}
+    } catch { /* intentionally silent */ }
   };
 
   return (

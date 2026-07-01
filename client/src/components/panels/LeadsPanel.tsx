@@ -63,7 +63,7 @@ export function LeadsPanel() {
     try {
       const response = await api.get('/referrals/my-links');
       setReferralLinks(response.data.data || []);
-    } catch (_) {}
+    } catch (_ignored) { /* intentionally silent */ }
   };
 
   const generateReferralLink = async () => {
