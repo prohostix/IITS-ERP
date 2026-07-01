@@ -265,6 +265,38 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       session:      { connect: { id: finalSessionId } },
     }
   });
+
+  // Notify Operations Users
+  try {
+    const opsUsers = await prisma.user.findMany({
+      where: { 
+        organizationId,
+        OR: [
+          { role: { in: ['ops_admin', 'ops_sub_admin'] } as any },
+          { role: 'employee' as any, department: { type: 'operations' } }
+        ]
+      }
+    });
+    
+    // Fetch program details for the message
+    const prog = await prisma.program.findUnique({ where: { id: programId } });
+    const programName = prog ? prog.name : '';
+
+    for (const opUser of opsUsers) {
+      await prisma.notification.create({
+        data: {
+          organizationId,
+          userId: opUser.id,
+          title: '📄 New Enrollment Pending Verification',
+          message: `A new enrollment for ${studentName} has been submitted by ${center.name} for ${programName}.`,
+          type: 'general' as any,
+          priority: 'medium' as any,
+          link: 'enrollment_review'
+        }
+      });
+    }
+  } catch (_) {}
+
   res.status(201).json({ success: true, data: enrollment });
 });
 
