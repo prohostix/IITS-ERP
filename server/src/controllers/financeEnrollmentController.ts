@@ -178,6 +178,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     const student = await tx.student.create({
       data: {
         name: dbEnrollment.studentName,
+        email: dbEnrollment.studentEmail,
         enrollmentNo,
         phone: dbEnrollment.studentPhone,
         address: dbEnrollment.studentAddress,
@@ -197,7 +198,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         status: 'active',
         organization: { connect: { id: req.user.organizationId } },
         center: { connect: { id: dbEnrollment.studyCenterId } },
-        user: { connect: { id: user.id } },
+        user: { connect: { email: dbEnrollment.studentEmail } },
         program: { connect: { id: dbEnrollment.programId } }
       }
     });
