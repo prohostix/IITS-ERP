@@ -44,6 +44,7 @@ import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
+import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -134,6 +135,7 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       case 'notice-board': return <NoticeBoardPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'total_report': return <FinanceTotalReportPanel />;
+      case 'commissions': return <CommissionsPanel />;
       default: return null;
     }
   };
@@ -173,6 +175,7 @@ export function getFinanceNavItems() {
     { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'sales_targets', label: 'Sales Targets' },
     { id: 'total_report', label: 'Total Data Report' },
+    { id: 'commissions', label: 'Commissions' },
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'tasks', label: 'Tasks' },
     { id: 'escalations', label: 'Escalations' },

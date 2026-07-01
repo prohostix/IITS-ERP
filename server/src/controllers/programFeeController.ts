@@ -45,7 +45,7 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees } = req.body;
+  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees, commissionRate } = req.body;
 
   // For program level, check if structure already exists
   if (level === 'program' && programId) {
@@ -84,6 +84,7 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
       baseFee: baseFee !== undefined ? parseFloat(baseFee) : 0,
       universityFee: universityFee !== undefined ? parseFloat(universityFee) : 0,
       additionalFees: additionalFees || [],
+      commissionRate: commissionRate !== undefined ? parseFloat(commissionRate) : 0,
       organizationId: req.user.organizationId,
       createdBy: req.user.id
     }
@@ -92,7 +93,7 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees } = req.body;
+  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees, commissionRate } = req.body;
   const data: any = {};
   if (level !== undefined) data.level = level;
   if (programId !== undefined) data.programId = level === 'program' ? programId : null;
@@ -102,6 +103,7 @@ export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
   if (baseFee !== undefined) data.baseFee = parseFloat(baseFee);
   if (universityFee !== undefined) data.universityFee = parseFloat(universityFee);
   if (additionalFees !== undefined) data.additionalFees = additionalFees;
+  if (commissionRate !== undefined) data.commissionRate = parseFloat(commissionRate);
 
   const fee = await prisma.programFeeStructure.update({
     where: { id: req.params.id },

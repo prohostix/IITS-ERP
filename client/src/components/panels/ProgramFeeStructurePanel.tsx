@@ -25,6 +25,7 @@ interface ProgramFee {
   examFee?: number;
   gstPercentage?: number;
   universityFee?: number;
+  commissionRate?: number;
 }
 
 interface University {
@@ -86,7 +87,8 @@ export function ProgramFeeStructurePanel() {
     gstPercentage: '18',
     universityFee: '0',
     effectiveFrom: '', 
-    additionalFees: '' 
+    additionalFees: '',
+    commissionRate: '0'
   });
 
   const fetchAllData = async () => {
@@ -135,7 +137,8 @@ export function ProgramFeeStructurePanel() {
       gstPercentage: '18',
       universityFee: '0',
       effectiveFrom: '', 
-      additionalFees: '' 
+      additionalFees: '',
+      commissionRate: '0'
     });
     setOpen(true);
   };
@@ -170,6 +173,7 @@ export function ProgramFeeStructurePanel() {
       universityFee: fee.universityFee ? String(fee.universityFee) : '0',
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
       additionalFees: otherFees.map(f => `${f.label}:${f.amount}`).join(', '),
+      commissionRate: String(fee.commissionRate || 0),
     });
     setOpen(true);
   };
@@ -217,6 +221,7 @@ export function ProgramFeeStructurePanel() {
         currency: form.currency,
         effectiveFrom: form.effectiveFrom || undefined,
         additionalFees: addFees,
+        commissionRate: Number(form.commissionRate || 0),
       };
 
       if (editing) {
@@ -761,9 +766,15 @@ export function ProgramFeeStructurePanel() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label>Effective From</Label>
-              <Input type="date" value={form.effectiveFrom} onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Effective From</Label>
+                <Input type="date" value={form.effectiveFrom} onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>Commission Rate (%)</Label>
+                <Input type="number" step="0.01" value={form.commissionRate} onChange={e => setForm(f => ({ ...f, commissionRate: e.target.value }))} placeholder="0" />
+              </div>
             </div>
             
             <div className="space-y-1">

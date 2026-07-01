@@ -80,6 +80,8 @@ model Organization {
   vacancies             Vacancy[]
   walletTopUps          WalletTopUp[]
   studentStatusRequests StudentStatusRequest[]
+  commissionIns         CommissionIn[]
+  commissionOuts        CommissionOut[]
 
   @@index([status])
 }
@@ -420,6 +422,7 @@ model StudyCenter {
   allowedPrograms        Program[]           @relation("ProgramToStudyCenter")
   assignedSubDepts       SubDepartment[]     @relation("SubDeptToCenter")
   associatedUniversities University[]        @relation("UniversityToStudyCenter")
+  commissionOuts         CommissionOut[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -878,6 +881,7 @@ model Enrollment {
   studyCenter          StudyCenter        @relation(fields: [studyCenterId], references: [id])
   universityReviewer   User?              @relation("UniversityReviewedBy", fields: [universityReviewedBy], references: [id])
   payment              EnrollmentPayment?
+  commissionIn         CommissionIn?
 
   @@unique([studentId, programId, sessionId])
   @@index([organizationId, status])
@@ -1411,6 +1415,7 @@ model ProgramFeeStructure {
   baseFee            Float
   universityFee      Float             @default(0)
   additionalFees     Json              @default("[]")
+  commissionRate     Float             @default(0)
   createdBy          String
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -1654,5 +1659,39 @@ model StudentStatusRequest {
 
   student           Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model CommissionIn {
+  id             String          @id @default(uuid())
+  organizationId String
+  enrollmentId   String          @unique
+  expectedAmount Float
+  receivedAmount Float           @default(0)
+  status         String          @default("pending") // "pending", "received"
+  receivedAt     DateTime?
+  paymentDetails String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  enrollment     Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  commissionOuts CommissionOut[]
+}
+
+model CommissionOut {
+  id             String       @id @default(uuid())
+  organizationId String
+  studyCenterId  String
+  commissionInId String
+  amount         Float
+  status         String       @default("pending") // "pending", "paid"
+  paidAt         DateTime?
+  paymentDetails String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  commissionIn   CommissionIn @relation(fields: [commissionInId], references: [id], onDelete: Cascade)
+  studyCenter    StudyCenter  @relation(fields: [studyCenterId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 

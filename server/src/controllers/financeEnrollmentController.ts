@@ -193,6 +193,26 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     });
   });
 
+  // Automatically calculate and create expected CommissionIn
+  if (feeStructure.commissionRate && feeStructure.commissionRate > 0) {
+    const expectedAmount = (feeStructure.baseFee * feeStructure.commissionRate) / 100;
+    if (expectedAmount > 0) {
+      const existingComm = await prisma.commissionIn.findUnique({
+        where: { enrollmentId: enrollment.id }
+      });
+      if (!existingComm) {
+        await prisma.commissionIn.create({
+          data: {
+            organizationId: req.user.organizationId,
+            enrollmentId: enrollment.id,
+            expectedAmount,
+            status: 'pending'
+          }
+        });
+      }
+    }
+  }
+
   if (enrollment.studentId && enrollment.programId) {
     if (feeStructure.universityFee && feeStructure.universityFee > 0) {
       const existing = await prisma.universityFeePayment.findUnique({
