@@ -28,8 +28,28 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     
     // Pipeline stats
     metrics.totalLeads = await prisma.lead.count({ where: { organizationId: organizationId } });
-    metrics.pendingApplications = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'pending' as any } });
-    metrics.verifiedApplications = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'enrolled' as any } });
+    metrics.pendingApplications = await prisma.enrollment.count({ 
+      where: { organizationId: organizationId, status: { in: ['submitted', 'document_review'] } as any } 
+    });
+    metrics.verifiedApplications = await prisma.enrollment.count({ 
+      where: { organizationId: organizationId, status: 'finance_review' as any } 
+    });
+    metrics.enrolledStudents = await prisma.enrollment.count({ 
+      where: { organizationId: organizationId, status: 'enrolled' as any } 
+    });
+
+    // Urgent actions
+    const urgentActions = [];
+    if (metrics.pendingApplications > 0) {
+      urgentActions.push({
+        type: 'warning',
+        title: 'Pending Enrollments Review',
+        desc: `${metrics.pendingApplications} student enrollment(s) are pending document verification.`,
+        btnText: 'Review Now',
+        tab: 'enrollment_review'
+      });
+    }
+    metrics.urgentActions = urgentActions;
   }
 
   if (['hr_admin', 'ceo', 'org_admin'].includes(role)) {
