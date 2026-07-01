@@ -263,39 +263,25 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 
   // Create notifications
   try {
-    // Notify Center Admins
     const centerAdmins = await prisma.user.findMany({
       where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
     });
-    for (const admin of centerAdmins) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: admin.id,
-          title: '🎉 Student Enrolled',
-          message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'enrollments'
-        }
-      });
-    }
+    const recipients = centerAdmins.map(a => a.id);
+    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
 
-    // Notify Sales User if exists
-    if (enrollment.salesUserId) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: enrollment.salesUserId,
-          title: '🎉 Student Enrolled',
-          message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'student-applications'
-        }
-      });
-    }
-  } catch (_) {}
+    // Batch create all notifications in a single DB call
+    await prisma.notification.createMany({
+      data: recipients.map(userId => ({
+        organizationId: req.user.organizationId,
+        userId,
+        title: '🎉 Student Enrolled',
+        message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
+        type: 'general' as any,
+        priority: 'high' as any,
+        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
+      }))
+    });
+  } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
 });
@@ -309,39 +295,25 @@ export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res
 
   // Create notifications
   try {
-    // Notify Center Admins
     const centerAdmins = await prisma.user.findMany({
       where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
     });
-    for (const admin of centerAdmins) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: admin.id,
-          title: '❌ Enrollment Rejected by Finance',
-          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'enrollments'
-        }
-      });
-    }
+    const recipients = centerAdmins.map(a => a.id);
+    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
 
-    // Notify Sales User if exists
-    if (enrollment.salesUserId) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: enrollment.salesUserId,
-          title: '❌ Enrollment Rejected by Finance',
-          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'student-applications'
-        }
-      });
-    }
-  } catch (_) {}
+    // Batch create all notifications in a single DB call
+    await prisma.notification.createMany({
+      data: recipients.map(userId => ({
+        organizationId: req.user.organizationId,
+        userId,
+        title: '❌ Enrollment Rejected by Finance',
+        message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+        type: 'general' as any,
+        priority: 'high' as any,
+        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
+      }))
+    });
+  } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
 });

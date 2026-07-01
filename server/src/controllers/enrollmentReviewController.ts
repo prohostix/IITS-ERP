@@ -35,25 +35,23 @@ export const approveDeptEnrollment = asyncHandler(async (req: AuthRequest, res: 
     include: { program: true }
   });
 
-  // Notify Finance Admins
+  // Notify Finance Admins - batch insert instead of N+1
   try {
     const financeAdmins = await prisma.user.findMany({
       where: { organizationId: req.user.organizationId, role: 'finance_admin' as any }
     });
-    for (const admin of financeAdmins) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: admin.id,
-          title: '📄 Enrollment Pending Fee Verification',
-          message: `${enrollment.studentName} has been approved by Operations and is pending fee verification for ${enrollment.program.name}.`,
-          type: 'general' as any,
-          priority: 'medium' as any,
-          link: 'enrollments_finance'
-        }
-      });
-    }
-  } catch (_) {}
+    await prisma.notification.createMany({
+      data: financeAdmins.map(admin => ({
+        organizationId: req.user.organizationId,
+        userId: admin.id,
+        title: '📄 Enrollment Pending Fee Verification',
+        message: `${enrollment.studentName} has been approved by Operations and is pending fee verification for ${enrollment.program.name}.`,
+        type: 'general' as any,
+        priority: 'medium' as any,
+        link: 'enrollments_finance'
+      }))
+    });
+  } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
 });
@@ -65,39 +63,25 @@ export const rejectDeptEnrollment = asyncHandler(async (req: AuthRequest, res: R
     include: { program: true }
   });
 
-  // Notify Study Center and Sales User
+  // Notify Study Center and Sales User - batch insert instead of N+1
   try {
     const centerAdmins = await prisma.user.findMany({
       where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
     });
-    for (const admin of centerAdmins) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: admin.id,
-          title: '❌ Enrollment Rejected by Operations',
-          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'enrollments'
-        }
-      });
-    }
-
-    if (enrollment.salesUserId) {
-      await prisma.notification.create({
-        data: {
-          organizationId: req.user.organizationId,
-          userId: enrollment.salesUserId,
-          title: '❌ Enrollment Rejected by Operations',
-          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-          type: 'general' as any,
-          priority: 'high' as any,
-          link: 'student-applications'
-        }
-      });
-    }
-  } catch (_) {}
+    const recipients = centerAdmins.map(a => a.id);
+    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
+    await prisma.notification.createMany({
+      data: recipients.map(userId => ({
+        organizationId: req.user.organizationId,
+        userId,
+        title: '❌ Enrollment Rejected by Operations',
+        message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+        type: 'general' as any,
+        priority: 'high' as any,
+        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
+      }))
+    });
+  } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
 });

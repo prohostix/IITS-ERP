@@ -282,20 +282,19 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     const prog = await prisma.program.findUnique({ where: { id: programId } });
     const programName = prog ? prog.name : '';
 
-    for (const opUser of opsUsers) {
-      await prisma.notification.create({
-        data: {
-          organizationId,
-          userId: opUser.id,
-          title: '📄 New Enrollment Pending Verification',
-          message: `A new enrollment for ${studentName} has been submitted by ${center.name} for ${programName}.`,
-          type: 'general' as any,
-          priority: 'medium' as any,
-          link: 'enrollment_review'
-        }
-      });
-    }
-  } catch (_) {}
+    // Batch create notifications in a single DB call instead of N+1 loop
+    await prisma.notification.createMany({
+      data: opsUsers.map(opUser => ({
+        organizationId,
+        userId: opUser.id,
+        title: '📄 New Enrollment Pending Verification',
+        message: `A new enrollment for ${studentName} has been submitted by ${center.name} for ${programName}.`,
+        type: 'general' as any,
+        priority: 'medium' as any,
+        link: 'enrollment_review'
+      }))
+    });
+  } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.status(201).json({ success: true, data: enrollment });
 });
