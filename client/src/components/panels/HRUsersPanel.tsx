@@ -136,7 +136,7 @@ export function HRUsersPanel() {
       );
       setUsers(staffUsers);
     } catch (_error) {
-      console.error('Failed to fetch users:', error);
+      console.error('Failed to fetch users:', _error);
     } finally {
       setLoading(false);
     }
@@ -147,7 +147,7 @@ export function HRUsersPanel() {
       const response = await api.get('/departments');
       setDepartments(response.data.data || response.data || []);
     } catch (_error) {
-      console.error('Failed to fetch departments:', error);
+      console.error('Failed to fetch departments:', _error);
     }
   };
 
@@ -156,7 +156,7 @@ export function HRUsersPanel() {
       const response = await api.get('/sub-departments');
       setSubDepartments(response.data.data || response.data || []);
     } catch (_error) {
-      console.error('Failed to fetch sub-departments:', error);
+      console.error('Failed to fetch sub-departments:', _error);
     }
   };
 
@@ -174,7 +174,7 @@ export function HRUsersPanel() {
       const response = await api.get(`/sub-departments?parentDeptId=${parentId}`);
       setSubDepartments(response.data.data || response.data || []);
     } catch (_error) {
-      console.error('Failed to fetch sub-departments:', error);
+      console.error('Failed to fetch sub-departments:', _error);
     }
   };
 
@@ -207,7 +207,7 @@ export function HRUsersPanel() {
       resetForm();
       fetchUsers();
     } catch (_error) {
-      console.error('Failed to save user:', error);
+      console.error('Failed to save user:', _error);
       alert('Failed to save user. Please try again.');
     }
   };
@@ -230,7 +230,7 @@ export function HRUsersPanel() {
       fetchUsers();
       alert('Employee transferred successfully!');
     } catch (_error) {
-      console.error('Failed to transfer employee:', error);
+      console.error('Failed to transfer employee:', _error);
       alert('Failed to transfer employee. Please try again.');
     }
   };
@@ -254,7 +254,7 @@ export function HRUsersPanel() {
       fetchUsers();
       alert(`Employee ${promotionData.type === 'promotion' ? 'promoted' : 'demoted'} successfully!`);
     } catch (_error) {
-      console.error(`Failed to ${promotionData.type} employee:`, error);
+      console.error(`Failed to ${promotionData.type} employee:`, _error);
       alert(`Failed to ${promotionData.type} employee. Please try again.`);
     }
   };
@@ -281,7 +281,7 @@ export function HRUsersPanel() {
       setSelectedUserId(null);
       alert('Password updated successfully!');
     } catch (_error) {
-      console.error('Failed to update password:', error);
+      console.error('Failed to update password:', _error);
       alert('Failed to update password. Please try again.');
     }
   };
@@ -293,7 +293,7 @@ export function HRUsersPanel() {
       await api.delete(`/users/${userId}`);
       fetchUsers();
     } catch (_error) {
-      console.error('Failed to delete user:', error);
+      console.error('Failed to delete user:', _error);
       alert('Failed to delete user. Please try again.');
     }
   };

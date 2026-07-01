@@ -112,7 +112,7 @@ export function StudyCentersPanel() {
       const res = await api.get('/operations/centers');
       setCenters(res.data.data || []);
     } catch (_err) {
-      console.error('Failed to fetch centers:', err);
+      console.error('Failed to fetch centers:', _err);
     } finally {
       setLoading(false);
     }
@@ -321,7 +321,7 @@ export function StudyCentersPanel() {
       await api.delete(`/operations/centers/${id}`);
       fetchCenters();
     } catch (_err) {
-      console.error('Failed to delete center:', err);
+      console.error('Failed to delete center:', _err);
     }
   };
 
