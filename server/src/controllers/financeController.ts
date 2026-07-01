@@ -810,7 +810,7 @@ export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: R
   const users = await prisma.user.findMany({
     where: {
       organizationId: req.user.organizationId,
-      role: { in: ['sales_admin', 'bde'] }
+      role: { in: ['sales_admin', 'bde', 'employee'] }
     }
   });
   res.json({ success: true, data: users });
