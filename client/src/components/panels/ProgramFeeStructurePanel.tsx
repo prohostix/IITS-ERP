@@ -658,28 +658,6 @@ export function ProgramFeeStructurePanel() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
             
-            {/* Level selection buttons */}
-            <div className="space-y-1.5">
-              <Label>Fee Level</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  type="button" 
-                  variant={form.level === 'program' ? 'default' : 'outline'}
-                  onClick={() => setForm(f => ({ ...f, level: 'program' }))}
-                  className={`w-full ${form.level === 'program' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}`}
-                >
-                  📚 Program Level
-                </Button>
-                <Button 
-                  type="button" 
-                  variant={form.level === 'university' ? 'default' : 'outline'}
-                  onClick={() => setForm(f => ({ ...f, level: 'university' }))}
-                  className={`w-full ${form.level === 'university' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}`}
-                >
-                  🏫 University Level
-                </Button>
-              </div>
-            </div>
 
             <div className="space-y-1">
               <Label>University <span className="text-destructive">*</span></Label>
