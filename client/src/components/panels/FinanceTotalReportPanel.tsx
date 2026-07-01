@@ -22,6 +22,8 @@ interface FilterState {
   programId: string;
   sessionId: string;
   search: string;
+  dateFrom: string;
+  dateTo: string;
 }
 
 const EMPTY_FILTERS: FilterState = {
@@ -29,6 +31,8 @@ const EMPTY_FILTERS: FilterState = {
   programId: '__all__',
   sessionId: '__all__',
   search: '',
+  dateFrom: '',
+  dateTo: '',
 };
 
 export function FinanceTotalReportPanel() {
@@ -51,6 +55,8 @@ export function FinanceTotalReportPanel() {
     if (appliedFilters.programId !== '__all__') params.set('programId', appliedFilters.programId);
     if (appliedFilters.sessionId !== '__all__') params.set('sessionId', appliedFilters.sessionId);
     if (appliedFilters.search) params.set('search', appliedFilters.search);
+    if (appliedFilters.dateFrom) params.set('dateFrom', appliedFilters.dateFrom);
+    if (appliedFilters.dateTo) params.set('dateTo', appliedFilters.dateTo);
 
     setLoading(true);
     api.get(`/finance/total-report?${params.toString()}`)
@@ -84,6 +90,7 @@ export function FinanceTotalReportPanel() {
       '#': i + 1,
       'Student': r.studentName,
       'Enrollment No': r.enrollmentNumber || '',
+      'Admission Date': r.admissionDate ? new Date(r.admissionDate).toLocaleDateString('en-IN') : '',
       'Admission Session': r.admissionSession,
       'Center Name': r.centerName,
       'Sub Center / Branch': r.subCenterName || '',
@@ -146,7 +153,7 @@ export function FinanceTotalReportPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -155,6 +162,22 @@ export function FinanceTotalReportPanel() {
                 value={uiFilters.search}
                 onChange={e => setUiFilters(f => ({ ...f, search: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && handleApply()}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground pl-1">From Date</label>
+              <Input
+                type="date"
+                value={uiFilters.dateFrom}
+                onChange={e => setUiFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground pl-1">To Date</label>
+              <Input
+                type="date"
+                value={uiFilters.dateTo}
+                onChange={e => setUiFilters(f => ({ ...f, dateTo: e.target.value }))}
               />
             </div>
             <Select value={uiFilters.universityId} onValueChange={v => setUiFilters(f => ({ ...f, universityId: v }))}>
@@ -201,7 +224,7 @@ export function FinanceTotalReportPanel() {
                 <thead className="bg-muted/60 border-b">
                   <tr>
                     {[
-                      '#', 'Student', 'Enroll No', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
+                      '#', 'Student', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
                       'Program', 'University',
                       'Payment (INR)', 'Payment Status', 'Payment For',
                       'University Payment (INR)', 'Uni. Payment Status',
@@ -219,6 +242,9 @@ export function FinanceTotalReportPanel() {
                       <td className="px-3 py-2.5 text-muted-foreground text-xs">{i + 1}</td>
                       <td className="px-3 py-2.5 font-medium whitespace-nowrap">{r.studentName}</td>
                       <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{r.enrollmentNumber || '-'}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                        {r.admissionDate ? new Date(r.admissionDate).toLocaleDateString('en-IN') : '-'}
+                      </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">{r.admissionSession || '-'}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">{r.centerName || '-'}</td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{r.subCenterName || '-'}</td>

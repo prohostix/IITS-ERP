@@ -867,7 +867,7 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
 // ─── Total Data Report ─────────────────────────────────────────────────────────
 
 export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { universityId, programId, sessionId, search } = req.query as Record<string, string>;
+  const { universityId, programId, sessionId, search, dateFrom, dateTo } = req.query as Record<string, string>;
 
   // Fetch fee structures first so we can build university→programId mapping
   const feeStructures = await prisma.programFeeStructure.findMany({
@@ -914,6 +914,12 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       organizationId: req.user.organizationId,
       ...programIdFilter,
       ...(sessionId && { sessionId }),
+      ...(dateFrom || dateTo ? {
+        admissionDate: {
+          ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+          ...(dateTo ? { lte: new Date(dateTo + 'T23:59:59.999Z') } : {}),
+        }
+      } : {}),
       ...(search && {
         OR: [
           { studentName: { contains: search, mode: 'insensitive' } },
@@ -967,6 +973,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       id: enrollment.id,
       studentName: enrollment.studentName,
       enrollmentNumber: enrollment.enrollmentNumber,
+      admissionDate: enrollment.admissionDate || enrollment.createdAt,
       admissionSession: enrollment.session?.name || '',
       centerName: enrollment.studyCenter?.name || '',
       subCenterName: enrollment.studyCenter?.branchName || '',
