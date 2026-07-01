@@ -17,6 +17,8 @@ interface Program {
   specialisations?: string[];
   university?: { id: string; name: string; code: string };
   programFeeStructure?: {
+    level: string;
+    admissionSessionId?: string | null;
     baseFee: number;
     currency: string;
     billingCycle?: string;
@@ -143,7 +145,22 @@ export function EnrollStudentPanel() {
 
   const getTotalFee = (p: Program) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
-    const fs = p.programFeeStructure[0];
+    
+    // Find fee structure for the selected session
+    let fs = p.programFeeStructure.find(
+      f => f.level === 'program' && f.admissionSessionId === selectedSessionId
+    );
+    
+    // Fallback 1: Any program level fee structure
+    if (!fs) {
+      fs = p.programFeeStructure.find(f => f.level === 'program');
+    }
+    
+    // Fallback 2: Any fee structure
+    if (!fs) {
+      fs = p.programFeeStructure[0];
+    }
+    
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
     const nonGstFees = addFees.filter(f => f.label !== 'GST');
     const subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);

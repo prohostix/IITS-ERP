@@ -81,13 +81,36 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     return;
   }
 
-  // 2. Fetch program fee structure
-  const feeStructure = await prisma.programFeeStructure.findFirst({
+  // 2. Fetch program fee structure matching session
+  let feeStructure = await prisma.programFeeStructure.findFirst({
     where: {
       organizationId: req.user.organizationId,
-      programId: dbEnrollment.programId
+      programId: dbEnrollment.programId,
+      admissionSessionId: dbEnrollment.sessionId,
+      level: 'program'
     }
   });
+
+  // Fallback 1: Any program level structure
+  if (!feeStructure) {
+    feeStructure = await prisma.programFeeStructure.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        programId: dbEnrollment.programId,
+        level: 'program'
+      }
+    });
+  }
+
+  // Fallback 2: Any available structure
+  if (!feeStructure) {
+    feeStructure = await prisma.programFeeStructure.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        programId: dbEnrollment.programId
+      }
+    });
+  }
 
   if (!feeStructure) {
     res.status(400).json({ success: false, message: 'Program fee structure is not configured' });
