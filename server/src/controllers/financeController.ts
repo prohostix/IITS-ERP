@@ -869,10 +869,50 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
 export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { universityId, programId, sessionId, search } = req.query as Record<string, string>;
 
+  // Fetch fee structures first so we can build university→programId mapping
+  const feeStructures = await prisma.programFeeStructure.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      program: { select: { id: true, name: true } },
+      university: { select: { id: true, name: true } },
+      admissionSession: { select: { id: true, name: true } },
+    },
+  });
+
+  // If universityId filter is set, collect the programIds linked to that university
+  let programIdsForUniversity: string[] | undefined;
+  if (universityId) {
+    const matched = feeStructures
+      .filter(f => f.universityId === universityId && f.programId)
+      .map(f => f.programId as string);
+    programIdsForUniversity = [...new Set(matched)];
+    // If no programs link to this university, return empty immediately
+    if (programIdsForUniversity.length === 0) {
+      res.json({ success: true, count: 0, data: [] });
+      return;
+    }
+  }
+
+  // Build final programId filter: if both universityId AND programId filters active,
+  // use the intersection; otherwise use whichever is set
+  let programIdFilter: { programId: string } | { programId: { in: string[] } } | undefined;
+  if (programId && programIdsForUniversity) {
+    // Both filters — intersection
+    if (!programIdsForUniversity.includes(programId)) {
+      res.json({ success: true, count: 0, data: [] });
+      return;
+    }
+    programIdFilter = { programId };
+  } else if (programId) {
+    programIdFilter = { programId };
+  } else if (programIdsForUniversity) {
+    programIdFilter = { programId: { in: programIdsForUniversity } };
+  }
+
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: req.user.organizationId,
-      ...(programId && { programId }),
+      ...programIdFilter,
       ...(sessionId && { sessionId }),
       ...(search && {
         OR: [
@@ -890,30 +930,16 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     orderBy: { createdAt: 'desc' },
   });
 
-  // Fetch university fee payments for all students in these enrollments
+  // Fetch university fee payments for enrolled students
   const studentIds = [...new Set(enrollments.map(e => e.studentId).filter(Boolean))] as string[];
   const universityPayments = studentIds.length > 0
     ? await prisma.universityFeePayment.findMany({
         where: {
           organizationId: req.user.organizationId,
           studentId: { in: studentIds },
-          ...(universityId && { enrollmentId: { in: enrollments.filter(e => {
-            // We'll filter by university in the fee structure join below
-            return true;
-          }).map(e => e.id) } }),
         },
       })
     : [];
-
-  // Fetch fee structures to get coordinator fee info
-  const feeStructures = await prisma.programFeeStructure.findMany({
-    where: { organizationId: req.user.organizationId },
-    include: {
-      program: { select: { id: true, name: true } },
-      university: { select: { id: true, name: true } },
-      admissionSession: { select: { id: true, name: true } },
-    },
-  });
 
   const uniPaymentMap: Record<string, any[]> = {};
   for (const up of universityPayments) {
@@ -925,21 +951,17 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 
   const rows = enrollments.map(enrollment => {
     const payment = enrollment.payment;
-    const uniPayments = uniPaymentMap[enrollment.id] || [];
-    const uniPayment = uniPayments[0] || null;
+    const uniPayment = (uniPaymentMap[enrollment.id] || [])[0] || null;
 
-    // Find matching fee structure
-    const feeStruct = feeStructures.find(f =>
-      f.programId === enrollment.programId &&
-      (f.admissionSessionId === enrollment.sessionId || !f.admissionSessionId)
-    );
+    // Find best-matching fee structure (session-specific first, then program-only)
+    const feeStruct =
+      feeStructures.find(f => f.programId === enrollment.programId && f.admissionSessionId === enrollment.sessionId) ||
+      feeStructures.find(f => f.programId === enrollment.programId && !f.admissionSessionId);
 
-    // Extract coordinator fee from additionalFees JSON
     const additionalFees: any[] = Array.isArray(feeStruct?.additionalFees) ? feeStruct.additionalFees : [];
-    const coordinatorFee = additionalFees.find((f: any) => f.label?.toLowerCase().includes('coordinator') || f.type?.toLowerCase().includes('coordinator'));
-
-    // University filter: if a university filter is applied and fee structure doesn't match, skip
-    if (universityId && feeStruct?.universityId && feeStruct.universityId !== universityId) return null;
+    const coordinatorFee = additionalFees.find((f: any) =>
+      f.label?.toLowerCase().includes('coordinator') || f.type?.toLowerCase().includes('coordinator')
+    );
 
     return {
       id: enrollment.id,
@@ -950,26 +972,21 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       subCenterName: enrollment.studyCenter?.branchName || '',
       program: enrollment.program?.name || '',
       university: feeStruct?.university?.name || '',
-
-      // Center payment (EnrollmentPayment = wallet debit at enrollment)
       centerPaymentAmount: payment?.amount || null,
       centerPaymentStatus: payment ? 'Paid' : 'Due',
       centerPaymentFor: enrollment.status || '',
-
-      // University payment
       universityPaymentAmount: uniPayment?.amount || null,
       universityPaymentStatus: uniPayment?.status || 'pending',
-
-      // Coordinator fee from fee structure
       coordinatorName: coordinatorFee?.coordinator || null,
       coordinatorPaymentAmount: coordinatorFee?.amount || null,
-      coordinatorPaymentStatus: coordinatorFee ? (uniPayment?.status === 'paid' ? 'paid' : 'Due') : 'Not Applicable',
-
-      // Raw enrollment status
+      coordinatorPaymentStatus: coordinatorFee
+        ? (uniPayment?.status === 'paid' ? 'paid' : 'Due')
+        : 'Not Applicable',
       enrollmentStatus: enrollment.status,
     };
-  }).filter(Boolean);
+  });
 
   res.json({ success: true, count: rows.length, data: rows });
 });
+
 

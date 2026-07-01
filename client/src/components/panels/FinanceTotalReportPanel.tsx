@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,19 +17,49 @@ const statusColor = (s: string) => {
   return 'bg-blue-100 text-blue-700';
 };
 
+interface FilterState {
+  universityId: string;
+  programId: string;
+  sessionId: string;
+  search: string;
+}
+
+const EMPTY_FILTERS: FilterState = {
+  universityId: '__all__',
+  programId: '__all__',
+  sessionId: '__all__',
+  search: '',
+};
+
 export function FinanceTotalReportPanel() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [search, setSearch] = useState('');
-  const [universityId, setUniversityId] = useState('__all__');
-  const [programId, setProgramId] = useState('__all__');
-  const [sessionId, setSessionId] = useState('__all__');
+  // UI filter state (what the user sees in the dropdowns)
+  const [uiFilters, setUiFilters] = useState<FilterState>(EMPTY_FILTERS);
+  // Applied filter state (what is actually sent to the server)
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
 
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
 
+  // Fetch report whenever appliedFilters changes — no stale closure issues
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (appliedFilters.universityId !== '__all__') params.set('universityId', appliedFilters.universityId);
+    if (appliedFilters.programId !== '__all__') params.set('programId', appliedFilters.programId);
+    if (appliedFilters.sessionId !== '__all__') params.set('sessionId', appliedFilters.sessionId);
+    if (appliedFilters.search) params.set('search', appliedFilters.search);
+
+    setLoading(true);
+    api.get(`/finance/total-report?${params.toString()}`)
+      .then(res => setRows(res.data.data || []))
+      .catch(() => toast.error('Failed to load report'))
+      .finally(() => setLoading(false));
+  }, [appliedFilters]);
+
+  // Load filter options on mount
   useEffect(() => {
     Promise.all([
       api.get('/operations/universities').catch(() => ({ data: { data: [] } })),
@@ -40,38 +70,13 @@ export function FinanceTotalReportPanel() {
       setPrograms(pRes.data.data || []);
       setSessions(sRes.data.data || []);
     });
-    fetchReport({});
   }, []);
 
-  const fetchReport = useCallback(async (overrides: any) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      const uid = overrides.universityId !== undefined ? overrides.universityId : universityId;
-      const pid = overrides.programId !== undefined ? overrides.programId : programId;
-      const sid = overrides.sessionId !== undefined ? overrides.sessionId : sessionId;
-      const s = overrides.search !== undefined ? overrides.search : search;
-      if (uid && uid !== '__all__') params.set('universityId', uid);
-      if (pid && pid !== '__all__') params.set('programId', pid);
-      if (sid && sid !== '__all__') params.set('sessionId', sid);
-      if (s) params.set('search', s);
-      const res = await api.get(`/finance/total-report?${params.toString()}`);
-      setRows(res.data.data || []);
-    } catch (err: any) {
-      toast.error('Failed to load report');
-    } finally {
-      setLoading(false);
-    }
-  }, [universityId, programId, sessionId, search]);
-
-  const handleFilter = () => fetchReport({});
+  const handleApply = () => setAppliedFilters({ ...uiFilters });
 
   const handleReset = () => {
-    setSearch('');
-    setUniversityId('__all__');
-    setProgramId('__all__');
-    setSessionId('__all__');
-    fetchReport({ universityId: '__all__', programId: '__all__', sessionId: '__all__', search: '' });
+    setUiFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
   };
 
   const exportExcel = () => {
@@ -147,26 +152,26 @@ export function FinanceTotalReportPanel() {
               <Input
                 placeholder="Search student / center..."
                 className="pl-9"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleFilter()}
+                value={uiFilters.search}
+                onChange={e => setUiFilters(f => ({ ...f, search: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && handleApply()}
               />
             </div>
-            <Select value={universityId} onValueChange={v => setUniversityId(v)}>
+            <Select value={uiFilters.universityId} onValueChange={v => setUiFilters(f => ({ ...f, universityId: v }))}>
               <SelectTrigger><SelectValue placeholder="All Universities" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Universities</SelectItem>
                 {universities.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={programId} onValueChange={v => setProgramId(v)}>
+            <Select value={uiFilters.programId} onValueChange={v => setUiFilters(f => ({ ...f, programId: v }))}>
               <SelectTrigger><SelectValue placeholder="All Programs" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Programs</SelectItem>
                 {programs.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={sessionId} onValueChange={v => setSessionId(v)}>
+            <Select value={uiFilters.sessionId} onValueChange={v => setUiFilters(f => ({ ...f, sessionId: v }))}>
               <SelectTrigger><SelectValue placeholder="All Sessions" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Sessions</SelectItem>
@@ -175,7 +180,7 @@ export function FinanceTotalReportPanel() {
             </Select>
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleFilter} disabled={loading}>
+            <Button size="sm" onClick={handleApply} disabled={loading}>
               {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               Apply Filters
             </Button>
