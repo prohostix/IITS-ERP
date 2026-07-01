@@ -163,61 +163,87 @@ export function FinanceTotalReportPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search student / center..."
-                className="pl-9"
-                value={uiFilters.search}
-                onChange={e => setUiFilters(f => ({ ...f, search: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleApply()}
-              />
+          <div className="space-y-4">
+            {/* Row 1: Search & Date Filters */}
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[240px]">
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search student or center..."
+                    className="pl-9 w-full"
+                    value={uiFilters.search}
+                    onChange={e => setUiFilters(f => ({ ...f, search: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && handleApply()}
+                  />
+                </div>
+              </div>
+
+              <div className="w-[180px]">
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">From Date</label>
+                <Input
+                  type="date"
+                  value={uiFilters.dateFrom}
+                  onChange={e => setUiFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                />
+              </div>
+
+              <div className="w-[180px]">
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">To Date</label>
+                <Input
+                  type="date"
+                  value={uiFilters.dateTo}
+                  onChange={e => setUiFilters(f => ({ ...f, dateTo: e.target.value }))}
+                />
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground pl-1">From Date</label>
-              <Input
-                type="date"
-                value={uiFilters.dateFrom}
-                onChange={e => setUiFilters(f => ({ ...f, dateFrom: e.target.value }))}
-              />
+
+            {/* Row 2: Select Dropdowns & Buttons */}
+            <div className="flex flex-wrap gap-4 items-center justify-between pt-2 border-t border-muted/50">
+              <div className="flex flex-wrap gap-3 items-center flex-1">
+                <div className="w-[200px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">University</label>
+                  <Select value={uiFilters.universityId} onValueChange={v => setUiFilters(f => ({ ...f, universityId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="All Universities" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Universities</SelectItem>
+                      {universities.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="w-[200px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Program</label>
+                  <Select value={uiFilters.programId} onValueChange={v => setUiFilters(f => ({ ...f, programId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="All Programs" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Programs</SelectItem>
+                      {programs.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="w-[200px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Session</label>
+                  <Select value={uiFilters.sessionId} onValueChange={v => setUiFilters(f => ({ ...f, sessionId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="All Sessions" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Sessions</SelectItem>
+                      {sessions.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 self-end mt-4 sm:mt-0">
+                <Button onClick={handleApply} disabled={loading}>
+                  {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                  Apply Filters
+                </Button>
+                <Button variant="outline" onClick={handleReset}>Reset</Button>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground pl-1">To Date</label>
-              <Input
-                type="date"
-                value={uiFilters.dateTo}
-                onChange={e => setUiFilters(f => ({ ...f, dateTo: e.target.value }))}
-              />
-            </div>
-            <Select value={uiFilters.universityId} onValueChange={v => setUiFilters(f => ({ ...f, universityId: v }))}>
-              <SelectTrigger><SelectValue placeholder="All Universities" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Universities</SelectItem>
-                {universities.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={uiFilters.programId} onValueChange={v => setUiFilters(f => ({ ...f, programId: v }))}>
-              <SelectTrigger><SelectValue placeholder="All Programs" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Programs</SelectItem>
-                {programs.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={uiFilters.sessionId} onValueChange={v => setUiFilters(f => ({ ...f, sessionId: v }))}>
-              <SelectTrigger><SelectValue placeholder="All Sessions" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All Sessions</SelectItem>
-                {sessions.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleApply} disabled={loading}>
-              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-              Apply Filters
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleReset}>Reset</Button>
           </div>
         </CardContent>
       </Card>
