@@ -38,6 +38,7 @@ import {
   getFinanceSalesUsers,
   getUniversityFeePayments,
   payUniversityFee,
+  getTotalReport,
 } from '../controllers/financeController.js';
 import { upload } from '../middleware/upload.js';
 import {
@@ -161,5 +162,8 @@ router.post('/payroll-batches/:id/approve', authorize('finance_admin'), financeA
 router.post('/payroll-batches/:id/reject', authorize('finance_admin'), financeRejectPayrollBatch);
 router.put('/payroll-batches/:id/payment-in-progress', authorize('finance_admin'), markBatchPaymentInProgress);
 router.put('/payroll-batches/:id/complete-payment', authorize('finance_admin'), completeBatchPayment);
+
+// Total Data Report
+router.get('/total-report', getTotalReport);
 
 export default router;
