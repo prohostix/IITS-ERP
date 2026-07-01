@@ -371,7 +371,6 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
   const student = await prisma.student.create({
     data: {
       name: enrollment.studentName,
-      email: enrollment.studentEmail,
       enrollmentNo,
       phone: enrollment.studentPhone,
       address: enrollment.studentAddress,
