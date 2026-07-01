@@ -367,21 +367,24 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
   // Generate enrollment number
   const enrollmentNo = enrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-  // Create Student
-  const student = await prisma.student.create({
-    data: {
-      name: enrollment.studentName,
-      enrollmentNo,
-      phone: enrollment.studentPhone,
-      address: enrollment.studentAddress,
-      specialisation: enrollment.specialisation,
-      status: 'active',
-      organization: { connect: { id: req.user.organizationId } },
-      center: { connect: { id: enrollment.studyCenterId } },
-      user: { connect: { email: enrollment.studentEmail } },
-      program: { connect: { id: enrollment.programId } }
-    }
-  });
+  // Find or create Student
+  let student = await prisma.student.findUnique({ where: { email: enrollment.studentEmail } });
+  if (!student) {
+    student = await prisma.student.create({
+      data: {
+        name: enrollment.studentName,
+        enrollmentNo,
+        phone: enrollment.studentPhone,
+        address: enrollment.studentAddress,
+        specialisation: enrollment.specialisation,
+        status: 'active',
+        organization: { connect: { id: req.user.organizationId } },
+        center: { connect: { id: enrollment.studyCenterId } },
+        user: { connect: { email: enrollment.studentEmail } },
+        program: { connect: { id: enrollment.programId } }
+      }
+    });
+  }
 
   const updated = await prisma.enrollment.update({
     where: { id: req.params.id },

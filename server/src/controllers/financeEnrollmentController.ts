@@ -174,33 +174,36 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     // Generate enrollment number
     const enrollmentNo = dbEnrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Create Student
-    const student = await tx.student.create({
-      data: {
-        name: dbEnrollment.studentName,
-        enrollmentNo,
-        phone: dbEnrollment.studentPhone,
-        address: dbEnrollment.studentAddress,
-        specialisation: dbEnrollment.specialisation,
-        sessionId: dbEnrollment.sessionId,
-        abcId: dbEnrollment.abcId,
-        debId: dbEnrollment.debId,
-        dob: dbEnrollment.dob,
-        religion: dbEnrollment.religion,
-        caste: dbEnrollment.caste,
-        fatherName: dbEnrollment.fatherName,
-        motherName: dbEnrollment.motherName,
-        parentMobile: dbEnrollment.parentMobile,
-        studentPhoto: dbEnrollment.studentPhoto,
-        pincode: dbEnrollment.pincode,
-        alternativePhone: dbEnrollment.alternativePhone,
-        status: 'active',
-        organization: { connect: { id: req.user.organizationId } },
-        center: { connect: { id: dbEnrollment.studyCenterId } },
-        user: { connect: { email: dbEnrollment.studentEmail } },
-        program: { connect: { id: dbEnrollment.programId } }
-      }
-    });
+    // Find or create Student
+    let student = await tx.student.findUnique({ where: { email: dbEnrollment.studentEmail } });
+    if (!student) {
+      student = await tx.student.create({
+        data: {
+          name: dbEnrollment.studentName,
+          enrollmentNo,
+          phone: dbEnrollment.studentPhone,
+          address: dbEnrollment.studentAddress,
+          specialisation: dbEnrollment.specialisation,
+          sessionId: dbEnrollment.sessionId,
+          abcId: dbEnrollment.abcId,
+          debId: dbEnrollment.debId,
+          dob: dbEnrollment.dob,
+          religion: dbEnrollment.religion,
+          caste: dbEnrollment.caste,
+          fatherName: dbEnrollment.fatherName,
+          motherName: dbEnrollment.motherName,
+          parentMobile: dbEnrollment.parentMobile,
+          studentPhoto: dbEnrollment.studentPhoto,
+          pincode: dbEnrollment.pincode,
+          alternativePhone: dbEnrollment.alternativePhone,
+          status: 'active',
+          organization: { connect: { id: req.user.organizationId } },
+          center: { connect: { id: dbEnrollment.studyCenterId } },
+          user: { connect: { email: dbEnrollment.studentEmail } },
+          program: { connect: { id: dbEnrollment.programId } }
+        }
+      });
+    }
 
     // Link enrollment to student
     return await tx.enrollment.update({
