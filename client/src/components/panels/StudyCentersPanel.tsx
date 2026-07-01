@@ -332,7 +332,7 @@ export function StudyCentersPanel() {
 
   // Helper to get center's effective branch name
   const getEffectiveBranch = (c: any) => {
-    return c.referrer?.branch?.name || c.branchName?.trim() || '';
+    return c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
   };
 
   // Derive unique branch names for datalist autocomplete

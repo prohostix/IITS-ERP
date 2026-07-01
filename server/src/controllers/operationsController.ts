@@ -142,7 +142,12 @@ export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Respon
           name: true,
           email: true,
           role: true,
-          branch: { select: { id: true, name: true } }
+          branch: { select: { id: true, name: true } },
+          designationRef: {
+            include: {
+              branch: { select: { id: true, name: true } }
+            }
+          }
         }
       }
     }
@@ -163,7 +168,12 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
           name: true,
           email: true,
           role: true,
-          branch: { select: { id: true, name: true } }
+          branch: { select: { id: true, name: true } },
+          designationRef: {
+            include: {
+              branch: { select: { id: true, name: true } }
+            }
+          }
         }
       }
     }
@@ -256,7 +266,8 @@ export const updateBranchSettings = asyncHandler(async (req: AuthRequest, res: R
       organizationId: req.user.organizationId,
       OR: [
         { branchName },
-        { referrer: { branch: { name: branchName } } }
+        { referrer: { branch: { name: branchName } } },
+        { referrer: { designationRef: { branch: { name: branchName } } } }
       ]
     },
     select: { id: true }
