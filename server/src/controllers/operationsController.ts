@@ -136,7 +136,15 @@ export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Respon
   const centers = await prisma.studyCenter.findMany({
     where: { organizationId: req.user.organizationId },
     include: {
-      referrer: { select: { id: true, name: true, email: true, role: true } }
+      referrer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          branch: { select: { id: true, name: true } }
+        }
+      }
     }
   });
   const mapped = centers.map(c => ({
@@ -149,7 +157,15 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
   const center = await prisma.studyCenter.findUnique({
     where: { id: req.params.id },
     include: {
-      referrer: { select: { id: true, name: true, email: true, role: true } }
+      referrer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          branch: { select: { id: true, name: true } }
+        }
+      }
     }
   });
   if (center) {
@@ -234,11 +250,29 @@ export const updateBranchSettings = asyncHandler(async (req: AuthRequest, res: R
     res.status(400).json({ success: false, message: 'branchName is required' });
     return;
   }
-  const result = await prisma.studyCenter.updateMany({
-    where: { organizationId: req.user.organizationId, branchName },
-    data: settings
+  
+  const centers = await prisma.studyCenter.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      OR: [
+        { branchName },
+        { referrer: { branch: { name: branchName } } }
+      ]
+    },
+    select: { id: true }
   });
-  res.json({ success: true, message: `Updated ${result.count} center(s) in branch "${branchName}"`, count: result.count });
+
+  const centerIds = centers.map(c => c.id);
+  let count = 0;
+  if (centerIds.length > 0) {
+    const result = await prisma.studyCenter.updateMany({
+      where: { id: { in: centerIds } },
+      data: settings
+    });
+    count = result.count;
+  }
+
+  res.json({ success: true, message: `Updated ${count} center(s) in branch "${branchName}"`, count });
 });
 export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   await prisma.studyCenter.delete({ where: { id: req.params.id } });

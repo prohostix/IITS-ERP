@@ -330,22 +330,28 @@ export function StudyCentersPanel() {
     setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '', branchName: '' });
   };
 
+  // Helper to get center's effective branch name
+  const getEffectiveBranch = (c: any) => {
+    return c.referrer?.branch?.name || c.branchName?.trim() || '';
+  };
+
   // Derive unique branch names for datalist autocomplete
   const existingBranchNames = useMemo(() =>
-    [...new Set(centers.map((c: any) => c.branchName).filter(Boolean))]
+    [...new Set(centers.map((c: any) => getEffectiveBranch(c)).filter(Boolean))]
   , [centers]);
 
   // Group centers by branchName
   const branchGroups = useMemo(() => {
     const filtered = centers.filter((c: any) => {
       const q = searchQuery.toLowerCase();
+      const effBranch = getEffectiveBranch(c);
       return !q || c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q) || c.address?.toLowerCase().includes(q) ||
-        c.branchName?.toLowerCase().includes(q) || c.referrer?.name?.toLowerCase().includes(q);
+        effBranch.toLowerCase().includes(q) || c.referrer?.name?.toLowerCase().includes(q);
     });
     const groups: Record<string, any[]> = {};
     filtered.forEach((c: any) => {
-      const key = c.branchName?.trim() || '__unassigned__';
+      const key = getEffectiveBranch(c) || '__unassigned__';
       if (!groups[key]) groups[key] = [];
       groups[key].push(c);
     });
