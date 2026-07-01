@@ -171,8 +171,9 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       });
     }
 
-    // Generate enrollment number
-    const enrollmentNo = dbEnrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Generate a fresh unique enrollment number for this enrollment record
+    // Always generate new to avoid unique constraint conflicts when a student re-enrolls
+    const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     // Find or create Student
     let student = await tx.student.findUnique({ where: { email: dbEnrollment.studentEmail } });
@@ -213,7 +214,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         financeReviewer: { connect: { id: req.user.id } },
         financeReviewedAt: new Date(),
         student: { connect: { id: student.id } },
-        enrollmentNumber: student.enrollmentNo
+        enrollmentNumber: enrollmentNo
       },
       include: { program: true }
     });

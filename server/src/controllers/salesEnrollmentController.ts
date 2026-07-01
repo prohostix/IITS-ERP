@@ -364,8 +364,9 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
     });
   }
 
-  // Generate enrollment number
-  const enrollmentNo = enrollment.enrollmentNumber || `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  // Generate a fresh unique enrollment number for this enrollment record
+  // Always generate new to avoid unique constraint conflicts when a student re-enrolls
+  const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   // Find or create Student
   let student = await prisma.student.findUnique({ where: { email: enrollment.studentEmail } });
@@ -395,7 +396,7 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
       enrolledAt: now,
       statusHistory: history,
       student: { connect: { id: student.id } },
-      enrollmentNumber: student.enrollmentNo
+      enrollmentNumber: enrollmentNo
     } as any,
   });
 
