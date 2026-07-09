@@ -120,7 +120,7 @@ export const getWalletLedger = asyncHandler(async (req: AuthRequest, res: Respon
       ...centerFilter,
     },
     include: {
-      studyCenter: { select: { name: true, code: true } },
+      center: { select: { name: true, code: true } },
       student: {
         include: {
           program: true
@@ -162,8 +162,8 @@ export const getWalletLedger = asyncHandler(async (req: AuthRequest, res: Respon
       method: 'wallet_debit',
       reference: inv.invoiceNo,
       description: `Student Fee: ${inv.student?.name || 'Student'} (${inv.student?.program?.name || 'Program'}) - ${inv.items?.[0]?.description || 'Installment'}`,
-      centerName: inv.studyCenter?.name || 'Unknown',
-      centerCode: inv.studyCenter?.code || ''
+      centerName: inv.center?.name || 'Unknown',
+      centerCode: inv.center?.code || ''
     }))
   ];
 
