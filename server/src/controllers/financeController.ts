@@ -932,6 +932,11 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       session: { select: { id: true, name: true } },
       studyCenter: { select: { id: true, name: true, branchName: true } },
       payment: true,
+      commissionIn: {
+        include: {
+          commissionOuts: true
+        }
+      }
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -969,6 +974,9 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       f.label?.toLowerCase().includes('coordinator') || f.type?.toLowerCase().includes('coordinator')
     );
 
+    const commIn = enrollment.commissionIn;
+    const commOut = commIn?.commissionOuts?.[0] || null;
+
     return {
       id: enrollment.id,
       studentName: enrollment.studentName,
@@ -990,6 +998,15 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
         ? (uniPayment?.status === 'paid' ? 'paid' : 'Due')
         : 'Not Applicable',
       enrollmentStatus: enrollment.status,
+      // Commission Got from University details
+      commissionInAmount: commIn ? commIn.receivedAmount : null,
+      commissionInExpected: commIn ? commIn.expectedAmount : null,
+      commissionInStatus: commIn ? commIn.status : 'pending',
+      commissionInDate: commIn ? commIn.receivedAt : null,
+      // Commission Given to Centers details
+      commissionOutAmount: commOut ? commOut.amount : null,
+      commissionOutStatus: commOut ? commOut.status : 'pending',
+      commissionOutDate: commOut ? commOut.paidAt : null,
     };
   });
 
