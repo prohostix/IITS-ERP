@@ -114,6 +114,12 @@ export function FinanceTotalReportPanel() {
       'Coordinator Name': r.coordinatorName || 'Null',
       'Coordinator Payment (INR)': r.coordinatorPaymentAmount ?? '',
       'Coordinator Payment Status': r.coordinatorPaymentStatus,
+      'Commission From Uni (INR)': r.commissionInAmount ?? '',
+      'Commission From Uni Date': fmtDate(r.commissionInDate),
+      'Commission From Uni Status': r.commissionInStatus || '',
+      'Commission To Center (INR)': r.commissionOutAmount ?? '',
+      'Commission To Center Date': fmtDate(r.commissionOutDate),
+      'Commission To Center Status': r.commissionOutStatus || '',
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -132,7 +138,7 @@ export function FinanceTotalReportPanel() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold">Total Data Report</h2>
-          <p className="text-muted-foreground text-sm">Complete enrollment, payment and coordinator fee overview</p>
+          <p className="text-muted-foreground text-sm">Complete enrollment, payment, commissions and coordinator fee overview</p>
         </div>
         <Button onClick={exportExcel} disabled={rows.length === 0} className="flex items-center gap-2">
           <FileSpreadsheet className="w-4 h-4" />
@@ -265,6 +271,8 @@ export function FinanceTotalReportPanel() {
                       'Payment (INR)', 'Payment Status', 'Payment For',
                       'University Payment (INR)', 'Uni. Payment Status',
                       'Coordinator Name', 'Coord. Payment (INR)', 'Coord. Status',
+                      'Comm. From Uni (INR)', 'Comm. From Uni Date', 'Comm. From Uni Status',
+                      'Comm. To Center (INR)', 'Comm. To Center Date', 'Comm. To Center Status'
                     ].map(h => (
                       <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                         {h}
@@ -312,6 +320,30 @@ export function FinanceTotalReportPanel() {
                       <td className="px-3 py-2.5">
                         <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + statusColor(r.coordinatorPaymentStatus)}>
                           {r.coordinatorPaymentStatus}
+                        </span>
+                      </td>
+                      {/* Commission from University */}
+                      <td className="px-3 py-2.5 font-semibold">
+                        {r.commissionInAmount != null ? 'INR ' + Number(r.commissionInAmount).toLocaleString('en-IN') : '-'}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                        {fmtDate(r.commissionInDate)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + statusColor(r.commissionInStatus)}>
+                          {r.commissionInStatus}
+                        </span>
+                      </td>
+                      {/* Commission to Center */}
+                      <td className="px-3 py-2.5 font-semibold">
+                        {r.commissionOutAmount != null ? 'INR ' + Number(r.commissionOutAmount).toLocaleString('en-IN') : '-'}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                        {fmtDate(r.commissionOutDate)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + statusColor(r.commissionOutStatus)}>
+                          {r.commissionOutStatus}
                         </span>
                       </td>
                     </tr>
