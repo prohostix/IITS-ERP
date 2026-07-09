@@ -52,6 +52,7 @@ import {
   getWalletTopUps,
   approveWalletTopUp,
   rejectWalletTopUp,
+  getWalletLedger,
 } from '../controllers/walletTopUpController.js';
 import {
   getFinanceEnrollments,
@@ -134,6 +135,7 @@ router.route('/program-fees/:id')
 router.get('/wallet-topups', authorize('finance_admin'), getWalletTopUps);
 router.put('/wallet-topups/:id/approve', authorize('finance_admin'), approveWalletTopUp);
 router.put('/wallet-topups/:id/reject', authorize('finance_admin'), rejectWalletTopUp);
+router.get('/wallet-ledger', authorize('finance_admin'), getWalletLedger);
 
 // Finance Enrollment Review
 router.get('/enrollments/all', authorize('finance_admin'), getAllEnrollments);

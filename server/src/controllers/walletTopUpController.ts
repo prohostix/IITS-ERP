@@ -70,3 +70,106 @@ export const rejectWalletTopUp = asyncHandler(async (req: AuthRequest, res: Resp
 
   res.status(200).json({ success: true, data: topUp });
 });
+
+export const getWalletLedger = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { studyCenterId } = req.query;
+  const orgId = req.user.organizationId;
+
+  // Build filters based on studyCenterId selection (or fetch all for organization)
+  const scFilter = studyCenterId && studyCenterId !== '__all__' ? { studyCenterId: studyCenterId as string } : {};
+  const centerFilter = studyCenterId && studyCenterId !== '__all__' ? { centerId: studyCenterId as string } : {};
+
+  // 1. Fetch approved top-ups (credits)
+  const topUps = await prisma.walletTopUp.findMany({
+    where: {
+      organizationId: orgId,
+      status: 'approved',
+      ...scFilter,
+    },
+    include: {
+      studyCenter: { select: { name: true, code: true } }
+    },
+    orderBy: { verifiedAt: 'desc' }
+  });
+
+  // 2. Fetch enrollment debits (debits)
+  const debits = await prisma.enrollmentPayment.findMany({
+    where: {
+      studyCenter: {
+        organizationId: orgId
+      },
+      ...scFilter,
+    },
+    include: {
+      studyCenter: { select: { name: true, code: true } },
+      enrollment: {
+        include: {
+          program: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // 3. Fetch student invoices paid by center wallet (debits)
+  const studentInvoices = await prisma.invoice.findMany({
+    where: {
+      organizationId: orgId,
+      studentId: { not: null },
+      status: 'paid',
+      ...centerFilter,
+    },
+    include: {
+      studyCenter: { select: { name: true, code: true } },
+      student: {
+        include: {
+          program: true
+        }
+      }
+    },
+    orderBy: { paidAt: 'desc' }
+  });
+
+  // Map into a unified ledger structure
+  const ledger = [
+    ...topUps.map(t => ({
+      id: t.id,
+      date: t.verifiedAt || t.createdAt,
+      type: 'credit',
+      amount: t.amount,
+      method: t.paymentMethod,
+      reference: t.referenceNumber || 'N/A',
+      description: 'Wallet Top-Up Approved',
+      centerName: t.studyCenter?.name || 'Unknown',
+      centerCode: t.studyCenter?.code || ''
+    })),
+    ...debits.map(d => ({
+      id: d.id,
+      date: d.debitedAt || d.createdAt,
+      type: 'debit',
+      amount: d.amount,
+      method: 'wallet_debit',
+      reference: d.enrollment?.enrollmentNumber || 'N/A',
+      description: `Enrollment: ${d.enrollment?.studentName || 'Student'} (${d.enrollment?.program?.name || 'Program'})`,
+      centerName: d.studyCenter?.name || 'Unknown',
+      centerCode: d.studyCenter?.code || ''
+    })),
+    ...studentInvoices.map(inv => ({
+      id: inv.id,
+      date: inv.paidAt || inv.createdAt,
+      type: 'debit',
+      amount: inv.total,
+      method: 'wallet_debit',
+      reference: inv.invoiceNo,
+      description: `Student Fee: ${inv.student?.name || 'Student'} (${inv.student?.program?.name || 'Program'}) - ${inv.items?.[0]?.description || 'Installment'}`,
+      centerName: inv.studyCenter?.name || 'Unknown',
+      centerCode: inv.studyCenter?.code || ''
+    }))
+  ];
+
+  // Sort by date descending
+  ledger.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  res.json({ success: true, count: ledger.length, data: ledger });
+});
+
