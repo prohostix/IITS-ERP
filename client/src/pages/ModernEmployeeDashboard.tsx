@@ -34,9 +34,9 @@ import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalation
 
 export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string }) {
   const { user } = useAuth();
-  const isSubDeptManager = Boolean((user)?.subDepartmentId);
+  const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
   // Determine sub-dept type from populated subDepartmentId object
-  const subDeptObj = typeof (user)?.subDepartmentId === 'object' ? (user).subDepartmentId : null;
+  const subDeptObj = typeof (user as any)?.subDepartmentId === 'object' ? (user as any).subDepartmentId : null;
   const parentDeptType = subDeptObj?.parentDeptId?.type || null;
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<any>({});

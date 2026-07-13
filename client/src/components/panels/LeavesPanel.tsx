@@ -80,7 +80,7 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
 
   const role = user?.role || '';
   const userId = user?.id?.toString() || '';
-  const isBranchManager = Boolean((user)?.branchId);
+  const isBranchManager = Boolean((user as any)?.branchId);
   const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager) && !isPersonalView;
   const isHR = role === 'hr_admin' && !isPersonalView;
   const isEmployee = (!isDeptManager && !isHR && role !== 'superadmin' && role !== 'org_admin' && role !== 'ceo') || isPersonalView;
