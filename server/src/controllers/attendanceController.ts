@@ -35,8 +35,16 @@ export const getMonthlyLateSummary = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const getAttendances = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const attendances = await prisma.attendance.findMany({ where: { organizationId: req.user.organizationId }, include: { user: true } });
-  res.json({ success: true, count: attendances.length, data: attendances });
+  const attendances = await prisma.attendance.findMany({ 
+    where: { organizationId: req.user.organizationId }, 
+    include: { user: true },
+    orderBy: { date: 'desc' }
+  });
+  const mapped = attendances.map(a => ({
+    ...a,
+    employeeId: a.user ? { id: a.user.id, name: a.user.name, email: a.user.email, designation: a.user.designation } : null
+  }));
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getAttendance = getAttendances;
 
@@ -98,8 +106,16 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getMyAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const attendances = await prisma.attendance.findMany({ where: { userId: req.user.id }, orderBy: { date: 'desc' } });
-  res.json({ success: true, data: attendances });
+  const attendances = await prisma.attendance.findMany({ 
+    where: { userId: req.user.id }, 
+    include: { user: true },
+    orderBy: { date: 'desc' } 
+  });
+  const mapped = attendances.map(a => ({
+    ...a,
+    employeeId: a.user ? { id: a.user.id, name: a.user.name, email: a.user.email, designation: a.user.designation } : null
+  }));
+  res.json({ success: true, data: mapped });
 });
 
 export const getMyAttendanceSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
