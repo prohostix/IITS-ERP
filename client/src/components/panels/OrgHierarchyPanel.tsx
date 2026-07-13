@@ -229,8 +229,8 @@ function BranchSection({
   // Branch manager controls Sales and Operations only — Finance and HR are org-wide
   const BRANCH_CONTROLLED_TYPES = new Set(['sales', 'operations']);
   const controlledDepts: Array<{ id: string; name: string; type: string }> = [];
-  const salesDeptObj = typeof branch.salesDeptId === 'object' && branch.salesDeptId ? branch.salesDeptId : (branch).salesDept;
-  const operationsDeptObj = typeof branch.operationsDeptId === 'object' && branch.operationsDeptId ? branch.operationsDeptId : (branch).operationsDept;
+  const salesDeptObj = typeof branch.salesDeptId === 'object' && branch.salesDeptId ? branch.salesDeptId : (branch as any).salesDept;
+  const operationsDeptObj = typeof branch.operationsDeptId === 'object' && branch.operationsDeptId ? branch.operationsDeptId : (branch as any).operationsDept;
 
   if (salesDeptObj && salesDeptObj.id) {
     controlledDepts.push({ id: salesDeptObj.id, name: salesDeptObj.name, type: 'sales' });
