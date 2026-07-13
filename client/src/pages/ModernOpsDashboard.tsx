@@ -131,7 +131,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
 
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <Button variant="outline" onClick={() => onNavigate('sessions')}>
           <Calendar className="w-4 h-4 mr-2" />
@@ -144,7 +144,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
       </div>
 
       {/* Operations Quick Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-6">
         <OpsMetricCard 
           title="Total Students" 
           value={metrics.totalStudents || 0} 
@@ -274,7 +274,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           onClick={() => onNavigate('sessions')}
         />
       </div>
-    </>
+    </div>
   );
 }
 

@@ -150,9 +150,9 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
   const highPriorityVacancies = vacancies.filter(v => v.priority === 'high' || v.priority === 'urgent');
 
   return (
-    <>
+    <div className="space-y-6">
       {/* HR Core Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-6">
         <HRMetricCard 
           title="Total Headcount" 
           value={metrics.totalEmployees ?? '—'} 
@@ -343,7 +343,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
 

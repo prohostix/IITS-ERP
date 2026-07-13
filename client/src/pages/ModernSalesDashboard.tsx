@@ -178,9 +178,9 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
     .slice(0, 4);
 
   return (
-    <>
+    <div className="space-y-6">
       {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
         <SalesMetric
           title="Total Leads"
           value={loading ? '...' : totalLeads}
@@ -373,7 +373,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
           <PunchWidget />
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

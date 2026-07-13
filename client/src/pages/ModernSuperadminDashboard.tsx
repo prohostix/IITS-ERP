@@ -136,9 +136,9 @@ export function ModernSuperadminDashboard({ initialTab }: { initialTab?: string 
 
 function OverviewContent({ metrics }: { metrics: any }) {
   return (
-    <>
+    <div className="space-y-6">
       {/* Global Core Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
         <GlobalMetric 
           title="Organizations" 
           value={metrics.totalOrganizations || 8} 
@@ -278,7 +278,7 @@ function OverviewContent({ metrics }: { metrics: any }) {
            </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
