@@ -533,13 +533,20 @@ export function OrgHierarchyPanel() {
       await api.patch(`/org/designations/${assignTarget.id}/assign`, { userId: assignUserId });
       setAssignDialog(false);
       fetchAll();
-    finally { setSaving(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUnassign = async (node: DesignationNode, userId: string) => {
     try {
       await api.patch(`/org/designations/${node.id}/unassign`, { userId });
       fetchAll();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Global (non-branch) root nodes

@@ -1,0 +1,540 @@
+[
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/App.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array.",
+        "line": 182,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 182,
+        "endColumn": 97,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [user?.role, user?.departmentId, user]",
+            "fix": {
+              "range": [
+                6353,
+                6444
+              ],
+              "text": "[user?.role, user?.departmentId, user]"
+            }
+          }
+        ]
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
+        "line": 182,
+        "column": 19,
+        "nodeType": "ChainExpression",
+        "endLine": 182,
+        "endColumn": 49
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
+        "line": 182,
+        "column": 71,
+        "nodeType": "ChainExpression",
+        "endLine": 182,
+        "endColumn": 96
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'getAvailableTables'. Either include it or remove the dependency array.",
+        "line": 308,
+        "column": 76,
+        "nodeType": "ArrayExpression",
+        "endLine": 308,
+        "endColumn": 171,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [isRegisterPage, getAvailableTables]",
+            "fix": {
+              "range": [
+                11039,
+                11134
+              ],
+              "text": "[isRegisterPage, getAvailableTables]"
+            }
+          }
+        ]
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
+        "line": 308,
+        "column": 105,
+        "nodeType": "ChainExpression",
+        "endLine": 308,
+        "endColumn": 135
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.",
+        "line": 308,
+        "column": 137,
+        "nodeType": "ChainExpression",
+        "endLine": 308,
+        "endColumn": 160
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/AdmissionSessionsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchSessions'. Either include it or remove the dependency array.",
+        "line": 37,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 37,
+        "endColumn": 24,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchSessions, universityFilter]",
+            "fix": {
+              "range": [
+                1494,
+                1512
+              ],
+              "text": "[fetchSessions, universityFilter]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/AttendancePanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'canViewAll' and 'fetchAttendance'. Either include them or remove the dependency array.",
+        "line": 34,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 34,
+        "endColumn": 8,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [canViewAll, fetchAttendance]",
+            "fix": {
+              "range": [
+                1417,
+                1419
+              ],
+              "text": "[canViewAll, fetchAttendance]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/BroadcastNotificationsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchTargetLists'. Either include it or remove the dependency array.",
+        "line": 35,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 35,
+        "endColumn": 8,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchTargetLists]",
+            "fix": {
+              "range": [
+                1257,
+                1259
+              ],
+              "text": "[fetchTargetLists]"
+            }
+          }
+        ]
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'isFinance'. Either include it or remove the dependency array.",
+        "line": 44,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 44,
+        "endColumn": 12,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [isFinance, user]",
+            "fix": {
+              "range": [
+                1447,
+                1453
+              ],
+              "text": "[isFinance, user]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/CEOTasksPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchTasks'. Either include it or remove the dependency array.",
+        "line": 142,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 142,
+        "endColumn": 48,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [statusFilter, priorityFilter, deptFilter, fetchTasks]",
+            "fix": {
+              "range": [
+                4190,
+                4232
+              ],
+              "text": "[statusFilter, priorityFilter, deptFilter, fetchTasks]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/CommissionsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.",
+        "line": 72,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 72,
+        "endColumn": 38,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [universityFilter, centerFilter, fetchData]",
+            "fix": {
+              "range": [
+                2673,
+                2705
+              ],
+              "text": "[universityFilter, centerFilter, fetchData]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/EmployeeProfilePanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array.",
+        "line": 182,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 182,
+        "endColumn": 20,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchProfile, open, userId]",
+            "fix": {
+              "range": [
+                6695,
+                6709
+              ],
+              "text": "[fetchProfile, open, userId]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/FinanceUniversityFeePanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchPayments'. Either include it or remove the dependency array.",
+        "line": 79,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 79,
+        "endColumn": 49,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [activeTab, universityFilter, centerFilter, fetchPayments]",
+            "fix": {
+              "range": [
+                2760,
+                2803
+              ],
+              "text": "[activeTab, universityFilter, centerFilter, fetchPayments]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/ProgramFeeStructurePanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchAllData'. Either include it or remove the dependency array.",
+        "line": 123,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 123,
+        "endColumn": 8,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchAllData]",
+            "fix": {
+              "range": [
+                4091,
+                4093
+              ],
+              "text": "[fetchAllData]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/StudentsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchStudents'. Either include it or remove the dependency array.",
+        "line": 79,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 79,
+        "endColumn": 52,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [statusFilter, universityFilter, centerFilter, fetchStudents]",
+            "fix": {
+              "range": [
+                3234,
+                3280
+              ],
+              "text": "[statusFilter, universityFilter, centerFilter, fetchStudents]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/StudyCenterEnrollmentsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetch'. Either include it or remove the dependency array.",
+        "line": 83,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 83,
+        "endColumn": 20,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetch, statusFilter]",
+            "fix": {
+              "range": [
+                3297,
+                3311
+              ],
+              "text": "[fetch, statusFilter]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/StudyCentersPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchCenters'. Either include it or remove the dependency array.",
+        "line": 111,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 111,
+        "endColumn": 24,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchCenters, universityFilter]",
+            "fix": {
+              "range": [
+                4856,
+                4874
+              ],
+              "text": "[fetchCenters, universityFilter]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/TargetsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchTargets'. Either include it or remove the dependency array.",
+        "line": 42,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 42,
+        "endColumn": 8,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchTargets]",
+            "fix": {
+              "range": [
+                1673,
+                1675
+              ],
+              "text": "[fetchTargets]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/UniversitiesPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'isOrgAdmin'. Either include it or remove the dependency array.",
+        "line": 38,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 38,
+        "endColumn": 8,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [isOrgAdmin]",
+            "fix": {
+              "range": [
+                1733,
+                1735
+              ],
+              "text": "[isOrgAdmin]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/components/panels/UniversityStudentsPanel.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'refreshStudents' and 'selectedUniversity'. Either include them or remove the dependency array.",
+        "line": 101,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 101,
+        "endColumn": 29,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [search, programFilter, selectedUniversity, refreshStudents]",
+            "fix": {
+              "range": [
+                3406,
+                3429
+              ],
+              "text": "[search, programFilter, selectedUniversity, refreshStudents]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "filePath": "/Users/retro/Documents/IITS-ERP-main/client/src/pages/ModernUniversityDashboard.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchMetrics' and 'fetchStudents'. Either include them or remove the dependency array.",
+        "line": 54,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 54,
+        "endColumn": 20,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [fetchMetrics, fetchStudents, universityId]",
+            "fix": {
+              "range": [
+                2090,
+                2104
+              ],
+              "text": "[fetchMetrics, fetchStudents, universityId]"
+            }
+          }
+        ]
+      },
+      {
+        "ruleId": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchStudents' and 'universityId'. Either include them or remove the dependency array.",
+        "line": 58,
+        "column": 6,
+        "nodeType": "ArrayExpression",
+        "endLine": 58,
+        "endColumn": 29,
+        "suggestions": [
+          {
+            "desc": "Update the dependencies array to be: [search, programFilter, universityId, fetchStudents]",
+            "fix": {
+              "range": [
+                2172,
+                2195
+              ],
+              "text": "[search, programFilter, universityId, fetchStudents]"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
