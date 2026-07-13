@@ -4,14 +4,35 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-// --- Leave Requests ---
+const mapLeaveRequest = (leave: any) => ({
+  ...leave,
+  employeeId: leave.user ? {
+    id: leave.userId,
+    name: leave.user.name,
+    email: leave.user.email,
+    designation: leave.user.designation
+  } : null,
+  departmentId: leave.department ? {
+    id: leave.departmentId,
+    name: leave.department.name
+  } : null,
+  deptApprovedBy: leave.deptApprover ? { name: leave.deptApprover.name } : null,
+  hrApprovedBy: leave.hrApprover ? { name: leave.hrApprover.name } : null,
+});
+
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const leaves = await prisma.leaveRequest.findMany({
     where: { organizationId: req.user.organizationId },
-    include: { user: { select: { name: true, email: true } } },
+    include: { 
+      user: { select: { name: true, email: true, designation: true } },
+      department: { select: { name: true } },
+      deptApprover: { select: { name: true } },
+      hrApprover: { select: { name: true } }
+    },
     orderBy: { createdAt: 'desc' }
   });
-  res.json({ success: true, count: leaves.length, data: leaves });
+  const mappedLeaves = leaves.map(mapLeaveRequest);
+  res.json({ success: true, count: mappedLeaves.length, data: mappedLeaves });
 });
 
 export const getLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -101,8 +122,18 @@ export const getLeaveStats = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 export const getMyLeaves = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const leaves = await prisma.leaveRequest.findMany({ where: { userId: req.user.id } });
-  res.json({ success: true, data: leaves });
+  const leaves = await prisma.leaveRequest.findMany({ 
+    where: { userId: req.user.id },
+    include: { 
+      user: { select: { name: true, email: true, designation: true } },
+      department: { select: { name: true } },
+      deptApprover: { select: { name: true } },
+      hrApprover: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const mappedLeaves = leaves.map(mapLeaveRequest);
+  res.json({ success: true, data: mappedLeaves });
 });
 
 // --- Vacancies ---
