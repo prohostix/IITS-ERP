@@ -171,9 +171,9 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         />
         <HRMetricCard 
           title="Absent Today" 
-          value={metrics.absentToday ?? absentToday.length} 
+          value={metrics.absentToday ?? 0} 
           icon={<Clock className="w-5 h-5" />}
-          subtext={absentToday.length > 0 ? `${absentToday.length} not checked in` : 'All present'}
+          subtext={metrics.absentToday > 0 ? `${metrics.absentToday} not checked in` : 'All present'}
           color="warning"
           onClick={() => onNavigate('attendance')}
         />

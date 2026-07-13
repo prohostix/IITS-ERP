@@ -17,7 +17,11 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
 
   if (role !== 'superadmin') {
     metrics.totalEmployees = await prisma.user.count({
-      where: { organizationId: organizationId, NOT: { role: { in: ['ceo', 'org_admin', 'superadmin'] } } }
+      where: { 
+        organizationId: organizationId, 
+        status: 'active',
+        NOT: { role: { in: ['student', 'center_admin', 'superadmin'] } } 
+      }
     });
     metrics.totalStudents = await prisma.student.count({ where: { organizationId: organizationId } });
     metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId } });
@@ -58,6 +62,9 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
 
     metrics.presentToday = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'present' as any } });
     metrics.onLeave = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'leave' as any } });
+    
+    metrics.absentToday = Math.max(0, (metrics.totalEmployees || 0) - metrics.presentToday - metrics.onLeave);
+
     metrics.pendingLeaves = await prisma.leaveRequest.count({ where: { organizationId: organizationId, status: 'pending' as any } });
     metrics.totalVacancies = await prisma.vacancy.count({ where: { organizationId: organizationId, status: 'open' as any } });
   }
