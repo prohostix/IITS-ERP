@@ -676,10 +676,10 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
                           </div>
                         </td>
                         <td className="p-3 hidden md:table-cell text-xs text-muted-foreground">
-                          {(e.studyCenterId as any)?.name || '—'}
+                          {(e.studyCenterId)?.name || '—'}
                         </td>
                         <td className="p-3 hidden lg:table-cell text-xs text-muted-foreground">
-                          {(e.programId as any)?.name || '—'}
+                          {(e.programId)?.name || '—'}
                         </td>
                         <td className="p-3">
                           <Badge className={cn('text-[10px] border', ecfg?.color || 'bg-muted text-muted-foreground')}>

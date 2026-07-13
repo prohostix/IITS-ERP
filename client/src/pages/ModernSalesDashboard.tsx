@@ -68,7 +68,6 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
       setLeads(leadsRes.data.data || []);
       setTargets(targetsRes.data.data || []);
     } catch (e) {
-      console.error('Sales fetch error:', e);
     } finally {
       setLoading(false);
     }

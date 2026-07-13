@@ -37,7 +37,6 @@ export function InvoicesPanel() {
       const res = await api.get('/finance/invoices');
       setInvoices(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch invoices:', err);
     } finally {
       setLoading(false);
     }
@@ -48,7 +47,6 @@ export function InvoicesPanel() {
       const res = await api.get('/operations/centers');
       setCenters(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch centers:', err);
     }
   };
 
@@ -120,7 +118,6 @@ export function InvoicesPanel() {
       await api.delete(`/finance/invoices/${id}`, { data: { remarks } });
       fetchInvoices();
     } catch (err) {
-      console.error('Failed to delete invoice:', err);
     }
   };
 

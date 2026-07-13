@@ -41,7 +41,6 @@ export function AttendancePanel() {
       const response = await api.get(endpoint);
       setAttendance(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch attendance:', error);
     } finally {
       setLoading(false);
     }
@@ -52,7 +51,6 @@ export function AttendancePanel() {
       const response = await api.get('/users');
       setEmployees(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch employees:', error);
     }
   };
 
@@ -82,7 +80,6 @@ export function AttendancePanel() {
       resetForm();
       fetchAttendance();
     } catch (error: any) {
-      console.error('Failed to save attendance:', error);
       alert(error.response?.data?.message || 'Failed to save attendance');
     }
   };
@@ -108,7 +105,6 @@ export function AttendancePanel() {
       await api.delete(`/hr/attendance/${id}`);
       fetchAttendance();
     } catch (error) {
-      console.error('Failed to delete attendance:', error);
     }
   };
 

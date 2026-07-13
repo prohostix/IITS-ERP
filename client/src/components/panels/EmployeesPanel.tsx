@@ -57,7 +57,6 @@ export function EmployeesPanel() {
       });
       setEmployees(employeesOnly);
     } catch (error) {
-      console.error('Failed to fetch employees:', error);
     } finally {
       setLoading(false);
     }
@@ -68,7 +67,6 @@ export function EmployeesPanel() {
       const response = await api.get('/departments');
       setDepartments(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch departments:', error);
     }
   };
 
@@ -102,7 +100,6 @@ export function EmployeesPanel() {
       resetForm();
       fetchEmployees();
     } catch (error: any) {
-      console.error('Failed to save employee:', error);
       alert(error.response?.data?.message || 'Failed to save employee');
     }
   };
@@ -134,7 +131,6 @@ export function EmployeesPanel() {
       await api.delete(`/users/${id}`);
       fetchEmployees();
     } catch (error) {
-      console.error('Failed to delete employee:', error);
     }
   };
 

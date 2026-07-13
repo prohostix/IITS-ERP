@@ -117,11 +117,11 @@ export function PollsPanel() {
   const totalVotes = (poll: Poll) => poll.options.reduce((s, o) => s + o.votes.length, 0);
   const pct = (votes: number, total: number) => total === 0 ? 0 : Math.round((votes / total) * 100);
   const hasVoted = (poll: Poll) => {
-    const uid = user?.id || (user as any)?.id;
+    const uid = user?.id || (user)?.id;
     return poll.options.some(o => o.votes.includes(uid));
   };
   const myVotes = (poll: Poll) => {
-    const uid = user?.id || (user as any)?.id;
+    const uid = user?.id || (user)?.id;
     return poll.options.map((o, i) => o.votes.includes(uid) ? i : -1).filter(i => i >= 0);
   };
 

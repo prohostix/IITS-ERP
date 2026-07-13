@@ -37,11 +37,13 @@ const DURATION_OPTIONS = [
 
 interface Semester { number: number; name: string; durationMonths: number; }
 interface SubDepartment { id: string; name: string; }
+interface CertificateRequirement { name: string; isMandatory: boolean; }
 interface Program {
   id: string; name: string; code: string; courseType: CourseType;
   duration: number; hasSemesters: boolean; semesters: Semester[];
   status: string; universityId: any; subDepartmentId?: any;
   specialisations?: string[];
+  certificateRequirements?: CertificateRequirement[];
 }
 
 function formatDuration(months: number) {
@@ -65,6 +67,10 @@ export function ProgramsPanel() {
   
   // Chip input state for specialisations
   const [specInput, setSpecInput] = useState('');
+  
+  // Certificate Requirements state
+  const [certReqInput, setCertReqInput] = useState('');
+  const [certReqMandatory, setCertReqMandatory] = useState(false);
 
   const [form, setForm] = useState({
     name: '', code: '', universityId: '',
@@ -72,7 +78,8 @@ export function ProgramsPanel() {
     courseType: 'Online Degree' as CourseType,
     duration: 12, status: 'active',
     hasSemesters: false,
-    specialisations: [] as string[]
+    specialisations: [] as string[],
+    certificateRequirements: [] as CertificateRequirement[]
   });
   const [semesters, setSemesters] = useState<Semester[]>([]);
 
@@ -83,22 +90,22 @@ export function ProgramsPanel() {
     try {
       const res = await api.get('/operations/programs');
       setPrograms(res.data.data || []);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+    } finally { setLoading(false); }
   };
 
   const fetchUniversities = async () => {
     try {
       const res = await api.get('/operations/universities');
       setUniversities(res.data.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) {}
   };
 
   const fetchSubDepartments = async () => {
     try {
       const res = await api.get('/sub-departments');
       setSubDepartments(res.data.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) {}
   };
 
   // Auto-generate semesters based on duration
@@ -161,6 +168,23 @@ export function ProgramsPanel() {
     }));
   };
 
+  const handleAddCertReq = () => {
+    if (!certReqInput.trim()) return;
+    setForm(f => ({
+      ...f,
+      certificateRequirements: [...f.certificateRequirements, { name: certReqInput.trim(), isMandatory: certReqMandatory }]
+    }));
+    setCertReqInput('');
+    setCertReqMandatory(false);
+  };
+
+  const handleRemoveCertReq = (idx: number) => {
+    setForm(f => ({
+      ...f,
+      certificateRequirements: f.certificateRequirements.filter((_, i) => i !== idx)
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -194,7 +218,8 @@ export function ProgramsPanel() {
       duration: p.duration,
       status: p.status,
       hasSemesters: p.hasSemesters || false,
-      specialisations: p.specialisations || []
+      specialisations: p.specialisations || [],
+      certificateRequirements: p.certificateRequirements || []
     });
     setSemesters(p.semesters || []);
     setDialogOpen(true);
@@ -203,7 +228,7 @@ export function ProgramsPanel() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this program?')) return;
     try { await api.delete(`/operations/programs/${id}`); fetchPrograms(); }
-    catch (err) { console.error(err); }
+    catch (e: any) { toast.error(e.response?.data?.message || 'Failed to delete'); }
   };
 
   const resetForm = () => {
@@ -212,9 +237,12 @@ export function ProgramsPanel() {
       name: '', code: '', universityId: '', 
       subDepartmentId: '', courseType: 'Online Degree', 
       duration: 12, status: 'active', hasSemesters: false,
-      specialisations: [] 
+      specialisations: [],
+      certificateRequirements: []
     });
     setSpecInput('');
+    setCertReqInput('');
+    setCertReqMandatory(false);
     setSemesters([]);
   };
 
@@ -432,6 +460,56 @@ export function ProgramsPanel() {
                         ×
                       </button>
                     </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Certificate Requirements */}
+            <div className="space-y-2 border-t pt-4">
+              <Label>Certificate Requirements <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <div className="flex gap-2 items-center">
+                <Input 
+                  value={certReqInput} 
+                  onChange={e => setCertReqInput(e.target.value)} 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCertReq();
+                    }
+                  }}
+                  placeholder="e.g. 10th Marksheet, Aadhar Card" 
+                  className="flex-1"
+                />
+                <div className="flex items-center gap-2 px-2 shrink-0">
+                  <input type="checkbox" id="mandatoryCheck" checked={certReqMandatory} onChange={e => setCertReqMandatory(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                  <label htmlFor="mandatoryCheck" className="text-sm font-medium text-slate-700 whitespace-nowrap cursor-pointer">Mandatory</label>
+                </div>
+                <Button type="button" onClick={handleAddCertReq} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  Add
+                </Button>
+              </div>
+
+              {form.certificateRequirements.length > 0 && (
+                <div className="flex flex-col gap-2 pt-1.5">
+                  {form.certificateRequirements.map((req, index) => (
+                    <div key={index} className="flex items-center justify-between bg-slate-50 border rounded-md px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{req.name}</span>
+                        {req.isMandatory ? (
+                          <Badge variant="default" className="text-[10px] h-5 bg-red-100 text-red-700 hover:bg-red-200 border-red-200">Mandatory</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] h-5 text-slate-500 bg-white">Optional</Badge>
+                        )}
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveCertReq(index)} 
+                        className="text-muted-foreground hover:text-destructive text-sm font-bold font-mono px-2"
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

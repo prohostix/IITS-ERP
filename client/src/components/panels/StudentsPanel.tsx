@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ export function StudentsPanel() {
   const [students, setStudents] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [centers, setCenters] = useState<any[]>([]);
+  const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -67,43 +68,55 @@ export function StudentsPanel() {
   };
 
   const [statusFilter, setStatusFilter] = useState('');
+  const [universityFilter, setUniversityFilter] = useState('');
+  const [centerFilter, setCenterFilter] = useState('');
+
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const query = new URLSearchParams();
+      if (statusFilter && statusFilter !== 'all') query.append('status', statusFilter);
+      if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
+      if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
+      
+      const response = await api.get(`/students?${query.toString()}`);
+      setStudents(response.data.data || []);
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, universityFilter, centerFilter]);
+
+  const fetchPrograms = useCallback(async () => {
+    try {
+      const response = await api.get('/operations/programs');
+      setPrograms(response.data.data || []);
+    } catch (error) {
+    }
+  }, []);
+
+  const fetchCenters = useCallback(async () => {
+    try {
+      const response = await api.get('/operations/centers');
+      setCenters(response.data.data || []);
+    } catch (error) {
+    }
+  }, []);
+
+  const fetchUniversities = useCallback(async () => {
+    try {
+      const response = await api.get('/operations/universities');
+      setUniversities(response.data.data || []);
+    } catch (error) {
+    }
+  }, []);
 
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
     fetchCenters();
-  }, [statusFilter]);
-
-  const fetchStudents = async () => {
-    setLoading(true);
-    try {
-      const params = statusFilter ? `?status=${statusFilter}` : '';
-      const response = await api.get(`/students${params}`);
-      setStudents(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch students:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPrograms = async () => {
-    try {
-      const response = await api.get('/operations/programs');
-      setPrograms(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch programs:', error);
-    }
-  };
-
-  const fetchCenters = async () => {
-    try {
-      const response = await api.get('/operations/centers');
-      setCenters(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch centers:', error);
-    }
-  };
+    fetchUniversities();
+  }, [fetchStudents, fetchPrograms, fetchCenters, fetchUniversities]);
 
   const fetchInstallments = async (studentId: string) => {
     setFetchingInstallments(true);
@@ -111,7 +124,6 @@ export function StudentsPanel() {
       const res = await api.get(`/students/${studentId}/installments`);
       setInstallments(res.data.installments || []);
     } catch (err) {
-      console.error('Failed to fetch installments:', err);
     } finally {
       setFetchingInstallments(false);
     }
@@ -153,7 +165,6 @@ export function StudentsPanel() {
       resetForm();
       fetchStudents();
     } catch (error: any) {
-      console.error('Failed to save student:', error);
       alert(error.response?.data?.message || 'Failed to save student');
     }
   };
@@ -186,7 +197,6 @@ export function StudentsPanel() {
       await api.delete(`/students/${id}`);
       fetchStudents();
     } catch (error) {
-      console.error('Failed to delete student:', error);
     }
   };
 
@@ -313,6 +323,34 @@ export function StudentsPanel() {
             {tab.label}
           </button>
         ))}
+
+        <div className="ml-auto flex gap-2">
+          <Select value={universityFilter} onValueChange={setUniversityFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Universities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Universities</SelectItem>
+              {universities.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {user?.role !== 'center_admin' && (
+            <Select value={centerFilter} onValueChange={setCenterFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Centers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Centers</SelectItem>
+                {centers.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       <Card>

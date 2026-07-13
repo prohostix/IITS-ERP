@@ -353,8 +353,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Pending Invoices"
             searchFields={['invoiceNo']}
             actions={(row) => [
-              { label: 'Mark Paid', onClick: () => console.log('Mark Paid', row.id) },
-              { label: 'Send Reminder', onClick: () => console.log('Reminder', row.id) },
             ]}
           />
         </TabsContent>
@@ -366,8 +364,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Overdue Invoices"
             searchFields={['invoiceNo']}
             actions={(row) => [
-              { label: 'Send Reminder', onClick: () => console.log('Reminder', row.id) },
-              { label: 'Waive Late Fee', onClick: () => console.log('Waive', row.id) },
             ]}
           />
         </TabsContent>
@@ -418,8 +414,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Pending Claims"
             searchFields={['description']}
             actions={(row) => [
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -520,9 +514,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Pending Center Approvals"
             searchFields={['name', 'code']}
             actions={(row) => [
-              { label: 'View Details', onClick: () => console.log('View', row.id) },
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -539,9 +530,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Pending Student Approvals"
             searchFields={['name', 'enrollmentNo']}
             actions={(row) => [
-              { label: 'View Documents', onClick: () => console.log('View', row.id) },
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -557,8 +545,6 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             title="Pending Session Approvals"
             searchFields={['name']}
             actions={(row) => [
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>

@@ -88,7 +88,6 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       setExpenses(expensesRes.data.data || []);
       setPayrollBatches(batchesRes.data.data || []);
     } catch (e) {
-      console.error('Finance fetch error:', e);
     } finally {
       setLoading(false);
     }

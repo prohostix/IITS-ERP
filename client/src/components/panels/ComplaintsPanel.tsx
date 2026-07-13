@@ -31,7 +31,6 @@ export function ComplaintsPanel() {
       const res = await api.get('/hr/complaints');
       setComplaints(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch complaints:', err);
     } finally {
       setLoading(false);
     }
@@ -71,7 +70,6 @@ export function ComplaintsPanel() {
       await api.delete(`/hr/complaints/${id}`);
       fetchComplaints();
     } catch (err) {
-      console.error('Failed to delete complaint:', err);
     }
   };
 
@@ -81,7 +79,6 @@ export function ComplaintsPanel() {
       await api.put(`/hr/complaints/${id}/resolve`);
       fetchComplaints();
     } catch (err) {
-      console.error('Failed to resolve complaint:', err);
     }
   };
 

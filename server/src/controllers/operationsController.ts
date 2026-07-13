@@ -74,7 +74,10 @@ export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Res
 
 // Programs
 export const getPrograms = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const programs = await prisma.program.findMany({ where: { organizationId: req.user.organizationId }, include: { university: true } });
+  const programs = await prisma.program.findMany({ 
+    where: { organizationId: req.user.organizationId, isDeleted: false }, 
+    include: { university: true } 
+  });
   const mapped = programs.map(p => ({
     ...p,
     _id: p.id,
@@ -122,7 +125,25 @@ export const updateProgram = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: { ...program, _id: program.id } });
 });
 export const deleteProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await prisma.program.delete({ where: { id: req.params.id } });
+  const program = await prisma.program.findUnique({
+    where: { id: req.params.id },
+    include: { _count: { select: { enrollments: true } } }
+  });
+
+  if (!program) {
+    res.status(404).json({ success: false, message: 'Program not found' });
+    return;
+  }
+
+  if (program._count.enrollments > 0) {
+    res.status(400).json({ success: false, message: 'Cannot delete program with active enrollments. Consider marking it as inactive.' });
+    return;
+  }
+
+  await prisma.program.update({
+    where: { id: req.params.id },
+    data: { isDeleted: true, status: 'inactive' }
+  });
   res.json({ success: true, data: {} });
 });
 export const activateProgram = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -133,8 +154,12 @@ export const activateProgram = asyncHandler(async (req: AuthRequest, res: Respon
 
 // Study Centers
 export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.query.universityId) {
+    where.universityIds = { has: req.query.universityId as string };
+  }
   const centers = await prisma.studyCenter.findMany({
-    where: { organizationId: req.user.organizationId },
+    where,
     include: {
       referrer: {
         select: {
@@ -300,7 +325,11 @@ export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Res
 
 // Admission Sessions
 export const getAdmissionSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const sessions = await prisma.admissionSession.findMany({ where: { organizationId: req.user.organizationId } });
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.query.universityId) {
+    where.universityId = req.query.universityId as string;
+  }
+  const sessions = await prisma.admissionSession.findMany({ where });
   res.json({ success: true, count: sessions.length, data: sessions });
 });
 export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -322,6 +351,53 @@ export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res:
 export const approveAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: { status: 'approved' as any, approvedBy: req.user.id, approvedAt: new Date() } });
   res.json({ success: true, data: session });
+});
+
+export const duplicateSession = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const originalSession = await prisma.admissionSession.findUnique({
+    where: { id },
+    include: { programFeeStructures: true }
+  });
+
+  if (!originalSession || originalSession.organizationId !== req.user.organizationId) {
+    res.status(404).json({ success: false, message: 'Session not found' });
+    return;
+  }
+
+  const newSession = await prisma.admissionSession.create({
+    data: {
+      organizationId: originalSession.organizationId,
+      name: `${originalSession.name} (Copy)`,
+      startDate: originalSession.startDate,
+      endDate: originalSession.endDate,
+      status: originalSession.status,
+      programId: originalSession.programId,
+      universityId: originalSession.universityId,
+      studyCenterId: originalSession.studyCenterId,
+      capacity: originalSession.capacity,
+      createdBy: req.user.id,
+      subDepartmentId: originalSession.subDepartmentId,
+      reregPaymentClosingDate: originalSession.reregPaymentClosingDate,
+      programFeeStructures: {
+        create: originalSession.programFeeStructures.map(fee => ({
+          organizationId: fee.organizationId,
+          universityId: fee.universityId,
+          programId: fee.programId,
+          baseFee: fee.baseFee,
+          additionalFees: fee.additionalFees || [],
+          totalFee: fee.totalFee,
+          status: fee.status,
+          currency: fee.currency,
+          minDownPayment: fee.minDownPayment,
+          installmentOptions: fee.installmentOptions || [],
+          lateFeePolicy: fee.lateFeePolicy || {}
+        }))
+      }
+    }
+  });
+
+  res.status(201).json({ success: true, data: newSession });
 });
 
 // Internal Marks

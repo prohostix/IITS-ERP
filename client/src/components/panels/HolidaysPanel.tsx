@@ -28,7 +28,6 @@ export function HolidaysPanel() {
       const res = await api.get('/hr/holidays');
       setHolidays(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch holidays:', err);
     } finally {
       setLoading(false);
     }
@@ -68,7 +67,6 @@ export function HolidaysPanel() {
       toast.success('Holiday deleted');
       fetchHolidays();
     } catch (err) {
-      console.error('Failed to delete holiday:', err);
     }
   };
 

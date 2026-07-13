@@ -29,7 +29,6 @@ export function ModernStaffPortal() {
     try {
       await api.get('/dashboard/metrics');
     } catch (error) {
-      console.error('Failed to fetch staff metrics:', error);
     } finally {
       setLoading(false);
     }

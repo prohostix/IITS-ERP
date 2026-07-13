@@ -42,7 +42,6 @@ export function VacanciesPanel() {
       const response = await api.get('/hr/vacancies');
       setVacancies(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch vacancies:', error);
     } finally {
       setLoading(false);
     }
@@ -53,7 +52,6 @@ export function VacanciesPanel() {
       const response = await api.get('/departments');
       setDepartments(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch departments:', error);
     }
   };
 
@@ -69,7 +67,6 @@ export function VacanciesPanel() {
       resetForm();
       fetchVacancies();
     } catch (error: any) {
-      console.error('Failed to save vacancy:', error);
       alert(error.response?.data?.message || 'Failed to save vacancy');
     }
   };
@@ -92,7 +89,6 @@ export function VacanciesPanel() {
       await api.delete(`/hr/vacancies/${id}`);
       fetchVacancies();
     } catch (error) {
-      console.error('Failed to delete vacancy:', error);
     }
   };
 
@@ -102,7 +98,6 @@ export function VacanciesPanel() {
       await api.put(`/hr/vacancies/${id}/close`);
       fetchVacancies();
     } catch (error) {
-      console.error('Failed to close vacancy:', error);
     }
   };
 
@@ -136,7 +131,6 @@ export function VacanciesPanel() {
       });
       setSelectedVacancy(null);
     } catch (error: any) {
-      console.error('Failed to create user:', error);
       alert(error.response?.data?.message || 'Failed to create user');
     }
   };

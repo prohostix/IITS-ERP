@@ -45,7 +45,6 @@ export function ModernStudentDashboard() {
         }
       }
     } catch (error) {
-      console.error('Failed to load student dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);

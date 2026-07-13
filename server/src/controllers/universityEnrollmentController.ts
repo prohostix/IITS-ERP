@@ -88,9 +88,9 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
       select: { id: true },
     });
     const recipients = [...centerAdmins, ...opsAdmins];
-    for (const u of recipients) {
-      await prisma.notification.create({
-        data: {
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map((u) => ({
           organizationId: req.user.organizationId,
           userId: u.id,
           title: 'Enrollment Approved',
@@ -98,10 +98,12 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
           type: 'general' as any,
           priority: 'medium',
           link: 'enrollment/enrollments',
-        },
+        })),
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) { 
+    console.error('Failed to notify about enrollment approval:', err);
+  }
 
   res.status(200).json({ success: true, data: updatedEnrollment });
 });
@@ -170,9 +172,9 @@ export const rejectUniversityEnrollment = asyncHandler(async (req: AuthRequest, 
       select: { id: true },
     });
     const recipients = [...centerAdmins, ...opsAdmins];
-    for (const u of recipients) {
-      await prisma.notification.create({
-        data: {
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map((u) => ({
           organizationId: req.user.organizationId,
           userId: u.id,
           title: 'Enrollment Rejected by University',
@@ -180,10 +182,12 @@ export const rejectUniversityEnrollment = asyncHandler(async (req: AuthRequest, 
           type: 'general' as any,
           priority: 'high',
           link: 'enrollment/enrollments',
-        },
+        })),
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) { 
+    console.error('Failed to notify about enrollment rejection:', err);
+  }
 
   res.status(200).json({ success: true, data: updatedEnrollment });
 });

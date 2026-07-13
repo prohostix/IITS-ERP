@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 
 export function OrgAdminSessionsPanel() {
   const { user } = useAuth();
-  console.log('OrgAdminSessionsPanel for user organization:', user?.organizationId);
   const [sessions, setSessions] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
@@ -43,7 +42,6 @@ export function OrgAdminSessionsPanel() {
       const res = await api.get('/operations/sessions');
       setSessions(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch sessions:', err);
       toast.error('Failed to fetch sessions');
     } finally {
       setLoading(false);
@@ -55,7 +53,6 @@ export function OrgAdminSessionsPanel() {
       const res = await api.get('/operations/universities');
       setUniversities(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch universities:', err);
     }
   };
 
@@ -64,7 +61,6 @@ export function OrgAdminSessionsPanel() {
       const res = await api.get('/operations/programs');
       setPrograms(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch programs:', err);
     }
   };
 
@@ -122,7 +118,6 @@ export function OrgAdminSessionsPanel() {
       toast.success('Session deleted successfully');
       fetchSessions();
     } catch (err) {
-      console.error('Failed to delete session:', err);
       toast.error('Failed to delete session');
     }
   };

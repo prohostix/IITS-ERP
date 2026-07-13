@@ -91,7 +91,6 @@ export function UsersPanel() {
       setDepartments(deptsRes.data.data || []);
     } catch (error: any) {
       toast.error('Failed to fetch data');
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -182,7 +181,6 @@ export function UsersPanel() {
         setImportErrors(errors);
         setImportSummary(null);
       } catch (err: any) {
-        console.error(err);
         toast.error('Failed to parse Excel file');
       }
     };
@@ -198,7 +196,6 @@ export function UsersPanel() {
       toast.success(`Successfully imported ${res.data.data.successCount} users`);
       fetchData();
     } catch (err: any) {
-      console.error(err);
       toast.error(err.response?.data?.message || 'Bulk import failed');
     } finally {
       setImporting(false);
@@ -246,15 +243,14 @@ export function UsersPanel() {
       
       // Remove empty departmentId
       if (!payload.departmentId) {
-        delete (payload as any).departmentId;
+        delete (payload).departmentId;
       }
       
       // Remove password if editing and password is empty
       if (editingUser && !payload.password) {
-        delete (payload as any).password;
+        delete (payload).password;
       }
 
-      console.log('Submitting user data:', payload);
 
       if (editingUser) {
         await api.put(`/users/${editingUser.id}`, payload);
@@ -269,8 +265,6 @@ export function UsersPanel() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Operation failed';
       toast.error(errorMessage);
-      console.error('Full error:', error);
-      console.error('Error response:', error.response?.data);
     }
   };
 
@@ -284,7 +278,6 @@ export function UsersPanel() {
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete user');
-      console.error(error);
     }
   };
 

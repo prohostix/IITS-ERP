@@ -72,7 +72,6 @@ export function TasksPanel() {
       const res = await api.get('/tasks');
       setTasks(res.data.data || []);
     } catch (e) {
-      console.error('Failed to fetch tasks:', e);
     } finally {
       setLoading(false);
     }
@@ -83,7 +82,6 @@ export function TasksPanel() {
       const res = await api.get('/tasks/assignable-users');
       setSubordinates(res.data.data || []);
     } catch (e) {
-      console.error('Failed to fetch assignable users:', e);
     }
   };
 
@@ -139,7 +137,6 @@ export function TasksPanel() {
       await api.delete(`/tasks/${taskId}`);
       fetchTasks();
     } catch (e) {
-      console.error('Failed to delete task:', e);
     }
   };
 
@@ -174,7 +171,7 @@ export function TasksPanel() {
     pending: 'bg-gray-100 text-gray-800',
   }[s] || 'bg-gray-100 text-gray-800');
 
-  const currentUserId = user?.id || (user as any)?.id;
+  const currentUserId = user?.id || (user)?.id;
 
   const filteredTasks = (() => {
     switch (activeTab) {

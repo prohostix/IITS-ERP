@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Building2, GitBranch, Globe, Lock } from 'lucide-react';
 // Card import removed — using custom sections instead
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import api from '@/lib/api';
 interface Branch { id: string; name: string; code: string; }
 interface University {
   id: string; name: string; code: string; address?: string;
-  contact?: string; status: string;
+  contact?: string; status: string; coordinatorName?: string;
   allowedBranchIds: Branch[];
 }
 
@@ -27,36 +27,34 @@ export function UniversitiesPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', code: '', address: '', contact: '', status: 'active',
+    name: '', code: '', address: '', contact: '', coordinatorName: '', status: 'active',
   });
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [accessMode, setAccessMode] = useState<'all' | 'exclusive' | 'multi'>('all');
 
-  useEffect(() => {
-    fetchUniversities();
-    if (isOrgAdmin) fetchBranches();
-  }, []);
-
-  const fetchUniversities = async () => {
+  const fetchUniversities = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/operations/universities');
       setUniversities(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch universities:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchBranches = async () => {
+  const fetchBranches = useCallback(async () => {
     try {
       const res = await api.get('/org/branches');
       setBranches(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch branches:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUniversities();
+    if (isOrgAdmin) fetchBranches();
+  }, [isOrgAdmin, fetchUniversities, fetchBranches]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +78,7 @@ export function UniversitiesPanel() {
 
   const handleEdit = (u: University) => {
     setEditingId(u.id);
-    setFormData({ name: u.name, code: u.code, address: u.address || '', contact: u.contact || '', status: u.status });
+    setFormData({ name: u.name, code: u.code, address: u.address || '', contact: u.contact || '', coordinatorName: u.coordinatorName || '', status: u.status });
     const ids = (u.allowedBranchIds || []).map(b => b.id);
     setSelectedBranchIds(ids);
     if (ids.length === 0) setAccessMode('all');
@@ -95,13 +93,12 @@ export function UniversitiesPanel() {
       await api.delete(`/operations/universities/${id}`);
       fetchUniversities();
     } catch (err) {
-      console.error('Failed to delete university:', err);
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', status: 'active' });
+    setFormData({ name: '', code: '', address: '', contact: '', coordinatorName: '', status: 'active' });
     setSelectedBranchIds([]);
     setAccessMode('all');
   };
@@ -134,13 +131,19 @@ export function UniversitiesPanel() {
                   <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} required />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Contact (Phone/Email)</Label>
+                  <Input value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Coordinator Name (optional)</Label>
+                  <Input value={formData.coordinatorName} onChange={(e) => setFormData({ ...formData, coordinatorName: e.target.value })} />
+                </div>
+              </div>
               <div>
                 <Label>Address</Label>
                 <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-              </div>
-              <div>
-                <Label>Contact</Label>
-                <Input value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} placeholder="Phone or email" />
               </div>
               <div>
                 <Label>Status</Label>

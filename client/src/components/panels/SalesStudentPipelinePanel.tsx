@@ -129,7 +129,7 @@ export function SalesStudentPipelinePanel() {
               )}
             >
               <p className="text-xs text-muted-foreground">{label}</p>
-              <p className={cn('text-2xl font-bold mt-0.5', color)}>{(summary as any)[key]}</p>
+              <p className={cn('text-2xl font-bold mt-0.5', color)}>{(summary)[key]}</p>
             </button>
           ))}
         </div>

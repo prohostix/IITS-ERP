@@ -49,7 +49,7 @@ function OrgNode({
 }) {
   const [expanded, setExpanded] = useState(true);
   const children = allNodes.filter(n => {
-    const pid = typeof n.parentDesignationId === 'object' ? (n.parentDesignationId as any)?.id : n.parentDesignationId;
+    const pid = typeof n.parentDesignationId === 'object' ? (n.parentDesignationId)?.id : n.parentDesignationId;
     return pid === node.id;
   });
   const filled = node.filledBy?.length || 0;
@@ -221,16 +221,16 @@ function BranchSection({
 
   // Designation nodes scoped to this branch with no parent = roots of branch subtree
   const branchRoots = allNodes.filter(n => {
-    const bId = typeof n.branchId === 'object' ? (n.branchId as any)?.id : n.branchId;
-    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId as any)?.id : !!n.parentDesignationId;
+    const bId = typeof n.branchId === 'object' ? (n.branchId)?.id : n.branchId;
+    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId)?.id : !!n.parentDesignationId;
     return bId === branch.id && !hasParent;
   });
 
   // Branch manager controls Sales and Operations only — Finance and HR are org-wide
   const BRANCH_CONTROLLED_TYPES = new Set(['sales', 'operations']);
   const controlledDepts: Array<{ id: string; name: string; type: string }> = [];
-  const salesDeptObj = typeof branch.salesDeptId === 'object' && branch.salesDeptId ? branch.salesDeptId : (branch as any).salesDept;
-  const operationsDeptObj = typeof branch.operationsDeptId === 'object' && branch.operationsDeptId ? branch.operationsDeptId : (branch as any).operationsDept;
+  const salesDeptObj = typeof branch.salesDeptId === 'object' && branch.salesDeptId ? branch.salesDeptId : (branch).salesDept;
+  const operationsDeptObj = typeof branch.operationsDeptId === 'object' && branch.operationsDeptId ? branch.operationsDeptId : (branch).operationsDept;
 
   if (salesDeptObj && salesDeptObj.id) {
     controlledDepts.push({ id: salesDeptObj.id, name: salesDeptObj.name, type: 'sales' });
@@ -411,7 +411,6 @@ export function OrgHierarchyPanel() {
       setAllSubDepts(subDeptsRes.data.data || []);
       setAllBranches(branchRes.data.data || []);
     } catch (e) {
-      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -491,7 +490,6 @@ export function OrgHierarchyPanel() {
       setDesignDialog(false);
       fetchAll();
     } catch (e) {
-      console.error(e);
     } finally {
       setSaving(false);
     }
@@ -507,7 +505,6 @@ export function OrgHierarchyPanel() {
       const res = await api.get('/sub-departments');
       setAllSubDepts(res.data.data || []);
     } catch (e) {
-      console.error(e);
     } finally {
       setSubDeptSaving(false);
     }
@@ -518,7 +515,9 @@ export function OrgHierarchyPanel() {
     try {
       await api.delete(`/org/designations/${node.id}`);
       fetchAll();
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Failed to delete');
+    }
   };
 
   const openAssign = (node: DesignationNode) => {
@@ -534,7 +533,6 @@ export function OrgHierarchyPanel() {
       await api.patch(`/org/designations/${assignTarget.id}/assign`, { userId: assignUserId });
       setAssignDialog(false);
       fetchAll();
-    } catch (e) { console.error(e); }
     finally { setSaving(false); }
   };
 
@@ -542,13 +540,12 @@ export function OrgHierarchyPanel() {
     try {
       await api.patch(`/org/designations/${node.id}/unassign`, { userId });
       fetchAll();
-    } catch (e) { console.error(e); }
   };
 
   // Global (non-branch) root nodes
   const globalRoots = nodes.filter(n => {
-    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId as any)?.id : !!n.parentDesignationId;
-    const hasBranch = typeof n.branchId === 'object' ? !!(n.branchId as any)?.id : !!n.branchId;
+    const hasParent = typeof n.parentDesignationId === 'object' ? !!(n.parentDesignationId)?.id : !!n.parentDesignationId;
+    const hasBranch = typeof n.branchId === 'object' ? !!(n.branchId)?.id : !!n.branchId;
     return !hasParent && !hasBranch;
   });
   const assignedUserIds = new Set(nodes.flatMap(n => (n.filledBy || []).map(u => u.id)));

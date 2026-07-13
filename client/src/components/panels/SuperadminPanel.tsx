@@ -180,9 +180,6 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
         title="All Organizations"
         searchFields={['name', 'email', 'phone']}
         actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-          { label: 'Delete', onClick: () => console.log('Delete', row.id), variant: 'destructive' },
         ]}
       />
     </div>
@@ -253,9 +250,6 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
         title="All Licenses"
         searchFields={['name', 'type']}
         actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-          { label: 'Delete', onClick: () => console.log('Delete', row.id), variant: 'destructive' },
         ]}
       />
     </div>

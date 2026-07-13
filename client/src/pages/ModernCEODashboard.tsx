@@ -88,7 +88,6 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
       setMetrics(metricsRes.data.data || {});
       setAnalytics(analyticsRes.data.data || { employeePerformance: [], departmentEfficiency: [] });
     } catch (e) {
-      console.error('Failed to fetch CEO metrics:', e);
     } finally {
       setLoadingMetrics(false);
     }

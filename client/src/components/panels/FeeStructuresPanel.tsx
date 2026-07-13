@@ -33,7 +33,6 @@ export function FeeStructuresPanel() {
       const res = await api.get('/finance/fees');
       setFees(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch fees:', err);
     } finally {
       setLoading(false);
     }
@@ -44,7 +43,6 @@ export function FeeStructuresPanel() {
       const res = await api.get('/operations/programs');
       setPrograms(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch programs:', err);
     }
   };
 
@@ -90,7 +88,6 @@ export function FeeStructuresPanel() {
       await api.delete(`/finance/fees/${id}`);
       fetchFees();
     } catch (err) {
-      console.error('Failed to delete fee structure:', err);
     }
   };
 

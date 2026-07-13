@@ -81,7 +81,6 @@ export function DepartmentsPanel() {
       setUsers(usersRes.data.data || []);
     } catch (error: any) {
       toast.error('Failed to fetch data');
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -140,7 +139,6 @@ export function DepartmentsPanel() {
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Operation failed');
-      console.error(error);
     }
   };
 
@@ -154,7 +152,6 @@ export function DepartmentsPanel() {
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete department');
-      console.error(error);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { GraduationCap, Building2, BookOpen, Users, RefreshCw, Search, ChevronLeft, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,7 +80,7 @@ export function UniversityStudentsPanel() {
     }
   };
 
-  const refreshStudents = async () => {
+  const refreshStudents = useCallback(async () => {
     if (!selectedUniversity) return;
     setLoading(true);
     try {
@@ -94,11 +94,11 @@ export function UniversityStudentsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedUniversity, search, programFilter]);
 
   useEffect(() => {
     if (selectedUniversity) refreshStudents();
-  }, [search, programFilter]);
+  }, [search, programFilter, selectedUniversity, refreshStudents]);
 
   // ── University list view ──────────────────────────────────────────────────
   if (!selectedUniversity) {
@@ -191,7 +191,7 @@ export function UniversityStudentsPanel() {
           <SelectContent>
             <SelectItem value="all">All Programs</SelectItem>
             {programs.map(p => (
-              <SelectItem key={p.id} value={p.id}>{(p as any).name}</SelectItem>
+              <SelectItem key={p.id} value={p.id}>{(p).name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

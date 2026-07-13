@@ -64,7 +64,6 @@ export function ModernSuperadminDashboard({ initialTab }: { initialTab?: string 
       const response = await api.get('/dashboard/metrics');
       setMetrics(response.data.data || {});
     } catch (error) {
-      console.error('Failed to fetch global metrics:', error);
     } finally {
       setLoading(false);
     }

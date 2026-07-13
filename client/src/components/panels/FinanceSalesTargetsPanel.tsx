@@ -220,7 +220,7 @@ export function FinanceSalesTargetsPanel() {
                 <select
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
                   value={form.type}
-                  onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
+                  onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                 >
                   <option value="revenue">Revenue</option>
                   <option value="students">Students</option>

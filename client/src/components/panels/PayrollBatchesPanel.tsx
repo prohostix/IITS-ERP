@@ -56,7 +56,6 @@ export function PayrollBatchesPanel() {
       const response = await api.get('/finance/payroll-batches');
       setBatches(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch payroll batches:', error);
     } finally {
       setLoading(false);
     }

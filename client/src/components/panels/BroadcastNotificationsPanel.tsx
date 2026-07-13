@@ -54,7 +54,6 @@ export function BroadcastNotificationsPanel() {
         setStudents(studentsRes.data.data || []);
       }
     } catch (error) {
-      console.error('Failed to load targeting details:', error);
       toast.error('Failed to load recipient selection lists');
     } finally {
       setLoading(false);
@@ -100,7 +99,6 @@ export function BroadcastNotificationsPanel() {
         link: ''
       }));
     } catch (error: any) {
-      console.error('Failed to send notification:', error);
       toast.error(error.response?.data?.message || 'Failed to send notification');
     } finally {
       setSubmitting(false);

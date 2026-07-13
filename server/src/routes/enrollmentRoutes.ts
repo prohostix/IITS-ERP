@@ -13,6 +13,7 @@ import {
   submitMyCenterPayment,
   getAllEnrollments,
   getActiveSessions,
+  checkEmailUniqueness,
 } from '../controllers/enrollmentController.js';
 import {
   getPendingReviews,
@@ -36,6 +37,7 @@ router.get('/wallet/transactions', authorize('center_admin'), getWalletTransacti
 // Study Center enrollment routes
 router.get('/programs', authorize('center_admin'), getEnrollablePrograms);
 router.get('/sessions', authorize('center_admin'), getActiveSessions);
+router.post('/check-email', authorize('center_admin'), checkEmailUniqueness);
 router.post('/enroll', authorize('center_admin'), createEnrollment);
 router.put('/enroll/:id', authorize('center_admin'), updateEnrollment);
 router.get('/enrollments', authorize('center_admin'), getMyEnrollments);

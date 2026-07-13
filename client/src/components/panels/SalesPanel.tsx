@@ -327,10 +327,7 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
             title="All Leads"
             searchFields={['centerName', 'contactName', 'email']}
             actions={(row) => [
-              { label: 'View', onClick: () => console.log('View', row.id) },
-              { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-              row.status === 'new' && { label: 'Contact', onClick: () => console.log('Contact', row.id) },
-            ].filter(Boolean) as any}
+            ].filter(Boolean)}
           />
         </TabsContent>
 
@@ -341,8 +338,6 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
             title="New Leads"
             searchFields={['centerName', 'contactName']}
             actions={(row) => [
-              { label: 'Contact', onClick: () => console.log('Contact', row.id) },
-              { label: 'Qualify', onClick: () => console.log('Qualify', row.id) },
             ]}
           />
         </TabsContent>

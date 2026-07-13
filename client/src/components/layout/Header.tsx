@@ -70,7 +70,7 @@ export function Header({ onMenuToggle, title }: HeaderProps) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleRoleSwitch = (role: string) => {
-    switchRole(role as any);
+    switchRole(role);
   };
 
   const markAsRead = (id: number) => {

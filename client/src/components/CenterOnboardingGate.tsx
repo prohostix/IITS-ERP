@@ -23,7 +23,7 @@ interface Props {
 
 export function CenterOnboardingGate({ children }: Props) {
   const { user } = useAuth();
-  const [centerStatus, setCenterStatus] = useState<string | null>((user as any)?.centerStatus ?? null);
+  const [centerStatus, setCenterStatus] = useState<string | null>((user)?.centerStatus ?? null);
   const [data, setData] = useState<CenterStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

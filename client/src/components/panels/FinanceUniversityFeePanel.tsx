@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -40,6 +41,10 @@ interface UniversityFeePayment {
 
 export function FinanceUniversityFeePanel() {
   const [payments, setPayments] = useState<UniversityFeePayment[]>([]);
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [centers, setCenters] = useState<any[]>([]);
+  const [universityFilter, setUniversityFilter] = useState('');
+  const [centerFilter, setCenterFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'paid'>('pending');
   const [payDialog, setPayDialog] = useState<{ open: boolean; payment: UniversityFeePayment | null }>({ open: false, payment: null });
@@ -50,21 +55,42 @@ export function FinanceUniversityFeePanel() {
     screenshot: null as File | null
   });
 
-  const fetchPayments = async (status = activeTab) => {
+  const fetchUniversities = useCallback(async () => {
+    try {
+      const res = await api.get('/operations/universities');
+      setUniversities(res.data.data || []);
+    } catch (err) {}
+  }, []);
+
+  const fetchCenters = useCallback(async () => {
+    try {
+      const res = await api.get('/operations/centers');
+      setCenters(res.data.data || []);
+    } catch (err) {}
+  }, []);
+
+  const fetchPayments = useCallback(async (status = activeTab) => {
     setLoading(true);
     try {
-      const res = await api.get(`/finance/university-fees?status=${status}`);
+      const query = new URLSearchParams();
+      query.append('status', status);
+      if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
+      if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
+
+      const res = await api.get(`/finance/university-fees?${query.toString()}`);
       setPayments(res.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load university fees');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, universityFilter, centerFilter]);
 
   useEffect(() => {
     fetchPayments();
-  }, [activeTab]);
+    fetchUniversities();
+    fetchCenters();
+  }, [fetchPayments, fetchUniversities, fetchCenters]);
 
   const handlePayClick = (p: UniversityFeePayment) => {
     setPayDialog({ open: true, payment: p });
@@ -113,7 +139,29 @@ export function FinanceUniversityFeePanel() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+      <div className="flex gap-2">
+        <Select value={universityFilter} onValueChange={setUniversityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Universities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Universities</SelectItem>
+            {universities.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={centerFilter} onValueChange={setCenterFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Centers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Centers</SelectItem>
+            {centers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'paid')} className="space-y-4">
         <TabsList>
           <TabsTrigger value="pending" className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-orange-500" /> Pending

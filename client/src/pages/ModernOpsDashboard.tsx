@@ -42,7 +42,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
   const { user } = useAuth();
-  const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
+  const isSubDeptManager = Boolean((user)?.subDepartmentId);
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
 
@@ -52,7 +52,6 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
       const response = await api.get('/dashboard/metrics');
       setMetrics(response.data.data || {});
     } catch (error) {
-      console.error('Failed to fetch ops metrics:', error);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, FileText, GraduationCap, Eye, Calendar, User, Phone, Mail, MapPin, ShieldAlert, Trash2, Plus, Upload } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ export function StudyCenterEnrollmentsPanel() {
   const [tempEdu, setTempEdu] = useState({ qualification: '', institution: '', passingYear: '', percentage: '' });
   const [uploading, setUploading] = useState(false);
 
-  const fetch = async () => {
+  const fetchEnrollments = useCallback(async () => {
     setLoading(true);
     try {
       const params = statusFilter ? `?status=${statusFilter}` : '';
@@ -73,14 +73,14 @@ export function StudyCenterEnrollmentsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    fetch();
+    fetchEnrollments();
     // Fetch programs and sessions for editing dropdowns
     api.get('/enrollment/programs').then(r => setPrograms(r.data.data || [])).catch(() => {});
     api.get('/enrollment/sessions').then(r => setSessions(r.data.data || [])).catch(() => {});
-  }, [statusFilter]);
+  }, [fetchEnrollments]);
 
   const getProgramName = (e: Enrollment) => {
     if (e.program && e.program.name) {
@@ -165,7 +165,7 @@ export function StudyCenterEnrollmentsPanel() {
       await api.put(`/enrollment/enroll/${editForm.id}`, payload);
       toast.success('Enrollment updated and re-submitted successfully!');
       setEditOpen(false);
-      fetch();
+      fetchEnrollments();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update enrollment');
     }
@@ -184,7 +184,7 @@ export function StudyCenterEnrollmentsPanel() {
           <h2 className="text-2xl font-bold">My Enrollments</h2>
           <p className="text-muted-foreground text-sm mt-1">Track all student enrollments submitted by your center.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetch} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => fetchEnrollments()} disabled={loading}>
           <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />Refresh
         </Button>
       </div>

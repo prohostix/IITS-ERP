@@ -157,10 +157,10 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
       });
       const sc = d.salaryConfig || {};
       setSalaryConfigForm({
-        basicSalary: (sc as any).basicSalary || 0,
-        allowances: (sc as any).allowances || { hra: 0, da: 0, ta: 0, medical: 0, other: 0 },
-        deductions: (sc as any).deductions || { pf: 0, esi: 0, tds: 0, other: 0 },
-        lateDeductionPerMinute: (sc as any).lateDeductionPerMinute || 0,
+        basicSalary: (sc).basicSalary || 0,
+        allowances: (sc).allowances || { hra: 0, da: 0, ta: 0, medical: 0, other: 0 },
+        deductions: (sc).deductions || { pf: 0, esi: 0, tds: 0, other: 0 },
+        lateDeductionPerMinute: (sc).lateDeductionPerMinute || 0,
       });
       setKpis(p.kpis || []);
       setKras(p.kras || []);

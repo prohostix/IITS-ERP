@@ -24,20 +24,20 @@ interface DashboardProps {
 export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps) {
   const { user } = useAuth();
   const [departmentType, setDepartmentType] = useState<string | null>(null);
-  const isBranchManager = Boolean((user as any)?.branchId);
+  const isBranchManager = Boolean((user)?.branchId);
   const [deptLoading, setDeptLoading] = useState(Boolean(useDepartmentDashboard) && !isBranchManager);
 
-  const subDeptId = (user as any)?.subDepartmentId;
+  const subDeptId = (user)?.subDepartmentId;
   const hasSubDept = Boolean(subDeptId);
 
   // fetchDepartmentType defined before useEffect so it can be in deps safely
   const fetchDepartmentType = async () => {
     try {
       // Try direct department object or departmentId first
-      const dept = (user as any).department || user?.departmentId;
+      const dept = (user).department || user?.departmentId;
       if (dept) {
         if (typeof dept === 'object' && dept !== null) {
-          const populated = dept as any;
+          const populated = dept;
           if (populated.type) { setDepartmentType(populated.type); return; }
           const deptId = populated.id?.toString();
           if (deptId) {
@@ -78,7 +78,6 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
         } catch (_ignored) { /* intentionally silent */ }
       }
     } catch (error) {
-      console.error('Failed to fetch department type:', error);
       setDepartmentType(null);
     }
   };
@@ -174,7 +173,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
     );
   }
 
-  if ((user as any)?.role === 'student') {
+  if ((user)?.role === 'student') {
     return <ModernStudentDashboard />;
   }
 

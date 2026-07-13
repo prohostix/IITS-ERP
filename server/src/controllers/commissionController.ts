@@ -12,6 +12,11 @@ export const getCommissionInList = asyncHandler(async (req: AuthRequest, res: Re
   if (status) {
     where.status = status;
   }
+  if (req.query.universityId || req.query.centerId) {
+    where.enrollment = {};
+    if (req.query.universityId) where.enrollment.program = { universityId: req.query.universityId as string };
+    if (req.query.centerId) where.enrollment.studyCenterId = req.query.centerId as string;
+  }
 
   const list = await prisma.commissionIn.findMany({
     where,
@@ -86,6 +91,12 @@ export const getCommissionOutList = asyncHandler(async (req: AuthRequest, res: R
   const where: any = { organizationId: req.user.organizationId };
   if (status) {
     where.status = status;
+  }
+  if (req.query.centerId) {
+    where.studyCenterId = req.query.centerId as string;
+  }
+  if (req.query.universityId) {
+    where.commissionIn = { enrollment: { program: { universityId: req.query.universityId as string } } };
   }
 
   const list = await prisma.commissionOut.findMany({

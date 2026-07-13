@@ -233,9 +233,6 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
         title="All Universities"
         searchFields={['name', 'code']}
         actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-          { label: 'Delete', onClick: () => console.log('Delete', row.id), variant: 'destructive' },
         ]}
       />
     </div>
@@ -271,10 +268,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
             title="All Centers"
             searchFields={['name', 'code', 'email']}
             actions={(row) => [
-              { label: 'View', onClick: () => console.log('View', row.id) },
-              { label: 'Edit', onClick: () => console.log('Edit', row.id) },
-              row.status === 'pending' && { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-            ].filter(Boolean) as any}
+            ].filter(Boolean)}
           />
         </TabsContent>
 
@@ -294,9 +288,6 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
             title="Pending Approvals"
             searchFields={['name', 'code']}
             actions={(row) => [
-              { label: 'View Details', onClick: () => console.log('View', row.id) },
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -334,8 +325,6 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
             title="All Students"
             searchFields={['name', 'enrollmentNo', 'email']}
             actions={(row) => [
-              { label: 'View', onClick: () => console.log('View', row.id) },
-              { label: 'Edit', onClick: () => console.log('Edit', row.id) },
             ]}
           />
         </TabsContent>
@@ -356,9 +345,6 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
             title="Pending Admissions"
             searchFields={['name', 'enrollmentNo']}
             actions={(row) => [
-              { label: 'Verify Documents', onClick: () => console.log('Verify', row.id) },
-              { label: 'Approve', onClick: () => console.log('Approve', row.id) },
-              { label: 'Reject', onClick: () => console.log('Reject', row.id), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -492,9 +478,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
         title="All Sessions"
         searchFields={['name']}
         actions={(row) => [
-          { label: 'View', onClick: () => console.log('View', row.id) },
-          row.status === 'pending' && { label: 'Request Approval', onClick: () => console.log('Request', row.id) },
-        ].filter(Boolean) as any}
+        ].filter(Boolean)}
       />
     </div>
   );

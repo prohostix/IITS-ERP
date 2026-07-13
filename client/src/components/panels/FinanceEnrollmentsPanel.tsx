@@ -117,12 +117,12 @@ export function FinanceEnrollmentsPanel() {
   const getProgramName = (e: Enrollment) =>
     e.program && typeof e.program === 'object'
       ? `${e.program.name} (${e.program.code})`
-      : (typeof e.programId === 'object' ? `${(e.programId as any).name} (${(e.programId as any).code})` : e.programId);
+      : (typeof e.programId === 'object' ? `${(e.programId).name} (${(e.programId).code})` : e.programId);
 
   const getCenterName = (e: Enrollment) =>
     e.studyCenter && typeof e.studyCenter === 'object'
       ? `${e.studyCenter.name} (${e.studyCenter.code})`
-      : (typeof e.studyCenterId === 'object' ? `${(e.studyCenterId as any).name}` : e.studyCenterId);
+      : (typeof e.studyCenterId === 'object' ? `${(e.studyCenterId).name}` : e.studyCenterId);
 
   return (
     <div className="space-y-6">

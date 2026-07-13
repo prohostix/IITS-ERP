@@ -80,7 +80,7 @@ export function LeavesPanel() {
 
   const role = user?.role || '';
   const userId = user?.id?.toString() || '';
-  const isBranchManager = Boolean((user as any)?.branchId);
+  const isBranchManager = Boolean((user)?.branchId);
   const isDeptManager = DEPT_MANAGER_ROLES.includes(role) || isBranchManager;
   const isHR = role === 'hr_admin';
   const isEmployee = !isDeptManager && !isHR && role !== 'superadmin' && role !== 'org_admin' && role !== 'ceo';
@@ -301,7 +301,7 @@ export function LeavesPanel() {
                                   <span className="font-semibold text-foreground/70">Dept Manager:</span>
                                   <span className="ml-1 text-muted-foreground">{leave.deptAdminRemarks}</span>
                                   {leave.deptApprovedBy && (
-                                    <span className="ml-1 text-muted-foreground/60">— {(leave.deptApprovedBy as any).name}</span>
+                                    <span className="ml-1 text-muted-foreground/60">— {(leave.deptApprovedBy).name}</span>
                                   )}
                                 </div>
                               )}
@@ -310,7 +310,7 @@ export function LeavesPanel() {
                                   <span className="font-semibold text-foreground/70">HR:</span>
                                   <span className="ml-1 text-muted-foreground">{leave.hrRemarks}</span>
                                   {leave.hrApprovedBy && (
-                                    <span className="ml-1 text-muted-foreground/60">— {(leave.hrApprovedBy as any).name}</span>
+                                    <span className="ml-1 text-muted-foreground/60">— {(leave.hrApprovedBy).name}</span>
                                   )}
                                 </div>
                               )}

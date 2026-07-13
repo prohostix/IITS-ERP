@@ -181,7 +181,9 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
         link: 'student-applications',
       },
     });
-  } catch (_) { /* non-critical */ }
+  } catch (err) {
+    console.error('Failed to notify sales user:', err);
+  }
 
   // Notify ops admins
   try {
@@ -189,9 +191,10 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
       where: { organizationId: organizationId, role: 'ops_admin' as any, status: 'active' as any },
       select: { id: true },
     });
-    for (const admin of opsAdmins) {
-      await prisma.notification.create({
-        data: {
+    
+    if (opsAdmins.length > 0) {
+      await prisma.notification.createMany({
+        data: opsAdmins.map((admin) => ({
           organizationId: organizationId,
           userId: admin.id,
           title: 'New Student Application for Review',
@@ -199,10 +202,12 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
           type: 'general' as any,
           priority: 'medium',
           link: 'enrollment_review',
-        },
+        })),
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) { 
+    console.error('Failed to notify ops admins:', err);
+  }
 
   res.status(201).json({
     success: true,
@@ -301,9 +306,9 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
       where: { organizationId: req.user.organizationId, role: 'finance_admin' as any, status: 'active' as any },
       select: { id: true },
     });
-    for (const admin of financeAdmins) {
-      await prisma.notification.create({
-        data: {
+    if (financeAdmins.length > 0) {
+      await prisma.notification.createMany({
+        data: financeAdmins.map((admin) => ({
           organizationId: req.user.organizationId,
           userId: admin.id,
           title: 'Student Application Pending Payment',
@@ -311,10 +316,12 @@ export const approveSalesEnrollmentOps = asyncHandler(async (req: AuthRequest, r
           type: 'general' as any,
           priority: 'medium',
           link: 'enrollments_finance',
-        },
+        })),
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) { 
+    console.error('Failed to notify finance admins:', err);
+  }
 
   res.status(200).json({ success: true, data: updated });
 });
@@ -415,7 +422,9 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
         },
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) { 
+    console.error('Failed to notify sales user of enrollment:', err);
+  }
 
   res.status(200).json({ success: true, data: updated });
 });
@@ -481,7 +490,9 @@ export const rejectSalesEnrollment = asyncHandler(async (req: AuthRequest, res: 
         },
       });
     }
-  } catch (_) { /* non-critical */ }
+  } catch (err) {
+    console.error('Failed to notify sales user of rejection:', err);
+  }
 
   res.status(200).json({ success: true, data: updated });
 });

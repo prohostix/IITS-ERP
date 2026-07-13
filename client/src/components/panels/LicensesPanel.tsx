@@ -33,7 +33,6 @@ export function LicensesPanel() {
       const res = await api.get('/licenses');
       setLicenses(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch licenses:', err);
     } finally {
       setLoading(false);
     }
@@ -86,7 +85,6 @@ export function LicensesPanel() {
       await api.delete(`/licenses/${id}`);
       fetchLicenses();
     } catch (err) {
-      console.error('Failed to delete license:', err);
     }
   };
 

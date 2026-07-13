@@ -133,20 +133,20 @@ function App() {
   // Fetch department type for employee sub-dept managers (mirrors Dashboard.tsx logic)
   useEffect(() => {
     if (user?.role !== 'employee') return;
-    const subDeptId = (user as any)?.subDepartmentId;
+    const subDeptId = (user)?.subDepartmentId;
     if (!user?.departmentId && !subDeptId) return;
 
     const fetchDeptType = async () => {
       try {
         // Try direct department object or departmentId first
-        const dept = (user as any).department || user?.departmentId;
+        const dept = (user).department || user?.departmentId;
         if (dept) {
-          if (typeof dept === 'object' && (dept as any)?.type) {
-            setDeptType((dept as any).type);
+          if (typeof dept === 'object' && (dept)?.type) {
+            setDeptType((dept).type);
             return;
           }
           const deptId = typeof dept === 'object'
-            ? (dept as any).id?.toString()
+            ? (dept).id?.toString()
             : dept.toString();
           if (deptId) {
             const res = await api.get(`/departments/${deptId}`);
@@ -174,12 +174,11 @@ function App() {
           if (parentType) { setDeptType(parentType); return; }
         } catch (_ignored) { /* intentionally silent */ }
       } catch (err) {
-        console.error('Failed to fetch dept type for nav:', err);
       }
     };
 
     fetchDeptType();
-  }, [user?.role, (user as any)?.subDepartmentId, user?.departmentId, (user as any)?.department]);
+  }, [user?.role, (user)?.subDepartmentId, user?.departmentId, (user)?.department]);
 
   // Public register page — show when on /register path OR has ?token= param (no-router SPA)
   // Only intercept if user is not logged in, to avoid breaking logged-in users with token params
@@ -249,12 +248,12 @@ function App() {
     }
 
     // Branch manager — takes priority over role-specific nav
-    if ((user as any)?.branchId) {
+    if ((user)?.branchId) {
       return getBranchManagerNavItems();
     }
 
     if (user.role === 'ops_admin' || user.role === 'ops_sub_admin') {
-      const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
+      const isSubDeptManager = Boolean((user)?.subDepartmentId);
       const items = getOpsNavItems(isSubDeptManager);
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
@@ -284,7 +283,7 @@ function App() {
     }
 
     if (user.role === 'employee') {
-      const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
+      const isSubDeptManager = Boolean((user)?.subDepartmentId);
       if (deptType) {
         if (isSubDeptManager) {
           switch (deptType) {
@@ -305,7 +304,7 @@ function App() {
     return baseTables;
   };
 
-  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, deptType]);
+  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user)?.subDepartmentId, (user)?.branchId, deptType]);
 
   // Fetch data for active table — only when in table view mode
   useEffect(() => {
@@ -335,9 +334,9 @@ function App() {
     // For role-specific dashboards (ops, hr, finance, sales), the nav item IDs
     // are already the correct tab IDs — pass them directly
     const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'hr_admin', 'sales_admin'];
-    const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
+    const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user)?.subDepartmentId) && Boolean(deptType);
     const isEmployeeRole = user?.role === 'employee';
-    const isBranchManager = Boolean((user as any)?.branchId);
+    const isBranchManager = Boolean((user)?.branchId);
     if (user && (roleDashboardRoles.includes(user.role) || isEmployeeSubDeptManager || isEmployeeRole || isBranchManager)) {
       setViewMode('dashboard');
       setActiveTable(table);
@@ -751,8 +750,8 @@ function App() {
   // Branch managers are excluded — they always get the branch dashboard
   const shouldUseDepartmentDashboard = Boolean(
     user.role === 'employee' &&
-    !(user as any).branchId &&
-    (user.departmentId || (user as any).subDepartmentId) &&
+    !(user).branchId &&
+    (user.departmentId || (user).subDepartmentId) &&
     viewMode === 'dashboard'
   );
 
@@ -767,7 +766,7 @@ function App() {
       userId={user?.id?.toString()}
       organizationId={
         (() => {
-          const orgId = (user as any)?.organizationId;
+          const orgId = (user)?.organizationId;
           if (!orgId) return undefined;
           if (typeof orgId === 'object') return orgId.id?.toString() || String(orgId);
           return String(orgId);

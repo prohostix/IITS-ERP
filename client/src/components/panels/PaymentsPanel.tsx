@@ -32,7 +32,6 @@ export function PaymentsPanel() {
       const response = await api.get('/finance/payments');
       setPayments(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch payments:', error);
     } finally {
       setLoading(false);
     }
@@ -43,7 +42,6 @@ export function PaymentsPanel() {
       const response = await api.get('/finance/invoices');
       setInvoices(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch invoices:', error);
     }
   };
 
@@ -59,7 +57,6 @@ export function PaymentsPanel() {
       resetForm();
       fetchPayments();
     } catch (error: any) {
-      console.error('Failed to save payment:', error);
       alert(error.response?.data?.message || 'Failed to save payment');
     }
   };
@@ -87,7 +84,6 @@ export function PaymentsPanel() {
       await api.delete(`/finance/payments/${id}`, { data: { remarks } });
       fetchPayments();
     } catch (error) {
-      console.error('Failed to delete payment:', error);
     }
   };
 

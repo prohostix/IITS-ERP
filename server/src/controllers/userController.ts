@@ -15,8 +15,8 @@ export const getUsers = asyncHandler(async (req: AuthRequest, res: Response) => 
   if (req.query.role) {
     where.role = req.query.role as string;
   } else {
-    // Exclude study center admins from the general user list
-    where.role = { not: 'center_admin' };
+    // Exclude study center admins and students from the general user list
+    where.role = { notIn: ['center_admin', 'student'] };
   }
   
   if (req.query.departmentId) where.departmentId = req.query.departmentId as string;

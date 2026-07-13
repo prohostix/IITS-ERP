@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings, ChevronDown, ChevronRight, Building2, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,11 @@ export function StudyCentersPanel() {
     email: '',
     status: 'pending',
     referredById: '',
-    branchName: ''
+    branchName: '',
+    coordinatorName: ''
   });
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [universityFilter, setUniversityFilter] = useState('');
   // Branch-level settings state
   const [branchConfigOpen, setBranchConfigOpen] = useState(false);
   const [branchConfigName, setBranchConfigName] = useState('');
@@ -78,9 +81,9 @@ export function StudyCentersPanel() {
     }
     const initialConfig: Record<string, any> = {};
     CUSTOMISABLE_FIELDS.forEach(f => {
-      initialConfig[f.key] = (currentConfig as any)[f.key] || 'optional';
+      initialConfig[f.key] = (currentConfig)[f.key] || 'optional';
     });
-    setFieldConfig(initialConfig);
+    setFieldConfig(initialConfig as Record<string, 'hidden' | 'required' | 'optional'>);
     setConfigOpen(true);
   };
 
@@ -99,24 +102,33 @@ export function StudyCentersPanel() {
     }
   };
 
-  useEffect(() => {
-    fetchCenters();
-    api.get('/sales/team-members')
-      .then(res => setTeam(res.data.data || []))
-      .catch(() => setTeam([]));
-  }, []);
-
-  const fetchCenters = async () => {
+  const fetchCenters = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/operations/centers');
+      const q = universityFilter && universityFilter !== 'all' ? `?universityId=${universityFilter}` : '';
+      const res = await api.get(`/operations/centers${q}`);
       setCenters(res.data.data || []);
     } catch (_err) {
-      console.error('Failed to fetch centers:', _err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [universityFilter]);
+
+  const fetchUniversities = useCallback(async () => {
+    try {
+      const res = await api.get('/operations/universities');
+      setUniversities(res.data.data || []);
+    } catch (err) {
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCenters();
+    fetchUniversities();
+    api.get('/sales/team-members')
+      .then(res => setTeam(res.data.data || []))
+      .catch(() => setTeam([]));
+  }, [fetchCenters, fetchUniversities]);
 
   const downloadTemplate = () => {
     const templateData = [
@@ -214,7 +226,6 @@ export function StudyCentersPanel() {
         setImportErrors(errors);
         setImportSummary(null);
       } catch (err: any) {
-        console.error(err);
         toast.error('Failed to parse Excel file');
       }
     };
@@ -234,7 +245,6 @@ export function StudyCentersPanel() {
       toast.success(`Successfully imported ${res.data.data.successCount} study centers`);
       fetchCenters();
     } catch (err: any) {
-      console.error(err);
       toast.error(err.response?.data?.message || 'Bulk import failed');
     } finally {
       setImporting(false);
@@ -282,7 +292,8 @@ export function StudyCentersPanel() {
       email: c.email || '',
       status: c.status || 'pending',
       referredById: c.referredBy || '',
-      branchName: c.branchName || ''
+      branchName: c.branchName || '',
+      coordinatorName: c.coordinatorName || ''
     });
     setDialogOpen(true);
   };
@@ -321,13 +332,12 @@ export function StudyCentersPanel() {
       await api.delete(`/operations/centers/${id}`);
       fetchCenters();
     } catch (_err) {
-      console.error('Failed to delete center:', _err);
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '', branchName: '' });
+    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '', branchName: '', coordinatorName: '' });
   };
 
   // Helper to get center's effective branch name
@@ -420,6 +430,10 @@ export function StudyCentersPanel() {
                   <Label>Email</Label>
                   <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
                 </div>
+              </div>
+              <div>
+                <Label>Coordinator Name (optional)</Label>
+                <Input value={formData.coordinatorName} onChange={(e) => setFormData({ ...formData, coordinatorName: e.target.value })} />
               </div>
                {team.length > 0 && (
                 <div>
@@ -519,14 +533,27 @@ export function StudyCentersPanel() {
             <CardTitle>
               Study Centers ({centers.length} total · {Object.keys(branchGroups).filter(k => k !== '__unassigned__').length} branches)
             </CardTitle>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search centers or branches…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
-              />
+            <div className="flex flex-col sm:flex-row gap-3 items-center">
+              <Select value={universityFilter} onValueChange={setUniversityFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="All Universities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Universities</SelectItem>
+                  {universities.map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search centers or branches…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -842,7 +869,7 @@ export function StudyCentersPanel() {
                         name={`branch-${field.key}`}
                         value={status}
                         checked={branchFieldConfig[field.key] === status}
-                        onChange={() => setBranchFieldConfig({ ...branchFieldConfig, [field.key]: status as any })}
+                        onChange={() => setBranchFieldConfig({ ...branchFieldConfig, [field.key]: status })}
                         className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300"
                       />
                       <span className="capitalize">{status}</span>
@@ -910,7 +937,7 @@ export function StudyCentersPanel() {
                         name={field.key}
                         value={status}
                         checked={fieldConfig[field.key] === status}
-                        onChange={() => setFieldConfig({ ...fieldConfig, [field.key]: status as any })}
+                        onChange={() => setFieldConfig({ ...fieldConfig, [field.key]: status } as Record<string, 'hidden' | 'required' | 'optional'>)}
                         className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300"
                       />
                       <span className="capitalize">{status}</span>

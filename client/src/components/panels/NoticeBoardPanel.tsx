@@ -77,11 +77,11 @@ export function NoticeBoardPanel() {
   const totalVotes = (poll: any) => poll.options.reduce((s: number, o: any) => s + o.votes.length, 0);
   const pct = (votes: number, total: number) => total === 0 ? 0 : Math.round((votes / total) * 100);
   const hasVoted = (poll: any) => {
-    const uid = user?.id || (user as any)?.id;
+    const uid = user?.id || (user)?.id;
     return poll.options.some((o: any) => o.votes.includes(uid));
   };
   const myVotes = (poll: any) => {
-    const uid = user?.id || (user as any)?.id;
+    const uid = user?.id || (user)?.id;
     return poll.options.map((o: any, i: number) => o.votes.includes(uid) ? i : -1).filter((i: number) => i >= 0);
   };
 

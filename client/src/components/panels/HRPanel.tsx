@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 import {
   Users,
   Plus,
@@ -58,10 +60,42 @@ export function HRPanel({ activeModule }: HRPanelProps) {
   const [leaveList] = useState<LeaveRequest[]>(leaveRequests);
   const [complaintList] = useState<Complaint[]>(complaints);
 
+  const fetchData = async () => {};
+
   const presentToday = 42;
-  const onLeave = 3;
+  const onLeave = leaveList.filter(l => l.status === 'approved' && new Date(l.startDate) <= new Date() && new Date(l.endDate) >= new Date()).length;
   const pendingLeaves = leaveList.filter(l => l.status === 'pending' || l.status === 'dept_approved').length;
   const openComplaints = complaintList.filter(c => c.status === 'open' || c.status === 'in_progress').length;
+
+  const handleLeaveAction = async (id: string, action: 'approve' | 'reject') => {
+    try {
+      await api.put(`/hr/leaves/${id}/hr-approve`, { action, remarks: `Action by HR` });
+      toast.success(`Leave request ${action}d successfully`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || `Failed to ${action} leave request`);
+    }
+  };
+
+  const handleCloseVacancy = async (id: string) => {
+    try {
+      await api.put(`/hr/vacancies/${id}/close`);
+      toast.success(`Vacancy closed successfully`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || `Failed to close vacancy`);
+    }
+  };
+
+  const handleResolveComplaint = async (id: string) => {
+    try {
+      await api.put(`/hr/complaints/${id}/resolve`);
+      toast.success(`Complaint resolved successfully`);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || `Failed to resolve complaint`);
+    }
+  };
 
   const employeeColumns = [
     { key: 'employeeId', header: 'Employee ID' },
@@ -378,10 +412,10 @@ export function HRPanel({ activeModule }: HRPanelProps) {
         columns={vacancyColumns}
         title="All Vacancies"
         searchFields={['designation']}
-        actions={() => [
-          { label: 'View', onClick: () => { /* view not yet implemented */ } },
-          { label: 'Edit', onClick: () => { /* edit not yet implemented */ } },
-          { label: 'Close', onClick: () => { /* close not yet implemented */ } },
+        actions={(row: any) => [
+          { label: 'View', onClick: () => toast.info('View mode: ' + row.id) },
+          { label: 'Edit', onClick: () => toast.info('Edit mode: ' + row.id) },
+          { label: 'Close', onClick: () => handleCloseVacancy(row.id) },
         ]}
       />
     </div>
@@ -477,9 +511,9 @@ export function HRPanel({ activeModule }: HRPanelProps) {
             columns={leaveColumns}
             title="Pending Requests"
             searchFields={['reason']}
-            actions={() => [
-              { label: 'Approve', onClick: () => { /* approve not yet implemented */ } },
-              { label: 'Reject', onClick: () => { /* reject not yet implemented */ }, variant: 'destructive' },
+            actions={(row: any) => [
+              { label: 'Approve', onClick: () => handleLeaveAction(row.id, 'approve') },
+              { label: 'Reject', onClick: () => handleLeaveAction(row.id, 'reject'), variant: 'destructive' },
             ]}
           />
         </TabsContent>
@@ -528,9 +562,9 @@ export function HRPanel({ activeModule }: HRPanelProps) {
             columns={complaintColumns}
             title="Open Complaints"
             searchFields={['subject', 'category']}
-            actions={() => [
-              { label: 'View', onClick: () => { /* view not yet implemented */ } },
-              { label: 'Resolve', onClick: () => { /* resolve not yet implemented */ } },
+            actions={(row: any) => [
+              { label: 'View', onClick: () => toast.info('View mode: ' + row.id) },
+              { label: 'Resolve', onClick: () => handleResolveComplaint(row.id) },
             ]}
           />
         </TabsContent>

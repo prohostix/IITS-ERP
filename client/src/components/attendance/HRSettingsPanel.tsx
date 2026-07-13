@@ -13,7 +13,7 @@ import api from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -27,11 +27,11 @@ const DEFAULT_SETTINGS = {
     checkInTime: '09:00', checkOutTime: '18:00', graceMinutes: 15,
     workingDays: ['Monday','Tuesday','Wednesday','Thursday','Friday'],
     breakStartTime: '13:00', breakEndTime: '14:00', breakDurationMinutes: 60,
-    dayOverrides: [] as any[],
+    dayOverrides: [],
   },
   latePolicy: { maxLateMinutesPerMonth: 60, warningThreshold: 45, deductionPerExtraMinute: 0 },
   location: { officeLatitude: 28.6139, officeLongitude: 77.2090, allowedRadius: 100, requireLocationForCheckIn: true },
-  locations: [] as any[],
+  locations: [],
   requireLocationForCheckIn: true,
   biometric: { enabled: false, deviceType: 'none', apiEndpoint: '', apiKey: '', syncInterval: 5, fallbackToManual: true },
 };

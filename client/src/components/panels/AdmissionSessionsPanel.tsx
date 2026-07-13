@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -9,12 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export function AdmissionSessionsPanel() {
   const { user } = useAuth();
   const canWrite = ['org_admin', 'superadmin'].includes(user?.role || '');
   const [sessions, setSessions] = useState<any[]>([]);
+  const [universities, setUniversities] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [universityFilter, setUniversityFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -24,21 +27,23 @@ export function AdmissionSessionsPanel() {
     startDate: '',
     endDate: '',
     examDate: '',
+    reregPaymentClosingDate: '',
     status: 'pending'
   });
 
   useEffect(() => {
     fetchSessions();
     fetchDepartments();
-  }, []);
+    fetchUniversities();
+  }, [universityFilter]);
 
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/operations/sessions');
+      const q = universityFilter && universityFilter !== 'all' ? `?universityId=${universityFilter}` : '';
+      const res = await api.get(`/operations/sessions${q}`);
       setSessions(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch sessions:', err);
     } finally {
       setLoading(false);
     }
@@ -51,7 +56,14 @@ export function AdmissionSessionsPanel() {
       const all = res.data.data || [];
       setDepartments(all.filter((d: any) => d.type === 'operations'));
     } catch (err) {
-      console.error('Failed to fetch departments:', err);
+    }
+  };
+
+  const fetchUniversities = async () => {
+    try {
+      const res = await api.get('/operations/universities');
+      setUniversities(res.data.data || []);
+    } catch (err) {
     }
   };
 
@@ -66,6 +78,7 @@ export function AdmissionSessionsPanel() {
         status: formData.status
       };
       if (formData.examDate) payload.examDate = formData.examDate;
+      if (formData.reregPaymentClosingDate) payload.reregPaymentClosingDate = formData.reregPaymentClosingDate;
 
       if (editingId) {
         await api.put(`/operations/sessions/${editingId}`, payload);
@@ -91,6 +104,7 @@ export function AdmissionSessionsPanel() {
       startDate: s.startDate ? new Date(s.startDate).toISOString().split('T')[0] : '',
       endDate: s.endDate ? new Date(s.endDate).toISOString().split('T')[0] : '',
       examDate: s.examDate ? new Date(s.examDate).toISOString().split('T')[0] : '',
+      reregPaymentClosingDate: s.reregPaymentClosingDate ? new Date(s.reregPaymentClosingDate).toISOString().split('T')[0] : '',
       status: s.status || 'pending'
     });
     setDialogOpen(true);
@@ -102,13 +116,23 @@ export function AdmissionSessionsPanel() {
       await api.delete(`/operations/sessions/${id}`);
       fetchSessions();
     } catch (err) {
-      console.error('Failed to delete session:', err);
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    if (!confirm('Duplicate this session?')) return;
+    try {
+      await api.post(`/operations/sessions/${id}/duplicate`);
+      fetchSessions();
+      toast.success('Session duplicated successfully');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to duplicate session');
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', subDepartmentId: '', startDate: '', endDate: '', examDate: '', status: 'pending' });
+    setFormData({ name: '', subDepartmentId: '', startDate: '', endDate: '', examDate: '', reregPaymentClosingDate: '', status: 'pending' });
   };
 
   return (
@@ -137,7 +161,7 @@ export function AdmissionSessionsPanel() {
                 <Select value={formData.subDepartmentId} onValueChange={(v) => setFormData({ ...formData, subDepartmentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                   <SelectContent>
-                    {departments.filter(d => d && (d.id || d.id)).map((d) => (
+                    {departments.filter((d: any) => d && (d.id || d.id)).map((d: any) => (
                       <SelectItem key={d.id || d.id} value={(d.id || d.id).toString()}>
                         {d.name}
                       </SelectItem>
@@ -160,6 +184,10 @@ export function AdmissionSessionsPanel() {
                 <Input type="date" value={formData.examDate} onChange={(e) => setFormData({ ...formData, examDate: e.target.value })} />
               </div>
               <div>
+                <Label>Re-registration Payment Closing Date (optional)</Label>
+                <Input type="date" value={formData.reregPaymentClosingDate} onChange={(e) => setFormData({ ...formData, reregPaymentClosingDate: e.target.value })} />
+              </div>
+              <div>
                 <Label>Status</Label>
                 <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -179,6 +207,20 @@ export function AdmissionSessionsPanel() {
           </DialogContent>
         </Dialog>
         )}
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <Select value={universityFilter} onValueChange={setUniversityFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Universities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Universities</SelectItem>
+            {universities.map(u => (
+              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
@@ -214,8 +256,9 @@ export function AdmissionSessionsPanel() {
                       <Badge>{s.status}</Badge>
                       {canWrite && (
                         <>
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(s)}><Edit className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(sid)}><Trash2 className="w-4 h-4" /></Button>
+                          <Button title="Duplicate" variant="ghost" size="sm" onClick={() => handleDuplicate(sid)}><Copy className="w-4 h-4" /></Button>
+                          <Button title="Edit" variant="ghost" size="sm" onClick={() => handleEdit(s)}><Edit className="w-4 h-4" /></Button>
+                          <Button title="Delete" variant="ghost" size="sm" onClick={() => handleDelete(sid)}><Trash2 className="w-4 h-4" /></Button>
                         </>
                       )}
                     </div>

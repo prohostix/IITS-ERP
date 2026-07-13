@@ -73,7 +73,6 @@ export function SubDepartmentsPanel() {
       setPrograms(progRes.data.data || []);
       setCenters(centerRes.data.data || []);
     } catch (e) {
-      console.error('Failed to fetch sub-departments data:', e);
     } finally {
       setLoading(false);
     }

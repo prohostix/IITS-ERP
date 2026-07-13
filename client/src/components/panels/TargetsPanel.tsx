@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,41 +35,38 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     type: 'revenue'
   });
 
-  useEffect(() => {
-    fetchTargets();
-    fetchEmployees();
-    fetchDepartments();
-  }, []);
-
-  const fetchTargets = async () => {
+  const fetchTargets = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(endpoint);
       setTargets(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch targets:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [endpoint]);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const res = await api.get('/users');
       setEmployees(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch employees:', err);
     }
-  };
+  }, []);
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
     try {
       const res = await api.get('/departments');
       setDepartments(res.data.data || []);
     } catch (err) {
-      console.error('Failed to fetch departments:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTargets();
+    fetchEmployees();
+    fetchDepartments();
+  }, [fetchTargets, fetchEmployees, fetchDepartments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -15,6 +15,7 @@ interface Program {
   name: string;
   code: string;
   specialisations?: string[];
+  certificateRequirements?: { name: string; isMandatory: boolean }[];
   university?: { id: string; name: string; code: string };
   programFeeStructure?: {
     level: string;
@@ -41,6 +42,7 @@ interface EducationDetail {
 interface DocumentFile {
   name: string;
   url: string;
+  reqName?: string;
 }
 
 interface Session {
@@ -76,7 +78,7 @@ export function EnrollStudentPanel() {
   
   const [activeStep, setActiveStep] = useState(1);
   
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string, string>>({
     studentName: '',
     studentEmail: '',
     studentPhone: '',
@@ -113,18 +115,20 @@ export function EnrollStudentPanel() {
   // Confirmation Dialog Step
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Email Validation
+  const [emailUnique, setEmailUnique] = useState<boolean | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [progsRes, walletRes, sessionsRes, centerRes] = await Promise.all([
+      const [progsRes, walletRes, centerRes] = await Promise.all([
         api.get('/enrollment/programs'),
         api.get('/enrollment/wallet'),
-        api.get('/enrollment/sessions'),
         api.get('/enrollment/center-status').catch(() => ({ data: { data: null } }))
       ]);
       setPrograms(progsRes.data.data || []);
       setWallet(walletRes.data.data);
-      setSessions(sessionsRes.data.data || []);
       setCenterConfig(centerRes.data.data);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
@@ -135,9 +139,47 @@ export function EnrollStudentPanel() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const fetchSessions = async (univId: string) => {
+    try {
+      const res = await api.get(`/enrollment/sessions?universityId=${univId}`);
+      setSessions(res.data.data || []);
+    } catch (e) {
+      toast.error('Failed to load sessions for selected university');
+    }
+  };
+
+  useEffect(() => {
+    if (selectedUniversityId) {
+      fetchSessions(selectedUniversityId);
+    } else {
+      setSessions([]);
+    }
+  }, [selectedUniversityId]);
+
   useEffect(() => {
     setSelectedSessionId('');
   }, [selectedProgram]);
+
+  useEffect(() => {
+    setEmailUnique(null);
+  }, [form.studentEmail, selectedProgram, selectedSessionId]);
+
+  const checkEmail = async () => {
+    if (!form.studentEmail || !selectedProgram || !selectedSessionId) return;
+    setCheckingEmail(true);
+    try {
+      const res = await api.post('/enrollment/check-email', {
+        studentEmail: form.studentEmail,
+        programId: selectedProgram.id,
+        sessionId: selectedSessionId
+      });
+      setEmailUnique(res.data.isUnique);
+      if (!res.data.isUnique) {
+        toast.error(res.data.message || 'Email already in use for this intake');
+      }
+    } catch (e) {}
+    setCheckingEmail(false);
+  };
 
   const availableSessions = sessions.filter(
     s => !selectedProgram || s.programId === null || s.programId === selectedProgram.id
@@ -191,7 +233,7 @@ export function EnrollStudentPanel() {
     setEducationList(educationList.filter((_, i) => i !== index));
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, reqName?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -204,7 +246,11 @@ export function EnrollStudentPanel() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data.success) {
-        setDocumentList([...documentList, { name: res.data.filename || file.name, url: res.data.url }]);
+        if (reqName) {
+          setDocumentList(prev => [...prev.filter(d => d.reqName !== reqName), { name: res.data.filename || file.name, url: res.data.url, reqName }]);
+        } else {
+          setDocumentList(prev => [...prev, { name: res.data.filename || file.name, url: res.data.url }]);
+        }
         toast.success('Document uploaded successfully');
       }
     } catch (err: any) {
@@ -212,10 +258,6 @@ export function EnrollStudentPanel() {
     } finally {
       setUploading(false);
     }
-  };
-
-  const handleRemoveDocument = (index: number) => {
-    setDocumentList(documentList.filter((_, i) => i !== index));
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,7 +327,7 @@ export function EnrollStudentPanel() {
         </Label>
         <Input
           type={type}
-          value={(form as any)[key]}
+          value={(form)[key]}
           onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
           placeholder={`Enter ${label.toLowerCase()}`}
           required={isRequired}
@@ -309,7 +351,7 @@ export function EnrollStudentPanel() {
     const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
     const missing = [];
     for (const key of baseRequired) {
-      if (!(form as any)[key]?.trim()) {
+      if (!(form)[key]?.trim()) {
         missing.push(key);
       }
     }
@@ -320,7 +362,7 @@ export function EnrollStudentPanel() {
     if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
       for (const [field, requirement] of Object.entries(parsedConfig)) {
         if (requirement === 'required') {
-          const val = (form as any)[field];
+          const val = (form)[field];
           if (val === undefined || val === null || String(val).trim() === '') {
             missing.push(field);
           }
@@ -412,7 +454,7 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['admissionDate', 'abcId', 'debId']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form as any)[field];
+            const val = (form)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
@@ -424,10 +466,14 @@ export function EnrollStudentPanel() {
       // Validate Step 2: studentName, studentEmail, studentPhone, studentAddress
       const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
       for (const key of baseRequired) {
-        if (!(form as any)[key]?.trim()) {
+        if (!(form)[key]?.trim()) {
           toast.error(`Field '${key.replace('student', '')}' is required`);
           return false;
         }
+      }
+      if (emailUnique === false) {
+        toast.error('An application with this email already exists for the selected program & intake.');
+        return false;
       }
       // Check customized fields for Step 2
       const config = centerConfig?.customEnrollmentFields;
@@ -435,7 +481,7 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form as any)[field];
+            const val = (form)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
@@ -450,11 +496,22 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['fatherName', 'motherName', 'parentMobile', 'studentPhoto']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form as any)[field];
+            const val = (form)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
             }
+          }
+        }
+      }
+    } else if (stepNum === 4) {
+      // Validate mandatory documents
+      if (selectedProgram?.certificateRequirements) {
+        const mandatoryReqs = selectedProgram.certificateRequirements.filter((r: any) => r.isMandatory);
+        for (const req of mandatoryReqs) {
+          if (!documentList.some(d => d.reqName === req.name)) {
+            toast.error(`Please upload mandatory document: ${req.name}`);
+            return false;
           }
         }
       }
@@ -632,7 +689,10 @@ export function EnrollStudentPanel() {
                 </div>
                 <div className="space-y-1">
                   <Label>Email Address <span className="text-destructive">*</span></Label>
-                  <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} placeholder="student@example.com" />
+                  <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} onBlur={checkEmail} placeholder="student@example.com" />
+                  {checkingEmail && <p className="text-xs text-muted-foreground mt-1 animate-pulse">Checking email availability...</p>}
+                  {emailUnique === false && <p className="text-xs text-destructive mt-1 flex items-center gap-1"><ShieldAlert className="w-3 h-3"/> Email already registered for this intake.</p>}
+                  {emailUnique === true && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><Check className="w-3 h-3"/> Email available.</p>}
                 </div>
                 <div className="space-y-1">
                   <Label>Phone Number <span className="text-destructive">*</span></Label>
@@ -728,35 +788,75 @@ export function EnrollStudentPanel() {
               {/* Upload Documents */}
               <div className="space-y-3 pt-4 border-t">
                 <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">Documents (SSLC, Plus Two, Aadhaar, etc.)</Label>
-                {documentList.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {documentList.map((doc, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border text-sm shadow-sm">
-                        <div className="flex items-center gap-2 truncate pr-2">
-                          <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                          <span className="truncate font-medium text-slate-700">{doc.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2 font-medium">View</a>
-                          <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(idx)}>
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                
+                {selectedProgram?.certificateRequirements && selectedProgram.certificateRequirements.length > 0 && (
+                  <div className="space-y-3 mb-6">
+                    <p className="text-sm font-medium text-slate-700">Required Program Certificates</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedProgram.certificateRequirements.map((req: any, idx: number) => {
+                        const existingDoc = documentList.find(d => d.reqName === req.name);
+                        return (
+                          <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-sm text-slate-700">{req.name} {req.isMandatory && <span className="text-destructive">*</span>}</span>
+                              {existingDoc ? (
+                                <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-200 h-5 px-1.5"><Check className="w-3 h-3 mr-1"/> Uploaded</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-slate-400 h-5 px-1.5">Pending</Badge>
+                              )}
+                            </div>
+                            {existingDoc ? (
+                              <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded border">
+                                <span className="truncate max-w-[150px] font-medium">{existingDoc.name}</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <a href={existingDoc.url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">View</a>
+                                  <button type="button" onClick={() => setDocumentList(documentList.filter(d => d !== existingDoc))} className="text-red-500 hover:text-red-700 px-1 font-medium">Remove</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="relative border border-dashed rounded flex flex-col items-center justify-center p-3 hover:bg-slate-50 cursor-pointer transition-colors bg-slate-50/50">
+                                <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleFileUpload(e, req.name)} disabled={uploading} />
+                                <Upload className="w-4 h-4 text-slate-400 mb-1" />
+                                <span className="text-xs font-medium text-slate-500">Upload {req.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
-                <div>
+                <div className="pt-2 border-t mt-4">
+                  <p className="text-sm font-medium text-slate-700 mb-2">Additional Documents</p>
+                  {documentList.filter(d => !d.reqName).length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      {documentList.filter(d => !d.reqName).map((doc, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border text-sm shadow-sm">
+                          <div className="flex items-center gap-2 truncate pr-2">
+                            <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                            <span className="truncate font-medium text-slate-700">{doc.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline px-2 font-medium">View</a>
+                            <Button variant="ghost" size="sm" onClick={() => setDocumentList(documentList.filter(d => d !== doc))}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="relative border-2 border-dashed rounded-xl p-6 hover:bg-slate-50 transition-all flex flex-col items-center justify-center cursor-pointer bg-white">
                     <Input 
                       type="file" 
                       className="absolute inset-0 opacity-0 cursor-pointer" 
-                      onChange={handleFileUpload} 
+                      onChange={e => handleFileUpload(e)} 
                       disabled={uploading} 
                     />
                     <Upload className="w-8 h-8 text-slate-400 mb-2" />
-                    <p className="text-sm font-semibold text-slate-600">{uploading ? 'Uploading...' : 'Click or drag files here to upload'}</p>
+                    <p className="text-sm font-semibold text-slate-600">{uploading ? 'Uploading...' : 'Click or drag files here to upload extra documents'}</p>
                     <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG up to 10MB</p>
                   </div>
                 </div>

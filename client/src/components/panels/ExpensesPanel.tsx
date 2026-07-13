@@ -32,7 +32,6 @@ export function ExpensesPanel() {
       const response = await api.get('/finance/expenses');
       setExpenses(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch expenses:', error);
     } finally {
       setLoading(false);
     }
@@ -50,7 +49,6 @@ export function ExpensesPanel() {
       resetForm();
       fetchExpenses();
     } catch (error: any) {
-      console.error('Failed to save expense:', error);
       alert(error.response?.data?.message || 'Failed to save expense');
     }
   };
@@ -73,7 +71,6 @@ export function ExpensesPanel() {
       await api.delete(`/finance/expenses/${id}`);
       fetchExpenses();
     } catch (error) {
-      console.error('Failed to delete expense:', error);
     }
   };
 
@@ -83,7 +80,6 @@ export function ExpensesPanel() {
       await api.put(`/finance/expenses/${id}/approve`, { action, remarks });
       fetchExpenses();
     } catch (error) {
-      console.error(`Failed to ${action} expense:`, error);
     }
   };
 

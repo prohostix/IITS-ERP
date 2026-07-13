@@ -154,6 +154,30 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
   res.json({ success: true, count: programs.length, data: programs });
 });
 
+export const checkEmailUniqueness = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { studentEmail, programId, sessionId } = req.body;
+  if (!studentEmail || !programId || !sessionId) {
+    res.json({ success: false, isUnique: false, message: 'Missing parameters' });
+    return;
+  }
+
+  const existing = await prisma.enrollment.findFirst({
+    where: {
+      studentEmail,
+      programId,
+      sessionId,
+      organizationId: req.user.organizationId,
+      status: { not: 'rejected' } // Only count active/pending applications
+    }
+  });
+
+  if (existing) {
+    res.json({ success: true, isUnique: false, message: 'An application with this email already exists for this program and session' });
+  } else {
+    res.json({ success: true, isUnique: true });
+  }
+});
+
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
@@ -354,11 +378,15 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const where: any = {
+    organizationId: req.user.organizationId,
+    status: 'active'
+  };
+  if (req.query.universityId) {
+    where.subDepartmentId = req.query.universityId as string;
+  }
   const sessions = await prisma.admissionSession.findMany({
-    where: {
-      organizationId: req.user.organizationId,
-      status: 'active'
-    },
+    where,
     orderBy: { name: 'asc' }
   });
   res.json({ success: true, count: sessions.length, data: sessions });

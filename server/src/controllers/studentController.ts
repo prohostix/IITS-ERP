@@ -17,6 +17,12 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   if (req.query.status) {
     where.status = req.query.status as string;
   }
+  if (req.query.centerId && req.user.role !== 'center_admin') {
+    where.centerId = req.query.centerId as string;
+  }
+  if (req.query.universityId) {
+    where.program = { universityId: req.query.universityId as string };
+  }
 
   const students = await prisma.student.findMany({
     where,

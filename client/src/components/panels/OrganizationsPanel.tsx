@@ -49,12 +49,9 @@ export function OrganizationsPanel() {
   const fetchOrganizations = async () => {
     try {
       setLoading(true);
-      console.log('Fetching organizations...');
       const response = await api.get('/organizations');
-      console.log('Organizations response:', response.data);
       setOrganizations(response.data.data || []);
     } catch (error: any) {
-      console.error('Fetch error:', error);
       toast.error('Failed to fetch organizations');
     } finally {
       setLoading(false);
@@ -89,23 +86,17 @@ export function OrganizationsPanel() {
     try {
       if (editingOrg) {
         // Update existing organization
-        console.log('Updating organization:', editingOrg.id, formData);
         const response = await api.put(`/organizations/${editingOrg.id}`, formData);
-        console.log('Update response:', response);
         toast.success('Organization updated successfully');
       } else {
         // Create new organization
-        console.log('Creating organization:', formData);
         const response = await api.post('/organizations', formData);
-        console.log('Create response:', response);
         toast.success('Organization created successfully');
       }
       
       setIsDialogOpen(false);
       fetchOrganizations();
     } catch (error: any) {
-      console.error('Error details:', error);
-      console.error('Error response:', error.response);
       toast.error(error.response?.data?.message || 'Operation failed');
     }
   };
@@ -120,7 +111,6 @@ export function OrganizationsPanel() {
       fetchOrganizations();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete organization');
-      console.error(error);
     }
   };
 

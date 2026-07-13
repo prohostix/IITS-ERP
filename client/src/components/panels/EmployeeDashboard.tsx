@@ -124,8 +124,6 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
               searchable={false}
               pageSize={5}
               actions={(row) => [
-                { label: 'Complete', onClick: () => console.log('Complete', row.id) },
-                { label: 'Add Evidence', onClick: () => console.log('Evidence', row.id) },
               ]}
             />
           </CardContent>
@@ -195,10 +193,8 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
             title="Pending Tasks"
             searchFields={['title', 'description']}
             actions={(row) => [
-              { label: 'Complete', onClick: () => console.log('Complete', row.id) },
               { 
                 label: 'Add Evidence', 
-                onClick: () => console.log('Evidence', row.id) 
               },
             ]}
           />
@@ -220,8 +216,6 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
             title="Overdue Tasks"
             searchFields={['title']}
             actions={(row) => [
-              { label: 'Complete Now', onClick: () => console.log('Complete', row.id) },
-              { label: 'Request Extension', onClick: () => console.log('Extension', row.id) },
             ]}
           />
         </TabsContent>

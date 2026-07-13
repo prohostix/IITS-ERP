@@ -823,6 +823,11 @@ export const getUniversityFeePayments = asyncHandler(async (req: AuthRequest, re
   if (status) {
     whereClause.status = status;
   }
+  if (req.query.universityId || req.query.centerId) {
+    whereClause.student = {};
+    if (req.query.universityId) whereClause.student.program = { universityId: req.query.universityId as string };
+    if (req.query.centerId) whereClause.student.centerId = req.query.centerId as string;
+  }
   const payments = await prisma.universityFeePayment.findMany({
     where: whereClause,
     include: {
@@ -874,7 +879,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     where: { organizationId: req.user.organizationId },
     include: {
       program: { select: { id: true, name: true } },
-      university: { select: { id: true, name: true } },
+      university: { select: { id: true, name: true, coordinatorName: true } },
       admissionSession: { select: { id: true, name: true } },
     },
   });
@@ -930,7 +935,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     include: {
       program: { select: { id: true, name: true } },
       session: { select: { id: true, name: true } },
-      studyCenter: { select: { id: true, name: true, branchName: true } },
+      studyCenter: { select: { id: true, name: true, branchName: true, coordinatorName: true } },
       payment: true,
       commissionIn: {
         include: {
@@ -992,7 +997,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       centerPaymentFor: enrollment.status || '',
       universityPaymentAmount: uniPayment?.amount || null,
       universityPaymentStatus: uniPayment?.status || 'pending',
-      coordinatorName: coordinatorFee?.coordinator || null,
+      coordinatorName: enrollment.studyCenter?.coordinatorName || feeStruct?.university?.coordinatorName || coordinatorFee?.coordinator || null,
       coordinatorPaymentAmount: coordinatorFee?.amount || null,
       coordinatorPaymentStatus: coordinatorFee
         ? (uniPayment?.status === 'paid' ? 'paid' : 'Due')

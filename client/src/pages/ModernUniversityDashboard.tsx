@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { GraduationCap, BookOpen, Building2, TrendingUp, Search, RefreshCw, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,34 +45,22 @@ export function ModernUniversityDashboard({ initialTab }: { initialTab?: string 
 
   useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
 
-  useEffect(() => {
-    if (universityId) {
-      fetchMetrics();
-      fetchPrograms();
-      fetchStudents();
-    }
-  }, [universityId]);
-
-  useEffect(() => {
-    if (universityId) fetchStudents();
-  }, [search, programFilter]);
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
       const res = await api.get(`/operations/universities/${universityId}/metrics`);
       setMetrics(res.data.data);
       setUniName(res.data.data?.university?.name || 'University');
     } catch { /* silent */ }
-  };
+  }, [universityId]);
 
-  const fetchPrograms = async () => {
+  const fetchPrograms = useCallback(async () => {
     try {
       const res = await api.get('/operations/programs');
       setPrograms(res.data.data || []);
     } catch { /* silent */ }
-  };
+  }, []);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = {};
@@ -85,7 +73,19 @@ export function ModernUniversityDashboard({ initialTab }: { initialTab?: string 
     } finally {
       setLoading(false);
     }
-  };
+  }, [universityId, search, programFilter]);
+
+  useEffect(() => {
+    if (universityId) {
+      fetchMetrics();
+      fetchPrograms();
+      fetchStudents();
+    }
+  }, [universityId, fetchMetrics, fetchPrograms, fetchStudents]);
+
+  useEffect(() => {
+    if (universityId) fetchStudents();
+  }, [search, programFilter, universityId, fetchStudents]);
 
   if (!universityId) {
     return (

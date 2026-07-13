@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowDownLeft, ArrowUpRight, Landmark, Receipt } from 'lucide-react';
 import api from '@/lib/api';
@@ -23,6 +24,10 @@ const fmtDate = (d: string | null | undefined): string => {
 export function CommissionsPanel() {
   const [commIn, setCommIn] = useState<any[]>([]);
   const [commOut, setCommOut] = useState<any[]>([]);
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [centers, setCenters] = useState<any[]>([]);
+  const [universityFilter, setUniversityFilter] = useState('');
+  const [centerFilter, setCenterFilter] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Mark received dialog
@@ -43,9 +48,13 @@ export function CommissionsPanel() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const q = new URLSearchParams();
+      if (universityFilter && universityFilter !== 'all') q.append('universityId', universityFilter);
+      if (centerFilter && centerFilter !== 'all') q.append('centerId', centerFilter);
+
       const [inRes, outRes] = await Promise.all([
-        api.get('/commissions/in'),
-        api.get('/commissions/out')
+        api.get(`/commissions/in?${q.toString()}`),
+        api.get(`/commissions/out?${q.toString()}`)
       ]);
       setCommIn(inRes.data.data || []);
       setCommOut(outRes.data.data || []);
@@ -58,7 +67,23 @@ export function CommissionsPanel() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    fetchUniversities();
+    fetchCenters();
+  }, [universityFilter, centerFilter]);
+
+  const fetchUniversities = async () => {
+    try {
+      const res = await api.get('/operations/universities');
+      setUniversities(res.data.data || []);
+    } catch (err) {}
+  };
+
+  const fetchCenters = async () => {
+    try {
+      const res = await api.get('/operations/centers');
+      setCenters(res.data.data || []);
+    } catch (err) {}
+  };
 
   const openReceive = (item: any) => {
     setReceiveItem(item);
@@ -114,9 +139,32 @@ export function CommissionsPanel() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Commissions</h2>
-        <p className="text-muted-foreground text-sm">Track university referral earnings and study center payouts</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Commissions</h2>
+          <p className="text-muted-foreground text-sm">Track university referral earnings and study center payouts</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={universityFilter} onValueChange={setUniversityFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Universities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Universities</SelectItem>
+              {universities.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={centerFilter} onValueChange={setCenterFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Centers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Centers</SelectItem>
+              {centers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

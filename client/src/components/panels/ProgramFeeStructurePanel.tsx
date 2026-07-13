@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen, GraduationCap, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -91,7 +91,7 @@ export function ProgramFeeStructurePanel() {
     commissionRate: '0'
   });
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [feesRes, progsRes, unisRes, sessionsRes, subDeptsRes] = await Promise.all([
@@ -116,11 +116,11 @@ export function ProgramFeeStructurePanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedUniversityId]);
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
 
   const openCreate = () => {
     setEditing(null);
@@ -695,7 +695,9 @@ export function ProgramFeeStructurePanel() {
                 onChange={e => setForm(f => ({ ...f, admissionSessionId: e.target.value }))}
               >
                 <option value="">Standard / All Sessions</option>
-                {sessions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {sessions
+                  .filter(s => !form.universityId || !(s as any).universityId || (s as any).universityId === form.universityId)
+                  .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
 

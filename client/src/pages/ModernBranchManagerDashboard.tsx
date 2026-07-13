@@ -89,7 +89,6 @@ export function ModernBranchManagerDashboard({ initialTab }: { initialTab?: stri
         setLeads(leadsRes.data.data || []);
         setTargets(targetsRes.data.data || []);
       } catch (e) {
-        console.error('Branch manager fetch error:', e);
       } finally {
         setLoading(false);
       }
