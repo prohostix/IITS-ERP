@@ -123,7 +123,7 @@ export function getHRNavItems() {
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
   const [vacancies, setVacancies] = useState<any[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
-  const [absentToday, setAbsentToday] = useState<any[]>([]);
+
   const [loadingVacancies, setLoadingVacancies] = useState(true);
   const [loadingLeaves, setLoadingLeaves] = useState(true);
 
@@ -138,11 +138,6 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
       .then(r => setPendingLeaves(r.data.data || []))
       .catch(() => setPendingLeaves([]))
       .finally(() => setLoadingLeaves(false));
-    // Fetch today's absent employees
-    const today = new Date().toISOString().split('T')[0];
-    api.get(`/hr/attendance?date=${today}&status=absent`)
-      .then(r => setAbsentToday(r.data.data || []))
-      .catch(() => setAbsentToday([]));
   };
 
   useEffect(() => { fetchOverviewData(); }, []);
