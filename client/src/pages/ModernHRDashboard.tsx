@@ -74,7 +74,7 @@ export function ModernHRDashboard({ initialTab }: { initialTab?: string }) {
       case 'att-settings': return <HRSettingsPanel />;
       case 'activity_report': return <EmployeeActivityReportPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
-      case 'my_attendance': return <AttendancePanel />;
+      case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'notice-board': return <NoticeBoardPanel />;

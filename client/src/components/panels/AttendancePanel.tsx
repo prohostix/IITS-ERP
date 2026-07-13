@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 
-export function AttendancePanel() {
+export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
-  const isHR = user?.role === 'hr_admin';
-  const canViewAll = ['hr_admin', 'org_admin', 'ceo'].includes(user?.role || '');
+  const isHR = user?.role === 'hr_admin' && !isPersonalView;
+  const canViewAll = ['hr_admin', 'org_admin', 'ceo'].includes(user?.role || '') && !isPersonalView;
   const [attendance, setAttendance] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
