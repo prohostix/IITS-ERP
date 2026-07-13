@@ -52,7 +52,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 const DEPT_MANAGER_ROLES = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'];
 
-export function LeavesPanel() {
+export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,9 +81,9 @@ export function LeavesPanel() {
   const role = user?.role || '';
   const userId = user?.id?.toString() || '';
   const isBranchManager = Boolean((user)?.branchId);
-  const isDeptManager = DEPT_MANAGER_ROLES.includes(role) || isBranchManager;
-  const isHR = role === 'hr_admin';
-  const isEmployee = !isDeptManager && !isHR && role !== 'superadmin' && role !== 'org_admin' && role !== 'ceo';
+  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager) && !isPersonalView;
+  const isHR = role === 'hr_admin' && !isPersonalView;
+  const isEmployee = (!isDeptManager && !isHR && role !== 'superadmin' && role !== 'org_admin' && role !== 'ceo') || isPersonalView;
 
   const fetchLeaves = async () => {
     setLoading(true);

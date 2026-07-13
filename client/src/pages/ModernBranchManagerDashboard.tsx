@@ -117,7 +117,7 @@ export function ModernBranchManagerDashboard({ initialTab }: { initialTab?: stri
       case 'tasks': return <TasksPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       // Portal
-      case 'my_leaves': return <LeavesPanel />;
+      case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel />;
       case 'my_payslips': return <PayrollPanel />;
       case 'holidays': return <HolidaysPanel />;

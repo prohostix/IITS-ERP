@@ -127,7 +127,7 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
       case 'leaves': return <LeavesPanel />;
       case 'tasks': return <TasksPanel />;
       case 'escalations': return <FinanceEscalationsPanel />;
-      case 'my_leaves': return <LeavesPanel />;
+      case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel />;
       case 'my_payslips': return <PayrollPanel />;
       case 'holidays': return <HolidaysPanel />;

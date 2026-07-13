@@ -91,7 +91,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
       case 'tasks': return <TasksPanel />;
-      case 'my_leaves': return <LeavesPanel />;
+      case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel />;
       case 'my_payslips': return <PayrollPanel />;
       case 'holidays': return <HolidaysPanel />;
@@ -546,7 +546,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'study_centers': return <StudyCentersPanel />;
           case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
           case 'my_attendance': return <AttendancePanel />;
-          case 'my_leaves': return <LeavesPanel />;
+          case 'my_leaves': return <LeavesPanel isPersonalView />;
           case 'my_payslips': return <PayrollPanel />;
           case 'tasks': return <TasksPanel />;
           case 'announcements': return <AnnouncementsPanel />;

@@ -291,7 +291,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
         </TabsContent>
 
         <TabsContent value="leaves">
-          <LeavesPanel />
+          <LeavesPanel isPersonalView />
         </TabsContent>
 
         <TabsContent value="attendance">
