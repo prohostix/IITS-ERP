@@ -24,17 +24,17 @@ interface DashboardProps {
 export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps) {
   const { user } = useAuth();
   const [departmentType, setDepartmentType] = useState<string | null>(null);
-  const isBranchManager = Boolean((user)?.branchId);
+  const isBranchManager = Boolean((user as any)?.branchId);
   const [deptLoading, setDeptLoading] = useState(Boolean(useDepartmentDashboard) && !isBranchManager);
 
-  const subDeptId = (user)?.subDepartmentId;
+  const subDeptId = (user as any)?.subDepartmentId;
   const hasSubDept = Boolean(subDeptId);
 
   // fetchDepartmentType defined before useEffect so it can be in deps safely
   const fetchDepartmentType = async () => {
     try {
       // Try direct department object or departmentId first
-      const dept = (user).department || user?.departmentId;
+      const dept = (user as any)?.department || (user as any)?.departmentId;
       if (dept) {
         if (typeof dept === 'object' && dept !== null) {
           const populated = dept;
@@ -57,7 +57,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
       // Fall back to sub-department's parentDeptId
       if (hasSubDept) {
         const subDept = typeof subDeptId === 'object' ? subDeptId : null;
-        const parentDeptId = subDept?.parentDeptId;
+        const parentDeptId = (subDept as any)?.parentDeptId;
         if (parentDeptId) {
           if (typeof parentDeptId === 'object' && parentDeptId.type) {
             setDepartmentType(parentDeptId.type);
@@ -173,7 +173,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
     );
   }
 
-  if ((user)?.role === 'student') {
+  if ((user as any)?.role === 'student') {
     return <ModernStudentDashboard />;
   }
 
