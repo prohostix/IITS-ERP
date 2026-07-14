@@ -383,7 +383,7 @@ export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Resp
     status: 'active'
   };
   if (req.query.universityId) {
-    where.subDepartmentId = req.query.universityId as string;
+    where.universityId = req.query.universityId as string;
   }
   const sessions = await prisma.admissionSession.findMany({
     where,
