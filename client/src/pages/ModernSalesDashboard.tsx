@@ -23,7 +23,6 @@ import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { 
   BarChart, 
   Bar, 
@@ -370,8 +369,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
               )}
             </CardContent>
           </Card>
-          <PunchWidget />
-        </div>
+</div>
       </div>
     </div>
   );
@@ -534,8 +532,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
                     }
                   </CardContent>
                 </Card>
-                <PunchWidget />
-              </div>
+</div>
             </div>
           );
           case 'my_subdept': return isSubDeptManager ? <SubSalesPortalPanel /> : null;

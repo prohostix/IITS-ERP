@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { PunchWidget } from '@/components/attendance/PunchWidget';
 
 interface TableItem {
   id: string;
@@ -317,7 +318,8 @@ export function PrismaLayout({
             <span className="text-lg font-bold text-foreground truncate">{activeTableItem?.label}</span>
           </div>
 
-          <div className="ml-auto flex items-center gap-4">
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
+            <PunchWidget variant="header" />
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg border border-border">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />
               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{schema}</span>

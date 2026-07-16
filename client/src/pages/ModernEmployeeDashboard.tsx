@@ -19,7 +19,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { useAuth } from '@/hooks/useAuth';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { LeavesPanel } from '@/components/panels/LeavesPanel';
@@ -260,8 +259,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
 
           {/* Punch + Shortcuts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PunchWidget />
-            <div className="grid grid-cols-2 gap-4">
+<div className="grid grid-cols-2 gap-4">
               <ShortcutBtn
                 icon={<FileText className="w-5 h-5 text-primary" />}
                 title="Pay Slips"

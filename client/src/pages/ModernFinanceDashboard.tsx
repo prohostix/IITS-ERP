@@ -45,7 +45,6 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
 import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -416,8 +415,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
               </div>
             )}
             <div className="pt-2">
-              <PunchWidget />
-            </div>
+</div>
           </CardContent>
         </Card>
       </div>

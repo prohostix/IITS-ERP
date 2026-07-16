@@ -15,8 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
-
 export function ModernStaffPortal() {
   const [loading, setLoading] = useState(false);
 
@@ -149,9 +147,7 @@ export function ModernStaffPortal() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Punch Widget */}
-        <PunchWidget />
-
-        {/* Quick Actions */}
+{/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <PortalBtn icon={<FileText className="w-5 h-5 text-primary" />} title="Request Form" />
           <PortalBtn icon={<Navigation className="w-5 h-5 text-info" />} title="Expenses" />

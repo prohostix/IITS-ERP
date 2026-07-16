@@ -28,7 +28,6 @@ import { TasksPanel } from '@/components/panels/TasksPanel';
 import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
 import { OpsProgramAllocationPanel } from '@/components/panels/OpsProgramAllocationPanel';
 import { DeptEnrollmentReviewPanel } from '@/components/panels/DeptEnrollmentReviewPanel';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { SubOpsPortalPanel } from '@/components/panels/SubOpsPortalPanel';
 import { LeavesPanel } from '@/components/panels/LeavesPanel';
 import { AttendancePanel } from '@/components/panels/AttendancePanel';
@@ -65,8 +64,7 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
-          <PunchWidget />
-        </div>
+</div>
       );
       case 'my_subdept': return <SubOpsPortalPanel />;
       case 'students': return <StudentsPanel />;

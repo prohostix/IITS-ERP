@@ -19,7 +19,6 @@ import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import api from '@/lib/api';
 
 export function ModernOrgAdminDashboard({ initialTab }: { initialTab?: string }) {
@@ -78,8 +77,7 @@ export function ModernOrgAdminDashboard({ initialTab }: { initialTab?: string })
                 <MetricCard title="Leads" value={metrics.totalLeads || 0} />
               </div>
             </div>
-            <PunchWidget />
-          </div>
+</div>
         </TabsContent>
 
         <TabsContent value="users"><UsersPanel /></TabsContent>

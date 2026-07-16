@@ -31,9 +31,10 @@ interface TodayAttendance {
 
 interface PunchWidgetProps {
   compact?: boolean;
+  variant?: 'default' | 'header';
 }
 
-export function PunchWidget({ compact = false }: PunchWidgetProps) {
+export function PunchWidget({ compact = false, variant = 'default' }: PunchWidgetProps) {
   const [today, setToday] = useState<TodayAttendance | null>(null);
   const [loading, setLoading] = useState(true);
   const [punching, setPunching] = useState(false);
@@ -199,6 +200,84 @@ export function PunchWidget({ compact = false }: PunchWidgetProps) {
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   };
 
+  const renderMapDialog = () => (
+    <Dialog open={mapOpen} onOpenChange={(o) => { if (!punching) setMapOpen(o); }}>
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
+        <DialogHeader className="p-4 pb-0">
+          <DialogTitle className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            {punchType === 'in' ? 'Punch In' : 'Punch Out'} — Confirm Location
+          </DialogTitle>
+        </DialogHeader>
+
+        {locating ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Getting your location...</p>
+          </div>
+        ) : location ? (
+          <>
+            {/* Leaflet Map */}
+            <div ref={mapRef} className="w-full h-64" style={{ zIndex: 0 }} />
+
+            {/* Location info */}
+            <div className="p-4 space-y-3">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/50">
+                <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold">Your Location</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{location.address}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-mono">
+                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                <span>
+                  {punchType === 'in' ? 'Check-in' : 'Check-out'} time:{' '}
+                  <span className="font-bold text-foreground">
+                    {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setMapOpen(false)} disabled={punching}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handlePunch} disabled={punching}>
+                  {punching ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4 mr-2" />Confirm {punchType === 'in' ? 'Punch In' : 'Punch Out'}</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 gap-3 p-4">
+            <AlertCircle className="w-8 h-8 text-destructive" />
+            <p className="text-sm text-center text-muted-foreground">
+              Location access denied. Please enable GPS in your browser settings.
+            </p>
+            <Button variant="outline" onClick={() => setMapOpen(false)}>Close</Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (loading && variant === 'header') {
+    return (
+      <div className="flex items-center justify-center h-10 w-32 bg-muted/30 rounded-full">
+        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <Card className={compact ? 'border-none shadow-none' : ''}>
@@ -206,6 +285,46 @@ export function PunchWidget({ compact = false }: PunchWidgetProps) {
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
+    );
+  }
+
+  if (variant === 'header') {
+    return (
+      <>
+        <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-full px-2 py-1.5 shrink-0 h-10 ml-2 hidden sm:flex">
+          <div className="flex flex-col items-center justify-center px-2 min-w-[70px]">
+            <span className="text-[12px] font-bold tracking-tight tabular-nums leading-none mb-0.5 text-slate-800">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="text-[9px] text-muted-foreground font-medium uppercase leading-none">
+              {hasPunchedIn ? (hasPunchedOut ? 'Punched Out' : 'Punched In') : 'Not Punched'}
+            </span>
+          </div>
+          <div className="flex gap-1 border-l pl-2 border-slate-100">
+            <Button
+              size="sm"
+              className={`h-7 px-3 text-[11px] rounded-full font-medium ${hasPunchedIn ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
+              disabled={hasPunchedIn}
+              onClick={() => openPunchMap('in')}
+              variant="custom"
+            >
+              <LogIn className="w-3 h-3 mr-1" />
+              In
+            </Button>
+            <Button
+              size="sm"
+              className={`h-7 px-3 text-[11px] rounded-full font-medium ${(!hasPunchedIn || hasPunchedOut) ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+              disabled={!hasPunchedIn || hasPunchedOut}
+              onClick={() => openPunchMap('out')}
+              variant="custom"
+            >
+              <LogOut className="w-3 h-3 mr-1" />
+              Out
+            </Button>
+          </div>
+        </div>
+        {renderMapDialog()}
+      </>
     );
   }
 
@@ -298,75 +417,7 @@ export function PunchWidget({ compact = false }: PunchWidgetProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Map Dialog */}
-      <Dialog open={mapOpen} onOpenChange={(o) => { if (!punching) setMapOpen(o); }}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              {punchType === 'in' ? 'Punch In' : 'Punch Out'} — Confirm Location
-            </DialogTitle>
-          </DialogHeader>
-
-          {locating ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Getting your location...</p>
-            </div>
-          ) : location ? (
-            <>
-              {/* Leaflet Map */}
-              <div ref={mapRef} className="w-full h-64" style={{ zIndex: 0 }} />
-
-              {/* Location info */}
-              <div className="p-4 space-y-3">
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/50">
-                  <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold">Your Location</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{location.address}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 font-mono">
-                      {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>
-                    {punchType === 'in' ? 'Check-in' : 'Check-out'} time:{' '}
-                    <span className="font-bold text-foreground">
-                      {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setMapOpen(false)} disabled={punching}>
-                    Cancel
-                  </Button>
-                  <Button className="flex-1" onClick={handlePunch} disabled={punching}>
-                    {punching ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
-                    ) : (
-                      <><CheckCircle2 className="w-4 h-4 mr-2" />Confirm {punchType === 'in' ? 'Punch In' : 'Punch Out'}</>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 gap-3 p-4">
-              <AlertCircle className="w-8 h-8 text-destructive" />
-              <p className="text-sm text-center text-muted-foreground">
-                Location access denied. Please enable GPS in your browser settings.
-              </p>
-              <Button variant="outline" onClick={() => setMapOpen(false)}>Close</Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {renderMapDialog()}
     </>
   );
 }

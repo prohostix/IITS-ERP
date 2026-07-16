@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Wallet, GraduationCap, ClipboardList, School } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { StudyCenterWalletPanel } from '@/components/panels/StudyCenterWalletPanel';
 import { EnrollStudentPanel } from '@/components/panels/EnrollStudentPanel';
 import { StudyCenterEnrollmentsPanel } from '@/components/panels/StudyCenterEnrollmentsPanel';
@@ -85,8 +84,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
                   </button>
                 </div>              </div>
             </div>
-            <PunchWidget />
-          </div>
+</div>
         </TabsContent>
 
         <TabsContent value="wallet"><StudyCenterWalletPanel /></TabsContent>

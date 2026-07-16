@@ -49,7 +49,6 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { PunchWidget } from '@/components/attendance/PunchWidget';
 import { CEOTasksPanel } from '@/components/panels/CEOTasksPanel';
 import { StudentsPanel } from '@/components/panels/StudentsPanel';
 import { InvoicesPanel } from '@/components/panels/InvoicesPanel';
@@ -277,8 +276,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
 
           {/* Punch Widget + Quick Access */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PunchWidget />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card className="bg-primary/5 border-primary/10 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setActiveTab('kpi-kra')}>
                 <CardContent className="pt-6">
                   <div className="p-2 w-fit rounded-lg bg-primary/10 text-primary mb-4">
