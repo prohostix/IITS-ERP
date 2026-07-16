@@ -281,7 +281,7 @@ export function EnrollStudentPanel() {
     }
   };
 
-  const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' = 'text') => {
+  const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' | 'number' | 'tel' = 'text') => {
     const config = centerConfig?.customEnrollmentFields;
     const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
     const status = parsedConfig?.[key] || 'optional';
@@ -327,7 +327,8 @@ export function EnrollStudentPanel() {
         </Label>
         <Input
           type={type}
-          value={(form)[key]}
+          inputMode={type === 'number' || type === 'tel' ? 'numeric' : undefined}
+          value={(form as any)[key]}
           onChange={e => {
             let val = e.target.value;
             if (key.toLowerCase().includes('phone')) val = val.replace(/\D/g, '');
@@ -355,7 +356,7 @@ export function EnrollStudentPanel() {
     const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
     const missing = [];
     for (const key of baseRequired) {
-      if (!(form)[key]?.trim()) {
+      if (!(form as any)[key]?.trim()) {
         missing.push(key);
       }
     }
@@ -366,7 +367,7 @@ export function EnrollStudentPanel() {
     if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
       for (const [field, requirement] of Object.entries(parsedConfig)) {
         if (requirement === 'required') {
-          const val = (form)[field];
+          const val = (form as any)[field];
           if (val === undefined || val === null || String(val).trim() === '') {
             missing.push(field);
           }
@@ -458,7 +459,7 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['admissionDate', 'abcId', 'debId']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form)[field];
+            const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
@@ -470,7 +471,7 @@ export function EnrollStudentPanel() {
       // Validate Step 2: studentName, studentEmail, studentPhone, studentAddress
       const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
       for (const key of baseRequired) {
-        if (!(form)[key]?.trim()) {
+        if (!(form as any)[key]?.trim()) {
           toast.error(`Field '${key.replace('student', '')}' is required`);
           return false;
         }
@@ -485,7 +486,7 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form)[field];
+            const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
@@ -500,7 +501,7 @@ export function EnrollStudentPanel() {
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['fatherName', 'motherName', 'parentMobile', 'studentPhoto']) {
           if (parsedConfig[field] === 'required') {
-            const val = (form)[field];
+            const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
               return false;
@@ -718,9 +719,9 @@ export function EnrollStudentPanel() {
                   {emailUnique === false && <p className="text-xs text-destructive mt-1 flex items-center gap-1"><ShieldAlert className="w-3 h-3"/> Email already registered for this intake.</p>}
                   {emailUnique === true && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><Check className="w-3 h-3"/> Email available.</p>}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label>Phone Number <span className="text-destructive">*</span></Label>
-                  <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value.replace(/\D/g, '') }))} placeholder="Primary phone" />
+                  <Input type="tel" inputMode="numeric" pattern="[0-9]*" value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value.replace(/\D/g, '') }))} placeholder="Primary phone" />
                 </div>
                 {renderField('dob', 'Date of Birth', 'date')}
                 <div className="space-y-1 md:col-span-2">
@@ -728,7 +729,7 @@ export function EnrollStudentPanel() {
                   <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Permanent address" />
                 </div>
                 {renderField('pincode', 'Pincode')}
-                {renderField('alternativePhone', 'Alternative Phone')}
+                {renderField('alternativePhone', 'Alternative Phone', 'tel')}
                 {renderField('religion', 'Religion')}
                 {renderField('caste', 'Caste / Category')}
               </div>
@@ -741,7 +742,7 @@ export function EnrollStudentPanel() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {renderField('fatherName', "Father's Name")}
                 {renderField('motherName', "Mother's Name")}
-                {renderField('parentMobile', "Mobile Number")}
+                {renderField('parentMobile', "Mobile Number", 'tel')}
                 {renderField('studentPhoto', 'Student Photo', 'file')}
               </div>
             </div>
