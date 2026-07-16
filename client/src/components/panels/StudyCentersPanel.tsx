@@ -67,7 +67,11 @@ export function StudyCentersPanel() {
     { key: 'parentMobile', label: "Parent's Mobile Number" },
     { key: 'studentPhoto', label: 'Student Photo' },
     { key: 'pincode', label: 'Pincode' },
-    { key: 'alternativePhone', label: 'Alternative Phone' }
+    { key: 'alternativePhone', label: 'Alternative Phone' },
+    { key: 'doc_aadhaar', label: 'Document: Aadhaar Card' },
+    { key: 'doc_10th', label: 'Document: 10th Certificate' },
+    { key: 'doc_12th', label: 'Document: 12th Certificate' },
+    { key: 'doc_degree', label: 'Document: Degree Certificate' }
   ];
 
   const handleOpenConfig = (c: any) => {

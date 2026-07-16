@@ -515,6 +515,26 @@ export function EnrollStudentPanel() {
           }
         }
       }
+      
+      const config = centerConfig?.customEnrollmentFields;
+      if (config) {
+        const cConfig = typeof config === 'string' ? JSON.parse(config) : config;
+        const branchDocs = [
+          { key: 'doc_aadhaar', label: 'Aadhaar Card' },
+          { key: 'doc_10th', label: '10th Certificate' },
+          { key: 'doc_12th', label: '12th Certificate' },
+          { key: 'doc_degree', label: 'Degree Certificate' }
+        ];
+        
+        for (const doc of branchDocs) {
+          if (cConfig[doc.key] === 'required') {
+            if (!documentList.some(d => d.reqName === doc.label)) {
+              toast.error(`Please upload required branch document: ${doc.label}`);
+              return false;
+            }
+          }
+        }
+      }
     }
     return true;
   };
@@ -826,6 +846,61 @@ export function EnrollStudentPanel() {
                     </div>
                   </div>
                 )}
+
+                {/* Branch Configured Documents */}
+                {(() => {
+                  const config = centerConfig?.customEnrollmentFields;
+                  if (!config) return null;
+                  const cConfig = typeof config === 'string' ? JSON.parse(config) : config;
+                  const branchDocs = [
+                    { key: 'doc_aadhaar', label: 'Aadhaar Card' },
+                    { key: 'doc_10th', label: '10th Certificate' },
+                    { key: 'doc_12th', label: '12th Certificate' },
+                    { key: 'doc_degree', label: 'Degree Certificate' }
+                  ];
+                  
+                  const activeDocs = branchDocs.filter(d => cConfig[d.key] && cConfig[d.key] !== 'hidden');
+                  if (activeDocs.length === 0) return null;
+
+                  return (
+                    <div className="space-y-3 mb-6">
+                      <p className="text-sm font-medium text-slate-700">Required Branch Certificates</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {activeDocs.map((doc, idx) => {
+                          const existingDoc = documentList.find(d => d.reqName === doc.label);
+                          const isMandatory = cConfig[doc.key] === 'required';
+                          return (
+                            <div key={idx} className="bg-white border rounded-lg p-3 shadow-sm flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-sm text-slate-700">{doc.label} {isMandatory && <span className="text-destructive">*</span>}</span>
+                                {existingDoc ? (
+                                  <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-200 h-5 px-1.5"><Check className="w-3 h-3 mr-1"/> Uploaded</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-slate-400 h-5 px-1.5">Pending</Badge>
+                                )}
+                              </div>
+                              {existingDoc ? (
+                                <div className="flex items-center justify-between text-xs bg-slate-50 p-2 rounded border">
+                                  <span className="truncate max-w-[150px] font-medium">{existingDoc.name}</span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <a href={existingDoc.url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">View</a>
+                                    <button type="button" onClick={() => setDocumentList(documentList.filter(d => d !== existingDoc))} className="text-red-500 hover:text-red-700 px-1 font-medium">Remove</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="relative border border-dashed rounded flex flex-col items-center justify-center p-3 hover:bg-slate-50 cursor-pointer transition-colors bg-slate-50/50">
+                                  <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleFileUpload(e, doc.label)} disabled={uploading} />
+                                  <Upload className="w-4 h-4 text-slate-400 mb-1" />
+                                  <span className="text-xs font-medium text-slate-500">Upload {doc.label}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="pt-2 border-t mt-4">
                   <p className="text-sm font-medium text-slate-700 mb-2">Additional Documents</p>
