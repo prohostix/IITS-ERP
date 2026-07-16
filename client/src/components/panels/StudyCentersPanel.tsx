@@ -77,7 +77,7 @@ export function StudyCentersPanel() {
   const handleOpenConfig = (c: any) => {
     setConfigCenterId(c.id);
     setAllowInternalMarks(!!c.allowInternalMarks);
-    let currentConfig = {};
+    let currentConfig: Record<string, any> = {};
     if (c.customEnrollmentFields) {
       currentConfig = typeof c.customEnrollmentFields === 'string' 
         ? JSON.parse(c.customEnrollmentFields) 
@@ -873,7 +873,7 @@ export function StudyCentersPanel() {
                         name={`branch-${field.key}`}
                         value={status}
                         checked={branchFieldConfig[field.key] === status}
-                        onChange={() => setBranchFieldConfig({ ...branchFieldConfig, [field.key]: status })}
+                        onChange={() => setBranchFieldConfig({ ...branchFieldConfig, [field.key]: status as 'required' | 'optional' | 'hidden' })}
                         className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300"
                       />
                       <span className="capitalize">{status}</span>
