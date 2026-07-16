@@ -230,7 +230,7 @@ export function CEOKPIReportPanel() {
       </div>
 
       {/* Org-wide summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card><CardContent className="pt-5 flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-primary/10 text-primary"><Users className="w-5 h-5" /></div>
           <div><p className="text-2xl font-bold">{totalEmployees}</p><p className="text-xs text-muted-foreground">Employees with data</p></div>

@@ -165,7 +165,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Total Students', value: stats.totalStudents, color: 'text-primary', bg: 'bg-primary/10' },
           { label: 'Enrolled', value: stats.enrolled, color: 'text-green-600', bg: 'bg-green-500/10' },

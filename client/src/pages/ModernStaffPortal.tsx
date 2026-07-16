@@ -148,7 +148,7 @@ export function ModernStaffPortal() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Punch Widget */}
 {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <PortalBtn icon={<FileText className="w-5 h-5 text-primary" />} title="Request Form" />
           <PortalBtn icon={<Navigation className="w-5 h-5 text-info" />} title="Expenses" />
           <PortalBtn icon={<MessageSquare className="w-5 h-5 text-success" />} title="Messenger" />

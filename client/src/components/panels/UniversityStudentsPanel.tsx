@@ -165,7 +165,7 @@ export function UniversityStudentsPanel() {
 
       {/* Metrics */}
       {metrics && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard icon={<GraduationCap className="w-4 h-4" />} label="Total Enrolled" value={metrics.totalEnrolled} />
           <MetricCard icon={<BookOpen className="w-4 h-4" />} label="Active Programs" value={metrics.totalPrograms} />
           <MetricCard icon={<Building2 className="w-4 h-4" />} label="Partner Portals" value={metrics.totalCenters} />
@@ -221,7 +221,8 @@ export function UniversityStudentsPanel() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
                     <th className="text-left py-2 pr-4 font-medium">Enrollment No.</th>
@@ -262,6 +263,7 @@ export function UniversityStudentsPanel() {
                   ))}
                 </tbody>
               </table>
+</div>
             </div>
           )}
         </CardContent>

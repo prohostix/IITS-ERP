@@ -345,7 +345,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
 
               {/* ── OVERVIEW ── */}
               <TabsContent value="overview" className="space-y-4 mt-0">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Card><CardContent className="pt-4 space-y-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Contact</p>
                     <div className="flex items-center gap-2 text-sm"><Mail className="w-4 h-4 text-muted-foreground" />{user?.email}</div>
@@ -423,7 +423,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
               {/* ── PERSONAL ── */}
               <TabsContent value="personal" className="space-y-4 mt-0">
                 <SectionTitle icon={User} title="Personal Information" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Date of Birth</Label><Input type="date" value={personalForm.dateOfBirth} onChange={e => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })} /></div>
                   <div><Label>Gender</Label>
                     <Select value={personalForm.gender} onValueChange={v => setPersonalForm({ ...personalForm, gender: v })}>
@@ -442,7 +442,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
                   <div><Label>Pincode</Label><Input value={personalForm.pincode} onChange={e => setPersonalForm({ ...personalForm, pincode: e.target.value })} /></div>
                 </div>
                 <SectionTitle icon={AlertCircle} title="Emergency Contact" />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div><Label>Name</Label><Input value={personalForm.emergencyName} onChange={e => setPersonalForm({ ...personalForm, emergencyName: e.target.value })} /></div>
                   <div><Label>Phone</Label><Input value={personalForm.emergencyPhone} onChange={e => setPersonalForm({ ...personalForm, emergencyPhone: e.target.value })} /></div>
                   <div><Label>Relation</Label><Input value={personalForm.emergencyRelation} onChange={e => setPersonalForm({ ...personalForm, emergencyRelation: e.target.value })} placeholder="Spouse, Parent..." /></div>
@@ -453,7 +453,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
               {/* ── EMPLOYMENT ── */}
               <TabsContent value="employment" className="space-y-4 mt-0">
                 <SectionTitle icon={Briefcase} title="Employment Details" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Employee Code</Label><Input value={employmentForm.employeeCode} onChange={e => setEmploymentForm({ ...employmentForm, employeeCode: e.target.value })} /></div>
                   <div><Label>Designation</Label><Input value={employmentForm.designation} onChange={e => setEmploymentForm({ ...employmentForm, designation: e.target.value })} /></div>
                   <div><Label>Phone</Label><Input value={employmentForm.phone} onChange={e => setEmploymentForm({ ...employmentForm, phone: e.target.value })} /></div>
@@ -479,7 +479,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
               {/* ── SALARY ── */}
               <TabsContent value="salary" className="space-y-4 mt-0">
                 <SectionTitle icon={DollarSign} title="Salary & Bank Details" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>CTC (Annual ₹)</Label><Input type="number" value={salaryForm.ctc} onChange={e => setSalaryForm({ ...salaryForm, ctc: e.target.value })} /></div>
                   <div><Label>Basic Salary (Monthly ₹)</Label><Input type="number" value={salaryForm.basicSalary} onChange={e => setSalaryForm({ ...salaryForm, basicSalary: e.target.value })} /></div>
                   <div><Label>Bank Name</Label><Input value={salaryForm.bankName} onChange={e => setSalaryForm({ ...salaryForm, bankName: e.target.value })} /></div>
@@ -489,7 +489,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
                 </div>
 
                 <SectionTitle icon={TrendingUp} title="Salary Structure (Payroll Config)" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Basic (₹/mo)</Label><Input type="number" value={salaryConfigForm.basicSalary || ''} onChange={e => setSalaryConfigForm({ ...salaryConfigForm, basicSalary: Number(e.target.value) })} /></div>
                   <div><Label>HRA (₹)</Label><Input type="number" value={salaryConfigForm.allowances?.hra || ''} onChange={e => setSalaryConfigForm({ ...salaryConfigForm, allowances: { ...salaryConfigForm.allowances, hra: Number(e.target.value) } })} /></div>
                   <div><Label>DA (₹)</Label><Input type="number" value={salaryConfigForm.allowances?.da || ''} onChange={e => setSalaryConfigForm({ ...salaryConfigForm, allowances: { ...salaryConfigForm.allowances, da: Number(e.target.value) } })} /></div>
@@ -612,7 +612,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
               {/* ── REVIEW ── */}
               <TabsContent value="review" className="space-y-4 mt-0">
                 <SectionTitle icon={Star} title="Performance Review" />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><Label>Last Review Date</Label><Input type="date" value={reviewForm.lastReviewDate} onChange={e => setReviewForm({ ...reviewForm, lastReviewDate: e.target.value })} /></div>
                   <div><Label>Next Review Date</Label><Input type="date" value={reviewForm.nextReviewDate} onChange={e => setReviewForm({ ...reviewForm, nextReviewDate: e.target.value })} /></div>
                 </div>
@@ -639,7 +639,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
               <div className="space-y-3 py-2">
                 <div><Label>Title *</Label><Input value={editKpi.title} onChange={e => setEditKpi({ ...editKpi, title: e.target.value })} /></div>
                 <div><Label>Description</Label><Input value={editKpi.description || ''} onChange={e => setEditKpi({ ...editKpi, description: e.target.value })} /></div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div><Label>Target</Label><Input type="number" value={editKpi.target} onChange={e => setEditKpi({ ...editKpi, target: Number(e.target.value) })} /></div>
                   <div><Label>Achieved</Label><Input type="number" value={editKpi.achieved} onChange={e => setEditKpi({ ...editKpi, achieved: Number(e.target.value) })} /></div>
                   <div><Label>Unit</Label><Input value={editKpi.unit} onChange={e => setEditKpi({ ...editKpi, unit: e.target.value })} placeholder="%, ₹, count" /></div>

@@ -181,7 +181,8 @@ export function FinanceUniversityFeePanel() {
             </CardContent></Card>
           ) : (
             <div className="rounded-xl border border-border overflow-hidden bg-card text-card-foreground">
-              <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b border-border">
                   <tr>
                     <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
@@ -215,6 +216,7 @@ export function FinanceUniversityFeePanel() {
                   ))}
                 </tbody>
               </table>
+</div>
             </div>
           )}
         </TabsContent>
@@ -229,7 +231,8 @@ export function FinanceUniversityFeePanel() {
             </CardContent></Card>
           ) : (
             <div className="rounded-xl border border-border overflow-hidden bg-card text-card-foreground">
-              <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b border-border">
                   <tr>
                     <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
@@ -279,6 +282,7 @@ export function FinanceUniversityFeePanel() {
                   ))}
                 </tbody>
               </table>
+</div>
             </div>
           )}
         </TabsContent>

@@ -230,7 +230,7 @@ export function DeptEnrollmentReviewPanel() {
                 )}
 
                 {/* Contact details */}
-                <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <div>
@@ -290,7 +290,7 @@ export function DeptEnrollmentReviewPanel() {
                   {selectedEnrollment.educationalDetails && selectedEnrollment.educationalDetails.length > 0 ? (
                     <div className="space-y-2">
                       {selectedEnrollment.educationalDetails.map((edu, idx) => (
-                        <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                        <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                           <div className="col-span-1">
                             <span className="text-xs text-muted-foreground block">Qualification</span>
                             <span className="font-semibold">{edu.qualification}</span>
@@ -317,7 +317,7 @@ export function DeptEnrollmentReviewPanel() {
                     <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                   </h4>
                   {selectedEnrollment.documents && selectedEnrollment.documents.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedEnrollment.documents.map((doc, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
                           <div className="flex items-center gap-2 truncate pr-2">

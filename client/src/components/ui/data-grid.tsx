@@ -133,7 +133,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-y-3 gap-x-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-2">
                 {columns.map(col => (
                   <div key={col.key} className="flex flex-col gap-1">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
@@ -152,7 +152,8 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
 
       {/* Desktop Table View (hidden on small screens) */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0">
+<div className="overflow-x-auto w-full">
+<table className="w-full border-separate border-spacing-0">
           <thead>
             <tr className="bg-muted/50 transition-colors">
               <th className="sticky left-0 z-20 bg-muted/50 w-12 px-4 py-3 border-b border-r border-border first:rounded-tl-lg">
@@ -272,6 +273,7 @@ export function DataGrid({ columns, data, onEdit, onDelete, loading }: DataGridP
             })}
           </tbody>
         </table>
+</div>
       </div>
     </div>
   );

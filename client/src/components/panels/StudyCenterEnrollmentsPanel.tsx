@@ -262,7 +262,7 @@ export function StudyCenterEnrollmentsPanel() {
                 )}
 
                 {/* Basic Details */}
-                <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border">
                   <div className="flex items-center gap-2 text-sm">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <div>
@@ -337,7 +337,7 @@ export function StudyCenterEnrollmentsPanel() {
                   {selectedEnrollment.educationalDetails && selectedEnrollment.educationalDetails.length > 0 ? (
                     <div className="space-y-2">
                       {selectedEnrollment.educationalDetails.map((edu, idx) => (
-                        <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                        <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                           <div className="col-span-1">
                             <span className="text-xs text-muted-foreground block">Qualification</span>
                             <span className="font-semibold">{edu.qualification}</span>
@@ -364,7 +364,7 @@ export function StudyCenterEnrollmentsPanel() {
                     <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                   </h4>
                   {selectedEnrollment.documents && selectedEnrollment.documents.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedEnrollment.documents.map((doc, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
                           <div className="flex items-center gap-2 truncate pr-2">
@@ -408,7 +408,7 @@ export function StudyCenterEnrollmentsPanel() {
           </DialogHeader>
 
           <form onSubmit={handleUpdateSubmit} className="space-y-6 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Student Full Name</Label>
                 <Input value={editForm.studentName} onChange={e => setEditForm({ ...editForm, studentName: e.target.value })} required />
@@ -419,7 +419,7 @@ export function StudyCenterEnrollmentsPanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Student Phone</Label>
                 <Input value={editForm.studentPhone} onChange={e => setEditForm({ ...editForm, studentPhone: e.target.value })} required />
@@ -430,7 +430,7 @@ export function StudyCenterEnrollmentsPanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Program</Label>
                 <select
@@ -481,7 +481,7 @@ export function StudyCenterEnrollmentsPanel() {
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-primary" /> Educational History
               </h4>
-              <div className="grid grid-cols-4 gap-2 items-end mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end mb-3">
                 <div className="col-span-1 space-y-1">
                   <Label className="text-xs">Qualification</Label>
                   <Input placeholder="10th, 12th, UG" value={tempEdu.qualification} onChange={e => setTempEdu({ ...tempEdu, qualification: e.target.value })} />
@@ -524,7 +524,7 @@ export function StudyCenterEnrollmentsPanel() {
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-primary" /> Upload Documents
               </h4>
-              <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 {['Photo', 'Signature', '10th Marksheet', '12th Marksheet', 'Degree Certificate'].map((docName) => {
                   const alreadyUploaded = editDocuments.some(d => d.name === docName);
                   return (

@@ -160,7 +160,7 @@ export function InternalMarksPanel() {
                   <Label>Subject Name</Label>
                   <Input value={formData.subjectName} onChange={(e) => setFormData({ ...formData, subjectName: e.target.value })} required />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Marks Obtained</Label>
                     <Input type="number" min="0" value={formData.marks} onChange={(e) => setFormData({ ...formData, marks: e.target.value })} required />
@@ -199,7 +199,7 @@ export function InternalMarksPanel() {
 
       {/* Summary stats */}
       {marks.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Records', value: marks.length },
             { label: 'Students', value: new Set(marks.map(m => typeof m.studentId === 'object' ? m.studentId?.id : m.studentId)).size },

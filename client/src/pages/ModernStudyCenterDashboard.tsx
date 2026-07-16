@@ -71,7 +71,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
                   <School className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold">Quick Actions</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button onClick={() => setActiveTab('enroll')} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
                     <GraduationCap className="w-5 h-5 text-primary mb-2" />
                     <p className="text-sm font-semibold">Enroll Student</p>

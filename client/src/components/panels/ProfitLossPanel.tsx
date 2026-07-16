@@ -183,7 +183,8 @@ export function ProfitLossPanel() {
           <CardHeader><CardTitle>Monthly P&L Summary</CardTitle></CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b border-border">
                   <tr>
                     <th className="text-left p-3 font-medium text-muted-foreground">Month</th>
@@ -212,6 +213,7 @@ export function ProfitLossPanel() {
                   })}
                 </tbody>
               </table>
+</div>
             </div>
           </CardContent>
         </Card>

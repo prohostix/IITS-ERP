@@ -125,7 +125,7 @@ export function FeeStructuresPanel() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Registration Fee</Label>
                   <Input type="number" min="0" value={formData.registrationFee} onChange={(e) => setFormData({ ...formData, registrationFee: e.target.value })} required />
@@ -135,7 +135,7 @@ export function FeeStructuresPanel() {
                   <Input type="number" min="0" value={formData.tuitionFee} onChange={(e) => setFormData({ ...formData, tuitionFee: e.target.value })} required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Exam Fee</Label>
                   <Input type="number" min="0" value={formData.examFee} onChange={(e) => setFormData({ ...formData, examFee: e.target.value })} required />

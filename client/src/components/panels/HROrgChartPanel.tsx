@@ -295,7 +295,7 @@ export function HROrgChartPanel() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="border rounded-xl p-4 text-center">
           <p className="text-2xl font-bold">{totalPositions}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Total Positions</p>

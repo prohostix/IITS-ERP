@@ -181,7 +181,7 @@ export function LeaveAllocationPanel() {
                         <Badge variant="outline" className="text-xs capitalize">{user?.role?.replace(/_/g, ' ')}</Badge>
                         {user?.designation && <Badge variant="outline" className="text-xs">{user.designation}</Badge>}
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                         {[
                           { label: 'Sick', total: alloc.sickLeave, used: alloc.usedSick, color: 'text-red-500' },
                           { label: 'Casual', total: alloc.casualLeave, used: alloc.usedCasual, color: 'text-blue-500' },
@@ -226,7 +226,7 @@ export function LeaveAllocationPanel() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
                 { key: 'sickLeave', label: 'Sick Leave (days)' },
                 { key: 'casualLeave', label: 'Casual Leave (days)' },
@@ -257,7 +257,7 @@ export function LeaveAllocationPanel() {
             <DialogTitle>Bulk Initialize Leave — {year}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Sets default leave balances for all active employees who don't have an allocation yet for {year}.</p>
-          <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             {([
               { key: 'sickLeave', label: 'Sick Leave' },
               { key: 'casualLeave', label: 'Casual Leave' },

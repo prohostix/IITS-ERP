@@ -302,7 +302,7 @@ export function ProgramDetailPanel({
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {CATEGORIES.map(cat => {
           const count = byCategory[cat.value]?.length || 0;
           return (
@@ -445,7 +445,7 @@ export function ProgramDetailPanel({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Category *</Label>
                 <Select value={uploadForm.category} onValueChange={v => setUploadForm(f => ({ ...f, category: v }))}>

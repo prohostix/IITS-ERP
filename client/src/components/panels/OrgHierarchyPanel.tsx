@@ -572,7 +572,7 @@ export function OrgHierarchyPanel() {
             Build the designation hierarchy. Branches have their own position trees.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 sm:flex sm:flex-row gap-2">
           <Button size="sm" variant="outline" onClick={() => setSubDeptDialog(true)} className="w-full sm:w-auto">
             <Layers className="h-4 w-4 mr-1" /> Sub-Dept
           </Button>
@@ -681,7 +681,7 @@ export function OrgHierarchyPanel() {
                 value={designForm.title}
                 onChange={e => setDesignForm(p => ({ ...p, title: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Level (1 = top)</Label>
                 <Input type="number" min={1} value={designForm.level}

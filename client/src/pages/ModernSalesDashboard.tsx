@@ -278,7 +278,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="w-full grid grid-cols-2 gap-2 mt-2">
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   {sourceData.map(item => (
                     <div key={item.name} className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
@@ -448,7 +448,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-5">
           <p className="text-xs text-muted-foreground uppercase font-medium">My Leads</p>
           <p className="text-3xl font-bold mt-1">{loading ? '...' : myLeads.length}</p>

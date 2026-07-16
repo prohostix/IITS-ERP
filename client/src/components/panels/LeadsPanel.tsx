@@ -257,7 +257,7 @@ export function LeadsPanel() {
               <DialogTitle>{editingId ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Center Name</Label>
                   <Input value={formData.centerName} onChange={(e) => setFormData({...formData, centerName: e.target.value})} required />
@@ -267,7 +267,7 @@ export function LeadsPanel() {
                   <Input value={formData.contactName} onChange={(e) => setFormData({...formData, contactName: e.target.value})} required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Email</Label>
                   <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
@@ -281,7 +281,7 @@ export function LeadsPanel() {
                 <Label>Address</Label>
                 <Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Source</Label>
                   <Select value={formData.source} onValueChange={(value) => setFormData({...formData, source: value})}>
@@ -433,7 +433,7 @@ export function LeadsPanel() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="center-contact">Contact</Label>
                 <Input

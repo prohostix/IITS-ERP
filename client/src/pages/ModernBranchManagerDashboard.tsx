@@ -163,7 +163,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
       )}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <BranchMetric title="Total Leads" value={loading ? '...' : totalLeads} sub={`${leads.filter((l:any) => l.status === 'new').length} new`} icon={<TrendingUp className="w-4 h-4" />} color="primary" onClick={() => onNavigate('leads')} />
         <BranchMetric title="Conversions" value={loading ? '...' : convertedLeads} sub={`${conversionRate}% rate`} icon={<Target className="w-4 h-4" />} color="success" onClick={() => onNavigate('leads')} />
         <BranchMetric title="Active Targets" value={loading ? '...' : activeTargets.length} sub="in progress" icon={<Zap className="w-4 h-4" />} color="warning" onClick={() => onNavigate('targets')} />
@@ -207,7 +207,7 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
                 <CardDescription>Quick access</CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
                 { label: 'Students', icon: <Users className="w-4 h-4" />, tab: 'students' },
                 { label: 'Study Centers', icon: <MapPin className="w-4 h-4" />, tab: 'centers' },

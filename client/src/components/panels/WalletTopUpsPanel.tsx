@@ -212,7 +212,8 @@ export function WalletTopUpsPanel() {
       ) : (
         <Card className="overflow-hidden border">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
               <thead className="bg-muted/60 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Date</th>
@@ -247,6 +248,7 @@ export function WalletTopUpsPanel() {
                 ))}
               </tbody>
             </table>
+</div>
           </div>
         </Card>
       )}

@@ -218,7 +218,7 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Max Users</Label>
                   <Input type="number" placeholder="50" />
@@ -228,7 +228,7 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
                   <Input type="number" placeholder="100" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Duration (Months)</Label>
                   <Input type="number" placeholder="12" />

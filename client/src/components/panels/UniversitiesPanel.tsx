@@ -121,7 +121,7 @@ export function UniversitiesPanel() {
               <DialogTitle>{editingId ? 'Edit University' : 'Add New University'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>University Name</Label>
                   <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
@@ -131,7 +131,7 @@ export function UniversitiesPanel() {
                   <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} required />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Contact (Phone/Email)</Label>
                   <Input value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} />
@@ -170,7 +170,7 @@ export function UniversitiesPanel() {
                   </div>
 
                   {/* Mode cards */}
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <button type="button"
                       onClick={() => { setAccessMode('all'); setSelectedBranchIds([]); }}
                       className={`rounded-lg border-2 p-3 text-left transition-all ${

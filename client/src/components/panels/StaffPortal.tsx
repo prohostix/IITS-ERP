@@ -274,7 +274,7 @@ export function StaffPortal({ activeModule }: StaffPortalProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Apply Leave', icon: Calendar, color: 'bg-blue-100 text-blue-600' },
               { label: 'View Payslip', icon: FileText, color: 'bg-green-100 text-green-600' },

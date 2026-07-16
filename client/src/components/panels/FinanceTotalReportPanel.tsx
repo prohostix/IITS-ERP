@@ -146,7 +146,7 @@ export function FinanceTotalReportPanel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Records', value: rows.length, color: 'text-slate-700' },
           { label: 'Center Fees Collected', value: 'INR ' + totalCenterPaid.toLocaleString('en-IN'), color: 'text-green-700' },
@@ -262,7 +262,8 @@ export function FinanceTotalReportPanel() {
             <div className="py-12 text-center text-muted-foreground">No data found. Adjust filters and try again.</div>
           ) : (
             <div className="overflow-x-auto rounded-xl">
-              <table className="min-w-max w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="min-w-max w-full text-sm">
                 <thead className="bg-muted/60 border-b">
                   <tr>
                     {[
@@ -350,6 +351,7 @@ export function FinanceTotalReportPanel() {
                   ))}
                 </tbody>
               </table>
+</div>
             </div>
           )}
         </CardContent>

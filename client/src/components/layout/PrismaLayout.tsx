@@ -281,7 +281,7 @@ export function PrismaLayout({
               <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userRole?.replace(/_/g, ' ')}</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center gap-2 h-8 rounded-lg bg-sidebar-accent/50 border border-sidebar-border text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors text-xs"
@@ -300,25 +300,25 @@ export function PrismaLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 flex items-center px-4 lg:px-8 gap-4 bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-20">
+        <header className="h-16 flex items-center px-2 sm:px-4 lg:px-8 gap-2 sm:gap-4 bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-20">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="lg:hidden" 
+            className="lg:hidden shrink-0" 
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </Button>
 
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary hidden sm:flex">
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary hidden sm:flex shrink-0">
               {activeTableItem?.icon}
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/30 hidden sm:block" />
-            <span className="text-lg font-bold text-foreground truncate">{activeTableItem?.label}</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/30 hidden sm:block shrink-0" />
+            <span className="text-base sm:text-lg font-bold text-foreground truncate hidden xs:block">{activeTableItem?.label}</span>
           </div>
 
-          <div className="ml-auto flex items-center gap-2 sm:gap-4">
+          <div className="ml-auto flex items-center gap-1 sm:gap-4 shrink-0">
             <PunchWidget variant="header" />
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg border border-border">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />

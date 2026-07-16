@@ -86,7 +86,7 @@ export function SubSalesPortalPanel() {
     return (
       <div className="space-y-4 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/3" />
-        <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}</div>
       </div>
     );
   }
@@ -132,7 +132,7 @@ export function SubSalesPortalPanel() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={<Building2 className="w-5 h-5" />} label="Universities" value={universities.length} color="primary" />
         <StatCard icon={<MapPin className="w-5 h-5" />} label="Study Centers" value={centers.length} color="info" />
         <StatCard icon={<GraduationCap className="w-5 h-5" />} label="Enrolled" value={totalEnrolled} color="success" sub={`${totalPending} pending`} />
@@ -325,7 +325,7 @@ export function SubSalesPortalPanel() {
                         {c.status}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-center">
                       <div className="bg-muted/40 rounded-lg p-2">
                         <p className="text-xs text-muted-foreground">Total</p>
                         <p className="font-bold text-sm">{stats.total}</p>

@@ -177,7 +177,7 @@ function LocationCard({ loc, index, onChange, onRemove, onSetDefault }: {
               </div>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Latitude</Label>
               <Input type="number" step="0.000001" value={loc.latitude}
@@ -338,7 +338,7 @@ export function HRSettingsPanel() {
           <Card>
             <CardHeader><CardTitle className="text-base">Default Working Hours</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Check-In Time</Label>
                   <Input type="time" value={settings.officeHours.checkInTime}
@@ -373,7 +373,7 @@ export function HRSettingsPanel() {
               </div>
               <div className="pt-2 border-t space-y-3">
                 <p className="text-sm font-semibold text-muted-foreground">Default Break Time</p>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label>Break Start</Label>
                     <Input type="time" value={settings.officeHours.breakStartTime || '13:00'}
@@ -391,7 +391,7 @@ export function HRSettingsPanel() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
                 <div>
                   <Label>Max Late Minutes / Month</Label>
                   <Input type="number" min="0" value={settings.latePolicy.maxLateMinutesPerMonth}

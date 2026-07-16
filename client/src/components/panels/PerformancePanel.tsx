@@ -194,7 +194,7 @@ export function PerformancePanel() {
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-5 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary"><Building2 className="w-5 h-5" /></div>
@@ -242,13 +242,13 @@ export function PerformancePanel() {
         {/* Department Efficiency — Gauge Meters */}
         <TabsContent value="departments" className="space-y-6 mt-4">
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[1,2,3,4].map(i => <div key={i} className="h-52 bg-muted rounded-xl animate-pulse" />)}
             </div>
           ) : departments.length === 0 ? (
             <Card><CardContent className="py-16 text-center text-muted-foreground"><Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No department data yet</p></CardContent></Card>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {departments.map((dept) => {
                 const eff = dept.efficiency;
                 const borderColor = eff >= 67 ? 'border-green-400/40' : eff >= 34 ? 'border-yellow-400/40' : 'border-red-400/40';
@@ -265,7 +265,7 @@ export function PerformancePanel() {
                       </p>
                       <GaugeMeter value={eff} size={150} />
                       <ScoreBadge score={eff} />
-                      <div className="grid grid-cols-3 gap-1 mt-3 w-full text-center">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-1 mt-3 w-full text-center">
                         <div className="bg-muted/50 rounded-lg p-1.5">
                           <p className="text-xs font-bold">{dept.total}</p>
                           <p className="text-[9px] text-muted-foreground">Total</p>
@@ -348,7 +348,7 @@ export function PerformancePanel() {
                         value={emp.completionRate}
                         color={emp.score >= 70 ? 'bg-green-500' : emp.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'}
                       />
-                      <div className="grid grid-cols-4 gap-1 mt-2 text-center">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1 mt-2 text-center">
                         <div>
                           <p className="text-xs font-bold">{emp.total}</p>
                           <p className="text-[9px] text-muted-foreground">Total</p>

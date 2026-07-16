@@ -175,7 +175,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
           </div>
 
           {/* Secondary metrics row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: 'Total Employees', value: metrics.totalEmployees || 0, icon: <Users className="w-4 h-4" />, tab: 'users' },
               { label: 'Active Leads', value: metrics.totalLeads || 0, icon: <TrendingUp className="w-4 h-4" />, tab: 'leads' },
@@ -548,7 +548,7 @@ function EscalationsPanel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-warning/10 text-warning"><AlertTriangle className="w-5 h-5" /></div>

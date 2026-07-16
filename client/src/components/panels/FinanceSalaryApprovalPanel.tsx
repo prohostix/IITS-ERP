@@ -114,7 +114,7 @@ export function FinanceSalaryApprovalPanel() {
 
       {/* Summary */}
       {summary && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card className="cursor-pointer hover:border-yellow-400/50 transition-colors" onClick={() => handleTabChange('pending_approval')}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600"><Clock className="w-4 h-4" /></div>
@@ -200,7 +200,7 @@ export function FinanceSalaryApprovalPanel() {
                       <p className="text-xs text-muted-foreground mb-3">{config.userId?.email}</p>
 
                       {/* Salary breakdown */}
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                         <div>
                           <p className="text-xs text-muted-foreground">Basic</p>
                           <p className="font-semibold">₹{config.basicSalary.toLocaleString()}</p>
@@ -283,13 +283,13 @@ export function FinanceSalaryApprovalPanel() {
           <DialogHeader><DialogTitle>Salary Config — {detailConfig?.userId?.name}</DialogTitle></DialogHeader>
           {detailConfig && (
             <div className="space-y-4 py-2 text-sm">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="font-semibold">₹{detailConfig.basicSalary.toLocaleString()}</p></div>
                 <div><p className="text-xs text-muted-foreground">Late/min</p><p className="font-semibold">₹{detailConfig.lateDeductionPerMinute}</p></div>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Allowances</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {Object.entries(detailConfig.allowances).map(([k, v]) => (
                     <div key={k} className="flex justify-between p-2 rounded-lg bg-muted/40">
                       <span className="capitalize text-muted-foreground">{k}</span>
@@ -300,7 +300,7 @@ export function FinanceSalaryApprovalPanel() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Deductions</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {Object.entries(detailConfig.deductions).map(([k, v]) => (
                     <div key={k} className="flex justify-between p-2 rounded-lg bg-muted/40">
                       <span className="capitalize text-muted-foreground">{k}</span>
@@ -309,7 +309,7 @@ export function FinanceSalaryApprovalPanel() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-muted/50 font-semibold">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-xl bg-muted/50 font-semibold">
                 <div><p className="text-xs text-muted-foreground">Gross</p><p className="text-blue-600">₹{gross(detailConfig).toLocaleString()}</p></div>
                 <div><p className="text-xs text-muted-foreground">Deductions</p><p className="text-red-500">₹{Object.values(detailConfig.deductions).reduce((s, v) => s + (v || 0), 0).toLocaleString()}</p></div>
                 <div><p className="text-xs text-muted-foreground">Net</p><p className="text-green-600">₹{net(detailConfig).toLocaleString()}</p></div>

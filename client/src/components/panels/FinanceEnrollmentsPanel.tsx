@@ -139,7 +139,7 @@ export function FinanceEnrollmentsPanel() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <SummaryCard label="Fee Pending" count={summary.payment_pending} icon={<Clock className="w-4 h-4" />} color="text-orange-500 bg-orange-50 dark:bg-orange-900/20" onClick={() => handleTabChange('payment_pending')} />
           <SummaryCard label="Doc Review" count={summary.document_review} icon={<AlertCircle className="w-4 h-4" />} color="text-blue-500 bg-blue-50 dark:bg-blue-900/20" onClick={() => handleTabChange('document_review')} />
           <SummaryCard label="Finance Review" count={summary.finance_review} icon={<Clock className="w-4 h-4" />} color="text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20" onClick={() => handleTabChange('finance_review')} />
@@ -201,7 +201,8 @@ export function FinanceEnrollmentsPanel() {
         </Card>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
@@ -270,6 +271,7 @@ export function FinanceEnrollmentsPanel() {
               })}
             </tbody>
           </table>
+</div>
         </div>
       )}
 

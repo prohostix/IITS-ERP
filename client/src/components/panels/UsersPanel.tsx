@@ -679,7 +679,7 @@ export function UsersPanel() {
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
                   Import Completed
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                   <div className="p-2 rounded bg-background/50">
                     <div className="font-bold text-lg">{importSummary.total}</div>
                     <div className="text-xs text-muted-foreground">Total Rows</div>
@@ -716,7 +716,8 @@ export function UsersPanel() {
                   <h4 className="font-semibold text-sm">Preview ({importUsers.length} users parsed)</h4>
                 </div>
                 <div className="rounded-md border max-h-60 overflow-auto">
-                  <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                     <thead className="bg-muted/80 sticky top-0 font-semibold text-muted-foreground border-b text-left">
                       <tr>
                         <th className="p-2 pl-3">Row</th>
@@ -738,6 +739,7 @@ export function UsersPanel() {
                       ))}
                     </tbody>
                   </table>
+</div>
                 </div>
               </div>
             )}

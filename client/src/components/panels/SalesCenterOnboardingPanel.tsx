@@ -102,7 +102,7 @@ export function SalesCenterOnboardingPanel() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: 'Pending Ops', value: pending, color: 'text-warning', bg: 'bg-warning/10' },
           { label: 'Ops Verified', value: opsVerified, color: 'text-blue-500', bg: 'bg-blue-500/10' },

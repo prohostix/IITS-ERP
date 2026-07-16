@@ -380,7 +380,7 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
                   <p className="text-sm text-slate-500">{emp.designation}</p>
                 </div>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-2xl font-bold">{leads.filter(l => l.referredBy === emp.id).length}</p>
                   <p className="text-xs text-slate-500">Referrals</p>

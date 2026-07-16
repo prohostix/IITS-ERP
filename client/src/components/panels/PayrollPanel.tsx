@@ -249,7 +249,7 @@ export function PayrollPanel() {
             </div>
             <div className="space-y-2">
               <Label>Generation Mode</Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setGenerateMode('smart')}
@@ -297,7 +297,7 @@ export function PayrollPanel() {
             </div>
             <div>
               <p className="text-sm font-semibold mb-2">Allowances</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(['hra', 'transport', 'medical', 'other'] as const).map(key => (
                   <div key={key} className="space-y-1">
                     <Label className="capitalize">{key} (₹)</Label>
@@ -309,7 +309,7 @@ export function PayrollPanel() {
             </div>
             <div>
               <p className="text-sm font-semibold mb-2">Deductions</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(['pf', 'tax', 'insurance', 'other'] as const).map(key => (
                   <div key={key} className="space-y-1">
                     <Label className="capitalize">{key} (₹)</Label>
@@ -319,7 +319,7 @@ export function PayrollPanel() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Bonus (₹)</Label>
                 <Input type="number" min="0" value={editForm.bonus || 0}
@@ -337,7 +337,7 @@ export function PayrollPanel() {
                 onChange={e => setEditForm((f: any) => ({ ...f, remarks: e.target.value }))} />
             </div>
             {/* Live preview */}
-            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-3 gap-3 text-sm">
+            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Gross</p>
                 <p className="font-bold text-blue-600">₹{calcGross(editForm).toLocaleString()}</p>

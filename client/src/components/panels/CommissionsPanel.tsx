@@ -210,7 +210,7 @@ export function CommissionsPanel() {
       </div>
 
       <Tabs defaultValue="comm-in" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 max-w-md">
           <TabsTrigger value="comm-in" className="flex items-center gap-1.5">
             <ArrowDownLeft className="w-4 h-4 text-emerald-500" /> Commission In (Earnings)
           </TabsTrigger>
@@ -232,7 +232,8 @@ export function CommissionsPanel() {
                 <div className="p-8 text-center text-muted-foreground">No commission entries found. Enrollments with commission configured will populate here.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b">
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Student Name</th>
@@ -272,6 +273,7 @@ export function CommissionsPanel() {
                       ))}
                     </tbody>
                   </table>
+</div>
                 </div>
               )}
             </CardContent>
@@ -291,7 +293,8 @@ export function CommissionsPanel() {
                 <div className="p-8 text-center text-muted-foreground">No payout records found. Once you receive commissions, payouts can be processed.</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b">
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Study Center</th>
@@ -331,6 +334,7 @@ export function CommissionsPanel() {
                       ))}
                     </tbody>
                   </table>
+</div>
                 </div>
               )}
             </CardContent>

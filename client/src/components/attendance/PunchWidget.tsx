@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 
 // Fix leaflet default marker icons (Vite/webpack issue)
 import L from 'leaflet';
-delete (L.Icon.Default.prototype)._getIconUrl;
+delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -291,35 +291,35 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
   if (variant === 'header') {
     return (
       <>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-full px-2 py-1.5 shrink-0 h-10 ml-2 hidden sm:flex">
-          <div className="flex flex-col items-center justify-center px-2 min-w-[70px]">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-full px-2 py-1.5 shrink-0 h-10 ml-2">
+          <div className="flex-col items-center justify-center px-2 min-w-[50px] sm:min-w-[70px] hidden xs:flex">
             <span className="text-[12px] font-bold tracking-tight tabular-nums leading-none mb-0.5 text-slate-800">
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span className="text-[9px] text-muted-foreground font-medium uppercase leading-none">
+            <span className="text-[9px] text-muted-foreground font-medium uppercase leading-none hidden sm:block">
               {hasPunchedIn ? (hasPunchedOut ? 'Punched Out' : 'Punched In') : 'Not Punched'}
             </span>
           </div>
-          <div className="flex gap-1 border-l pl-2 border-slate-100">
+          <div className="flex gap-1 xs:border-l pl-0 xs:pl-2 border-slate-100">
             <Button
               size="sm"
-              className={`h-7 px-3 text-[11px] rounded-full font-medium ${hasPunchedIn ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
+              className={`h-7 px-2 sm:px-3 text-[11px] rounded-full font-medium ${hasPunchedIn ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
               disabled={hasPunchedIn}
               onClick={() => openPunchMap('in')}
-              variant="custom"
+              variant="ghost"
             >
-              <LogIn className="w-3 h-3 mr-1" />
-              In
+              <LogIn className="w-3 h-3 sm:mr-1" />
+              <span className="hidden sm:inline">In</span>
             </Button>
             <Button
               size="sm"
-              className={`h-7 px-3 text-[11px] rounded-full font-medium ${(!hasPunchedIn || hasPunchedOut) ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+              className={`h-7 px-2 sm:px-3 text-[11px] rounded-full font-medium ${(!hasPunchedIn || hasPunchedOut) ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
               disabled={!hasPunchedIn || hasPunchedOut}
               onClick={() => openPunchMap('out')}
-              variant="custom"
+              variant="ghost"
             >
-              <LogOut className="w-3 h-3 mr-1" />
-              Out
+              <LogOut className="w-3 h-3 sm:mr-1" />
+              <span className="hidden sm:inline">Out</span>
             </Button>
           </div>
         </div>
@@ -351,7 +351,7 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
           </div>
 
           {/* Status row */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div className="p-3 rounded-xl bg-muted/50 text-center">
               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Check In</p>
               <p className="text-lg font-bold">{formatTime(today?.checkIn)}</p>

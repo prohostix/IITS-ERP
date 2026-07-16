@@ -249,7 +249,8 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
           </div>
 
           <div className="border rounded-lg overflow-hidden">
-            <table className="w-full">
+<div className="overflow-x-auto w-full">
+<table className="w-full">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-2 text-left">Date</th>
@@ -285,6 +286,7 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
                 ))}
               </tbody>
             </table>
+</div>
           </div>
         </CardContent>
       </Card>
@@ -321,7 +323,7 @@ export function EmployeeDashboard({ activeModule }: EmployeeDashboardProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
                   <Input type="date" />

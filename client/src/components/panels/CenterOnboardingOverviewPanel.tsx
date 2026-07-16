@@ -185,7 +185,7 @@ export function CenterOnboardingOverviewPanel({ mode = 'ceo' }: { mode?: 'ceo' |
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Total Centers', value: summary.total, color: 'text-foreground', bg: 'bg-muted', filter: 'all' },
             { label: 'Pending Ops', value: summary.pending_verification, color: 'text-warning', bg: 'bg-warning/10', filter: 'pending_verification' },
@@ -542,7 +542,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
   return (
     <div className="space-y-6">
       {/* Status summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -654,7 +654,8 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border border-border overflow-hidden">
-              <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left p-3 font-medium">Student</th>
@@ -694,6 +695,7 @@ function EnrollmentOverview({ data, loading }: { data: EnrollmentData | null; lo
                   })}
                 </tbody>
               </table>
+</div>
             </div>
           </CardContent>
         </Card>

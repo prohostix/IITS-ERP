@@ -1006,7 +1006,7 @@ export function EnrollStudentPanel() {
               {/* Basic Details */}
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm text-foreground">Basic Profile</h4>
-                <div className="grid grid-cols-2 gap-4 bg-muted/40 p-4 rounded-xl border text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/40 p-4 rounded-xl border text-sm">
                   <div>
                     <span className="text-xs text-muted-foreground block font-medium">Student Name</span>
                     <span className="font-semibold text-foreground">{form.studentName}</span>
@@ -1049,7 +1049,7 @@ export function EnrollStudentPanel() {
                 {educationList.length > 0 ? (
                   <div className="space-y-2">
                     {educationList.map((edu, idx) => (
-                      <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                      <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         <div className="col-span-1">
                           <span className="text-xs text-muted-foreground block">Qualification</span>
                           <span className="font-semibold">{edu.qualification}</span>
@@ -1074,7 +1074,7 @@ export function EnrollStudentPanel() {
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm text-foreground">Uploaded Proofs & Documents</h4>
                 {documentList.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {documentList.map((doc, idx) => (
                       <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
                         <div className="flex items-center gap-2 truncate pr-2">

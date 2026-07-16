@@ -152,7 +152,8 @@ export function CenterOnboardingGate({ children }: Props) {
                 <>
                   {/* Fee breakdown */}
                   <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full text-sm">
+<div className="overflow-x-auto w-full">
+<table className="w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
                           <th className="text-left p-3 font-medium">University</th>
@@ -174,6 +175,7 @@ export function CenterOnboardingGate({ children }: Props) {
                         </tr>
                       </tbody>
                     </table>
+</div>
                   </div>
 
                   {/* Bank transfer info */}

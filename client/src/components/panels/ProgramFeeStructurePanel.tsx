@@ -526,7 +526,7 @@ export function ProgramFeeStructurePanel() {
           </DialogHeader>
           <form onSubmit={handleCreateProgram} className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Program Name <span className="text-destructive">*</span></Label>
                 <Input value={newProgramForm.name} onChange={e => setNewProgramForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. MBA" required />
@@ -603,7 +603,7 @@ export function ProgramFeeStructurePanel() {
             {/* Course Type selector buttons/chips */}
             <div className="space-y-2">
               <Label>Course Type <span className="text-destructive">*</span></Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {['Skill Course', 'Online Degree', 'B.Voc Degree', 'Credit Transfer'].map((type) => (
                   <Button
                     key={type}
@@ -701,7 +701,7 @@ export function ProgramFeeStructurePanel() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Billing Cycle</Label>
                 <select
@@ -720,7 +720,7 @@ export function ProgramFeeStructurePanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Registration Fee</Label>
                 <Input type="number" value={form.registrationFee} onChange={e => setForm(f => ({ ...f, registrationFee: e.target.value }))} placeholder="0" />
@@ -735,7 +735,7 @@ export function ProgramFeeStructurePanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Exam Fee</Label>
                 <Input type="number" value={form.examFee} onChange={e => setForm(f => ({ ...f, examFee: e.target.value }))} placeholder="0" />
@@ -746,7 +746,7 @@ export function ProgramFeeStructurePanel() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Effective From</Label>
                 <Input type="date" value={form.effectiveFrom} onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />

@@ -161,7 +161,7 @@ export function OrgAdminSessionsPanel() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>University</Label>
                   <Select 
@@ -200,7 +200,7 @@ export function OrgAdminSessionsPanel() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Start Date</Label>
                   <Input 
@@ -221,7 +221,7 @@ export function OrgAdminSessionsPanel() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Capacity Limit (Optional)</Label>
                   <Input 

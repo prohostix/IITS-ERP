@@ -267,7 +267,7 @@ function OverviewContent({ metrics }: { metrics: any }) {
              <div className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-muted rounded text-[10px] font-bold text-muted-foreground">⌘ K</div>
            </div>
            
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              <QuickAccessBtn icon={<Lock className="w-5 h-5" />} title="Permissions" desc="Global RBAC" />
              <QuickAccessBtn icon={<Globe className="w-5 h-5" />} title="Domains" desc="Whitelabeling" />
              <QuickAccessBtn icon={<Key className="w-5 h-5" />} title="License Keys" desc="Compliance" />

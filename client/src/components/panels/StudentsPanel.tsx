@@ -235,7 +235,7 @@ export function StudentsPanel() {
                 <Label>Full Name</Label>
                 <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Email</Label>
                   <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
@@ -253,7 +253,7 @@ export function StudentsPanel() {
                 <Label>Enrollment Number</Label>
                 <Input value={formData.enrollmentNo} onChange={(e) => setFormData({...formData, enrollmentNo: e.target.value})} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Program</Label>
                   <Select value={formData.programId} onValueChange={(value) => setFormData({...formData, programId: value})}>
@@ -426,7 +426,7 @@ export function StudentsPanel() {
 
               <div className="space-y-6 py-4">
                 {/* Contact details */}
-                <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <div>
@@ -539,7 +539,7 @@ export function StudentsPanel() {
                       {selectedStudent.enrollments[0].educationalDetails && selectedStudent.enrollments[0].educationalDetails.length > 0 ? (
                         <div className="space-y-2">
                           {selectedStudent.enrollments[0].educationalDetails.map((edu: any, idx: number) => (
-                            <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-4 gap-2">
+                            <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                               <div className="col-span-1">
                                 <span className="text-xs text-muted-foreground block">Qualification</span>
                                 <span className="font-semibold">{edu.qualification}</span>
@@ -566,7 +566,7 @@ export function StudentsPanel() {
                         <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                       </h4>
                       {selectedStudent.enrollments[0].documents && selectedStudent.enrollments[0].documents.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {selectedStudent.enrollments[0].documents.map((doc: any, idx: number) => (
                             <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
                               <div className="flex items-center gap-2 truncate pr-2">
