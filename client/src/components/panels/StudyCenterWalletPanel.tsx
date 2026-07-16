@@ -39,6 +39,7 @@ export function StudyCenterWalletPanel() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ amount: '', paymentMethod: 'offline', referenceNumber: '' });
+  const [file, setFile] = useState<File | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -62,14 +63,19 @@ export function StudyCenterWalletPanel() {
 
   const handleTopUp = async () => {
     try {
-      await api.post('/enrollment/wallet/topup', {
-        amount: Number(form.amount),
-        paymentMethod: form.paymentMethod,
-        referenceNumber: form.referenceNumber || undefined,
+      const formData = new FormData();
+      formData.append('amount', form.amount);
+      formData.append('paymentMethod', form.paymentMethod);
+      if (form.referenceNumber) formData.append('referenceNumber', form.referenceNumber);
+      if (file) formData.append('proofDocument', file);
+
+      await api.post('/enrollment/wallet/topup', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success('Top-up request submitted');
       setOpen(false);
       setForm({ amount: '', paymentMethod: 'offline', referenceNumber: '' });
+      setFile(null);
       fetchAll();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to submit top-up');
@@ -217,10 +223,17 @@ export function StudyCenterWalletPanel() {
               <Label>Reference Number</Label>
               <Input value={form.referenceNumber} onChange={e => setForm(f => ({ ...f, referenceNumber: e.target.value }))} placeholder="UTR / Cheque number" />
             </div>
+            <div className="space-y-1">
+              <Label>Payment Proof</Label>
+              <Input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files?.[0] || null)} />
+              <p className="text-xs text-muted-foreground mt-1">Upload receipt or screenshot (Optional)</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleTopUp} disabled={!form.amount}>Submit Request</Button>
+            <Button onClick={handleTopUp} disabled={!form.amount || !form.paymentMethod || loading}>
+              {loading ? 'Submitting...' : 'Submit Request'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

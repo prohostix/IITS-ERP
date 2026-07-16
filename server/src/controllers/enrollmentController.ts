@@ -29,7 +29,18 @@ export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) =>
 });
 
 export const submitTopUp = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const topUp = await prisma.walletTopUp.create({ data: { ...req.body, studyCenterId: req.user.studyCenterId || '', organizationId: req.user.organizationId } });
+  const data: any = {
+    ...req.body,
+    amount: Number(req.body.amount),
+    studyCenterId: req.user.studyCenterId || '',
+    organizationId: req.user.organizationId,
+  };
+  
+  if (req.file) {
+    data.proofDocument = `/uploads/${req.file.filename}`;
+  }
+
+  const topUp = await prisma.walletTopUp.create({ data });
   res.status(201).json({ success: true, data: topUp });
 });
 

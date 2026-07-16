@@ -20,6 +20,7 @@ interface TopUp {
   status: string;
   createdAt: string;
   remarks?: string;
+  proofDocument?: string;
 }
 
 interface LedgerEntry {
@@ -183,6 +184,11 @@ export function WalletTopUpsPanel() {
                     <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                       <span>Amount: <strong className="text-foreground">₹{t.amount.toLocaleString()}</strong></span>
                       {t.referenceNumber && <span>Ref: {t.referenceNumber}</span>}
+                      {t.proofDocument && (
+                        <a href={t.proofDocument.startsWith('/') ? t.proofDocument : `/uploads/${t.proofDocument}`} target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">
+                          View Proof
+                        </a>
+                      )}
                       <span>{new Date(t.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
