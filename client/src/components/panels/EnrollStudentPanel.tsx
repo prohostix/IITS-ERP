@@ -328,7 +328,11 @@ export function EnrollStudentPanel() {
         <Input
           type={type}
           value={(form)[key]}
-          onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+          onChange={e => {
+            let val = e.target.value;
+            if (key.toLowerCase().includes('phone')) val = val.replace(/\D/g, '');
+            setForm(f => ({ ...f, [key]: val }));
+          }}
           placeholder={`Enter ${label.toLowerCase()}`}
           required={isRequired}
         />
@@ -716,7 +720,7 @@ export function EnrollStudentPanel() {
                 </div>
                 <div className="space-y-1">
                   <Label>Phone Number <span className="text-destructive">*</span></Label>
-                  <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value }))} placeholder="Primary phone" />
+                  <Input value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value.replace(/\D/g, '') }))} placeholder="Primary phone" />
                 </div>
                 {renderField('dob', 'Date of Birth', 'date')}
                 <div className="space-y-1 md:col-span-2">
@@ -850,8 +854,7 @@ export function EnrollStudentPanel() {
                 {/* Branch Configured Documents */}
                 {(() => {
                   const config = centerConfig?.customEnrollmentFields;
-                  if (!config) return null;
-                  const cConfig = typeof config === 'string' ? JSON.parse(config) : config;
+                  const cConfig = typeof config === 'string' ? JSON.parse(config) : (config || {});
                   const branchDocs = [
                     { key: 'doc_aadhaar', label: 'Aadhaar Card' },
                     { key: 'doc_10th', label: '10th Certificate' },
@@ -859,7 +862,7 @@ export function EnrollStudentPanel() {
                     { key: 'doc_degree', label: 'Degree Certificate' }
                   ];
                   
-                  const activeDocs = branchDocs.filter(d => cConfig[d.key] && cConfig[d.key] !== 'hidden');
+                  const activeDocs = branchDocs.filter(d => (cConfig[d.key] || 'optional') !== 'hidden');
                   if (activeDocs.length === 0) return null;
 
                   return (
