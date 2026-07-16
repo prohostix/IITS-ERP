@@ -21,8 +21,14 @@ const mapLeaveRequest = (leave: any) => ({
 });
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const isGodMode = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const whereClause: any = { organizationId: req.user.organizationId };
+  if (!isGodMode && req.user.departmentId) {
+    whereClause.departmentId = req.user.departmentId;
+  }
+
   const leaves = await prisma.leaveRequest.findMany({
-    where: { organizationId: req.user.organizationId },
+    where: whereClause,
     include: { 
       user: { select: { name: true, email: true, designation: true } },
       department: { select: { name: true } },
@@ -96,7 +102,8 @@ export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 
 export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
-  const isHr = req.path.includes('hr-approve') || req.user.role === 'hr_admin';
+  // Use the path to determine the action, allowing HR admins to act as Dept Managers
+  const isHr = req.path.includes('hr-approve');
 
   const updateData: any = {};
   if (isHr) {

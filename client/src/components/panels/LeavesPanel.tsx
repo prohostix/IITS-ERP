@@ -81,9 +81,10 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
   const role = user?.role || '';
   const userId = user?.id?.toString() || '';
   const isBranchManager = Boolean((user as any)?.branchId);
-  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager) && !isPersonalView;
-  const isHR = role === 'hr_admin' && !isPersonalView;
-  const isEmployee = (!isDeptManager && !isHR && role !== 'superadmin' && role !== 'org_admin' && role !== 'ceo') || isPersonalView;
+  const isGodMode = ['org_admin', 'superadmin', 'ceo'].includes(role);
+  const isHR = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(role) && !isPersonalView;
+  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager || isHR) && !isPersonalView;
+  const isEmployee = (!isDeptManager && !isHR && !isGodMode) || isPersonalView;
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -250,7 +251,10 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 const cfg = STATUS_CONFIG[leave.status] || STATUS_CONFIG.pending;
                 const isExpanded = expanded === leave.id;
                 const isOwner = leave.employeeId?.id === userId;
-                const canDeptAct = isDeptManager && leave.status === 'pending';
+                
+                const userDeptId = (user as any)?.departmentId || (user as any)?.department?.id;
+                const isSameDept = leave.departmentId?.id === userDeptId;
+                const canDeptAct = isDeptManager && leave.status === 'pending' && (isGodMode || isSameDept);
                 const canHRAct = isHR && leave.status === 'dept_approved';
 
                 return (
