@@ -243,12 +243,12 @@ export function UsersPanel() {
       
       // Remove empty departmentId
       if (!payload.departmentId) {
-        delete (payload).departmentId;
+        delete (payload as any).departmentId;
       }
       
       // Remove password if editing and password is empty
       if (editingUser && !payload.password) {
-        delete (payload).password;
+        delete (payload as any).password;
       }
 
 
