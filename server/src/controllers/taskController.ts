@@ -8,6 +8,14 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
   const where: any = { organizationId: req.user.organizationId };
   if (req.query.assignedTo) where.assignedTo = req.query.assignedTo as string;
   if (req.query.status) where.status = req.query.status as string;
+
+  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin'].includes(req.user.role);
+  if (!isAdmin) {
+    where.OR = [
+      { assignedTo: req.user.id },
+      { createdBy: req.user.id }
+    ];
+  }
   const tasks = await prisma.task.findMany({
     where,
     include: {
@@ -21,8 +29,18 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
 });
 
 export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const task = await prisma.task.findUnique({
-    where: { id: req.params.id },
+  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin'].includes(req.user.role);
+  
+  const where: any = { id: req.params.id, organizationId: req.user.organizationId };
+  if (!isAdmin) {
+    where.OR = [
+      { assignedTo: req.user.id },
+      { createdBy: req.user.id }
+    ];
+  }
+
+  const task = await prisma.task.findFirst({
+    where,
     include: {
       assignee: { select: { name: true, email: true } },
       assigner: { select: { name: true, email: true } },
