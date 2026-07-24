@@ -386,81 +386,78 @@ const fetchAllData = useCallback(async () => {
 
   return (
     <div className="space-y-6">
-      {/* Upper header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Modern Unified Header */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Program Fee Management</h2>
-          <p className="text-muted-foreground text-sm mt-1">Configure universities, programs, specialisations, and their associated fees in a unified panel.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Program Fee Management</h2>
+          <p className="text-muted-foreground text-sm mt-1 max-w-xl">Configure universities, academic programs, specialisations, and their associated pricing structures.</p>
+          
+          <div className="mt-4 flex items-center gap-3">
+             <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Programs</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{filteredPrograms.length}</span>
+             </div>
+             <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-800 shadow-sm">
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Fee Configs</span>
+                <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">{filteredFees.length}</span>
+             </div>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh
-          </Button>
-          <Button size="sm" onClick={() => {
-            setNewProgramForm(prev => ({
-              ...prev,
-              universityId: selectedUniversityId !== 'all' ? selectedUniversityId : ''
-            }));
-            setProgramDialogOpen(true);
-          }}>
-            <Plus className="w-4 h-4 mr-2" />Add Program
-          </Button>
-          <Button size="sm" onClick={openCreate} className="bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="w-4 h-4 mr-2" />Add Fee Structure
-          </Button>
-        </div>
-      </div>
-
-      {/* University Selector Card */}
-      <Card className="bg-slate-50/50 dark:bg-slate-900/10">
-        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="uni-select" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Select University</Label>
+        
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="w-full sm:w-[280px]">
             <Select value={selectedUniversityId} onValueChange={setSelectedUniversityId}>
-              <SelectTrigger id="uni-select" className="w-full sm:w-[320px] bg-background">
+              <SelectTrigger className="w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors border-slate-200 shadow-sm h-10 font-medium">
                 <SelectValue placeholder="Choose a university" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Universities</SelectItem>
+                <SelectItem value="all" className="font-semibold text-primary">All Universities</SelectItem>
                 {universities.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-4 text-sm mt-2 sm:mt-0">
-            <div className="text-center px-4 py-2 border rounded-lg bg-background">
-              <span className="block text-xl font-bold text-primary">{filteredPrograms.length}</span>
-              <span className="text-xs text-muted-foreground">Programs</span>
-            </div>
-            <div className="text-center px-4 py-2 border rounded-lg bg-background">
-              <span className="block text-xl font-bold text-emerald-600">{filteredFees.length}</span>
-              <span className="text-xs text-muted-foreground">Fee Configs</span>
-            </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-10 w-10 p-0 border-slate-200 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={fetchAllData} disabled={loading} title="Refresh Data">
+              <RefreshCw className={`w-4 h-4 text-slate-600 dark:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all hover:shadow-md" onClick={() => {
+              setNewProgramForm(prev => ({
+                ...prev,
+                universityId: selectedUniversityId !== 'all' ? selectedUniversityId : ''
+              }));
+              setProgramDialogOpen(true);
+            }}>
+              <Plus className="w-4 h-4 mr-2" /> Program
+            </Button>
+            <Button className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all hover:shadow-md" onClick={openCreate}>
+              <Plus className="w-4 h-4 mr-2" /> Fee Config
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left 1 Column: Programs & Specialisations list */}
         <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-lg flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-blue-500" /> Programs List
+                <BookOpen className="w-5 h-5 text-indigo-500" /> Programs List
               </CardTitle>
               <CardDescription>Academic courses and specialisations</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+            <CardContent className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
               ) : filteredPrograms.length === 0 ? (
                 <div className="text-center py-8 text-sm text-muted-foreground">No programs found for this university.</div>
               ) : (
                 filteredPrograms.map(p => (
-                  <div key={p.id} className="p-3 border rounded-lg bg-background space-y-2 hover:border-primary/20 transition-all">
+                  <div key={p.id} className="p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-2 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm transition-all group">
                     <div className="flex justify-between items-start gap-2">
                       <div>
                         <h4 className="font-semibold text-sm leading-none">{p.name}</h4>
@@ -484,14 +481,14 @@ const fetchAllData = useCallback(async () => {
 
         {/* Right 2 Columns: Fee Structures */}
         <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-lg flex items-center gap-2">
-                <IndianRupee className="w-4 h-4 text-emerald-600" /> Program Fee Configurations
+                <IndianRupee className="w-5 h-5 text-emerald-500" /> Fee Configurations
               </CardTitle>
               <CardDescription>Defined pricing structures for centers</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
               ) : filteredFees.length === 0 ? (
@@ -528,17 +525,19 @@ const fetchAllData = useCallback(async () => {
                             </div>
                           )}
 
-                          <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-200">
-                              {fee.currency || 'INR'} {fee.baseFee.toLocaleString()} Total Tuition
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-sm font-medium px-2 py-0.5">
+                              {fee.currency || 'INR'} {fee.baseFee.toLocaleString()} Tuition
                             </Badge>
                             {fee.universityFee !== undefined && fee.universityFee > 0 && (
-                              <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200">
-                                {fee.currency || 'INR'} {fee.universityFee.toLocaleString()} Total Uni Fee
+                              <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 shadow-sm font-medium px-2 py-0.5">
+                                {fee.currency || 'INR'} {fee.universityFee.toLocaleString()} Uni Fee
                               </Badge>
                             )}
                             {fee.effectiveFrom && (
-                              <span className="text-xs text-muted-foreground">Effective: {new Date(fee.effectiveFrom).toLocaleDateString()}</span>
+                              <span className="text-xs text-slate-500 font-medium ml-1 flex items-center gap-1">
+                                Effective: {new Date(fee.effectiveFrom).toLocaleDateString()}
+                              </span>
                             )}
                           </div>
                           
