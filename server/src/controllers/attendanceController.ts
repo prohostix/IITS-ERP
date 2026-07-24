@@ -58,7 +58,16 @@ export const getAttendanceById = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const createAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const attendance = await prisma.attendance.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const attendance = await prisma.attendance.upsert({
+    where: {
+      userId_date: {
+        userId: req.body.userId,
+        date: new Date(req.body.date)
+      }
+    },
+    update: { ...req.body, organizationId: req.user.organizationId },
+    create: { ...req.body, organizationId: req.user.organizationId }
+  });
   res.status(201).json({ success: true, data: attendance });
 });
 export const markAttendance = createAttendance;
@@ -102,7 +111,51 @@ export const biometricSync = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: [] });
+  const { date, departmentId } = req.query;
+  const targetDate = date ? new Date(date as string) : new Date();
+  
+  // Set to midnight UTC for comparison
+  const startOfDay = new Date(targetDate);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  
+  const endOfDay = new Date(targetDate);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+
+  let userWhere: any = { organizationId: req.user.organizationId, status: 'active' as any };
+  if (departmentId) {
+    userWhere.employeeProfile = { departmentId: departmentId as string };
+  }
+
+  const users = await prisma.user.findMany({
+    where: userWhere,
+    include: {
+      employeeProfile: { include: { department: true } },
+      employee: true,
+      attendances: {
+        where: {
+          date: { gte: startOfDay, lte: endOfDay }
+        }
+      }
+    }
+  });
+
+  const data = users.map(u => {
+    const att = u.attendances[0];
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      department: u.employeeProfile?.department?.name || '-',
+      checkIn: att?.checkIn || null,
+      checkOut: att?.checkOut || null,
+      status: att?.status || 'absent',
+      workingHours: att?.workingHours || 0,
+      isLate: att?.isLate || false,
+      lateMinutes: att?.lateMinutes || 0
+    };
+  });
+
+  res.json({ success: true, data, scheduledHours: 8, breakMinutes: 60 });
 });
 
 export const getMyAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {

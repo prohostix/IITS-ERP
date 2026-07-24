@@ -43,10 +43,11 @@ export const updateKRAs = asyncHandler(async (req: AuthRequest, res: Response) =
 
 export const updateSalaryDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
+  const { effectiveFrom, ...salaryData } = req.body;
   const config = await prisma.salaryConfig.upsert({
     where: { userId },
-    update: req.body,
-    create: { ...req.body, userId, organizationId: req.user.organizationId, createdBy: req.user.id }
+    update: salaryData,
+    create: { ...salaryData, userId, organizationId: req.user.organizationId, createdBy: req.user.id }
   });
   res.json({ success: true, data: config });
 });

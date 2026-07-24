@@ -905,12 +905,16 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       organizationId: req.user.organizationId,
       ...programIdFilter,
       ...(sessionId && { sessionId }),
-      ...(dateFrom || dateTo ? {
-        admissionDate: {
-          ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-          ...(dateTo ? { lte: new Date(dateTo + 'T23:59:59.999Z') } : {}),
+      ...( (() => {
+        const dateFilter: any = {};
+        if (dateFrom && !isNaN(new Date(dateFrom).getTime())) {
+          dateFilter.gte = new Date(dateFrom);
         }
-      } : {}),
+        if (dateTo && !isNaN(new Date(dateTo + 'T23:59:59.999Z').getTime())) {
+          dateFilter.lte = new Date(dateTo + 'T23:59:59.999Z');
+        }
+        return Object.keys(dateFilter).length > 0 ? { admissionDate: dateFilter } : {};
+      })() ),
       ...(search && {
         OR: [
           { studentName: { contains: search, mode: 'insensitive' } },
@@ -970,9 +974,11 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       feeStructures.find(f => f.programId === enrollment.programId && !f.admissionSessionId);
 
     const additionalFees: any[] = Array.isArray(feeStruct?.additionalFees) ? feeStruct.additionalFees : [];
-    const coordinatorFee = additionalFees.find((f: any) =>
-      f.label?.toLowerCase().includes('coordinator') || f.type?.toLowerCase().includes('coordinator')
-    );
+    const coordinatorFee = additionalFees.find((f: any) => {
+      const label = typeof f?.label === 'string' ? f.label.toLowerCase() : '';
+      const type = typeof f?.type === 'string' ? f.type.toLowerCase() : '';
+      return label.includes('coordinator') || type.includes('coordinator');
+    });
 
     const commIn = enrollment.commissionIn;
     const commOut = commIn?.commissionOuts?.[0] || null;
@@ -994,6 +1000,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       universityPaymentAmount: uniPayments.length > 0 ? totalUniAmount : null,
       universityPaidAmount: uniPayments.length > 0 ? paidUniAmount : 0,
       universityPaymentStatus: uniStatus,
+      universityPaymentScreenshots: uniPayments.map(p => p.screenshot).filter(Boolean),
       coordinatorName: enrollment.studyCenter?.coordinatorName || feeStruct?.university?.coordinatorName || coordinatorFee?.coordinator || null,
       coordinatorPaymentAmount: coordinatorFee?.amount || null,
       coordinatorPaymentStatus: coordinatorFee

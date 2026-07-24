@@ -26,9 +26,6 @@ export const createPoll = asyncHandler(async (req: AuthRequest, res: Response) =
       question,
       options: options.map(text => ({ text, votes: [] })),
       createdBy: req.user.id,
-      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-      allowMultiple: allowMultiple || false,
-      isActive: true,
     },
   });
 

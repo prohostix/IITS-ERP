@@ -30,10 +30,11 @@ export const getSalaryConfig = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { effectiveFrom, ...salaryData } = req.body;
   const config = await prisma.salaryConfig.upsert({
     where: { userId: req.params.userId },
-    update: { ...req.body, organizationId: req.user.organizationId, createdBy: req.user.id },
-    create: { ...req.body, userId: req.params.userId, organizationId: req.user.organizationId, createdBy: req.user.id }
+    update: { ...salaryData, organizationId: req.user.organizationId, createdBy: req.user.id },
+    create: { ...salaryData, userId: req.params.userId, organizationId: req.user.organizationId, createdBy: req.user.id }
   });
   res.json({ success: true, data: config });
 });
@@ -77,13 +78,16 @@ export const upsertLeaveAllocation = asyncHandler(async (req: AuthRequest, res: 
 
 export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { year = new Date().getFullYear(), casual, sick, earned } = req.body;
+  const casualNum = Number(casual) || 0;
+  const sickNum = Number(sick) || 0;
+  const earnedNum = Number(earned) || 0;
   const users = await prisma.user.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
   
   const results = await Promise.all(users.map(u => 
     prisma.leaveAllocation.upsert({
       where: { organizationId_userId_year: { organizationId: req.user.organizationId, userId: u.id, year } },
-      update: { casualLeave: casual, sickLeave: sick, earnedLeave: earned },
-      create: { userId: u.id, organizationId: req.user.organizationId, year, casualLeave: casual, sickLeave: sick, earnedLeave: earned, createdBy: req.user.id }
+      update: { casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum },
+      create: { userId: u.id, organizationId: req.user.organizationId, year, casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum, createdBy: req.user.id }
     })
   ));
 

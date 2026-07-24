@@ -255,7 +255,7 @@ model Employee {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -309,7 +309,7 @@ model Attendance {
   notes            String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
-  user             User             @relation(fields: [userId], references: [id])
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
@@ -539,7 +539,7 @@ model Complaint {
   resolution     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
-  user           User              @relation(fields: [employeeId], references: [id])
+  user           User              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
@@ -559,7 +559,7 @@ model Notification {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User                 @relation(fields: [userId], references: [id])
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt(sort: Desc)])
   @@index([organizationId, createdAt(sort: Desc)])
@@ -577,7 +577,7 @@ model AuditLog {
   ipAddress      String?
   timestamp      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, timestamp(sort: Desc)])
   @@index([userId])
@@ -638,7 +638,7 @@ model LeaveRequest {
   updatedAt        DateTime     @updatedAt
   department       Department   @relation(fields: [departmentId], references: [id])
   deptApprover     User?        @relation("DeptApprovedBy", fields: [deptApprovedBy], references: [id])
-  user             User         @relation("EmployeeLeaves", fields: [userId], references: [id])
+  user             User         @relation("EmployeeLeaves", fields: [userId], references: [id], onDelete: Cascade)
   hrApprover       User?        @relation("HrApprovedBy", fields: [hrApprovedBy], references: [id])
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -664,7 +664,7 @@ model SalaryConfig {
   approver               User?          @relation("SalaryApprovedBy", fields: [approvedBy], references: [id])
   creator                User?          @relation("SalaryCreatedBy", fields: [createdBy], references: [id])
   organization           Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user                   User           @relation("UserSalaryConfig", fields: [userId], references: [id])
+  user                   User           @relation("UserSalaryConfig", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -697,7 +697,7 @@ model Payroll {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
   confirmer              User?          @relation("PayrollConfirmedBy", fields: [confirmedBy], references: [id])
-  user                   User           @relation("EmployeePayroll", fields: [employeeId], references: [id])
+  user                   User           @relation("EmployeePayroll", fields: [employeeId], references: [id], onDelete: Cascade)
   financeApprover        User?          @relation("PayrollFinanceApprovedBy", fields: [financeApprovedBy], references: [id])
   organization           Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   processor              User?          @relation("PayrollProcessedBy", fields: [processedBy], references: [id])
@@ -911,7 +911,7 @@ model ExpenseClaim {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   approver       User?         @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
-  user           User          @relation("EmployeeExpenses", fields: [employeeId], references: [id])
+  user           User          @relation("EmployeeExpenses", fields: [employeeId], references: [id], onDelete: Cascade)
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
@@ -1027,7 +1027,7 @@ model EmployeeProfile {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user               User         @relation(fields: [userId], references: [id])
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, organizationId])
 }
@@ -1055,7 +1055,7 @@ model CeoPanel {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CredentialRequest {
@@ -1072,7 +1072,7 @@ model CredentialRequest {
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   responder       User?        @relation("CredentialResponder", fields: [respondedBy], references: [id])
-  user            User         @relation("CredentialRequester", fields: [userId], references: [id])
+  user            User         @relation("CredentialRequester", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model EditDeleteRequest {
@@ -1091,7 +1091,7 @@ model EditDeleteRequest {
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   responder       User?        @relation("EditDeleteResponder", fields: [respondedBy], references: [id])
-  user            User         @relation("EditDeleteRequester", fields: [userId], references: [id])
+  user            User         @relation("EditDeleteRequester", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Escalation {
@@ -1120,7 +1120,7 @@ model Escalation {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   deptAdmin      User?           @relation("EscalationDeptAdmin", fields: [deptAdminId], references: [id])
-  employee       User?           @relation("EscalationEmployee", fields: [employeeId], references: [id])
+  employee       User?           @relation("EscalationEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
   handler        User?           @relation("EscalationHandledBy", fields: [handledBy], references: [id])
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   resolver       User?           @relation("EscalatedResolvedBy", fields: [resolvedBy], references: [id])
@@ -1173,7 +1173,7 @@ model LeaveAllocation {
   updatedAt          DateTime     @updatedAt
   creator            User?        @relation("LeaveAllocationCreatedBy", fields: [createdBy], references: [id])
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user               User         @relation(fields: [userId], references: [id])
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, year])
   @@index([organizationId, year])
@@ -1264,7 +1264,7 @@ model ReferralLink {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ReregRule {
@@ -1293,7 +1293,7 @@ model SessionRequest {
   approver       User?        @relation("RequestApprovedBy", fields: [approvedBy], references: [id])
   center         StudyCenter? @relation(fields: [centerId], references: [id])
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model StudyCenterInvite {
@@ -1333,7 +1333,7 @@ model Target {
   updatedAt      DateTime     @updatedAt
   center         StudyCenter? @relation(fields: [centerId], references: [id])
   department     Department?  @relation(fields: [departmentId], references: [id])
-  employee       User?        @relation("TargetEmployee", fields: [employeeId], references: [id])
+  employee       User?        @relation("TargetEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, period])

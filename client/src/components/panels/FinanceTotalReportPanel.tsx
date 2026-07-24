@@ -113,6 +113,7 @@ export function FinanceTotalReportPanel() {
       'University Payment (INR)': r.universityPaymentAmount ?? '',
       'University Paid (INR)': r.universityPaidAmount ?? '',
       'University Payment Status': r.universityPaymentStatus,
+      'University Payment Proof': Array.isArray(r.universityPaymentScreenshots) && r.universityPaymentScreenshots.length > 0 ? 'Yes (Check UI)' : 'No',
       'Coordinator Name': r.coordinatorName || 'Null',
       'Coordinator Payment (INR)': r.coordinatorPaymentAmount ?? '',
       'Coordinator Payment Status': r.coordinatorPaymentStatus,
@@ -272,7 +273,7 @@ export function FinanceTotalReportPanel() {
                       '#', 'Student', 'Admission No', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
                       'Program', 'University',
                       'Payment (INR)', 'Payment Status', 'Payment For',
-                      'Total Uni. Fee (INR)', 'Uni. Paid (INR)', 'Uni. Payment Status',
+                      'Total Uni. Fee (INR)', 'Uni. Paid (INR)', 'Uni. Payment Status', 'Uni. Payment Proof',
                       'Coordinator Name', 'Coord. Payment (INR)', 'Coord. Status',
                       'Comm. From Uni (INR)', 'Comm. From Uni Date', 'Comm. From Uni Status',
                       'Comm. To Center (INR)', 'Comm. To Center Date', 'Comm. To Center Status'
@@ -319,6 +320,19 @@ export function FinanceTotalReportPanel() {
                         <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + statusColor(r.universityPaymentStatus)}>
                           {r.universityPaymentStatus}
                         </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {r.universityPaymentScreenshots?.length > 0 ? (
+                          <div className="flex gap-1 flex-wrap">
+                            {r.universityPaymentScreenshots.map((url: string, idx: number) => (
+                              <a key={idx} href={url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs">
+                                View Proof {idx + 1}
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-xs">{r.coordinatorName || 'Null'}</td>
                       <td className="px-3 py-2.5 font-semibold">

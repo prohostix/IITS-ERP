@@ -222,8 +222,9 @@ export const getComplaint = asyncHandler(async (req: AuthRequest, res: Response)
   res.json({ success: true, data: complaint });
 });
 export const createComplaint = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { assignedToId, userId, ...complaintData } = req.body;
   const complaint = await prisma.complaint.create({
-    data: { ...req.body, organizationId: req.user.organizationId, userId: req.user.id }
+    data: { ...complaintData, organizationId: req.user.organizationId, employeeId: req.user.id }
   });
   res.status(201).json({ success: true, data: complaint });
 });

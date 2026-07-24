@@ -53,7 +53,7 @@ export function PayrollBatchesPanel() {
   const fetchBatches = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/finance/payroll-batches');
+      const response = await api.get('/payroll/batches');
       setBatches(response.data.data || []);
     } catch (error) {
     } finally {
@@ -63,7 +63,7 @@ export function PayrollBatchesPanel() {
 
   const handleApprove = async (id: string) => {
     try {
-      await api.post(`/finance/payroll-batches/${id}/approve`);
+      await api.post(`/payroll/batches/${id}/approve`);
       toast.success('Payroll batch approved');
       fetchBatches();
     } catch (error: any) {
@@ -78,7 +78,7 @@ export function PayrollBatchesPanel() {
     }
     const id = selectedBatch.id || selectedBatch.id;
     try {
-      await api.post(`/finance/payroll-batches/${id}/reject`, { rejectionReason });
+      await api.post(`/payroll/batches/${id}/reject`, { rejectionReason });
       toast.success('Payroll batch rejected');
       setRejectDialogOpen(false);
       setRejectionReason('');
@@ -91,7 +91,7 @@ export function PayrollBatchesPanel() {
 
   const handleStartPayment = async (id: string) => {
     try {
-      await api.put(`/finance/payroll-batches/${id}/payment-in-progress`);
+      await api.put(`/payroll/batches/${id}/payment-in-progress`);
       toast.success('Payment marked as in progress');
       fetchBatches();
     } catch (error: any) {
@@ -103,7 +103,7 @@ export function PayrollBatchesPanel() {
     if (!selectedBatch) return;
     const id = selectedBatch.id || selectedBatch.id;
     try {
-      await api.put(`/finance/payroll-batches/${id}/complete-payment`, paymentData);
+      await api.put(`/payroll/batches/${id}/complete-payment`, paymentData);
       toast.success('Payment completed — salaries disbursed');
       setPaymentDialogOpen(false);
       setSelectedBatch(null);

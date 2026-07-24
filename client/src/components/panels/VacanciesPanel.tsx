@@ -119,6 +119,7 @@ export function VacanciesPanel() {
       await api.post('/users', {
         ...hireFormData,
         departmentId: selectedVacancy.departmentId,
+        vacancyId: selectedVacancy.id,
       });
       
       alert(`User ${hireFormData.name} created successfully and assigned to ${selectedVacancy.department?.name || 'department'}!`);
