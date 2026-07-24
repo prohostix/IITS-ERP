@@ -198,11 +198,17 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
           pincode: dbEnrollment.pincode,
           alternativePhone: dbEnrollment.alternativePhone,
           status: 'active',
+          enrolledAt: new Date(),
           organization: { connect: { id: req.user.organizationId } },
           center: { connect: { id: dbEnrollment.studyCenterId } },
           user: { connect: { email: dbEnrollment.studentEmail } },
           program: { connect: { id: dbEnrollment.programId } }
         }
+      });
+    } else if (!student.enrolledAt) {
+      student = await tx.student.update({
+        where: { id: student.id },
+        data: { enrolledAt: new Date() }
       });
     }
 
