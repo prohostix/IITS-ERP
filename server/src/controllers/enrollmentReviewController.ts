@@ -18,13 +18,13 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
 
   const enrollments = await prisma.enrollment.findMany({
     where,
-    include: { program: true, studyCenter: true, session: true }
+    include: { program: { include: { university: true } }, studyCenter: true, session: true }
   });
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 
 export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId, status: 'dept_review' as any }, include: { program: true, studyCenter: true, session: true } });
+  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId, status: 'dept_review' as any }, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 

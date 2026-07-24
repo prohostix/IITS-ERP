@@ -35,8 +35,8 @@ interface Enrollment {
   pincode?: string;
   alternativePhone?: string;
   admissionDate?: string;
-  program?: { name: string; code: string };
-  studyCenter?: { name: string };
+  program?: { name: string; code: string; university?: { id: string; name: string } };
+  studyCenter?: { id: string; name: string };
   session?: { name: string };
   documents?: { name: string; url: string }[];
   educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
@@ -58,6 +58,11 @@ export function DeptEnrollmentReviewPanel() {
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
   const [remarks, setRemarks] = useState('');
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [universityFilter, setUniversityFilter] = useState('all');
+  const [centerFilter, setCenterFilter] = useState('all');
+  const [programFilter, setProgramFilter] = useState('all');
 
   const fetch = async () => {
     setLoading(true);
@@ -108,6 +113,28 @@ export function DeptEnrollmentReviewPanel() {
       ? e.studyCenter.name
       : (typeof e.studyCenterId === 'object' ? (e.studyCenterId as any).name : e.studyCenterId);
 
+  const uniqueUniversities = Array.from(new Set(enrollments.filter(e => e.program?.university).map(e => JSON.stringify({ id: e.program!.university!.id, name: e.program!.university!.name })))).map(s => JSON.parse(s));
+  const uniqueCenters = Array.from(new Set(enrollments.filter(e => e.studyCenter).map(e => JSON.stringify({ id: e.studyCenter!.id, name: e.studyCenter!.name })))).map(s => JSON.parse(s));
+  const uniquePrograms = Array.from(new Set(enrollments.filter(e => e.program).map(e => JSON.stringify({ id: e.programId, name: `${e.program!.name} (${e.program!.code})` })))).map(s => JSON.parse(s));
+
+  const filteredEnrollments = enrollments
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter(e => {
+      if (universityFilter !== 'all' && e.program?.university?.id !== universityFilter) return false;
+      if (centerFilter !== 'all' && (e.studyCenter?.id !== centerFilter && e.studyCenterId !== centerFilter)) return false;
+      if (programFilter !== 'all' && e.programId !== programFilter) return false;
+      
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          e.studentName.toLowerCase().includes(q) ||
+          e.studentEmail.toLowerCase().includes(q) ||
+          (e.enrollmentNumber || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -126,14 +153,47 @@ export function DeptEnrollmentReviewPanel() {
           <TabsTrigger value="history">Review History</TabsTrigger>
         </TabsList>
 
+        <div className="flex flex-col md:flex-row gap-4">
+          <Input 
+            placeholder="Search name, email, or enrollment no..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="md:w-1/4"
+          />
+          <select 
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            value={universityFilter}
+            onChange={e => setUniversityFilter(e.target.value)}
+          >
+            <option value="all">All Universities</option>
+            {uniqueUniversities.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          <select 
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            value={centerFilter}
+            onChange={e => setCenterFilter(e.target.value)}
+          >
+            <option value="all">All Centers</option>
+            {uniqueCenters.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select 
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            value={programFilter}
+            onChange={e => setProgramFilter(e.target.value)}
+          >
+            <option value="all">All Programs</option>
+            {uniquePrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
         <TabsContent value="pending" className="space-y-4">
           {loading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
-          ) : enrollments.length === 0 ? (
+          ) : filteredEnrollments.length === 0 ? (
             <Card><CardContent className="py-16 text-center text-muted-foreground">No enrollments pending review.</CardContent></Card>
           ) : (
             <div className="space-y-3">
-              {enrollments.map(e => (
+              {filteredEnrollments.map(e => (
                 <Card key={e.id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-5 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
@@ -172,11 +232,11 @@ export function DeptEnrollmentReviewPanel() {
         <TabsContent value="history" className="space-y-4">
           {loading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
-          ) : enrollments.length === 0 ? (
-            <Card><CardContent className="py-16 text-center text-muted-foreground">No historical reviews found.</CardContent></Card>
+          ) : filteredEnrollments.length === 0 ? (
+            <Card><CardContent className="py-16 text-center text-muted-foreground">No review history found.</CardContent></Card>
           ) : (
             <div className="space-y-3">
-              {enrollments.map(e => (
+              {filteredEnrollments.map(e => (
                 <Card key={e.id} className="hover:border-primary/30 transition-colors">
                   <CardContent className="p-5 flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0 cursor-pointer group/item" onClick={() => setSelectedEnrollment(e)}>
