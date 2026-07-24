@@ -94,6 +94,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       organization: true,
       department: true,
       subDepartment: true,
+      designationRef: true,
     }
   });
 
@@ -141,7 +142,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
         departmentId: user.departmentId,
         subDepartmentId: user.subDepartmentId,
         studyCenterId: user.studyCenterId,
-        designation: user.designation,
+        designation: user.designation || (user as any).designationRef?.title,
         status: user.status,
         department: user.department,
         subDepartment: user.subDepartment,
@@ -163,12 +164,16 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
       organization: true,
       department: true,
       subDepartment: true,
+      designationRef: true,
     }
   });
 
   res.status(200).json({
     success: true,
-    data: user,
+    data: {
+      ...user,
+      designation: user?.designation || (user as any)?.designationRef?.title,
+    },
   });
 });
 
