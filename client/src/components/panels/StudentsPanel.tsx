@@ -445,7 +445,7 @@ export function StudentsPanel() {
                     </Badge>
                   </div>
                   <div className="flex gap-2">
-                    {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role) && (
+                    {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
                       <Button size="sm" variant="outline" onClick={() => {
                         const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
                         if (uniEnr !== null) {
