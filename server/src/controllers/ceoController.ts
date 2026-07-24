@@ -28,7 +28,74 @@ export const handleEscalation = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const getAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: {} });
+  const orgId = req.user.organizationId;
+
+  // 1. Employee Performance
+  const users = await prisma.user.findMany({
+    where: { organizationId: orgId },
+    include: { assignedTasks: true }
+  });
+
+  const employeePerformance = users.map(u => {
+    const total = u.assignedTasks.length;
+    const completed = u.assignedTasks.filter(t => t.status === 'completed').length;
+    const overdue = u.assignedTasks.filter(t => t.status !== 'completed' && new Date(t.deadline) < new Date()).length;
+    const inProgress = u.assignedTasks.filter(t => t.status === 'in_progress').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0;
+    const score = total > 0 ? Math.max(0, Math.min(100, Math.round(completionRate - (overdueRate * 0.5)))) : 0;
+
+    return {
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      total,
+      completed,
+      overdue,
+      inProgress,
+      completionRate,
+      score
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  // 2. Department Efficiency
+  const departments = await prisma.department.findMany({
+    where: { organizationId: orgId },
+    include: { tasks: true, _count: { select: { users: true } } }
+  });
+
+  const departmentEfficiency = departments.map(d => {
+    const total = d.tasks.length;
+    const completed = d.tasks.filter(t => t.status === 'completed').length;
+    const overdue = d.tasks.filter(t => t.status !== 'completed' && new Date(t.deadline) < new Date()).length;
+    const inProgress = d.tasks.filter(t => t.status === 'in_progress').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0;
+    const efficiency = total > 0 ? Math.max(0, Math.min(100, Math.round(completionRate - (overdueRate * 0.5)))) : 0;
+
+    return {
+      departmentId: d.id,
+      name: d.name,
+      type: d.type || 'General',
+      memberCount: d._count.users,
+      total,
+      completed,
+      overdue,
+      inProgress,
+      completionRate,
+      overdueRate,
+      efficiency
+    };
+  }).sort((a, b) => b.efficiency - a.efficiency);
+
+  res.json({ 
+    success: true, 
+    data: { 
+      employeePerformance, 
+      departmentEfficiency 
+    } 
+  });
 });
 
 export const getDepartmentManagers = asyncHandler(async (req: AuthRequest, res: Response) => {
