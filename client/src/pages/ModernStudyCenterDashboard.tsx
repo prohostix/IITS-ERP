@@ -17,7 +17,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
   const [centerConfig, setCenterConfig] = useState<any>(null);
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    setActiveTab(initialTab || 'overview');
   }, [initialTab]);
 
   useEffect(() => {

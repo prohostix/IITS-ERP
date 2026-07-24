@@ -70,7 +70,9 @@ export function ModernFinanceDashboard({ initialTab }: { initialTab?: string }) 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || 'overview');
+  }, [initialTab]);
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {

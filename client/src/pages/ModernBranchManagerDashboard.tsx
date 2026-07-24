@@ -70,7 +70,9 @@ export function ModernBranchManagerDashboard({ initialTab }: { initialTab?: stri
   const [targets, setTargets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || 'overview');
+  }, [initialTab]);
 
   useEffect(() => {
     const fetchAll = async () => {

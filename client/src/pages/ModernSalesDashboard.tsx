@@ -52,7 +52,9 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
   const [targets, setTargets] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || 'overview');
+  }, [initialTab]);
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
@@ -413,7 +415,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    setActiveTab(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
   }, [initialTab]);
 
   useEffect(() => {

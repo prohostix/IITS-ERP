@@ -55,7 +55,9 @@ export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
   };
 
   // Sync initialTab changes to activeTab
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
+  }, [initialTab]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchOpsMetrics(); }, []);
 

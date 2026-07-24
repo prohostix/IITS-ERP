@@ -43,7 +43,9 @@ export function ModernUniversityDashboard({ initialTab }: { initialTab?: string 
   const [programFilter, setProgramFilter] = useState('all');
   const [uniName, setUniName] = useState('University');
 
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || 'overview');
+  }, [initialTab]);
 
   const fetchMetrics = useCallback(async () => {
     try {

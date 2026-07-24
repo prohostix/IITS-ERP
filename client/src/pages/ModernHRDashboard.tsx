@@ -41,7 +41,9 @@ export function ModernHRDashboard({ initialTab }: { initialTab?: string }) {
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
-  useEffect(() => { if (initialTab) setActiveTab(initialTab); }, [initialTab]);
+  useEffect(() => {
+    setActiveTab(initialTab || 'overview');
+  }, [initialTab]);
   useEffect(() => {
     api.get('/dashboard/metrics').then(r => setMetrics(r.data.data || {})).catch(() => {});
   }, []);
