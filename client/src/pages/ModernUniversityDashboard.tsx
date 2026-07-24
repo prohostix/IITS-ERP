@@ -31,7 +31,7 @@ interface Metrics {
 
 interface Program { id: string; name: string; code: string; }
 
-export function ModernUniversityDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernUniversityDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const universityId = (user as any)?.universityId;
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');

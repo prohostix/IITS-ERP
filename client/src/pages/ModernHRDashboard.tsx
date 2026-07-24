@@ -37,7 +37,7 @@ import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { EmployeeActivityReportPanel } from '@/components/panels/EmployeeActivityReportPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 
-export function ModernHRDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernHRDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 

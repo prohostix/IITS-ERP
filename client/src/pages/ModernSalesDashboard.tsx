@@ -42,7 +42,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 
-export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initialTab?: string; isSubDeptManager?: boolean }) {
+export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate }: { initialTab?: string; isSubDeptManager?: boolean; onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const isSalesAdmin = user?.role === 'sales_admin' || user?.role === 'bde' || isSubDeptManager;
 
@@ -51,6 +51,13 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager }: { initial
   const [leads, setLeads] = useState<any[]>([]);
   const [targets, setTargets] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (onNavigate) {
+      onNavigate(tab === 'overview' || tab === 'my_subdept' ? 'dashboard' : tab);
+    }
+  };
 
   useEffect(() => {
     setActiveTab(initialTab || 'overview');
@@ -487,7 +494,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-base">Recent Leads</CardTitle>
-                  <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('leads')}>
+                  <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => handleTabChange('leads')}>
                     View All <ArrowUpRight className="ml-1 w-3 h-3" />
                   </Button>
                 </CardHeader>
@@ -510,7 +517,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-base">My Targets</CardTitle>
-                    <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('targets')}>
+                    <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => handleTabChange('targets')}>
                       View All <ArrowUpRight className="ml-1 w-3 h-3" />
                     </Button>
                   </CardHeader>

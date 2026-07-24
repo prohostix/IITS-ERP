@@ -39,7 +39,7 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { useAuth } from '@/hooks/useAuth';
 
-export function ModernOpsDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const isSubDeptManager = Boolean((user)?.subDepartmentId);
   const [metrics, setMetrics] = useState<any>({});

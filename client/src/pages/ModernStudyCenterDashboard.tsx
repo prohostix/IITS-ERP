@@ -11,8 +11,15 @@ import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
 import api from '@/lib/api';
 
-export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (onNavigate) {
+      onNavigate(tab === 'overview' || tab === 'my_subdept' ? 'dashboard' : tab);
+    }
+  };
   const [metrics, setMetrics] = useState<any>({});
   const [centerConfig, setCenterConfig] = useState<any>(null);
 
@@ -32,7 +39,7 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
         <p className="text-muted-foreground mt-1">Manage enrollments, wallet, and daily operations.</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
@@ -72,12 +79,12 @@ export function ModernStudyCenterDashboard({ initialTab }: { initialTab?: string
                   <h3 className="font-semibold">Quick Actions</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button onClick={() => setActiveTab('enroll')} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
+                  <button onClick={() => handleTabChange('enroll')} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
                     <GraduationCap className="w-5 h-5 text-primary mb-2" />
                     <p className="text-sm font-semibold">Enroll Student</p>
                     <p className="text-xs text-muted-foreground">Submit a new enrollment</p>
                   </button>
-                  <button onClick={() => setActiveTab('wallet')} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
+                  <button onClick={() => handleTabChange('wallet')} className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all text-left">
                     <Wallet className="w-5 h-5 text-success mb-2" />
                     <p className="text-sm font-semibold">Top Up Wallet</p>
                     <p className="text-xs text-muted-foreground">Request balance top-up</p>

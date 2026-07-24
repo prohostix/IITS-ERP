@@ -65,11 +65,18 @@ const DEPT_COLORS: Record<string, string> = {
   operations: 'hsl(var(--primary))', sales: 'hsl(var(--warning))',
 };
 
-export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
+export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
   const [analytics, setAnalytics] = useState<any>({ employeePerformance: [], departmentEfficiency: [] });
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (onNavigate) {
+      onNavigate(tab === 'overview' ? 'dashboard' : tab);
+    }
+  };
 
   useEffect(() => {
     setActiveTab(initialTab || 'overview');
@@ -110,14 +117,14 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
             <RefreshCw className={cn('w-4 h-4 mr-2', loadingMetrics && 'animate-spin')} />
             Refresh
           </Button>
-          <Button variant="default" onClick={() => setActiveTab('kpi-kra')}>
+          <Button variant="default" onClick={() => handleTabChange('kpi-kra')}>
             <Target className="w-4 h-4 mr-2" />
             KPI / KRA Report
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="hidden flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -143,7 +150,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
               trendType="up"
               icon={<DollarSign className="w-5 h-5" />}
               color="primary"
-              onClick={() => setActiveTab('invoices')}
+              onClick={() => handleTabChange('invoices')}
             />
             <MetricCard
               title="Active Students"
@@ -152,7 +159,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
               trendType="up"
               icon={<GraduationCap className="w-5 h-5" />}
               color="success"
-              onClick={() => setActiveTab('students')}
+              onClick={() => handleTabChange('students')}
             />
             <MetricCard
               title="Pending Tasks"
@@ -161,7 +168,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
               trendType={metrics.overdueTasks > 0 ? 'down' : 'up'}
               icon={<Zap className="w-5 h-5" />}
               color="warning"
-              onClick={() => setActiveTab('tasks')}
+              onClick={() => handleTabChange('tasks')}
             />
             <MetricCard
               title="Active Escalations"
@@ -170,7 +177,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
               trendType={metrics.criticalEscalations > 0 ? 'down' : 'up'}
               icon={<AlertTriangle className="w-5 h-5" />}
               color="info"
-              onClick={() => setActiveTab('escalations')}
+              onClick={() => handleTabChange('escalations')}
             />
           </div>
 
@@ -182,7 +189,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
               { label: 'Departments', value: metrics.totalDepartments || 0, icon: <Building2 className="w-4 h-4" />, tab: 'departments' },
               { label: 'Programs', value: metrics.totalPrograms || 0, icon: <BookOpen className="w-4 h-4" />, tab: 'students' },
             ].map(item => (
-              <Card key={item.label} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setActiveTab(item.tab)}>
+              <Card key={item.label} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleTabChange(item.tab)}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-muted text-muted-foreground">{item.icon}</div>
                   <div>
@@ -198,7 +205,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
             {/* Departmental Performance Chart */}
             <Card
               className="lg:col-span-2 overflow-hidden border-none shadow-2xl bg-card/50 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
-              onClick={() => setActiveTab('performance')}
+              onClick={() => handleTabChange('performance')}
             >
               <CardHeader className="flex flex-row items-center justify-between pb-4">
                 <div>
@@ -232,7 +239,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
 
             {/* Right column snapshots */}
             <div className="space-y-4">
-              <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setActiveTab('invoices')}>
+              <Card className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleTabChange('invoices')}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Finance Snapshot</p>
@@ -245,7 +252,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:border-success/40 transition-colors" onClick={() => setActiveTab('users')}>
+              <Card className="cursor-pointer hover:border-success/40 transition-colors" onClick={() => handleTabChange('users')}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">People Snapshot</p>
@@ -258,7 +265,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="cursor-pointer hover:border-warning/40 transition-colors" onClick={() => setActiveTab('tasks')}>
+              <Card className="cursor-pointer hover:border-warning/40 transition-colors" onClick={() => handleTabChange('tasks')}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tasks Snapshot</p>
@@ -277,7 +284,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
           {/* Punch Widget + Quick Access */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="bg-primary/5 border-primary/10 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setActiveTab('kpi-kra')}>
+              <Card className="bg-primary/5 border-primary/10 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleTabChange('kpi-kra')}>
                 <CardContent className="pt-6">
                   <div className="p-2 w-fit rounded-lg bg-primary/10 text-primary mb-4">
                     <Target className="w-5 h-5" />
@@ -287,7 +294,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
                   <Button variant="link" className="p-0 h-auto mt-4 text-primary">Open Report <ArrowUpRight className="ml-1 w-3 h-3" /></Button>
                 </CardContent>
               </Card>
-              <Card className="bg-success/5 border-success/10 cursor-pointer hover:border-success/40 transition-colors" onClick={() => setActiveTab('performance')}>
+              <Card className="bg-success/5 border-success/10 cursor-pointer hover:border-success/40 transition-colors" onClick={() => handleTabChange('performance')}>
                 <CardContent className="pt-6">
                   <div className="p-2 w-fit rounded-lg bg-success/10 text-success mb-4">
                     <TrendingUp className="w-5 h-5" />
@@ -301,7 +308,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
           </div>
 
           {/* Live Escalations Preview */}
-          <EscalationPreview onViewAll={() => setActiveTab('escalations')} />
+          <EscalationPreview onViewAll={() => handleTabChange('escalations')} />
         </TabsContent>
 
         <TabsContent value="performance">
@@ -578,7 +585,7 @@ function EscalationsPanel() {
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({counts.pending})</TabsTrigger>

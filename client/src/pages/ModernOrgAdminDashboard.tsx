@@ -21,7 +21,7 @@ import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api';
 
-export function ModernOrgAdminDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernOrgAdminDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 

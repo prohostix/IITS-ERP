@@ -49,6 +49,13 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
 
   const [activeTab, setActiveTab] = useState(mappedInitialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (onNavigate) {
+      onNavigate(tab === 'overview' || tab === 'my_subdept' ? 'dashboard' : tab);
+    }
+  };
+
   useEffect(() => {
     const mapped = initialTab === 'my-tasks' ? 'tasks' : 
       initialTab === 'my-leaves' ? 'leaves' : 
@@ -120,14 +127,14 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
             <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setActiveTab('notice-board')}>
+          <Button variant="outline" size="sm" onClick={() => handleTabChange('notice-board')}>
             <Bell className="w-4 h-4 mr-2" />
             Notices
           </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tasks">My Tasks</TabsTrigger>
@@ -151,7 +158,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
               icon={<Target className="w-5 h-5" />}
               subtext={dueSoonCount > 0 ? `${dueSoonCount} due this week` : 'No urgent deadlines'}
               color="primary"
-              onClick={() => setActiveTab('tasks')}
+              onClick={() => handleTabChange('tasks')}
             />
             <EmployeeMetric
               title="Efficiency Score"
@@ -159,7 +166,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
               icon={<Zap className="w-5 h-5" />}
               subtext="Based on task completion"
               color="success"
-              onClick={() => setActiveTab('tasks')}
+              onClick={() => handleTabChange('tasks')}
             />
             <EmployeeMetric
               title="Leaves Remaining"
@@ -167,7 +174,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
               icon={<Calendar className="w-5 h-5" />}
               subtext={`${usedDays} used of ${totalLeaveAllowance}`}
               color="info"
-              onClick={() => setActiveTab('leaves')}
+              onClick={() => handleTabChange('leaves')}
             />
             <EmployeeMetric
               title="Work Hours"
@@ -175,7 +182,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
               icon={<Clock className="w-5 h-5" />}
               subtext="Current week"
               color="warning"
-              onClick={() => setActiveTab('attendance')}
+              onClick={() => handleTabChange('attendance')}
             />
           </div>
 
@@ -187,7 +194,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
                   <CardTitle>Priority Tasks</CardTitle>
                   <CardDescription>Your pending assignments</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" className="text-primary font-bold" onClick={() => setActiveTab('tasks')}>
+                <Button variant="ghost" size="sm" className="text-primary font-bold" onClick={() => handleTabChange('tasks')}>
                   View Board <ArrowUpRight className="ml-1 w-3 h-3" />
                 </Button>
               </CardHeader>
@@ -207,7 +214,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
                       priority={task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Medium' : 'Low'}
                       due={task.deadline ? new Date(task.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'No deadline'}
                       progress={task.progress || 0}
-                      onClick={() => setActiveTab('tasks')}
+                      onClick={() => handleTabChange('tasks')}
                     />
                   ))
                 )}
@@ -255,7 +262,7 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
                     <button
                       key={item.tab}
                       className="w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-muted transition-colors flex items-center justify-between"
-                      onClick={() => setActiveTab(item.tab)}
+                      onClick={() => handleTabChange(item.tab)}
                     >
                       <span className={cn('font-medium', item.color)}>{item.label}</span>
                       <ArrowUpRight className="w-3 h-3 text-muted-foreground" />
@@ -272,22 +279,22 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
               <ShortcutBtn
                 icon={<FileText className="w-5 h-5 text-primary" />}
                 title="Pay Slips"
-                onClick={() => setActiveTab('payslips')}
+                onClick={() => handleTabChange('payslips')}
               />
               <ShortcutBtn
                 icon={<Calendar className="w-5 h-5 text-info" />}
                 title="Holiday List"
-                onClick={() => setActiveTab('holidays')}
+                onClick={() => handleTabChange('holidays')}
               />
               <ShortcutBtn
                 icon={<MessageSquare className="w-5 h-5 text-success" />}
                 title="Announcements"
-                onClick={() => setActiveTab('announcements')}
+                onClick={() => handleTabChange('announcements')}
               />
               <ShortcutBtn
                 icon={<Star className="w-5 h-5 text-warning" />}
                 title="L&D Portal"
-                onClick={() => setActiveTab('ld-portal')}
+                onClick={() => handleTabChange('ld-portal')}
               />
             </div>
           </div>
