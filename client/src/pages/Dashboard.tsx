@@ -21,7 +21,7 @@ interface DashboardProps {
   initialTab?: string;
 }
 
-export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps) {
+export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTable }: DashboardProps) {
   const { user } = useAuth();
   const [departmentType, setDepartmentType] = useState<string | null>(null);
   const isBranchManager = Boolean((user as any)?.branchId);
