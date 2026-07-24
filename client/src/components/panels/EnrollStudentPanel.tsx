@@ -203,13 +203,25 @@ export function EnrollStudentPanel() {
       fs = p.programFeeStructure[0];
     }
     
+    let subtotal = 0;
+    
+    const breakdowns = (fs as any).feeBreakdown;
+    if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+      const b = breakdowns[0]; // first payment config
+      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0);
+    } else {
+      const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
+      const nonGstFees = addFees.filter(f => f.label !== 'GST');
+      subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);
+    }
+
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
-    const nonGstFees = addFees.filter(f => f.label !== 'GST');
-    const subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);
     const gstEntry = addFees.find(f => f.label === 'GST');
     const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
+    
     return subtotal + gstAmount;
   };
+
 
   const getBillingCycleText = (p: Program) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return '';
@@ -701,6 +713,26 @@ export function EnrollStudentPanel() {
                 {renderField('abcId', 'ABCID')}
                 {renderField('debId', 'DEBID')}
               </div>
+              
+              {/* Fee Summary Panel */}
+              {selectedProgram && selectedSessionId && (
+                <div className="mt-6 p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
+                      Required Enrollment Fee
+                    </h4>
+                    <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
+                      Initial payment due for enrollment based on configured {getBillingCycleText(selectedProgram).replace('/', '').trim()} pricing structure.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
+                    <div className="text-2xl font-black text-indigo-700">
+                      ₹{getTotalFee(selectedProgram).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
