@@ -780,17 +780,39 @@ export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: R
 });
 
 // University Fee Payments
+
 export const getUniversityFeePayments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { status } = req.query;
+  const { status, universityId, centerId, programId, search } = req.query;
   const whereClause: any = { organizationId: req.user.organizationId };
-  if (status) {
+  if (status && status !== 'all') {
     whereClause.status = status;
   }
-  if (req.query.universityId || req.query.centerId) {
-    whereClause.student = {};
-    if (req.query.universityId) whereClause.student.program = { universityId: req.query.universityId as string };
-    if (req.query.centerId) whereClause.student.centerId = req.query.centerId as string;
+  
+  if (universityId || centerId || programId || search) {
+    whereClause.student = { ...whereClause.student };
+    
+    if (universityId) {
+      whereClause.student.program = { universityId: universityId as string };
+    }
+    if (centerId) {
+      whereClause.student.centerId = centerId as string;
+    }
+    if (programId) {
+      whereClause.student.programId = programId as string;
+    }
+    if (search) {
+      const s = search as string;
+      whereClause.student = {
+        ...whereClause.student,
+        OR: [
+          { name: { contains: s, mode: 'insensitive' } },
+          { enrollmentNo: { contains: s, mode: 'insensitive' } },
+          { uniEnrollmentNumber: { contains: s, mode: 'insensitive' } }
+        ]
+      };
+    }
   }
+
   const payments = await prisma.universityFeePayment.findMany({
     where: whereClause,
     include: {
@@ -805,6 +827,7 @@ export const getUniversityFeePayments = asyncHandler(async (req: AuthRequest, re
   });
   res.json({ success: true, count: payments.length, data: payments });
 });
+
 
 export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { referenceNo, paidAt } = req.body;

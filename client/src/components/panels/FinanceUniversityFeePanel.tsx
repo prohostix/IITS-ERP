@@ -84,7 +84,7 @@ export function FinanceUniversityFeePanel() {
     setLoading(true);
     try {
       const query = new URLSearchParams();
-      query.append('status', status);
+      // Fetch all to allow showing paid details in pending tab
       if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
       if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
       if (programFilter && programFilter !== 'all') query.append('programId', programFilter);
@@ -153,7 +153,15 @@ export function FinanceUniversityFeePanel() {
     }, {} as Record<string, { student: Student, cycles: UniversityFeePayment[] }>);
   }, [payments]);
 
-  const groupedArray = Object.values(groupedPayments);
+  
+  const groupedArray = Object.values(groupedPayments).filter(group => {
+    if (activeTab === 'pending') {
+      return group.cycles.some(c => c.status === 'pending');
+    } else {
+      return group.cycles.every(c => c.status === 'paid') && group.cycles.length > 0;
+    }
+  });
+
 
   const toggleStudent = (id: string) => {
     setExpandedStudents(prev => ({ ...prev, [id]: !prev[id] }));
@@ -240,13 +248,13 @@ export function FinanceUniversityFeePanel() {
                       <th className="w-10"></th>
                       <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
                       <th className="text-left p-3 font-medium text-muted-foreground">Program</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Total Pending</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">{activeTab === 'pending' ? 'Total Pending' : 'Total Paid'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {groupedArray.map(group => {
                       const isExpanded = expandedStudents[group.student.id];
-                      const totalAmount = group.cycles.reduce((sum, c) => sum + c.amount, 0);
+                      const totalAmount = group.cycles.reduce((sum, c) => (activeTab === 'pending' && c.status === 'pending') || activeTab === 'paid' ? sum + c.amount : sum, 0);
 
                       return (
                         <React.Fragment key={group.student.id}>
