@@ -99,7 +99,8 @@ export function FinanceTotalReportPanel() {
     const data = rows.map((r, i) => ({
       '#': i + 1,
       'Student': r.studentName,
-      'Enrollment No': r.enrollmentNumber || '',
+      'Admission No': r.enrollmentNumber || '',
+      'Enroll No': r.uniEnrollmentNumber || '',
       'Admission Date': fmtDate(r.admissionDate),
       'Admission Session': r.admissionSession,
       'Center Name': r.centerName,
@@ -268,7 +269,7 @@ export function FinanceTotalReportPanel() {
                 <thead className="bg-muted/60 border-b">
                   <tr>
                     {[
-                      '#', 'Student', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
+                      '#', 'Student', 'Admission No', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
                       'Program', 'University',
                       'Payment (INR)', 'Payment Status', 'Payment For',
                       'Total Uni. Fee (INR)', 'Uni. Paid (INR)', 'Uni. Payment Status',
@@ -288,6 +289,7 @@ export function FinanceTotalReportPanel() {
                       <td className="px-3 py-2.5 text-muted-foreground text-xs">{i + 1}</td>
                       <td className="px-3 py-2.5 font-medium whitespace-nowrap">{r.studentName}</td>
                       <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{r.enrollmentNumber || '-'}</td>
+                      <td className="px-3 py-2.5 text-xs font-mono font-medium text-foreground">{r.uniEnrollmentNumber || '-'}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap text-xs">
                         {fmtDate(r.admissionDate)}
                       </td>

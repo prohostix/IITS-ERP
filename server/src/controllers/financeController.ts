@@ -981,6 +981,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       id: enrollment.id,
       studentName: enrollment.studentName,
       enrollmentNumber: enrollment.enrollmentNumber,
+      uniEnrollmentNumber: enrollment.uniEnrollmentNumber,
       admissionDate: enrollment.admissionDate || enrollment.createdAt,
       admissionSession: enrollment.session?.name || '',
       centerName: enrollment.studyCenter?.name || '',
