@@ -756,7 +756,7 @@ const fetchAllData = useCallback(async () => {
               >
                 <option value="">Standard / All Sessions</option>
                 {sessions
-                  .filter(s => !form.universityId || !(s as any).universityId || (s as any).universityId === form.universityId)
+                  .filter(s => form.universityId ? (s as any).universityId === form.universityId : true)
                   .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
