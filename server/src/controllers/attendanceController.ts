@@ -123,13 +123,13 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
 
   let userWhere: any = { organizationId: req.user.organizationId, status: 'active' as any };
   if (departmentId) {
-    userWhere.employeeProfile = { departmentId: departmentId as string };
+    userWhere.employeeProfileDetail = { departmentId: departmentId as string };
   }
 
   const users = await prisma.user.findMany({
     where: userWhere,
     include: {
-      employeeProfile: { include: { department: true } },
+      employeeProfileDetail: { include: { department: true } },
       employee: true,
       attendances: {
         where: {
@@ -145,7 +145,7 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
       id: u.id,
       name: u.name,
       email: u.email,
-      department: u.employeeProfile?.department?.name || '-',
+      department: u.employeeProfileDetail?.department?.name || '-',
       checkIn: att?.checkIn || null,
       checkOut: att?.checkOut || null,
       status: att?.status || 'absent',
