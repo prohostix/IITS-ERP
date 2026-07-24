@@ -145,7 +145,7 @@ export function TasksPanel() {
     setFormData({
       title: task.title,
       description: task.description,
-      assignedTo: task.assignedTo?.id || task.assignedTo?.id || task.assignedTo || '',
+      assignedTo: task.assignedTo || '',
       priority: task.priority,
       deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
     });
@@ -295,8 +295,8 @@ export function TasksPanel() {
               <div className="space-y-3">
                 {filteredTasks.map(task => {
                   const taskId = task.id || task.id || '';
-                  const isAssignedByMe = (task.assignedBy?.id || task.assignedBy?.id || task.assignedBy) === currentUserId;
-                  const isAssignedToMe = (task.assignedTo?.id || task.assignedTo?.id || task.assignedTo) === currentUserId;
+                  const isAssignedByMe = (task as any).createdBy === currentUserId;
+                  const isAssignedToMe = task.assignedTo === currentUserId;
                   return (
                     <div key={taskId} className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex-1">
@@ -307,8 +307,8 @@ export function TasksPanel() {
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          <span>To: {task.assignedTo?.name || 'Unknown'}</span>
-                          <span>By: {task.assignedBy?.name || 'Unknown'}</span>
+                          <span>To: {(task as any).assignee?.name || 'Unknown'}</span>
+                          <span>By: {(task as any).assigner?.name || 'Unknown'}</span>
                           <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
                         </div>
                         {task.remarks && <p className="text-xs text-muted-foreground mt-1 italic">{task.remarks}</p>}

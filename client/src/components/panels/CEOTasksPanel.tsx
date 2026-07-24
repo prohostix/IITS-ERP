@@ -344,15 +344,15 @@ export function CEOTasksPanel() {
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                           <span>
                             <span className="font-medium text-foreground/70">Assigned to:</span>{' '}
-                            {task.assignedTo?.name || '—'}
+                            {(task as any).assignee?.name || '—'}
                           </span>
                           <span>
                             <span className="font-medium text-foreground/70">By:</span>{' '}
-                            {task.assignedBy?.name || '—'}
+                            {(task as any).assigner?.name || '—'}
                           </span>
                           <span>
                             <span className="font-medium text-foreground/70">Dept:</span>{' '}
-                            {task.departmentId?.name || '—'}
+                            {(task as any).department?.name || '—'}
                           </span>
                           <span className={cn(actuallyOverdue && task.status !== 'completed' ? 'text-destructive font-semibold' : '')}>
                             <span className="font-medium text-foreground/70">Deadline:</span>{' '}
