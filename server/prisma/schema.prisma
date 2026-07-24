@@ -437,6 +437,7 @@ model Student {
   centerId              String
   organizationId        String
   enrollmentNo          String                 @unique
+  uniEnrollmentNumber   String?
   name                  String
   email                 String                 @unique
   phone                 String
@@ -855,6 +856,7 @@ model Enrollment {
   alternativePhone     String?
   admissionDate        DateTime?          @default(now())
   enrollmentNumber     String?            @unique
+  uniEnrollmentNumber  String?
   studentName          String
   studentEmail         String
   studentPhone         String

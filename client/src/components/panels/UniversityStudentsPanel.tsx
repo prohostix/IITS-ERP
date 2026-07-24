@@ -20,6 +20,7 @@ interface University {
 interface Enrollment {
   id: string;
   enrollmentNumber?: string;
+  uniEnrollmentNumber?: string;
   studentName: string;
   studentEmail: string;
   studentPhone: string;
@@ -190,7 +191,7 @@ export function UniversityStudentsPanel() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email or enrollment no..."
+            placeholder="Search by name, email or admission no..."
             className="pl-9"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -248,20 +249,24 @@ export function UniversityStudentsPanel() {
 <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="text-left py-2 pr-4 font-medium">Enrollment No.</th>
+                    <th className="text-left py-2 pr-4 font-medium">Admission / Uni ENR No.</th>
                     <th className="text-left py-2 pr-4 font-medium">Student</th>
                     <th className="text-left py-2 pr-4 font-medium">Program</th>
                     <th className="text-left py-2 pr-4 font-medium">Partner Portal</th>
                     <th className="text-left py-2 pr-4 font-medium">Session</th>
                     <th className="text-left py-2 font-medium">Enrolled On</th>
+                    <th className="text-left py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {enrollments.map(e => (
                     <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                       <td className="py-3 pr-4">
-                        <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
-                          {e.enrollmentNumber || '—'}
+                        <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded flex flex-col gap-1 items-start">
+                          {e.uniEnrollmentNumber ? (
+                            <span className="text-primary font-bold">ENR: {e.uniEnrollmentNumber}</span>
+                          ) : null}
+                          <span className={e.uniEnrollmentNumber ? "text-muted-foreground" : ""}>ADM: {e.enrollmentNumber || '—'}</span>
                         </span>
                       </td>
                       <td className="py-3 pr-4">
@@ -281,6 +286,22 @@ export function UniversityStudentsPanel() {
                       </td>
                       <td className="py-3 text-xs text-muted-foreground">
                         {e.enrolledAt ? new Date(e.enrolledAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="py-3 text-xs">
+                        {/* Only operations/admins should see this button ideally, but this panel is generally for operations */}
+                        <Button size="sm" variant="ghost" className="h-8 text-xs px-2" onClick={() => {
+                          const uniEnr = prompt('Enter University Enrollment Number:', e.uniEnrollmentNumber || '');
+                          if (uniEnr !== null) {
+                            api.put(`/operations/enrollments/${e.id}`, { uniEnrollmentNumber: uniEnr })
+                              .then(() => {
+                                toast.success('University Enrollment Number saved');
+                                refreshStudents();
+                              })
+                              .catch(() => toast.error('Failed to update University Enrollment Number'));
+                          }
+                        }}>
+                          Set Uni ENR
+                        </Button>
                       </td>
                     </tr>
                   ))}
