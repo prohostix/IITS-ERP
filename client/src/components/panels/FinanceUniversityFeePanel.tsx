@@ -287,7 +287,14 @@ export function FinanceUniversityFeePanel() {
                                 </div>
                               </td>
                               <td className="p-3 text-right">
-                                <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
+                                {p.status === 'paid' ? (
+                                  <div className="flex items-center justify-end gap-2 text-sm text-green-600 font-medium">
+                                    <CheckCircle className="w-4 h-4" /> Paid
+                                    {p.paidAt && <span className="text-xs text-muted-foreground font-normal ml-1">on {new Date(p.paidAt).toLocaleDateString()}</span>}
+                                  </div>
+                                ) : (
+                                  <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
+                                )}
                               </td>
                             </tr>
                           ))}
