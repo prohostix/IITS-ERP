@@ -96,9 +96,31 @@ export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
   const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
   const data: any = {};
   if (level !== undefined) data.level = level;
-  if (programId !== undefined) data.programId = level === 'program' ? programId : null;
-  if (universityId !== undefined) data.universityId = universityId || null;
-  if (admissionSessionId !== undefined) data.admissionSessionId = admissionSessionId || null;
+
+  if (programId !== undefined) {
+    const finalProgramId = (level === 'program' || data.level === 'program') ? programId : null;
+    if (finalProgramId) {
+      data.program = { connect: { id: finalProgramId } };
+    } else {
+      data.program = { disconnect: true };
+    }
+  }
+  
+  if (universityId !== undefined) {
+    if (universityId) {
+      data.university = { connect: { id: universityId } };
+    } else {
+      data.university = { disconnect: true };
+    }
+  }
+
+  if (admissionSessionId !== undefined) {
+    if (admissionSessionId) {
+      data.admissionSession = { connect: { id: admissionSessionId } };
+    } else {
+      data.admissionSession = { disconnect: true };
+    }
+  }
   if (billingCycle !== undefined) data.billingCycle = billingCycle;
   if (baseFee !== undefined) data.baseFee = parseFloat(baseFee);
   if (universityFee !== undefined) data.universityFee = parseFloat(universityFee);
