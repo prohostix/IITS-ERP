@@ -109,7 +109,8 @@ export function ProgramFeeStructurePanel() {
                 universityFee: '0',
                 examFee: '0',
                 commissionRate: '0',
-                dueDate: ''
+                dueDate: '',
+                additionalFees: ''
               });
             }
             if (newBreakdown.length > numBlocks) {
@@ -817,16 +818,16 @@ const fetchAllData = useCallback(async () => {
                         <Label>Payment Due Date</Label>
                         <Input type="date" value={block.dueDate} onChange={e => handleBreakdownChange(idx, 'dueDate', e.target.value)} />
                       </div>
+                      <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                        <Label>Additional Fees <span className="text-muted-foreground text-xs">(label:amount, comma-separated)</span></Label>
+                        <Input value={block.additionalFees || ''} onChange={e => handleBreakdownChange(idx, 'additionalFees', e.target.value)} placeholder="Verification:100, Library:50" />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
             
-            <div className="space-y-1 mt-6">
-              <Label>Additional Fees <span className="text-muted-foreground text-xs">(label:amount, comma-separated)</span></Label>
-              <Input value={form.additionalFees} onChange={e => setForm(f => ({ ...f, additionalFees: e.target.value }))} placeholder="Verification:100" />
-            </div>
           </div>
           <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
