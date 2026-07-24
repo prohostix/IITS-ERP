@@ -355,7 +355,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         continue;
       }
 
-      const totalAmount = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0);
+      const totalAmount = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0);
 
       installments.push({
         name,

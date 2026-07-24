@@ -212,7 +212,7 @@ export function EnrollStudentPanel() {
     
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0]; // first payment config
-      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0);
+      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0);
     } else {
       const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
       const nonGstFees = addFees.filter(f => f.label !== 'GST');
