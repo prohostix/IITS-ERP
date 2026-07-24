@@ -121,7 +121,11 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
   const endOfDay = new Date(targetDate);
   endOfDay.setUTCHours(23, 59, 59, 999);
 
-  let userWhere: any = { organizationId: req.user.organizationId, status: 'active' as any };
+  let userWhere: any = { 
+    organizationId: req.user.organizationId, 
+    status: 'active' as any,
+    role: { notIn: ['student', 'center_admin', 'superadmin'] }
+  };
   if (departmentId) {
     userWhere.departmentId = departmentId as string;
   }
@@ -134,12 +138,50 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
         where: {
           date: { gte: startOfDay, lte: endOfDay }
         }
+      },
+      assignedTasks: {
+        where: {
+          OR: [
+            { status: { not: 'completed' as any } },
+            { completedAt: { gte: startOfDay, lte: endOfDay } }
+          ]
+        }
+      },
+      auditLogs: {
+        where: {
+          timestamp: { gte: startOfDay, lte: endOfDay }
+        }
       }
     }
   });
 
   const data = users.map(u => {
     const att = u.attendances[0];
+    
+    // Tasks logic
+    const totalTasks = u.assignedTasks.length;
+    const completedToday = u.assignedTasks.filter(t => t.status === ('completed' as any) && t.completedAt && t.completedAt >= startOfDay && t.completedAt <= endOfDay).length;
+    const inProgress = u.assignedTasks.filter(t => t.status === ('in_progress' as any)).length;
+    
+    // Safe check for overdue tasks based on deadline
+    const now = new Date();
+    const overdue = u.assignedTasks.filter(t => t.status === ('overdue' as any) || (t.deadline && new Date(t.deadline) < now && t.status !== ('completed' as any))).length;
+
+    // ERP Actions
+    const erpActions = u.auditLogs.length;
+    const erpActivity: Record<string, number> = {};
+    u.auditLogs.forEach(log => {
+      erpActivity[log.action] = (erpActivity[log.action] || 0) + 1;
+    });
+
+    // Simulate Productive & Wasted time (heuristic: 1 action = ~6 minutes / 0.1 hr, capped by workingHours)
+    let productiveHours = 0;
+    let timeWasted = 0;
+    if (att && att.workingHours) {
+      productiveHours = Math.min(att.workingHours, Number((erpActions * 0.1).toFixed(1)));
+      timeWasted = Math.max(0, Number((att.workingHours - productiveHours).toFixed(1)));
+    }
+
     return {
       id: u.id,
       name: u.name,
@@ -150,7 +192,18 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
       status: att?.status || 'absent',
       workingHours: att?.workingHours || 0,
       isLate: att?.isLate || false,
-      lateMinutes: att?.lateMinutes || 0
+      lateMinutes: att?.lateMinutes || 0,
+      tasks: {
+        total: totalTasks,
+        completedToday,
+        inProgress,
+        overdue,
+        list: u.assignedTasks
+      },
+      erpActions,
+      erpActivity,
+      productiveHours,
+      timeWasted
     };
   });
 

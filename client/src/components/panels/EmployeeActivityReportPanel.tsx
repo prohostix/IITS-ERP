@@ -138,7 +138,7 @@ function DeptCards({ departments }: { departments: DeptSummary[] }) {
 // ─── ERP Activity Breakdown ───────────────────────────────────────────────────
 
 function ErpBreakdown({ activity }: { activity: Record<string, number> }) {
-  const entries = Object.entries(activity).sort((a, b) => b[1] - a[1]);
+  const entries = Object.entries(activity || {}).sort((a, b) => b[1] - a[1]);
   if (!entries.length) return <p className="text-xs text-muted-foreground">No ERP activity recorded</p>;
   return (
     <div className="flex flex-wrap gap-2">
