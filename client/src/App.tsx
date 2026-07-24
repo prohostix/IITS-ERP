@@ -767,6 +767,7 @@ function App() {
       onLogout={logout}
       userName={user?.name}
       userRole={user?.role}
+      userDesignation={user?.designation}
       userId={user?.id?.toString()}
       organizationId={
         (() => {

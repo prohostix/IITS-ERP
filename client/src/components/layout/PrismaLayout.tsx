@@ -44,6 +44,7 @@ interface PrismaLayoutProps {
   onLogout?: () => void;
   userName?: string;
   userRole?: string;
+  userDesignation?: string;
   userId?: string;
   organizationId?: string;
   schema?: string;
@@ -57,6 +58,7 @@ export function PrismaLayout({
   onLogout,
   userName,
   userRole,
+  userDesignation,
   userId,
   organizationId,
   schema = 'public'
@@ -277,8 +279,8 @@ export function PrismaLayout({
               {userName?.charAt(0) || 'U'}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold truncate text-sidebar-foreground">{userName || 'User'}</span>
-              <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userRole?.replace(/_/g, ' ')}</span>
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName || 'Unknown User'}</p>
+              <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userDesignation || userRole?.replace(/_/g, ' ')}</span>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
