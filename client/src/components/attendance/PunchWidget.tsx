@@ -291,34 +291,35 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
   if (variant === 'header') {
     return (
       <>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-full px-2 py-1.5 shrink-0 h-12 ml-2">
-          <div className="flex flex-col items-center justify-center px-1 sm:px-2 min-w-[50px] sm:min-w-[70px]">
-            <span className="text-[12px] font-bold tracking-tight tabular-nums leading-none mb-0.5 text-slate-800">
+        <div className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm rounded-full px-3 py-2 shrink-0 h-14 ml-2">
+          <div className="flex flex-col items-center justify-center px-2 sm:px-3 min-w-[70px] sm:min-w-[90px]">
+            <span className="flex items-center gap-1.5 text-sm font-bold tracking-tight tabular-nums leading-none mb-1 text-slate-800">
+              <Clock className="w-4 h-4 text-primary" />
               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
-            <span className="text-[9px] text-muted-foreground font-medium uppercase leading-none hidden sm:block">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase leading-none hidden sm:block">
               {hasPunchedIn ? (hasPunchedOut ? 'Punched Out' : 'Punched In') : 'Not Punched'}
             </span>
           </div>
-          <div className="flex gap-1 border-l pl-2 border-slate-100">
+          <div className="flex gap-2 border-l pl-3 border-slate-100">
             <Button
-              size="sm"
-              className={`h-9 px-3 sm:px-4 text-xs rounded-full font-bold ${hasPunchedIn ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
+              size="default"
+              className={`h-10 px-4 sm:px-6 text-sm rounded-full font-bold ${hasPunchedIn ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
               disabled={hasPunchedIn}
               onClick={() => openPunchMap('in')}
               variant="ghost"
             >
-              <LogIn className="w-4 h-4 mr-1 sm:mr-1.5" />
+              <LogIn className="w-4 h-4 mr-1 sm:mr-2" />
               <span>In</span>
             </Button>
             <Button
-              size="sm"
-              className={`h-9 px-3 sm:px-4 text-xs rounded-full font-bold ${(!hasPunchedIn || hasPunchedOut) ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+              size="default"
+              className={`h-10 px-4 sm:px-6 text-sm rounded-full font-bold ${(!hasPunchedIn || hasPunchedOut) ? 'bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
               disabled={!hasPunchedIn || hasPunchedOut}
               onClick={() => openPunchMap('out')}
               variant="ghost"
             >
-              <LogOut className="w-4 h-4 mr-1 sm:mr-1.5" />
+              <LogOut className="w-4 h-4 mr-1 sm:mr-2" />
               <span>Out</span>
             </Button>
           </div>
