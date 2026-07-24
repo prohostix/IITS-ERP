@@ -197,8 +197,8 @@ function EmployeeRow({ emp, scheduled }: { emp: EmployeeReport; scheduled: numbe
         </td>
         <td className="px-4 py-3 text-xs text-center font-semibold">{emp.erpActions}</td>
         <td className="px-4 py-3 text-xs text-center">
-          <span className="text-success font-bold">{emp.tasks.completedToday}</span>
-          <span className="text-muted-foreground">/{emp.tasks.total}</span>
+          <span className="text-success font-bold">{emp.tasks?.completedToday || 0}</span>
+          <span className="text-muted-foreground">/{emp.tasks?.total || 0}</span>
         </td>
         <td className="px-4 py-3 text-center">
           {expanded ? <ChevronUp className="w-4 h-4 mx-auto text-muted-foreground" /> : <ChevronDown className="w-4 h-4 mx-auto text-muted-foreground" />}
@@ -215,11 +215,11 @@ function EmployeeRow({ emp, scheduled }: { emp: EmployeeReport; scheduled: numbe
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Tasks</p>
                 <div className="flex gap-4 text-xs">
-                  <span className="text-success">✓ {emp.tasks.completedToday} done today</span>
-                  <span className="text-info">⟳ {emp.tasks.inProgress} in progress</span>
-                  {emp.tasks.overdue > 0 && <span className="text-destructive">⚠ {emp.tasks.overdue} overdue</span>}
+                  <span className="text-success">✓ {emp.tasks?.completedToday || 0} done today</span>
+                  <span className="text-info">⟳ {emp.tasks?.inProgress || 0} in progress</span>
+                  {(emp.tasks?.overdue || 0) > 0 && <span className="text-destructive">⚠ {emp.tasks.overdue} overdue</span>}
                 </div>
-                {emp.tasks.list.length > 0 && (
+                {(emp.tasks?.list || []).length > 0 && (
                   <div className="mt-2 space-y-1">
                     {emp.tasks.list.slice(0, 5).map((t: any) => (
                       <div key={t.id} className="flex items-center gap-2 text-xs">
