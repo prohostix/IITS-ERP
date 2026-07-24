@@ -110,6 +110,7 @@ export function FinanceTotalReportPanel() {
       'Center Payment Status': r.centerPaymentStatus,
       'Payment For': r.centerPaymentFor,
       'University Payment (INR)': r.universityPaymentAmount ?? '',
+      'University Paid (INR)': r.universityPaidAmount ?? '',
       'University Payment Status': r.universityPaymentStatus,
       'Coordinator Name': r.coordinatorName || 'Null',
       'Coordinator Payment (INR)': r.coordinatorPaymentAmount ?? '',
@@ -131,7 +132,7 @@ export function FinanceTotalReportPanel() {
 
   const totalCenterPaid = rows.filter(r => r.centerPaymentStatus === 'Paid').reduce((s, r) => s + (r.centerPaymentAmount || 0), 0);
   const totalCenterDue = rows.filter(r => r.centerPaymentStatus === 'Due').length;
-  const totalUniPaid = rows.filter(r => r.universityPaymentStatus === 'paid').reduce((s, r) => s + (r.universityPaymentAmount || 0), 0);
+  const totalUniPaid = rows.reduce((s, r) => s + (r.universityPaidAmount || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -270,7 +271,7 @@ export function FinanceTotalReportPanel() {
                       '#', 'Student', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
                       'Program', 'University',
                       'Payment (INR)', 'Payment Status', 'Payment For',
-                      'University Payment (INR)', 'Uni. Payment Status',
+                      'Total Uni. Fee (INR)', 'Uni. Paid (INR)', 'Uni. Payment Status',
                       'Coordinator Name', 'Coord. Payment (INR)', 'Coord. Status',
                       'Comm. From Uni (INR)', 'Comm. From Uni Date', 'Comm. From Uni Status',
                       'Comm. To Center (INR)', 'Comm. To Center Date', 'Comm. To Center Status'
@@ -306,8 +307,11 @@ export function FinanceTotalReportPanel() {
                       <td className="px-3 py-2.5 text-xs text-muted-foreground capitalize">
                         {r.centerPaymentFor?.replace(/_/g, ' ') || '-'}
                       </td>
-                      <td className="px-3 py-2.5 font-semibold">
+                      <td className="px-3 py-2.5 font-semibold text-muted-foreground">
                         {r.universityPaymentAmount != null ? 'INR ' + Number(r.universityPaymentAmount).toLocaleString('en-IN') : '-'}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-green-700">
+                        {r.universityPaidAmount != null ? 'INR ' + Number(r.universityPaidAmount).toLocaleString('en-IN') : '-'}
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + statusColor(r.universityPaymentStatus)}>

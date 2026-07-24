@@ -953,7 +953,16 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 
   const rows = enrollments.map(enrollment => {
     const payment = enrollment.payment;
-    const uniPayment = (uniPaymentMap[enrollment.id] || [])[0] || null;
+    const uniPayments = uniPaymentMap[enrollment.id] || [];
+    const totalUniAmount = uniPayments.reduce((sum, p) => sum + p.amount, 0);
+    const paidUniAmount = uniPayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+    let uniStatus = 'Pending';
+    if (uniPayments.length > 0) {
+      if (uniPayments.every(p => p.status === 'paid')) uniStatus = 'Paid';
+      else if (uniPayments.some(p => p.status === 'paid')) uniStatus = 'Partially Paid';
+    } else {
+      uniStatus = 'pending';
+    }
 
     // Find best-matching fee structure (session-specific first, then program-only)
     const feeStruct =
@@ -981,12 +990,13 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       centerPaymentAmount: payment?.amount || null,
       centerPaymentStatus: payment ? 'Paid' : 'Due',
       centerPaymentFor: enrollment.status || '',
-      universityPaymentAmount: uniPayment?.amount || null,
-      universityPaymentStatus: uniPayment?.status || 'pending',
+      universityPaymentAmount: uniPayments.length > 0 ? totalUniAmount : null,
+      universityPaidAmount: uniPayments.length > 0 ? paidUniAmount : 0,
+      universityPaymentStatus: uniStatus,
       coordinatorName: enrollment.studyCenter?.coordinatorName || feeStruct?.university?.coordinatorName || coordinatorFee?.coordinator || null,
       coordinatorPaymentAmount: coordinatorFee?.amount || null,
       coordinatorPaymentStatus: coordinatorFee
-        ? (uniPayment?.status === 'paid' ? 'paid' : 'Due')
+        ? (uniStatus === 'Paid' ? 'paid' : 'Due')
         : 'Not Applicable',
       enrollmentStatus: enrollment.status,
       // Commission Got from University details
