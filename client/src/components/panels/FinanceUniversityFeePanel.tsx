@@ -288,9 +288,26 @@ export function FinanceUniversityFeePanel() {
                               </td>
                               <td className="p-3 text-right">
                                 {p.status === 'paid' ? (
-                                  <div className="flex items-center justify-end gap-2 text-sm text-green-600 font-medium">
-                                    <CheckCircle className="w-4 h-4" /> Paid
-                                    {p.paidAt && <span className="text-xs text-muted-foreground font-normal ml-1">on {new Date(p.paidAt).toLocaleDateString()}</span>}
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                                      <CheckCircle className="w-4 h-4" /> Paid
+                                      {p.paidAt && <span className="text-xs text-muted-foreground font-normal ml-1">on {new Date(p.paidAt).toLocaleDateString()}</span>}
+                                    </div>
+                                    {(p.referenceNo || p.screenshot) && (
+                                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        {p.referenceNo && <span>Ref: {p.referenceNo}</span>}
+                                        {p.screenshot && (
+                                          <a
+                                            href={`${(import.meta.env.VITE_API_URL || '').replace('/api/v1', '')}${p.screenshot}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                                          >
+                                            <FileText className="w-3 h-3" /> View Proof
+                                          </a>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
