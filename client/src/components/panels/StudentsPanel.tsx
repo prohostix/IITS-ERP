@@ -254,7 +254,7 @@ export function StudentsPanel() {
                 <Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} required />
               </div>
               <div>
-                <Label>Enrollment Number</Label>
+                <Label>Admission Number</Label>
                 <Input value={formData.enrollmentNo} onChange={(e) => setFormData({...formData, enrollmentNo: e.target.value})} required />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -373,7 +373,7 @@ export function StudentsPanel() {
 
       <div className="flex gap-2 mb-4">
         <Input 
-          placeholder="Search by name, email, or enrollment no..." 
+          placeholder="Search by name, email, or admission no..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-md"
@@ -402,7 +402,12 @@ export function StudentsPanel() {
                       <div className="flex-1">
                         <div className="font-medium">{student.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {student.enrollmentNo}{programName ? ` • ${programName}` : ''}{centerName ? ` • ${centerName}` : ''}
+                          {student.uniEnrollmentNumber ? (
+                            <span className="font-semibold text-primary">Uni ENR: {student.uniEnrollmentNumber}</span>
+                          ) : (
+                            <span>Admission No: {student.enrollmentNo}</span>
+                          )}
+                          {programName ? ` • ${programName}` : ''}{centerName ? ` • ${centerName}` : ''}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {student.email}</span>
@@ -439,15 +444,33 @@ export function StudentsPanel() {
                       {selectedStudent.status}
                     </Badge>
                   </div>
-                  {user?.role === 'center_admin' && !['hold', 'dropout'].includes(selectedStudent.status) && (
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => setRequestStatusOpen(true)}
-                    >
-                      Request Hold / Dropout
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role) && (
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
+                        if (uniEnr !== null) {
+                          api.put(`/students/${selectedStudent.id || selectedStudent.id}`, { uniEnrollmentNumber: uniEnr })
+                            .then(() => {
+                              toast.success('University Enrollment Number saved');
+                              fetchStudents();
+                              setSelectedStudent({ ...selectedStudent, uniEnrollmentNumber: uniEnr });
+                            })
+                            .catch(() => toast.error('Failed to update University Enrollment Number'));
+                        }
+                      }}>
+                        Add Uni Enrollment No
+                      </Button>
+                    )}
+                    {user?.role === 'center_admin' && !['hold', 'dropout'].includes(selectedStudent.status) && (
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => setRequestStatusOpen(true)}
+                      >
+                        Request Hold / Dropout
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </DialogHeader>
 

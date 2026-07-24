@@ -47,6 +47,7 @@ import {
   bulkImportStudyCenters,
   updateBranchSettings,
 } from '../controllers/operationsController.js';
+import { updateEnrollmentUniNumber } from '../controllers/universityStudentsController.js';
 import {
   getProgramDetail,
   getProgramMaterials,
@@ -136,5 +137,8 @@ router.get('/programs/:programId/materials', getProgramMaterials);
 router.post('/programs/:programId/materials', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), upload.single('file'), uploadProgramMaterial);
 router.put('/programs/:programId/materials/:materialId', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), upload.single('file'), updateProgramMaterial);
 router.delete('/programs/:programId/materials/:materialId', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), deleteProgramMaterial);
+
+// Enrollment Uni Enrollment Number Updates
+router.put('/enrollments/:id', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), updateEnrollmentUniNumber);
 
 export default router;

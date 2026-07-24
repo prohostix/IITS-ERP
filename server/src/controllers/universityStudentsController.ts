@@ -143,3 +143,31 @@ export const getUniversityMetrics = asyncHandler(async (req: AuthRequest, res: R
     }
   });
 });
+
+export const updateEnrollmentUniNumber = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { uniEnrollmentNumber } = req.body;
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id }
+  });
+
+  if (!enrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  const updated = await prisma.enrollment.update({
+    where: { id },
+    data: { uniEnrollmentNumber }
+  });
+
+  if (updated.studentId) {
+    await prisma.student.update({
+      where: { id: updated.studentId },
+      data: { uniEnrollmentNumber }
+    });
+  }
+
+  res.json({ success: true, data: updated });
+});

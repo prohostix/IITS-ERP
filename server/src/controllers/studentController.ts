@@ -154,6 +154,14 @@ export const updateStudent = asyncHandler(async (req: AuthRequest, res: Response
     where: { id: req.params.id },
     data: req.body
   });
+
+  if (req.body.uniEnrollmentNumber !== undefined) {
+    await prisma.enrollment.updateMany({
+      where: { studentId: req.params.id },
+      data: { uniEnrollmentNumber: req.body.uniEnrollmentNumber }
+    });
+  }
+
   res.status(200).json({ success: true, data: student });
 });
 
