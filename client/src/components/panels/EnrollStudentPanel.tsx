@@ -205,7 +205,11 @@ export function EnrollStudentPanel() {
     
     let subtotal = 0;
     
-    const breakdowns = (fs as any).feeBreakdown;
+    let breakdowns = (fs as any).feeBreakdown;
+    if (typeof breakdowns === 'string') {
+      try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
+    }
+    
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0]; // first payment config
       subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0);

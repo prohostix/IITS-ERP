@@ -91,38 +91,40 @@ export function ProgramFeeStructurePanel() {
 
   
   useEffect(() => {
-    if (form.level === 'program' && form.programId) {
+    let dur = 36; // Default to 3 years
+    
+    if (form.level === 'program') {
+       if (!form.programId) return;
        const prog = programs.find(p => p.id === form.programId);
-       if (prog) {
-         let numBlocks = 1;
-         const dur = prog.duration || 36;
-         if (form.billingCycle === 'per_year') numBlocks = Math.max(1, Math.floor(dur / 12));
-         else if (form.billingCycle === 'per_semester') numBlocks = Math.max(1, Math.floor(dur / 6));
-         
-         setForm(prev => {
-            const newBreakdown = [...prev.feeBreakdown];
-            while (newBreakdown.length < numBlocks) {
-              newBreakdown.push({
-                year: newBreakdown.length + 1,
-                registrationFee: '0',
-                baseFee: '0',
-                universityFee: '0',
-                examFee: '0',
-                commissionRate: '0',
-                dueDate: '',
-                additionalFees: ''
-              });
-            }
-            if (newBreakdown.length > numBlocks) {
-              newBreakdown.length = numBlocks;
-            }
-            if (newBreakdown.length !== prev.feeBreakdown.length) {
-                return { ...prev, feeBreakdown: newBreakdown };
-            }
-            return prev;
+       if (prog) dur = prog.duration || 36;
+    }
+
+    let numBlocks = 1;
+    if (form.billingCycle === 'per_year') numBlocks = Math.max(1, Math.floor(dur / 12));
+    else if (form.billingCycle === 'per_semester') numBlocks = Math.max(1, Math.floor(dur / 6));
+    
+    setForm(prev => {
+       const newBreakdown = [...prev.feeBreakdown];
+       while (newBreakdown.length < numBlocks) {
+         newBreakdown.push({
+           year: newBreakdown.length + 1,
+           registrationFee: '0',
+           baseFee: '0',
+           universityFee: '0',
+           examFee: '0',
+           commissionRate: '0',
+           dueDate: '',
+           additionalFees: ''
          });
        }
-    }
+       if (newBreakdown.length > numBlocks) {
+         newBreakdown.length = numBlocks;
+       }
+       if (newBreakdown.length !== prev.feeBreakdown.length) {
+           return { ...prev, feeBreakdown: newBreakdown };
+       }
+       return prev;
+    });
   }, [form.programId, form.billingCycle, programs, form.level]);
 
   const handleBreakdownChange = (idx: number, field: string, value: string) => {
@@ -192,7 +194,10 @@ const fetchAllData = useCallback(async () => {
     const sessId = typeof fee.admissionSessionId === 'object' ? fee.admissionSessionId?.id : fee.admissionSessionId;
 
     let parsedBreakdown = fee.feeBreakdown || [];
-    if (parsedBreakdown.length > 0) {
+    if (typeof parsedBreakdown === 'string') {
+      try { parsedBreakdown = JSON.parse(parsedBreakdown); } catch (e) { parsedBreakdown = []; }
+    }
+    if (Array.isArray(parsedBreakdown) && parsedBreakdown.length > 0) {
        parsedBreakdown = parsedBreakdown.map((b: any) => ({
          year: b.year,
          registrationFee: String(b.registrationFee || '0'),

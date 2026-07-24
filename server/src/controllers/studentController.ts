@@ -286,7 +286,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   }
 
   const billingCycle = feeStructure.billingCycle;
-  const durationInMonths = student.program.duration || 12; // stored in months, default to 12
+  const durationInMonths = student.program.duration || 12;
 
   let totalCycles = 1;
   let cycleLabel = 'Installment';
@@ -299,59 +299,124 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
     cycleLabel = 'Year';
   }
 
-  const baseFee = feeStructure.baseFee;
   const installments = [];
+  const invoices = student.invoices || [];
 
-  // Year 1 / Semester 1 is paid during enrollment
-  installments.push({
-    name: `${cycleLabel} 1`,
-    amount: baseFee,
-    status: 'paid',
-    dueDate: student.enrolledAt || student.createdAt,
-    paidAt: student.enrolledAt || student.createdAt
-  });
-
-  const invoices = student.invoices;
-
-  for (let i = 2; i <= totalCycles; i++) {
-    const name = `${cycleLabel} ${i}`;
-    const matchingInvoice = invoices.find((inv: any) => {
-      const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
-      return items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
-    });
-
-    let status = 'upcoming';
-    let paidAt = null;
-    let dueDate = new Date(student.createdAt);
-
-    if (cycleLabel === 'Semester') {
-      dueDate.setMonth(dueDate.getMonth() + (i - 1) * 6);
-    } else {
-      dueDate.setFullYear(dueDate.getFullYear() + (i - 1));
+  // Parse feeBreakdown from fee structure
+  let breakdownArray: any[] = [];
+  if (feeStructure.feeBreakdown) {
+    if (typeof feeStructure.feeBreakdown === 'string') {
+      try { breakdownArray = JSON.parse(feeStructure.feeBreakdown); } catch (e) {}
+    } else if (Array.isArray(feeStructure.feeBreakdown)) {
+      breakdownArray = feeStructure.feeBreakdown;
     }
+  }
 
-    if (matchingInvoice) {
-      if (matchingInvoice.status === 'paid') {
-        status = 'paid';
-        paidAt = matchingInvoice.paidAt || matchingInvoice.updatedAt;
+  // If breakdown is properly configured, use it
+  if (breakdownArray.length > 0) {
+    totalCycles = breakdownArray.length;
+    for (let i = 0; i < totalCycles; i++) {
+      const b = breakdownArray[i];
+      const name = `${cycleLabel} ${b.year || i + 1}`;
+      
+      const matchingInvoice = invoices.find((inv: any) => {
+        const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
+        return items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
+      });
+
+      let status = 'upcoming';
+      let paidAt = null;
+      let dueDate = new Date(student.createdAt);
+      
+      if (b.dueDate) {
+        dueDate = new Date(b.dueDate);
       } else {
-        status = 'unpaid';
-        dueDate = matchingInvoice.dueDate || dueDate;
+        if (i === 0) dueDate = new Date(student.enrolledAt || student.createdAt);
+        else {
+          if (cycleLabel === 'Semester') dueDate.setMonth(dueDate.getMonth() + i * 6);
+          else dueDate.setFullYear(dueDate.getFullYear() + i);
+        }
       }
-    }
 
-    if (student.status === 'dropout' && status !== 'paid') {
-      continue;
-    }
+      if (matchingInvoice) {
+        if (matchingInvoice.status === 'paid') {
+          status = 'paid';
+          paidAt = matchingInvoice.paidAt || matchingInvoice.updatedAt;
+        } else {
+          status = 'unpaid';
+          dueDate = matchingInvoice.dueDate || dueDate;
+        }
+      } else if (i === 0 && student.enrolledAt) {
+        status = 'paid';
+        paidAt = student.enrolledAt;
+      }
 
+      if (student.status === 'dropout' && status !== 'paid') {
+        continue;
+      }
+
+      const totalAmount = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0);
+
+      installments.push({
+        name,
+        amount: totalAmount,
+        status,
+        dueDate,
+        paidAt,
+        invoiceId: matchingInvoice?.id
+      });
+    }
+  } else {
+    // Fallback if no breakdown configured
+    const baseFee = feeStructure.baseFee;
     installments.push({
-      name,
+      name: `${cycleLabel} 1`,
       amount: baseFee,
-      status,
-      dueDate,
-      paidAt,
-      invoiceId: matchingInvoice?.id
+      status: 'paid',
+      dueDate: student.enrolledAt || student.createdAt,
+      paidAt: student.enrolledAt || student.createdAt
     });
+
+    for (let i = 2; i <= totalCycles; i++) {
+      const name = `${cycleLabel} ${i}`;
+      const matchingInvoice = invoices.find((inv: any) => {
+        const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
+        return items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
+      });
+
+      let status = 'upcoming';
+      let paidAt = null;
+      let dueDate = new Date(student.createdAt);
+
+      if (cycleLabel === 'Semester') {
+        dueDate.setMonth(dueDate.getMonth() + (i - 1) * 6);
+      } else {
+        dueDate.setFullYear(dueDate.getFullYear() + (i - 1));
+      }
+
+      if (matchingInvoice) {
+        if (matchingInvoice.status === 'paid') {
+          status = 'paid';
+          paidAt = matchingInvoice.paidAt || matchingInvoice.updatedAt;
+        } else {
+          status = 'unpaid';
+          dueDate = matchingInvoice.dueDate || dueDate;
+        }
+      }
+
+      if (student.status === 'dropout' && status !== 'paid') {
+        continue;
+      }
+
+      installments.push({
+        name,
+        amount: baseFee,
+        status,
+        dueDate,
+        paidAt,
+        invoiceId: matchingInvoice?.id
+      });
+    }
   }
 
   res.status(200).json({ success: true, installments });
