@@ -80,7 +80,7 @@ export function FinanceUniversityFeePanel() {
     } catch (err) {}
   }, []);
 
-  const fetchPayments = useCallback(async (status = activeTab) => {
+  const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
