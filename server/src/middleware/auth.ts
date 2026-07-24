@@ -37,6 +37,7 @@ export const protect = async (
           department: true,
           branch: true,
           studyCenter: true,
+          subDepartment: { include: { parentDept: true } },
         }
       });
 
@@ -63,6 +64,20 @@ export const authorize = (...roles: string[]) => {
     }
 
     if (roles.includes(req.user.role)) {
+      return next();
+    }
+
+    const deptType = req.user.department?.type || req.user.subDepartment?.parentDept?.type;
+    const isHrEmployee = req.user.role === 'employee' && deptType === 'hr';
+    const isFinanceEmployee = req.user.role === 'employee' && deptType === 'finance';
+    
+    // Allow HR employees access if hr_admin is in the allowed roles
+    if (isHrEmployee && roles.includes('hr_admin')) {
+      return next();
+    }
+    
+    // Allow Finance employees access if finance_admin is in the allowed roles
+    if (isFinanceEmployee && roles.includes('finance_admin')) {
       return next();
     }
 

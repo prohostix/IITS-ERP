@@ -113,8 +113,8 @@ export function Dashboard({ useDepartmentDashboard, initialTab }: DashboardProps
     // If we have a department type, route accordingly
     if (departmentType) {
       // Regular employees (not sub-dept managers) always get the employee dashboard
-      // Exception: Sales and Operations employees get their respective dashboards
-      if (!isSubDeptManager && departmentType !== 'sales' && departmentType !== 'operations') {
+      // Exception: Sales, Operations, HR, and Finance employees get their respective dashboards
+      if (!isSubDeptManager && !['sales', 'operations', 'hr', 'finance'].includes(departmentType)) {
         return <ModernEmployeeDashboard initialTab={initialTab} />;
       }
       // Sub-dept managers get the department admin dashboard

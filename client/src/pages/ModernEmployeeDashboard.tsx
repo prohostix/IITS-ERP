@@ -42,10 +42,21 @@ export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string })
   const [tasks, setTasks] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any>({});
-  const [activeTab, setActiveTab] = useState(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
+  const mappedInitialTab = initialTab === 'my-tasks' ? 'tasks' : 
+    initialTab === 'my-leaves' ? 'leaves' : 
+    initialTab === 'my-attendance' ? 'attendance' : 
+    initialTab === 'my-complaints' ? 'escalations' : initialTab;
+
+  const [activeTab, setActiveTab] = useState(mappedInitialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    if (initialTab) {
+      const mapped = initialTab === 'my-tasks' ? 'tasks' : 
+        initialTab === 'my-leaves' ? 'leaves' : 
+        initialTab === 'my-attendance' ? 'attendance' : 
+        initialTab === 'my-complaints' ? 'escalations' : initialTab;
+      setActiveTab(mapped);
+    }
   }, [initialTab]);
 
   useEffect(() => { fetchAll(); }, []);
