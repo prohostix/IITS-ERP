@@ -1420,6 +1420,8 @@ model ProgramFeeStructure {
   baseFee            Float
   universityFee      Float             @default(0)
   additionalFees     Json              @default("[]")
+  feeBreakdown       Json              @default("[]")
+  currency           String            @default("INR")
   commissionRate     Float             @default(0)
   createdBy          String
   createdAt          DateTime          @default(now())
