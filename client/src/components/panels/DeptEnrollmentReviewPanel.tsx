@@ -101,12 +101,12 @@ export function DeptEnrollmentReviewPanel() {
   const getProgramName = (e: Enrollment) =>
     e.program && typeof e.program === 'object'
       ? `${e.program.name} (${e.program.code})`
-      : (typeof e.programId === 'object' ? `${(e.programId).name} (${(e.programId).code})` : e.programId);
+      : (typeof e.programId === 'object' ? `${(e.programId as any).name} (${(e.programId as any).code})` : e.programId);
 
   const getCenterName = (e: Enrollment) =>
     e.studyCenter && typeof e.studyCenter === 'object'
       ? e.studyCenter.name
-      : (typeof e.studyCenterId === 'object' ? (e.studyCenterId).name : e.studyCenterId);
+      : (typeof e.studyCenterId === 'object' ? (e.studyCenterId as any).name : e.studyCenterId);
 
   return (
     <div className="space-y-6">
@@ -120,7 +120,7 @@ export function DeptEnrollmentReviewPanel() {
         </Button>
       </div>
 
-      <Tabs defaultValue="pending" value={activeTab} onValueChange={(val) => setActiveTab(val)} className="space-y-6">
+      <Tabs defaultValue="pending" value={activeTab} onValueChange={(val) => setActiveTab(val as 'pending' | 'history')} className="space-y-6">
         <TabsList>
           <TabsTrigger value="pending">Pending Reviews</TabsTrigger>
           <TabsTrigger value="history">Review History</TabsTrigger>
