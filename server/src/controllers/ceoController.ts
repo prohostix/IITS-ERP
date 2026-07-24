@@ -32,7 +32,10 @@ export const getAnalytics = asyncHandler(async (req: AuthRequest, res: Response)
 
   // 1. Employee Performance
   const users = await prisma.user.findMany({
-    where: { organizationId: orgId },
+    where: { 
+      organizationId: orgId,
+      role: { in: ['ops_admin', 'ops_sub_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'finance', 'sales', 'employee', 'staff'] }
+    },
     include: { assignedTasks: true }
   });
 
