@@ -23,6 +23,18 @@ interface Enrollment {
   status: string;
   createdAt: string;
   departmentRemarks?: string;
+  specialisation?: string;
+  abcId?: string;
+  debId?: string;
+  dob?: string;
+  religion?: string;
+  caste?: string;
+  fatherName?: string;
+  motherName?: string;
+  parentMobile?: string;
+  pincode?: string;
+  alternativePhone?: string;
+  admissionDate?: string;
   program?: { name: string; code: string };
   studyCenter?: { name: string };
   session?: { name: string };
@@ -230,26 +242,77 @@ export function DeptEnrollmentReviewPanel() {
                 )}
 
                 {/* Contact details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
+                  <div className="flex items-start gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-xs text-muted-foreground font-semibold">Email</p>
-                      <p className="font-medium">{selectedEnrollment.studentEmail}</p>
+                      <p className="font-medium break-all">{selectedEnrollment.studentEmail}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-start gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-xs text-muted-foreground font-semibold">Phone</p>
                       <p className="font-medium">{selectedEnrollment.studentPhone || 'N/A'}</p>
                     </div>
                   </div>
-                  <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
+                  <div className="flex items-start gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Alt Phone</p>
+                      <p className="font-medium">{selectedEnrollment.alternativePhone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold">Parent Mobile</p>
+                      <p className="font-medium">{selectedEnrollment.parentMobile || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 lg:col-span-2">
                     <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-xs text-muted-foreground font-semibold">Address</p>
-                      <p className="font-medium">{selectedEnrollment.studentAddress || 'N/A'}</p>
+                      <p className="font-medium">{selectedEnrollment.studentAddress || 'N/A'} {selectedEnrollment.pincode ? `- ${selectedEnrollment.pincode}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Details */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal Details
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/10 p-4 rounded-xl border text-sm">
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Date of Birth</span>
+                      <span className="font-medium">{selectedEnrollment.dob || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Father's Name</span>
+                      <span className="font-medium">{selectedEnrollment.fatherName || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Mother's Name</span>
+                      <span className="font-medium">{selectedEnrollment.motherName || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Religion</span>
+                      <span className="font-medium">{selectedEnrollment.religion || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Caste / Category</span>
+                      <span className="font-medium">{selectedEnrollment.caste || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">ABC ID</span>
+                      <span className="font-medium">{selectedEnrollment.abcId || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">DEB ID</span>
+                      <span className="font-medium">{selectedEnrollment.debId || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -261,12 +324,18 @@ export function DeptEnrollmentReviewPanel() {
                   </h4>
                   <div className="bg-muted/10 p-4 rounded-xl border text-sm space-y-2">
                     <div>
-                      <span className="text-xs text-muted-foreground block">Program</span>
-                      <span className="font-semibold">{getProgramName(selectedEnrollment)}</span>
+                      <span className="text-xs text-muted-foreground block font-semibold">Program</span>
+                      <span className="font-medium">{getProgramName(selectedEnrollment)}</span>
                     </div>
+                    {selectedEnrollment.specialisation && (
+                      <div>
+                        <span className="text-xs text-muted-foreground block font-semibold">Specialisation</span>
+                        <span className="font-medium">{selectedEnrollment.specialisation}</span>
+                      </div>
+                    )}
                     <div>
-                      <span className="text-xs text-muted-foreground block">Study Center</span>
-                      <span className="font-semibold">{getCenterName(selectedEnrollment)}</span>
+                      <span className="text-xs text-muted-foreground block font-semibold">Study Center</span>
+                      <span className="font-medium">{getCenterName(selectedEnrollment)}</span>
                     </div>
                     {selectedEnrollment.session?.name && (
                       <div>
