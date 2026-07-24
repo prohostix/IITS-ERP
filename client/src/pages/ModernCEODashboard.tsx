@@ -118,7 +118,7 @@ export function ModernCEODashboard({ initialTab }: { initialTab?: string }) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex-wrap h-auto gap-1">
+        <TabsList className="hidden flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="kpi-kra">KPI / KRA</TabsTrigger>

@@ -70,6 +70,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   internal_marks: 'marks',
   announcements: 'announcements',
   pending_verification: 'pending_verification',
+  'kpi-kra': 'kpi-kra',
+  activity_report: 'activity_report',
   program_allocations: 'program_allocations',
   enrollment_review: 'enrollment_review',
   // Sales
@@ -210,8 +212,9 @@ function App() {
 
     if (user.role === 'ceo') {
       return [
-        { id: 'dashboard', label: 'Dashboard' },
+        { id: 'dashboard', label: 'Overview' },
         { id: 'performance', label: 'Performance' },
+        { id: 'kpi-kra', label: 'KPI / KRA' },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
         { id: 'tasks', label: 'Tasks' },
@@ -219,8 +222,8 @@ function App() {
         { id: 'students', label: 'Students' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'leads', label: 'Leads' },
-        { id: 'center_admissions', label: 'Centers Admissions' },
         { id: 'center_onboarding', label: 'Centers & Enrollment' },
+        { id: 'activity_report', label: 'Activity Report' },
       ];
     }
 
