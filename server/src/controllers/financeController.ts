@@ -79,44 +79,7 @@ export const updateInvoice = asyncHandler(async (req: AuthRequest, res: Response
     include: { student: true }
   });
 
-  if (invoice.status === 'paid' && invoice.studentId && invoice.student) {
-    const feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: req.user.organizationId,
-        programId: invoice.student.programId
-      }
-    });
-
-    if (feeStructure && feeStructure.universityFee && feeStructure.universityFee > 0) {
-      const existing = await prisma.universityFeePayment.findFirst({
-        where: { invoiceId: invoice.id }
-      });
-
-      if (!existing) {
-        const paidInvoicesCount = await prisma.invoice.count({
-          where: {
-            studentId: invoice.studentId,
-            status: 'paid'
-          }
-        });
-
-        const isSemester = feeStructure.billingCycle === 'per_semester';
-        const count = paidInvoicesCount || 1;
-        const semesterOrYear = isSemester ? `Semester ${count}` : `Year ${count}`;
-
-        await prisma.universityFeePayment.create({
-          data: {
-            organizationId: req.user.organizationId,
-            studentId: invoice.studentId,
-            invoiceId: invoice.id,
-            semesterOrYear,
-            amount: feeStructure.universityFee,
-            status: 'pending'
-          }
-        });
-      }
-    }
-  }
+  // University fee payments are now generated at enrollment time for all cycles.
 
   res.json({ success: true, data: { ...invoice, _id: invoice.id } });
 });

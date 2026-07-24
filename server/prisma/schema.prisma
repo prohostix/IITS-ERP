@@ -1441,7 +1441,7 @@ model UniversityFeePayment {
   id             String       @id @default(uuid())
   organizationId String
   studentId      String
-  enrollmentId   String?      @unique
+  enrollmentId   String?
   invoiceId      String?
   semesterOrYear String       @default("1")
   amount         Float

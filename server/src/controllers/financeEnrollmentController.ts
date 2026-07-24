@@ -247,22 +247,37 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   }
 
   if (enrollment.studentId && enrollment.programId) {
-    if (feeStructure.universityFee && feeStructure.universityFee > 0) {
-      const existing = await prisma.universityFeePayment.findUnique({
+    if (feeStructure.universityFee !== undefined) {
+      const existing = await prisma.universityFeePayment.findMany({
         where: { enrollmentId: enrollment.id }
       });
 
-      if (!existing) {
-        await prisma.universityFeePayment.create({
-          data: {
+      if (existing.length === 0) {
+        const breakdown = (feeStructure.feeBreakdown as any[]) || [];
+        const isSemester = feeStructure.billingCycle === 'per_semester';
+        
+        if (breakdown.length > 0) {
+          const paymentsToCreate = breakdown.map((cycle, index) => ({
             organizationId: req.user.organizationId,
-            studentId: enrollment.studentId,
+            studentId: enrollment.studentId!,
             enrollmentId: enrollment.id,
-            semesterOrYear: feeStructure.billingCycle === 'per_semester' ? 'Semester 1' : 'Year 1',
-            amount: feeStructure.universityFee,
+            semesterOrYear: isSemester ? `Semester ${index + 1}` : `Year ${index + 1}`,
+            amount: Number(cycle.universityFee || 0),
             status: 'pending'
-          }
-        });
+          }));
+          await prisma.universityFeePayment.createMany({ data: paymentsToCreate });
+        } else if (feeStructure.universityFee > 0) {
+          await prisma.universityFeePayment.create({
+            data: {
+              organizationId: req.user.organizationId,
+              studentId: enrollment.studentId!,
+              enrollmentId: enrollment.id,
+              semesterOrYear: isSemester ? 'Semester 1' : 'Year 1',
+              amount: feeStructure.universityFee,
+              status: 'pending'
+            }
+          });
+        }
       }
     }
   }

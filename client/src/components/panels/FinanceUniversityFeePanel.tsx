@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -54,6 +54,7 @@ export function FinanceUniversityFeePanel() {
     paidAt: new Date().toISOString().split('T')[0],
     screenshot: null as File | null
   });
+  const [expandedStudents, setExpandedStudents] = useState<Record<string, boolean>>({});
 
   const fetchUniversities = useCallback(async () => {
     try {
@@ -79,6 +80,7 @@ export function FinanceUniversityFeePanel() {
 
       const res = await api.get(`/finance/university-fees?${query.toString()}`);
       setPayments(res.data.data || []);
+      setExpandedStudents({});
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load university fees');
     } finally {
@@ -125,6 +127,23 @@ export function FinanceUniversityFeePanel() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const groupedPayments = useMemo(() => {
+    return payments.reduce((acc, p) => {
+      if (!p.student) return acc;
+      if (!acc[p.student.id]) {
+        acc[p.student.id] = { student: p.student, cycles: [] };
+      }
+      acc[p.student.id].cycles.push(p);
+      return acc;
+    }, {} as Record<string, { student: Student, cycles: UniversityFeePayment[] }>);
+  }, [payments]);
+
+  const groupedArray = Object.values(groupedPayments);
+
+  const toggleStudent = (id: string) => {
+    setExpandedStudents(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -174,49 +193,69 @@ export function FinanceUniversityFeePanel() {
         <TabsContent value="pending" className="space-y-4 mt-2">
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}</div>
-          ) : payments.length === 0 ? (
+          ) : groupedArray.length === 0 ? (
             <Card><CardContent className="py-16 text-center text-muted-foreground">
               <DollarSign className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p>No pending university fee payments found.</p>
             </CardContent></Card>
           ) : (
             <div className="rounded-xl border border-border overflow-hidden bg-card text-card-foreground">
-<div className="overflow-x-auto w-full">
-<table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Program</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Cycle</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Uni Fee</th>
-                    <th className="text-right p-3 font-medium text-muted-foreground">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {payments.map(p => (
-                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-3">
-                        <p className="font-medium text-sm">{p.student?.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.student?.enrollmentNo}</p>
-                      </td>
-                      <td className="p-3">
-                        <p className="text-sm">{p.student?.program?.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.student?.center?.name}</p>
-                      </td>
-                      <td className="p-3">
-                        <Badge variant="outline">{p.semesterOrYear}</Badge>
-                      </td>
-                      <td className="p-3 font-bold text-blue-600">
-                        ₹{p.amount.toLocaleString()}
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
-                      </td>
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="w-10"></th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Program</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Pending</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-</div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {groupedArray.map(group => {
+                      const isExpanded = expandedStudents[group.student.id];
+                      const totalAmount = group.cycles.reduce((sum, c) => sum + c.amount, 0);
+
+                      return (
+                        <React.Fragment key={group.student.id}>
+                          <tr 
+                            className="hover:bg-muted/20 transition-colors cursor-pointer"
+                            onClick={() => toggleStudent(group.student.id)}
+                          >
+                            <td className="p-3 text-center text-muted-foreground">
+                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </td>
+                            <td className="p-3">
+                              <p className="font-medium text-sm">{group.student?.name}</p>
+                              <p className="text-xs text-muted-foreground">{group.student?.enrollmentNo}</p>
+                            </td>
+                            <td className="p-3">
+                              <p className="text-sm">{group.student?.program?.name}</p>
+                              <p className="text-xs text-muted-foreground">{group.student?.center?.name}</p>
+                            </td>
+                            <td className="p-3 text-right font-bold text-blue-600">
+                              ₹{totalAmount.toLocaleString()}
+                            </td>
+                          </tr>
+                          {isExpanded && group.cycles.map(p => (
+                            <tr key={p.id} className="bg-muted/5 border-t border-border">
+                              <td></td>
+                              <td colSpan={2} className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <Badge variant="outline">{p.semesterOrYear}</Badge>
+                                  <span className="font-medium">₹{p.amount.toLocaleString()}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-right">
+                                <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </TabsContent>
@@ -224,142 +263,169 @@ export function FinanceUniversityFeePanel() {
         <TabsContent value="paid" className="space-y-4 mt-2">
           {loading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}</div>
-          ) : payments.length === 0 ? (
+          ) : groupedArray.length === 0 ? (
             <Card><CardContent className="py-16 text-center text-muted-foreground">
               <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p>No paid university fee payments recorded yet.</p>
             </CardContent></Card>
           ) : (
             <div className="rounded-xl border border-border overflow-hidden bg-card text-card-foreground">
-<div className="overflow-x-auto w-full">
-<table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Program</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Paid Details</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Amount</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Proof</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {payments.map(p => (
-                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-3">
-                        <p className="font-medium text-sm">{p.student?.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.student?.enrollmentNo}</p>
-                      </td>
-                      <td className="p-3">
-                        <p className="text-sm">{p.student?.program?.name}</p>
-                        <p className="text-xs text-muted-foreground">{p.semesterOrYear}</p>
-                      </td>
-                      <td className="p-3">
-                        <p className="text-xs font-mono">Ref: {p.referenceNo || 'N/A'}</p>
-                        {p.paidAt && (
-                          <p className="text-[11px] text-muted-foreground">
-                            Date: {new Date(p.paidAt).toLocaleDateString()}
-                          </p>
-                        )}
-                      </td>
-                      <td className="p-3 font-bold text-green-600">
-                        ₹{p.amount.toLocaleString()}
-                      </td>
-                      <td className="p-3">
-                        {p.screenshot ? (
-                          <a
-                            href={`${(import.meta.env.VITE_API_URL || '').replace('/api/v1', '')}${p.screenshot}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <FileText className="w-3.5 h-3.5" /> View Proof
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="w-10"></th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Student</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Program</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Paid</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-</div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {groupedArray.map(group => {
+                      const isExpanded = expandedStudents[group.student.id];
+                      const totalAmount = group.cycles.reduce((sum, c) => sum + c.amount, 0);
+
+                      return (
+                        <React.Fragment key={group.student.id}>
+                          <tr 
+                            className="hover:bg-muted/20 transition-colors cursor-pointer"
+                            onClick={() => toggleStudent(group.student.id)}
+                          >
+                            <td className="p-3 text-center text-muted-foreground">
+                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </td>
+                            <td className="p-3">
+                              <p className="font-medium text-sm">{group.student?.name}</p>
+                              <p className="text-xs text-muted-foreground">{group.student?.enrollmentNo}</p>
+                            </td>
+                            <td className="p-3">
+                              <p className="text-sm">{group.student?.program?.name}</p>
+                              <p className="text-xs text-muted-foreground">{group.student?.center?.name}</p>
+                            </td>
+                            <td className="p-3 text-right font-bold text-green-600">
+                              ₹{totalAmount.toLocaleString()}
+                            </td>
+                          </tr>
+                          {isExpanded && group.cycles.map(p => (
+                            <tr key={p.id} className="bg-muted/5 border-t border-border">
+                              <td></td>
+                              <td className="p-3">
+                                <Badge variant="outline">{p.semesterOrYear}</Badge>
+                                <span className="ml-3 font-medium text-green-600">₹{p.amount.toLocaleString()}</span>
+                              </td>
+                              <td className="p-3">
+                                <p className="text-xs font-mono">Ref: {p.referenceNo || 'N/A'}</p>
+                                {p.paidAt && (
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Date: {new Date(p.paidAt).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                {p.screenshot ? (
+                                  <a
+                                    href={`${(import.meta.env.VITE_API_URL || '').replace('/api/v1', '')}${p.screenshot}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" /> View Proof
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </TabsContent>
       </Tabs>
 
-      <Dialog open={payDialog.open} onOpenChange={(o) => setPayDialog(d => ({ ...d, open: o }))}>
-        <DialogContent className="max-w-md">
+      <Dialog open={payDialog.open} onOpenChange={o => !o && setPayDialog({ open: false, payment: null })}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Record University Fee Payment</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="bg-muted/40 p-3 rounded-lg text-sm space-y-1">
-              <p><strong>Student:</strong> {payDialog.payment?.student?.name}</p>
-              <p><strong>Program:</strong> {payDialog.payment?.student?.program?.name}</p>
-              <p><strong>University Fee Amount:</strong> ₹{payDialog.payment?.amount.toLocaleString()}</p>
-              <p><strong>Billing Cycle:</strong> {payDialog.payment?.semesterOrYear}</p>
-            </div>
+          {payDialog.payment && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-muted rounded-xl flex justify-between items-center text-sm">
+                <div>
+                  <p className="font-medium">{payDialog.payment.student.name}</p>
+                  <p className="text-muted-foreground">{payDialog.payment.semesterOrYear}</p>
+                </div>
+                <p className="font-bold text-lg">₹{payDialog.payment.amount.toLocaleString()}</p>
+              </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="refNo">Reference / Transaction Number</Label>
-              <Input
-                id="refNo"
-                value={form.referenceNo}
-                onChange={(e) => setForm(f => ({ ...f, referenceNo: e.target.value }))}
-                placeholder="e.g. TXN982741982"
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="payDate">Payment Date</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <Label>Reference No (Optional)</Label>
                 <Input
-                  id="payDate"
-                  type="date"
-                  value={form.paidAt}
-                  onChange={(e) => setForm(f => ({ ...f, paidAt: e.target.value }))}
-                  className="pl-9"
-                  required
+                  value={form.referenceNo}
+                  onChange={e => setForm({ ...form, referenceNo: e.target.value })}
+                  placeholder="e.g. UTR123456"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="proof">Upload Receipt / Screenshot (Optional)</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="proof"
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                      setForm(f => ({ ...f, screenshot: files[0] }));
-                    }
-                  }}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2 h-10 border-dashed"
-                  onClick={() => document.getElementById('proof')?.click()}
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    className="pl-9"
+                    value={form.paidAt}
+                    onChange={e => setForm({ ...form, paidAt: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Proof (Screenshot)</Label>
+                <Label
+                  htmlFor="screenshot-upload"
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors",
+                    form.screenshot ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                  )}
                 >
-                  <Upload className="w-4 h-4" />
-                  {form.screenshot ? form.screenshot.name : 'Select file'}
-                </Button>
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className={cn("w-8 h-8 mb-3", form.screenshot ? "text-primary" : "text-muted-foreground")} />
+                    <p className="mb-2 text-sm text-muted-foreground">
+                      {form.screenshot ? (
+                        <span className="font-medium text-foreground">{form.screenshot.name}</span>
+                      ) : (
+                        <span><span className="font-semibold text-foreground">Click to upload</span> proof</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG, PDF (Max 2MB)</p>
+                  </div>
+                  <input
+                    id="screenshot-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*,application/pdf"
+                    onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        setForm({ ...form, screenshot: e.target.files[0] });
+                      }
+                    }}
+                  />
+                </Label>
               </div>
             </div>
-          </div>
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayDialog({ open: false, payment: null })}>Cancel</Button>
-            <Button onClick={handlePaySubmit} disabled={submitting || !form.referenceNo}>
-              {submitting ? 'Submitting...' : 'Mark Paid'}
+            <Button onClick={handlePaySubmit} disabled={submitting}>
+              {submitting ? 'Saving...' : 'Mark as Paid'}
             </Button>
           </DialogFooter>
         </DialogContent>
