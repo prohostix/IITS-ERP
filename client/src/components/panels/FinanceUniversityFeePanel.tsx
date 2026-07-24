@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -45,6 +45,9 @@ export function FinanceUniversityFeePanel() {
   const [centers, setCenters] = useState<any[]>([]);
   const [universityFilter, setUniversityFilter] = useState('');
   const [centerFilter, setCenterFilter] = useState('');
+  const [programFilter, setProgramFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [programs, setPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'paid'>('pending');
   const [payDialog, setPayDialog] = useState<{ open: boolean; payment: UniversityFeePayment | null }>({ open: false, payment: null });
@@ -63,6 +66,13 @@ export function FinanceUniversityFeePanel() {
     } catch (err) {}
   }, []);
 
+  const fetchPrograms = useCallback(async () => {
+    try {
+      const res = await api.get('/operations/programs');
+      setPrograms(res.data.data || []);
+    } catch (err) {}
+  }, []);
+
   const fetchCenters = useCallback(async () => {
     try {
       const res = await api.get('/operations/centers');
@@ -77,6 +87,8 @@ export function FinanceUniversityFeePanel() {
       query.append('status', status);
       if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
       if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
+      if (programFilter && programFilter !== 'all') query.append('programId', programFilter);
+      if (search) query.append('search', search);
 
       const res = await api.get(`/finance/university-fees?${query.toString()}`);
       setPayments(res.data.data || []);
@@ -86,13 +98,14 @@ export function FinanceUniversityFeePanel() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, universityFilter, centerFilter]);
+  }, [activeTab, universityFilter, centerFilter, programFilter, search]);
 
   useEffect(() => {
     fetchPayments();
     fetchUniversities();
     fetchCenters();
-  }, [fetchPayments, fetchUniversities, fetchCenters]);
+    fetchPrograms();
+  }, [fetchPayments, fetchUniversities, fetchCenters, fetchPrograms]);
 
   const handlePayClick = (p: UniversityFeePayment) => {
     setPayDialog({ open: true, payment: p });
@@ -158,9 +171,19 @@ export function FinanceUniversityFeePanel() {
         </Button>
       </div>
 
-      <div className="flex gap-2">
+      
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by student name or enrollment no..."
+            className="pl-9"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         <Select value={universityFilter} onValueChange={setUniversityFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Universities" />
           </SelectTrigger>
           <SelectContent>
@@ -170,12 +193,22 @@ export function FinanceUniversityFeePanel() {
         </Select>
 
         <Select value={centerFilter} onValueChange={setCenterFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Centers" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Centers</SelectItem>
             {centers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={programFilter} onValueChange={setProgramFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="All Programs" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Programs</SelectItem>
+            {programs.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

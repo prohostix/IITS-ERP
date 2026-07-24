@@ -3,6 +3,7 @@ import { RefreshCw, GraduationCap, Search, ChevronDown, ChevronUp, User, CheckCi
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -68,6 +69,8 @@ export function SalesStudentPipelinePanel() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [programFilter, setProgramFilter] = useState('all');
+  const [centerFilter, setCenterFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchPipeline = async () => {
@@ -91,9 +94,14 @@ export function SalesStudentPipelinePanel() {
       e.studentEmail.toLowerCase().includes(search.toLowerCase()) ||
       e.program.name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesProgram = programFilter === 'all' || (e.program && e.program.name === programFilter);
+    const matchesCenter = centerFilter === 'all' || (e.studyCenter && e.studyCenter.name === centerFilter);
+    return matchesSearch && matchesStatus && matchesProgram && matchesCenter;
   });
 
+  const uniquePrograms = Array.from(new Set(enrollments.map(e => e.program?.name).filter(Boolean)));
+  const uniqueCenters = Array.from(new Set(enrollments.map(e => e.studyCenter?.name).filter(Boolean)));
+  
   const statusCfg = (status: string) => STATUS_CONFIG[status] || { label: status.replace(/_/g, ' '), color: 'bg-muted text-muted-foreground', icon: <Clock className="w-3 h-3" /> };
 
   return (
@@ -136,7 +144,8 @@ export function SalesStudentPipelinePanel() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3">
+      
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -146,6 +155,24 @@ export function SalesStudentPipelinePanel() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <Select value={programFilter} onValueChange={setProgramFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="All Programs" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Programs</SelectItem>
+            {uniquePrograms.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={centerFilter} onValueChange={setCenterFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="All Centers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Centers</SelectItem>
+            {uniqueCenters.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Enrollment list */}
