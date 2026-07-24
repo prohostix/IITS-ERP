@@ -70,6 +70,8 @@ export function StudentsPanel() {
   const [statusFilter, setStatusFilter] = useState('');
   const [universityFilter, setUniversityFilter] = useState('');
   const [centerFilter, setCenterFilter] = useState('');
+  const [programFilter, setProgramFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -78,6 +80,8 @@ export function StudentsPanel() {
       if (statusFilter && statusFilter !== 'all') query.append('status', statusFilter);
       if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
       if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
+      if (programFilter && programFilter !== 'all') query.append('programId', programFilter);
+      if (searchQuery) query.append('search', searchQuery);
       
       const response = await api.get(`/students?${query.toString()}`);
       setStudents(response.data.data || []);
@@ -85,7 +89,7 @@ export function StudentsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, universityFilter, centerFilter]);
+  }, [statusFilter, universityFilter, centerFilter, programFilter, searchQuery]);
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -337,6 +341,20 @@ export function StudentsPanel() {
             </SelectContent>
           </Select>
 
+          <Select value={programFilter} onValueChange={setProgramFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Programs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs</SelectItem>
+              {programs.filter(p => p && (p.id || p.id)).map((prog) => (
+                <SelectItem key={prog.id || prog.id} value={(prog.id || prog.id).toString()}>
+                  {prog.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {user?.role !== 'center_admin' && (
             <Select value={centerFilter} onValueChange={setCenterFilter}>
               <SelectTrigger className="w-[180px]">
@@ -351,6 +369,15 @@ export function StudentsPanel() {
             </Select>
           )}
         </div>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <Input 
+          placeholder="Search by name, email, or enrollment no..." 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-md"
+        />
       </div>
 
       <Card>

@@ -45,9 +45,11 @@ export function UniversityStudentsPanel() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [programFilter, setProgramFilter] = useState('all');
+  const [centerFilter, setCenterFilter] = useState('all');
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [centers, setCenters] = useState<{ id: string; name: string }[]>([]);
 
-  useEffect(() => { fetchUniversities(); }, []);
+  useEffect(() => { fetchUniversities(); fetchCenters(); }, []);
 
   const fetchUniversities = async () => {
     setLoading(true);
@@ -58,6 +60,15 @@ export function UniversityStudentsPanel() {
       toast.error('Failed to load universities');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCenters = async () => {
+    try {
+      const res = await api.get('/operations/centers');
+      setCenters(res.data.data || []);
+    } catch {
+      toast.error('Failed to load centers');
     }
   };
 
@@ -87,6 +98,7 @@ export function UniversityStudentsPanel() {
       const params: any = {};
       if (search) params.search = search;
       if (programFilter !== 'all') params.programId = programFilter;
+      if (centerFilter !== 'all') params.studyCenterId = centerFilter;
       const res = await api.get(`/operations/universities/${selectedUniversity.id}/students`, { params });
       setEnrollments(res.data.data || []);
     } catch {
@@ -98,7 +110,7 @@ export function UniversityStudentsPanel() {
 
   useEffect(() => {
     if (selectedUniversity) refreshStudents();
-  }, [search, programFilter, selectedUniversity, refreshStudents]);
+  }, [search, programFilter, centerFilter, selectedUniversity, refreshStudents]);
 
   // ── University list view ──────────────────────────────────────────────────
   if (!selectedUniversity) {
@@ -192,6 +204,17 @@ export function UniversityStudentsPanel() {
             <SelectItem value="all">All Programs</SelectItem>
             {programs.map(p => (
               <SelectItem key={p.id} value={p.id}>{(p).name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={centerFilter} onValueChange={setCenterFilter}>
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder="All Centers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Centers</SelectItem>
+            {centers.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

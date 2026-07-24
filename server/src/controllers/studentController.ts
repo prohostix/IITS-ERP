@@ -21,7 +21,18 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     where.centerId = req.query.centerId as string;
   }
   if (req.query.universityId) {
-    where.program = { universityId: req.query.universityId as string };
+    where.program = { ...where.program, universityId: req.query.universityId as string };
+  }
+  if (req.query.programId) {
+    where.programId = req.query.programId as string;
+  }
+  if (req.query.search) {
+    const search = req.query.search as string;
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+      { enrollmentNo: { contains: search, mode: 'insensitive' } }
+    ];
   }
 
   const students = await prisma.student.findMany({
