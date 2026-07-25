@@ -61,7 +61,7 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
 export const getLeaveAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const allocation = await prisma.leaveAllocation.findUnique({
-    where: { organizationId_userId_year: { organizationId: req.user.organizationId, userId: req.params.userId, year } }
+    where: { userId_year: { userId: req.params.userId, year } }
   });
   res.json({ success: true, data: allocation });
 });
@@ -69,7 +69,7 @@ export const getLeaveAllocation = asyncHandler(async (req: AuthRequest, res: Res
 export const upsertLeaveAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {
   const year = Number(req.body.year) || new Date().getFullYear();
   const allocation = await prisma.leaveAllocation.upsert({
-    where: { organizationId_userId_year: { organizationId: req.user.organizationId, userId: req.params.userId, year } },
+    where: { userId_year: { userId: req.params.userId, year } },
     update: { ...req.body, createdBy: req.user.id },
     create: { ...req.body, userId: req.params.userId, organizationId: req.user.organizationId, year, createdBy: req.user.id }
   });
@@ -85,7 +85,7 @@ export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, re
   
   const results = await Promise.all(users.map(u => 
     prisma.leaveAllocation.upsert({
-      where: { organizationId_userId_year: { organizationId: req.user.organizationId, userId: u.id, year } },
+      where: { userId_year: { userId: u.id, year } },
       update: { casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum },
       create: { userId: u.id, organizationId: req.user.organizationId, year, casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum, createdBy: req.user.id }
     })
