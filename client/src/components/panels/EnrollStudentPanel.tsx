@@ -210,16 +210,17 @@ export function EnrollStudentPanel() {
       try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
     }
     
+    const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
+    const nonGstFees = addFees.filter(f => f.label !== 'GST');
+    const additionalFeesTotal = nonGstFees.reduce((s, f) => s + f.amount, 0);
+
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0]; // first payment config
-      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0);
+      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
     } else {
-      const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
-      const nonGstFees = addFees.filter(f => f.label !== 'GST');
-      subtotal = fs.baseFee + nonGstFees.reduce((s, f) => s + f.amount, 0);
+      subtotal = fs.baseFee + additionalFeesTotal;
     }
 
-    const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
     const gstEntry = addFees.find(f => f.label === 'GST');
     const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
     

@@ -40,7 +40,7 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="flex-wrap h-auto gap-1">
+        <TabsList className="hidden flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="enroll">Enroll Student</TabsTrigger>
