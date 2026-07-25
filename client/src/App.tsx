@@ -280,6 +280,7 @@ function App() {
         { id: 'center_wallet', label: 'Wallet' },
         { id: 'enroll_student', label: 'Enroll Student' },
         { id: 'center_enrollments', label: 'My Enrollments' },
+        { id: 'students', label: 'Students' },
         { id: 'center_programs', label: 'Programs & Materials' },
         { id: 'tasks', label: 'Tasks' },
       ];
