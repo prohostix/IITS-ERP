@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export function ModernStudentDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+export function ModernStudentDashboard() {
   const { logout } = useAuth();
   const [student, setStudent] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);

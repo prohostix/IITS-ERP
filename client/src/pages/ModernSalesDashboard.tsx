@@ -58,6 +58,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       onNavigate(tab === 'overview' || tab === 'my_subdept' ? 'dashboard' : tab);
     }
   };
+  void handleTabChange;
 
   useEffect(() => {
     setActiveTab(initialTab || 'overview');
@@ -494,7 +495,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-base">Recent Leads</CardTitle>
-                  <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => handleTabChange('leads')}>
+                  <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('leads')}>
                     View All <ArrowUpRight className="ml-1 w-3 h-3" />
                   </Button>
                 </CardHeader>
@@ -517,7 +518,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-base">My Targets</CardTitle>
-                    <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => handleTabChange('targets')}>
+                    <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('targets')}>
                       View All <ArrowUpRight className="ml-1 w-3 h-3" />
                     </Button>
                   </CardHeader>

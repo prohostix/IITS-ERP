@@ -31,7 +31,7 @@ import { SubOpsPortalPanel } from '@/components/panels/SubOpsPortalPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalationsPanel';
 
-export function ModernEmployeeDashboard({ initialTab }: { initialTab?: string }) {
+export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab?: string; onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
   // Determine sub-dept type from populated subDepartmentId object
