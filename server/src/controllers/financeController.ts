@@ -1039,13 +1039,12 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
     programFilter.programId = programId ? (progIds.includes(programId) ? programId : '__none__') : { in: progIds };
   }
 
-  // Find enrollments whose session has a reregPaymentClosingDate set
+  // Find all enrollments matching filters
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: orgId,
       ...(centerId && { studyCenterId: centerId }),
       ...programFilter,
-      session: { reregPaymentClosingDate: { not: null } },
       ...(search && {
         OR: [
           { studentName: { contains: search, mode: 'insensitive' } },
@@ -1056,39 +1055,120 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
       }),
     },
     include: {
-      program: { select: { id: true, name: true, university: { select: { id: true, name: true } } } },
-      session: { select: { id: true, name: true, reregPaymentClosingDate: true } },
+      program: { select: { id: true, name: true, duration: true, university: { select: { id: true, name: true } } } },
+      session: { select: { id: true, name: true } },
       studyCenter: { select: { id: true, name: true, branchName: true } },
-      student: { select: { id: true, reregStatus: true, status: true } },
+      student: { select: { id: true, createdAt: true, enrolledAt: true, invoices: true, status: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
 
-  // Determine rereg payment status from student's reregStatus JSON
-  const rows = enrollments.map(e => {
-    const reregJson: any = e.student?.reregStatus || {};
-    // Treat as pending if no reregStatus or explicit pending/not_paid
-    const reregPaid = reregJson?.paid === true || reregJson?.status === 'paid';
-    const closingDate = e.session?.reregPaymentClosingDate;
-    return {
-      id: e.id,
-      studentName: e.studentName,
-      studentEmail: e.studentEmail,
-      studentPhone: e.studentPhone,
-      enrollmentNumber: e.enrollmentNumber || '',
-      program: e.program?.name || '',
-      university: (e.program as any)?.university?.name || '',
-      center: e.studyCenter?.name || '',
-      branchName: e.studyCenter?.branchName || '',
-      session: e.session?.name || '',
-      reregClosingDate: closingDate,
-      reregPaymentStatus: reregPaid ? 'Paid' : 'Pending',
-      enrollmentStatus: e.status,
-      daysUntilDeadline: closingDate
-        ? Math.ceil((new Date(closingDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        : null,
-    };
-  }).filter(r => r.reregPaymentStatus === 'Pending'); // Only pending
+  // Pre-fetch all fee structures for this organization to avoid N+1 queries
+  const feeStructures = await prisma.programFeeStructure.findMany({
+    where: { organizationId: orgId }
+  });
+
+  const rows: any[] = [];
+
+  for (const e of enrollments) {
+    if (!e.student) continue;
+
+    const sessionId = e.sessionId || null;
+    
+    // Find candidate fee structures
+    const candidates = feeStructures.filter((c: any) => 
+      (c.programId === e.programId) ||
+      (c.level === 'university' && c.universityId === (e.program as any).university?.id)
+    );
+
+    // Rank candidate fee structures
+    const sorted = candidates.map(c => {
+      let score = 0;
+      if (c.level === 'program' && c.programId === e.programId) {
+        if (c.admissionSessionId === sessionId) score = 100;
+        else if (c.admissionSessionId === null) score = 80;
+        else score = 60;
+      } else if (c.level === 'university' && c.universityId === (e.program as any).university?.id) {
+        if (c.admissionSessionId === sessionId) score = 40;
+        else if (c.admissionSessionId === null) score = 20;
+        else score = 10;
+      }
+      return { c, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const feeStructure = sorted[0]?.c;
+    if (!feeStructure) continue;
+
+    let breakdownArray: any[] = [];
+    if (feeStructure.feeBreakdown) {
+      if (typeof feeStructure.feeBreakdown === 'string') {
+        try { breakdownArray = JSON.parse(feeStructure.feeBreakdown); } catch (err) {}
+      } else if (Array.isArray(feeStructure.feeBreakdown)) {
+        breakdownArray = feeStructure.feeBreakdown;
+      }
+    }
+
+    if (breakdownArray.length === 0) continue;
+
+    const billingCycle = feeStructure.billingCycle;
+    let cycleLabel = 'Installment';
+    if (billingCycle === 'per_semester') cycleLabel = 'Semester';
+    else if (billingCycle === 'per_year' || billingCycle === 'yearly') cycleLabel = 'Year';
+
+    const invoices = e.student.invoices || [];
+
+    let nextUnpaidDate: Date | null = null;
+    let nextUnpaidName = '';
+
+    // Find the next UNPAID installment
+    // We typically consider 2nd installment onwards (i > 0) as "Re-Registration",
+    // but if the 1st installment is unpaid, it's also a pending fee.
+    for (let i = 0; i < breakdownArray.length; i++) {
+      const b = breakdownArray[i];
+      const name = `${cycleLabel} ${b.year || i + 1}`;
+      
+      const isPaid = invoices.some((inv: any) => {
+        const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
+        return inv.status === 'paid' && items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
+      });
+
+      if (!isPaid) {
+        // This is the next unpaid installment
+        nextUnpaidName = name;
+        if (b.dueDate) {
+          nextUnpaidDate = new Date(b.dueDate);
+        } else {
+          nextUnpaidDate = new Date(e.student.enrolledAt || e.student.createdAt);
+          if (i > 0) {
+            if (cycleLabel === 'Semester') nextUnpaidDate.setMonth(nextUnpaidDate.getMonth() + i * 6);
+            else nextUnpaidDate.setFullYear(nextUnpaidDate.getFullYear() + i);
+          }
+        }
+        break; // Stop at the first unpaid installment
+      }
+    }
+
+    if (nextUnpaidName && nextUnpaidDate) {
+      const closingDate = nextUnpaidDate.toISOString();
+      const sessionStr = e.session?.name ? `${e.session.name} - ${nextUnpaidName}` : nextUnpaidName;
+      rows.push({
+        id: e.id,
+        studentName: e.studentName,
+        studentEmail: e.studentEmail,
+        studentPhone: e.studentPhone,
+        enrollmentNumber: e.enrollmentNumber || '',
+        program: e.program?.name || '',
+        university: (e.program as any)?.university?.name || '',
+        center: e.studyCenter?.name || '',
+        branchName: e.studyCenter?.branchName || '',
+        session: sessionStr,
+        reregClosingDate: closingDate,
+        reregPaymentStatus: 'Pending',
+        enrollmentStatus: e.status,
+        daysUntilDeadline: Math.ceil((nextUnpaidDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+      });
+    }
+  }
 
   res.json({ success: true, count: rows.length, data: rows });
 });
