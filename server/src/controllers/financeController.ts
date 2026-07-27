@@ -1043,6 +1043,7 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: orgId,
+      status: 'enrolled',
       ...(centerId && { studyCenterId: centerId }),
       ...programFilter,
       ...(search && {
@@ -1119,10 +1120,10 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
 
     let nextUnpaidDate: Date | null = null;
     let nextUnpaidName = '';
+    let isInitialPaymentPending = false;
 
-    // Find the next UNPAID installment, starting from the 2nd installment (i = 1)
-    // The 1st installment (i = 0) is paid during initial enrollment, so it is not a "Re-Registration".
-    for (let i = 1; i < breakdownArray.length; i++) {
+    // Find the first UNPAID installment
+    for (let i = 0; i < breakdownArray.length; i++) {
       const b = breakdownArray[i];
       const name = `${cycleLabel} ${b.year || i + 1}`;
       
@@ -1132,7 +1133,12 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
       });
 
       if (!isPaid) {
-        // This is the next unpaid installment
+        if (i === 0) {
+          isInitialPaymentPending = true;
+          break; // They haven't even paid the first installment, so they are not eligible for re-reg
+        }
+
+        // This is the next unpaid installment (i > 0)
         nextUnpaidName = name;
         if (b.dueDate) {
           nextUnpaidDate = new Date(b.dueDate);
@@ -1144,6 +1150,8 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
         break; // Stop at the first unpaid installment
       }
     }
+
+    if (isInitialPaymentPending) continue;
 
     if (nextUnpaidName && nextUnpaidDate) {
       const closingDate = nextUnpaidDate.toISOString();
