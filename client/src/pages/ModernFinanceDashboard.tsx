@@ -45,6 +45,7 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
 import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
+import { FinanceReregPendingReportPanel } from '@/components/panels/FinanceReregPendingReportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -136,6 +137,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'total_report': return <FinanceTotalReportPanel />;
       case 'commissions': return <CommissionsPanel />;
+      case 'rereg_pending_report': return <FinanceReregPendingReportPanel />;
       default: return null;
     }
   };
@@ -175,6 +177,7 @@ export function getFinanceNavItems() {
     { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'sales_targets', label: 'Sales Targets' },
     { id: 'total_report', label: 'Total Data Report' },
+    { id: 'rereg_pending_report', label: 'Re-Reg Pending Report' },
     { id: 'commissions', label: 'Commissions' },
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'tasks', label: 'Tasks' },

@@ -1022,4 +1022,73 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
   res.json({ success: true, count: rows.length, data: rows });
 });
 
+// ─── Re-Reg Pending Report ────────────────────────────────────────────────────
+export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { centerId, universityId, programId, search } = req.query as any;
+  const orgId = req.user.organizationId;
 
+  // Build program filter
+  let programFilter: any = {};
+  if (programId) programFilter.programId = programId;
+  if (universityId) {
+    // Filter via program's university
+    const progIds = (await prisma.program.findMany({
+      where: { organizationId: orgId, universityId },
+      select: { id: true },
+    })).map(p => p.id);
+    programFilter.programId = programId ? (progIds.includes(programId) ? programId : '__none__') : { in: progIds };
+  }
+
+  // Find enrollments whose session has a reregPaymentClosingDate set
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      organizationId: orgId,
+      ...(centerId && { studyCenterId: centerId }),
+      ...programFilter,
+      session: { reregPaymentClosingDate: { not: null } },
+      ...(search && {
+        OR: [
+          { studentName: { contains: search, mode: 'insensitive' } },
+          { studentEmail: { contains: search, mode: 'insensitive' } },
+          { studentPhone: { contains: search, mode: 'insensitive' } },
+          { enrollmentNumber: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    },
+    include: {
+      program: { select: { id: true, name: true, university: { select: { id: true, name: true } } } },
+      session: { select: { id: true, name: true, reregPaymentClosingDate: true } },
+      studyCenter: { select: { id: true, name: true, branchName: true } },
+      student: { select: { id: true, reregStatus: true, status: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Determine rereg payment status from student's reregStatus JSON
+  const rows = enrollments.map(e => {
+    const reregJson: any = e.student?.reregStatus || {};
+    // Treat as pending if no reregStatus or explicit pending/not_paid
+    const reregPaid = reregJson?.paid === true || reregJson?.status === 'paid';
+    const closingDate = e.session?.reregPaymentClosingDate;
+    return {
+      id: e.id,
+      studentName: e.studentName,
+      studentEmail: e.studentEmail,
+      studentPhone: e.studentPhone,
+      enrollmentNumber: e.enrollmentNumber || '',
+      program: e.program?.name || '',
+      university: (e.program as any)?.university?.name || '',
+      center: e.studyCenter?.name || '',
+      branchName: e.studyCenter?.branchName || '',
+      session: e.session?.name || '',
+      reregClosingDate: closingDate,
+      reregPaymentStatus: reregPaid ? 'Paid' : 'Pending',
+      enrollmentStatus: e.status,
+      daysUntilDeadline: closingDate
+        ? Math.ceil((new Date(closingDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        : null,
+    };
+  }).filter(r => r.reregPaymentStatus === 'Pending'); // Only pending
+
+  res.json({ success: true, count: rows.length, data: rows });
+});

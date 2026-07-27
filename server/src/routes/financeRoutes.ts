@@ -39,6 +39,7 @@ import {
   getUniversityFeePayments,
   payUniversityFee,
   getTotalReport,
+  getReregPendingReport,
 } from '../controllers/financeController.js';
 import { upload } from '../middleware/upload.js';
 import {
@@ -167,5 +168,8 @@ router.put('/payroll-batches/:id/complete-payment', authorize('finance_admin'), 
 
 // Total Data Report
 router.get('/total-report', getTotalReport);
+
+// Re-Reg Pending Report
+router.get('/rereg-pending-report', authorize('finance_admin'), getReregPendingReport);
 
 export default router;
