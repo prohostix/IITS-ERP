@@ -1120,10 +1120,9 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
     let nextUnpaidDate: Date | null = null;
     let nextUnpaidName = '';
 
-    // Find the next UNPAID installment
-    // We typically consider 2nd installment onwards (i > 0) as "Re-Registration",
-    // but if the 1st installment is unpaid, it's also a pending fee.
-    for (let i = 0; i < breakdownArray.length; i++) {
+    // Find the next UNPAID installment, starting from the 2nd installment (i = 1)
+    // The 1st installment (i = 0) is paid during initial enrollment, so it is not a "Re-Registration".
+    for (let i = 1; i < breakdownArray.length; i++) {
       const b = breakdownArray[i];
       const name = `${cycleLabel} ${b.year || i + 1}`;
       
@@ -1139,10 +1138,8 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
           nextUnpaidDate = new Date(b.dueDate);
         } else {
           nextUnpaidDate = new Date(e.student.enrolledAt || e.student.createdAt);
-          if (i > 0) {
-            if (cycleLabel === 'Semester') nextUnpaidDate.setMonth(nextUnpaidDate.getMonth() + i * 6);
-            else nextUnpaidDate.setFullYear(nextUnpaidDate.getFullYear() + i);
-          }
+          if (cycleLabel === 'Semester') nextUnpaidDate.setMonth(nextUnpaidDate.getMonth() + i * 6);
+          else nextUnpaidDate.setFullYear(nextUnpaidDate.getFullYear() + i);
         }
         break; // Stop at the first unpaid installment
       }
