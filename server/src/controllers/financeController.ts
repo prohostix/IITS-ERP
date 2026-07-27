@@ -923,7 +923,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       }),
     },
     include: {
-      program: { select: { id: true, name: true } },
+      program: { select: { id: true, name: true, university: { select: { name: true, coordinatorName: true } } } },
       session: { select: { id: true, name: true } },
       studyCenter: { select: { id: true, name: true, branchName: true, coordinatorName: true } },
       payment: true,
@@ -993,7 +993,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       centerName: enrollment.studyCenter?.name || '',
       subCenterName: enrollment.studyCenter?.branchName || '',
       program: enrollment.program?.name || '',
-      university: feeStruct?.university?.name || '',
+      university: (feeStruct?.university?.name || (enrollment.program as any)?.university?.name) || '',
       centerPaymentAmount: payment?.amount || null,
       centerPaymentStatus: payment ? 'Paid' : 'Due',
       centerPaymentFor: enrollment.status || '',
@@ -1001,7 +1001,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       universityPaidAmount: uniPayments.length > 0 ? paidUniAmount : 0,
       universityPaymentStatus: uniStatus,
       universityPaymentScreenshots: uniPayments.map(p => p.screenshot).filter(Boolean),
-      coordinatorName: enrollment.studyCenter?.coordinatorName || feeStruct?.university?.coordinatorName || coordinatorFee?.coordinator || null,
+      coordinatorName: enrollment.studyCenter?.coordinatorName || feeStruct?.university?.coordinatorName || (enrollment.program as any)?.university?.coordinatorName || coordinatorFee?.coordinator || null,
       coordinatorPaymentAmount: coordinatorFee?.amount || null,
       coordinatorPaymentStatus: coordinatorFee
         ? (uniStatus === 'Paid' ? 'paid' : 'Due')
