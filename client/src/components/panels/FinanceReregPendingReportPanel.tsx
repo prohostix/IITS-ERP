@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ReregRow {
@@ -69,6 +70,7 @@ function exportToExcel(rows: ReregRow[]) {
 
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 export function FinanceReregPendingReportPanel() {
+  const { user } = useAuth();
   const [rows, setRows] = useState<ReregRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -83,12 +85,16 @@ export function FinanceReregPendingReportPanel() {
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
 
+  const isCenterUser = user?.role === 'center_admin';
+
   // Load dropdown data
   useEffect(() => {
-    api.get('/operations/centers').then(r => setCenters(r.data.data || [])).catch(() => {});
+    if (!isCenterUser) {
+      api.get('/operations/centers').then(r => setCenters(r.data.data || [])).catch(() => {});
+    }
     api.get('/operations/universities').then(r => setUniversities(r.data.data || [])).catch(() => {});
     api.get('/operations/programs').then(r => setPrograms(r.data.data || [])).catch(() => {});
-  }, []);
+  }, [isCenterUser]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -216,18 +222,20 @@ export function FinanceReregPendingReportPanel() {
             </div>
 
             {/* Center filter */}
-            <Select value={centerId || 'all'} onValueChange={v => setCenterId(v === 'all' ? '' : v)}>
-              <SelectTrigger className="h-9 text-sm gap-2">
-                <School className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="All Centers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Centers</SelectItem>
-                {centers.map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!isCenterUser && (
+              <Select value={centerId || 'all'} onValueChange={v => setCenterId(v === 'all' ? '' : v)}>
+                <SelectTrigger className="h-9 text-sm gap-2">
+                  <School className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="All Centers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Centers</SelectItem>
+                  {centers.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {/* University filter */}
             <Select value={universityId || 'all'} onValueChange={v => { setUniversityId(v === 'all' ? '' : v); setProgramId(''); }}>
