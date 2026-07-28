@@ -79,6 +79,9 @@ export function FinanceReregPendingReportPanel() {
   const [centerId, setCenterId] = useState('');
   const [universityId, setUniversityId] = useState('');
   const [programId, setProgramId] = useState('');
+  
+  // Sorting state
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
 
   // Dropdown data
   const [centers, setCenters] = useState<any[]>([]);
@@ -140,6 +143,18 @@ export function FinanceReregPendingReportPanel() {
   const filteredPrograms = universityId
     ? programs.filter((p: any) => p.universityId === universityId || (typeof p.university === 'object' && p.university?.id === universityId))
     : programs;
+
+  // Sorted rows
+  const sortedRows = [...rows].sort((a, b) => {
+    if (sortOrder === null) return 0;
+    
+    // Sort by daysUntilDeadline (which correlates with due date)
+    const aVal = a.daysUntilDeadline ?? Infinity;
+    const bVal = b.daysUntilDeadline ?? Infinity;
+    
+    if (sortOrder === 'asc') return aVal - bVal;
+    return bVal - aVal;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -317,17 +332,37 @@ export function FinanceReregPendingReportPanel() {
                 <thead>
                   <tr className="border-b bg-muted/30">
                     {[
-                      'Enrollment No', 'Student', 'Center', 'University',
-                      'Program', 'Session', 'Re-Reg Deadline', 'Urgency', 'Status'
+                      { key: 'enrollmentNumber', label: 'Enrollment No' },
+                      { key: 'student', label: 'Student' },
+                      { key: 'center', label: 'Center' },
+                      { key: 'university', label: 'University' },
+                      { key: 'program', label: 'Program' },
+                      { key: 'session', label: 'Session' },
+                      { key: 'deadline', label: 'Re-Reg Deadline', sortable: true },
+                      { key: 'urgency', label: 'Urgency' },
+                      { key: 'status', label: 'Status' }
                     ].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                        {h}
+                      <th 
+                        key={h.key} 
+                        className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap ${h.sortable ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
+                        onClick={() => {
+                          if (h.sortable) {
+                            setSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-1">
+                          {h.label}
+                          {h.sortable && sortOrder === 'asc' && <span>↑</span>}
+                          {h.sortable && sortOrder === 'desc' && <span>↓</span>}
+                          {h.sortable && sortOrder === null && <span className="opacity-30">↕</span>}
+                        </div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {rows.map(row => (
+                  {sortedRows.map(row => (
                     <tr key={row.id} className="hover:bg-muted/20 transition-colors group">
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {row.enrollmentNumber || '—'}
