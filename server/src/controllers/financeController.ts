@@ -1026,6 +1026,11 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { centerId, universityId, programId, search } = req.query as any;
   const orgId = req.user.organizationId;
+  
+  let actualCenterId = centerId;
+  if (req.user.role === 'center_admin') {
+    actualCenterId = (req.user as any).studyCenterId || (req.user as any).centerId;
+  }
 
   // Build program filter
   let programFilter: any = {};
@@ -1043,7 +1048,7 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: orgId,
-      ...(centerId && { studyCenterId: centerId }),
+      ...(actualCenterId && { studyCenterId: actualCenterId }),
       ...programFilter,
       ...(search && {
         OR: [

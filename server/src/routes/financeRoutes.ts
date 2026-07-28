@@ -170,6 +170,6 @@ router.put('/payroll-batches/:id/complete-payment', authorize('finance_admin'), 
 router.get('/total-report', getTotalReport);
 
 // Re-Reg Pending Report
-router.get('/rereg-pending-report', authorize('finance_admin'), getReregPendingReport);
+router.get('/rereg-pending-report', authorize('finance_admin', 'center_admin'), getReregPendingReport);
 
 export default router;
