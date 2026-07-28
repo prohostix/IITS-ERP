@@ -125,7 +125,7 @@ export function EnrollStudentPanel() {
       const [progsRes, walletRes, centerRes] = await Promise.all([
         api.get('/enrollment/programs'),
         api.get('/enrollment/wallet'),
-        api.get('/enrollment/center-status').catch(() => ({ data: { data: null } }))
+        api.get('/enrollment/my-center-status').catch(() => ({ data: { data: null } }))
       ]);
       setPrograms(progsRes.data.data || []);
       setWallet(walletRes.data.data);
