@@ -1151,6 +1151,13 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
     }
 
     if (nextUnpaidName && nextUnpaidDate) {
+      const daysUntilDeadline = Math.ceil((nextUnpaidDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      
+      // Only show if the deadline is within the next 150 days, or already overdue
+      if (daysUntilDeadline > 150) {
+        continue;
+      }
+
       const closingDate = nextUnpaidDate.toISOString();
       const sessionStr = e.session?.name ? `${e.session.name} - ${nextUnpaidName}` : nextUnpaidName;
       rows.push({
@@ -1167,7 +1174,7 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
         reregClosingDate: closingDate,
         reregPaymentStatus: 'Pending',
         enrollmentStatus: e.status,
-        daysUntilDeadline: Math.ceil((nextUnpaidDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+        daysUntilDeadline,
       });
     }
   }
