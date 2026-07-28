@@ -45,7 +45,7 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
 import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
-import { FinanceReregPendingReportPanel } from '@/components/panels/FinanceReregPendingReportPanel';
+import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
