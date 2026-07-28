@@ -179,7 +179,7 @@ export function FinanceSalaryApprovalPanel() {
       ) : (
         <div className="space-y-3">
           {configs.map(config => {
-            const user = config.user || (typeof config.userId === 'object' ? config.userId : null);
+            const user = (config as any).user || (typeof config.userId === 'object' ? config.userId : null);
             const meta = STATUS_META[config.approvalStatus];
             const grossAmt = gross(config);
             const netAmt = net(config);
