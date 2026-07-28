@@ -63,16 +63,19 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
                   icon={<Wallet className="w-5 h-5 text-primary" />}
                   label="Wallet Balance"
                   value={`₹${(metrics.balance || 0).toLocaleString()}`}
+                  onClick={() => onNavigate ? onNavigate('center_wallet') : handleTabChange('wallet')}
                 />
                 <OverviewCard
                   icon={<GraduationCap className="w-5 h-5 text-success" />}
                   label="Total Enrollments"
                   value={metrics.totalEnrollments !== undefined ? metrics.totalEnrollments.toString() : '0'}
+                  onClick={() => onNavigate ? onNavigate('students') : handleTabChange('students')}
                 />
                 <OverviewCard
                   icon={<ClipboardList className="w-5 h-5 text-warning" />}
                   label="Pending Review"
                   value={metrics.pendingReview !== undefined ? metrics.pendingReview.toString() : '0'}
+                  onClick={() => onNavigate ? onNavigate('center_enrollments') : handleTabChange('enrollments')}
                 />
               </div>
               <div className="mt-6 p-6 rounded-xl border border-border bg-card/60">
@@ -111,9 +114,12 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
   );
 }
 
-function OverviewCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function OverviewCard({ icon, label, value, onClick }: { icon: React.ReactNode; label: string; value: string; onClick?: () => void }) {
   return (
-    <Card>
+    <Card 
+      onClick={onClick} 
+      className={onClick ? "cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors" : ""}
+    >
       <CardContent className="p-5 flex items-center gap-4">
         <div className="p-2.5 rounded-xl bg-muted">{icon}</div>
         <div>
