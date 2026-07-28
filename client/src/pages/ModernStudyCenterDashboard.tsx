@@ -9,7 +9,7 @@ import { StudentsPanel } from '@/components/panels/StudentsPanel';
 import { TasksPanel } from '@/components/panels/TasksPanel';
 import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
-import { FinanceReregPendingReportPanel } from '@/components/panels/FinanceReregPendingReportPanel';
+import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import api from '@/lib/api';
 
 export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
@@ -47,7 +47,7 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
           <TabsTrigger value="enroll">Enroll Student</TabsTrigger>
           <TabsTrigger value="enrollments">My Enrollments</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="rereg-pending">Re-Reg Pending</TabsTrigger>
+          <TabsTrigger value="rereg-report">Re-Registration Report</TabsTrigger>
           {centerConfig?.allowInternalMarks && (
             <TabsTrigger value="marks">Internal Marks</TabsTrigger>
           )}
@@ -103,7 +103,7 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
         <TabsContent value="enroll"><EnrollStudentPanel /></TabsContent>
         <TabsContent value="enrollments"><StudyCenterEnrollmentsPanel /></TabsContent>
         <TabsContent value="students"><StudentsPanel /></TabsContent>
-        <TabsContent value="rereg-pending"><FinanceReregPendingReportPanel /></TabsContent>
+        <TabsContent value="rereg-report"><FinanceReregReportWrapper /></TabsContent>
         {centerConfig?.allowInternalMarks && (
           <TabsContent value="marks"><InternalMarksPanel /></TabsContent>
         )}

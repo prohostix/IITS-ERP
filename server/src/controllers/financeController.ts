@@ -1185,3 +1185,111 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
 
   res.json({ success: true, count: rows.length, data: rows });
 });
+
+// ─── Re-Reg Completed Report ──────────────────────────────────────────────────
+export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { centerId, universityId, programId, search } = req.query as any;
+  const orgId = req.user.organizationId;
+  
+  let actualCenterId = centerId;
+  if (req.user.role === 'center_admin') {
+    actualCenterId = (req.user as any).studyCenterId || (req.user as any).centerId;
+  }
+
+  // Build program filter
+  let programFilter: any = {};
+  if (programId) programFilter.programId = programId;
+  if (universityId) {
+    const progIds = (await prisma.program.findMany({
+      where: { organizationId: orgId, universityId },
+      select: { id: true },
+    })).map(p => p.id);
+    programFilter.programId = programId ? (progIds.includes(programId) ? programId : '__none__') : { in: progIds };
+  }
+
+  // Find all enrollments matching filters
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      organizationId: orgId,
+      ...(actualCenterId && { studyCenterId: actualCenterId }),
+      ...programFilter,
+      ...(search && {
+        OR: [
+          { studentName: { contains: search, mode: 'insensitive' } },
+          { studentEmail: { contains: search, mode: 'insensitive' } },
+          { enrollmentNumber: { contains: search, mode: 'insensitive' } },
+        ]
+      })
+    },
+    include: {
+      program: {
+        select: { id: true, name: true, duration: true, university: { select: { id: true, name: true } } }
+      },
+      session: { select: { id: true, name: true } },
+      studyCenter: { select: { id: true, name: true, branchName: true } },
+      student: { 
+        select: { 
+          id: true, createdAt: true, enrolledAt: true, status: true, email: true, name: true,
+          invoices: {
+            where: { status: 'paid' }
+          }
+        } 
+      },
+    }
+  });
+
+  const rows: any[] = [];
+  
+  for (const e of enrollments) {
+    if (!e.student || !e.student.invoices || e.student.invoices.length === 0) continue;
+
+    const invoices = e.student.invoices;
+
+    for (const inv of invoices) {
+      let items: any[] = [];
+      if (typeof inv.items === 'string') {
+        try { items = JSON.parse(inv.items); } catch(err) {}
+      } else if (Array.isArray(inv.items)) {
+        items = inv.items;
+      }
+
+      // Find items that represent a re-registration payment
+      // e.g., "Semester 2", "Year 2", etc. (excluding Semester 1/Year 1)
+      const reregItems = items.filter(item => {
+        const desc = (item.description || '').toLowerCase();
+        return (desc.includes('semester') || desc.includes('year')) && 
+               !desc.includes('semester 1') && !desc.includes('year 1');
+      });
+
+      if (reregItems.length > 0) {
+        for (const item of reregItems) {
+          // Try to extract just the "Semester X" or "Year X" part
+          const match = item.description?.match(/(Semester|Year)\s+\d+/i);
+          const installmentName = match ? match[0] : item.description;
+
+          rows.push({
+            id: `${e.id}-${inv.id}-${item.id || Math.random()}`,
+            studentName: e.studentName,
+            studentEmail: e.studentEmail,
+            studentPhone: e.studentPhone,
+            enrollmentNumber: e.enrollmentNumber || '',
+            program: e.program?.name || '',
+            university: (e.program as any)?.university?.name || '',
+            center: e.studyCenter?.name || '',
+            branchName: e.studyCenter?.branchName || '',
+            session: e.session?.name || '',
+            completedInstallment: installmentName,
+            paidDate: inv.createdAt,
+            amountPaid: item.amount || inv.amount,
+            invoiceId: inv.id
+          });
+        }
+      }
+    }
+  }
+
+  // Sort rows by paidDate descending (newest first)
+  rows.sort((a, b) => new Date(b.paidDate).getTime() - new Date(a.paidDate).getTime());
+
+  res.json({ success: true, count: rows.length, data: rows });
+});

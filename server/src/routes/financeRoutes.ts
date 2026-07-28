@@ -40,6 +40,7 @@ import {
   payUniversityFee,
   getTotalReport,
   getReregPendingReport,
+  getReregCompletedReport,
 } from '../controllers/financeController.js';
 import { upload } from '../middleware/upload.js';
 import {
@@ -171,5 +172,6 @@ router.get('/total-report', getTotalReport);
 
 // Re-Reg Pending Report
 router.get('/rereg-pending-report', authorize('finance_admin', 'center_admin'), getReregPendingReport);
+router.get('/rereg-completed-report', authorize('finance_admin', 'center_admin'), getReregCompletedReport);
 
 export default router;

@@ -137,7 +137,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'total_report': return <FinanceTotalReportPanel />;
       case 'commissions': return <CommissionsPanel />;
-      case 'rereg_pending_report': return <FinanceReregPendingReportPanel />;
+      case 'rereg_report': return <FinanceReregReportWrapper />;
       default: return null;
     }
   };
@@ -177,7 +177,7 @@ export function getFinanceNavItems() {
     { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'sales_targets', label: 'Sales Targets' },
     { id: 'total_report', label: 'Total Data Report' },
-    { id: 'rereg_pending_report', label: 'Re-Reg Pending Report' },
+    { id: 'rereg_report', label: 'Re-Registration Report' },
     { id: 'commissions', label: 'Commissions' },
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'tasks', label: 'Tasks' },

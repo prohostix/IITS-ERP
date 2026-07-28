@@ -152,7 +152,7 @@ export function PrismaLayout({
       case 'attendance':
       case 'my_attendance':
       case 'pending_payment':
-      case 'center_rereg_pending':
+      case 'center_rereg_report':
       case 'auth_fees': return <Clock className={iconClass} />;
       case 'hierarchy':
       case 'my_subdept':
