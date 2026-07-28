@@ -870,14 +870,10 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     },
   });
 
-  // If universityId filter is set, collect the programIds linked to that university
   let programIdsForUniversity: string[] | undefined;
   if (universityId) {
-    const matched = feeStructures
-      .filter(f => f.universityId === universityId && f.programId)
-      .map(f => f.programId as string);
-    programIdsForUniversity = [...new Set(matched)];
-    // If no programs link to this university, return empty immediately
+    const progs = await prisma.program.findMany({ where: { universityId }, select: { id: true } });
+    programIdsForUniversity = progs.map(p => p.id);
     if (programIdsForUniversity.length === 0) {
       res.json({ success: true, count: 0, data: [] });
       return;
@@ -913,7 +909,12 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
         if (dateTo && !isNaN(new Date(dateTo + 'T23:59:59.999Z').getTime())) {
           dateFilter.lte = new Date(dateTo + 'T23:59:59.999Z');
         }
-        return Object.keys(dateFilter).length > 0 ? { admissionDate: dateFilter } : {};
+        return Object.keys(dateFilter).length > 0 ? {
+          OR: [
+            { admissionDate: dateFilter },
+            { admissionDate: null, createdAt: dateFilter }
+          ]
+        } : {};
       })() ),
       ...(search && {
         OR: [
@@ -949,9 +950,14 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 
   const uniPaymentMap: Record<string, any[]> = {};
   for (const up of universityPayments) {
-    if (up.enrollmentId) {
-      uniPaymentMap[up.enrollmentId] = uniPaymentMap[up.enrollmentId] || [];
-      uniPaymentMap[up.enrollmentId].push(up);
+    let eId = up.enrollmentId;
+    if (!eId && up.studentId) {
+      const e = enrollments.find(e => e.studentId === up.studentId);
+      if (e) eId = e.id;
+    }
+    if (eId) {
+      uniPaymentMap[eId] = uniPaymentMap[eId] || [];
+      uniPaymentMap[eId].push(up);
     }
   }
 
