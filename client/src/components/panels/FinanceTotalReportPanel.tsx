@@ -110,7 +110,8 @@ export function FinanceTotalReportPanel() {
       'Center Payment (INR)': r.centerPaymentAmount ?? '',
       'Center Payment Status': r.centerPaymentStatus,
       'Payment For': r.centerPaymentFor,
-      'University Payment (INR)': r.universityPaymentAmount ?? '',
+      'Re-Reg Fees Collected (INR)': r.reRegTotalCollected ?? '',
+      'Total University Fee (INR)': r.universityPaymentAmount ?? '',
       'University Paid (INR)': r.universityPaidAmount ?? '',
       'University Payment Status': r.universityPaymentStatus,
       'University Payment Proof': Array.isArray(r.universityPaymentScreenshots) && r.universityPaymentScreenshots.length > 0 ? 'Yes (Check UI)' : 'No',
@@ -135,6 +136,7 @@ export function FinanceTotalReportPanel() {
   const totalCenterPaid = rows.filter(r => r.centerPaymentStatus === 'Paid').reduce((s, r) => s + (r.centerPaymentAmount || 0), 0);
   const totalCenterDue = rows.filter(r => r.centerPaymentStatus === 'Due').length;
   const totalUniPaid = rows.reduce((s, r) => s + (r.universityPaidAmount || 0), 0);
+  const totalReRegPaid = rows.reduce((s, r) => s + (r.reRegTotalCollected || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -149,12 +151,13 @@ export function FinanceTotalReportPanel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Total Records', value: rows.length, color: 'text-slate-700' },
           { label: 'Center Fees Collected', value: 'INR ' + totalCenterPaid.toLocaleString('en-IN'), color: 'text-green-700' },
           { label: 'Center Fees Due', value: totalCenterDue + ' students', color: 'text-amber-700' },
           { label: 'University Fees Paid', value: 'INR ' + totalUniPaid.toLocaleString('en-IN'), color: 'text-blue-700' },
+          { label: 'Re-Reg Fees Collected', value: 'INR ' + totalReRegPaid.toLocaleString('en-IN'), color: 'text-purple-700' },
         ].map((stat) => (
           <Card key={stat.label} className="border shadow-sm">
             <CardContent className="pt-4 pb-3">
@@ -273,6 +276,7 @@ export function FinanceTotalReportPanel() {
                       '#', 'Student', 'Admission No', 'Enroll No', 'Admission Date', 'Admission Session', 'Center Name', 'Sub Center (Branch)',
                       'Program', 'University',
                       'Payment (INR)', 'Payment Status', 'Payment For',
+                      'Re-Reg Fees Collected',
                       'Total Uni. Fee (INR)', 'Uni. Paid (INR)', 'Uni. Payment Status', 'Uni. Payment Proof',
                       'Coordinator Name', 'Coord. Payment (INR)', 'Coord. Status',
                       'Comm. From Uni (INR)', 'Comm. From Uni Date', 'Comm. From Uni Status',
@@ -309,6 +313,9 @@ export function FinanceTotalReportPanel() {
                       </td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground capitalize">
                         {r.centerPaymentFor?.replace(/_/g, ' ') || '-'}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-purple-700">
+                        {r.reRegTotalCollected != null && r.reRegTotalCollected > 0 ? 'INR ' + Number(r.reRegTotalCollected).toLocaleString('en-IN') : '-'}
                       </td>
                       <td className="px-3 py-2.5 font-semibold text-muted-foreground">
                         {r.universityPaymentAmount != null ? 'INR ' + Number(r.universityPaymentAmount).toLocaleString('en-IN') : '-'}

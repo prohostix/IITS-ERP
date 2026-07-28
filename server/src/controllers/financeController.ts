@@ -961,9 +961,34 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     }
   }
 
+  // Fetch Re-Registration Invoices
+  const invoices = studentIds.length > 0
+    ? await prisma.invoice.findMany({
+        where: {
+          organizationId: req.user.organizationId,
+          studentId: { in: studentIds },
+          status: 'paid'
+        },
+      })
+    : [];
+
+  const invoiceMap: Record<string, any[]> = {};
+  for (const inv of invoices) {
+    if (inv.studentId) {
+      const e = enrollments.find(e => e.studentId === inv.studentId);
+      if (e) {
+        invoiceMap[e.id] = invoiceMap[e.id] || [];
+        invoiceMap[e.id].push(inv);
+      }
+    }
+  }
+
   const rows = enrollments.map(enrollment => {
     const payment = enrollment.payment;
     const uniPayments = uniPaymentMap[enrollment.id] || [];
+    const studentInvoices = invoiceMap[enrollment.id] || [];
+    const reRegPaidAmount = studentInvoices.reduce((sum, i) => sum + i.amount, 0);
+
     const totalUniAmount = uniPayments.reduce((sum, p) => sum + p.amount, 0);
     const paidUniAmount = uniPayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
     let uniStatus = 'Pending';
@@ -1013,6 +1038,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
         ? (uniStatus === 'Paid' ? 'paid' : 'Due')
         : 'Not Applicable',
       enrollmentStatus: enrollment.status,
+      reRegTotalCollected: reRegPaidAmount,
       // Commission Got from University details
       commissionInAmount: commIn ? commIn.receivedAmount : null,
       commissionInExpected: commIn ? commIn.expectedAmount : null,
