@@ -1024,7 +1024,7 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 
 // ─── Re-Reg Pending Report ────────────────────────────────────────────────────
 export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { centerId, universityId, programId, search } = req.query as any;
+  const { centerId, universityId, programId, search, dueDate } = req.query as any;
   const orgId = req.user.organizationId;
   
   let actualCenterId = centerId;
@@ -1151,6 +1151,14 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
     }
 
     if (nextUnpaidName && nextUnpaidDate) {
+      if (dueDate) {
+        const filterDate = new Date(dueDate);
+        filterDate.setHours(23, 59, 59, 999);
+        if (nextUnpaidDate > filterDate) {
+          continue;
+        }
+      }
+
       const daysUntilDeadline = Math.ceil((nextUnpaidDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
 

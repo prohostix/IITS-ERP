@@ -79,6 +79,7 @@ export function FinanceReregPendingReportPanel() {
   const [centerId, setCenterId] = useState('');
   const [universityId, setUniversityId] = useState('');
   const [programId, setProgramId] = useState('');
+  const [dueDate, setDueDate] = useState('');
   
   // Sorting state
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
@@ -107,6 +108,7 @@ export function FinanceReregPendingReportPanel() {
       if (universityId) params.set('universityId', universityId);
       if (programId) params.set('programId', programId);
       if (search.trim()) params.set('search', search.trim());
+      if (dueDate) params.set('dueDate', dueDate);
       const res = await api.get(`/finance/rereg-pending-report?${params.toString()}`);
       setRows(res.data.data || []);
     } catch (err: any) {
@@ -114,7 +116,7 @@ export function FinanceReregPendingReportPanel() {
     } finally {
       setLoading(false);
     }
-  }, [centerId, universityId, programId, search]);
+  }, [centerId, universityId, programId, search, dueDate]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
@@ -123,9 +125,10 @@ export function FinanceReregPendingReportPanel() {
     setCenterId('');
     setUniversityId('');
     setProgramId('');
+    setDueDate('');
   };
 
-  const hasFilters = search || centerId || universityId || programId;
+  const hasFilters = search || centerId || universityId || programId || dueDate;
 
   // Urgency badge
   const urgencyBadge = (days: number | null) => {
@@ -224,7 +227,7 @@ export function FinanceReregPendingReportPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -292,6 +295,17 @@ export function FinanceReregPendingReportPanel() {
                 <SelectItem value="desc">Latest Deadline</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Due Date filter */}
+            <div className="relative col-span-1 sm:col-span-2 lg:col-span-1">
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="h-9 text-sm"
+                title="Filter by deadline until this date"
+              />
+            </div>
           </div>
 
           {/* Reset */}
