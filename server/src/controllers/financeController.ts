@@ -1153,8 +1153,8 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
     if (nextUnpaidName && nextUnpaidDate) {
       const daysUntilDeadline = Math.ceil((nextUnpaidDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       
-      // Only show if the deadline is within the next 150 days, or already overdue
-      if (daysUntilDeadline > 150) {
+      // Only show if the deadline is within the next 200 days, or already overdue
+      if (daysUntilDeadline > 200) {
         continue;
       }
 
