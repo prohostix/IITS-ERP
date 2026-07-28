@@ -179,6 +179,7 @@ export function FinanceSalaryApprovalPanel() {
       ) : (
         <div className="space-y-3">
           {configs.map(config => {
+            const user = config.user || (typeof config.userId === 'object' ? config.userId : null);
             const meta = STATUS_META[config.approvalStatus];
             const grossAmt = gross(config);
             const netAmt = net(config);
@@ -192,12 +193,12 @@ export function FinanceSalaryApprovalPanel() {
                         <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold', meta.color)}>
                           {meta.icon}{meta.label}
                         </span>
-                        <span className="font-semibold">{config.userId?.name}</span>
-                        <Badge variant="outline" className="text-xs capitalize">{config.userId?.role?.replace(/_/g, ' ')}</Badge>
-                        {config.userId?.designation && <Badge variant="outline" className="text-xs">{config.userId.designation}</Badge>}
-                        {config.userId?.departmentId && <span className="text-xs text-muted-foreground">{config.userId.departmentId.name}</span>}
+                        <span className="font-semibold">{user?.name || 'Employee'}</span>
+                        <Badge variant="outline" className="text-xs capitalize">{user?.role?.replace(/_/g, ' ')}</Badge>
+                        {user?.designation && <Badge variant="outline" className="text-xs">{user.designation}</Badge>}
+                        {user?.departmentId && <span className="text-xs text-muted-foreground">{user.departmentId.name}</span>}
                       </div>
-                      <p className="text-xs text-muted-foreground mb-3">{config.userId?.email}</p>
+                      <p className="text-xs text-muted-foreground mb-3">{user?.email}</p>
 
                       {/* Salary breakdown */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-5 gap-3 text-sm">

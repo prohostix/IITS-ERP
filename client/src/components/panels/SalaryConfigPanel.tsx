@@ -160,8 +160,8 @@ export function SalaryConfigPanel() {
       ) : (
         <div className="space-y-3">
           {filtered.map(config => {
-            const user = typeof config.userId === 'object' ? config.userId : null;
-            const uid = user?.id || config.userId;
+            const user = config.user || (typeof config.userId === 'object' ? config.userId : null);
+            const uid = user?.id || (typeof config.userId === 'string' ? config.userId : config.id);
             const grossAmt = config.basicSalary + Object.values(config.allowances).reduce((s, v) => s + (v || 0), 0);
             const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0);
             return (
