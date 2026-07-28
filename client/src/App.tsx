@@ -86,6 +86,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   enroll_student: 'enroll',
   center_enrollments: 'enrollments',
   center_programs: 'programs',
+  center_rereg_pending: 'rereg-pending',
   // Employee
   notice_board: 'notice-board',
   ld_portal: 'ld-portal',
@@ -281,6 +282,7 @@ function App() {
         { id: 'enroll_student', label: 'Enroll Student' },
         { id: 'center_enrollments', label: 'My Enrollments' },
         { id: 'students', label: 'Students' },
+        { id: 'center_rereg_pending', label: 'Re-Reg Pending' },
         { id: 'center_programs', label: 'Programs & Materials' },
         { id: 'tasks', label: 'Tasks' },
       ];
