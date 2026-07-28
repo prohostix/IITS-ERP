@@ -224,7 +224,7 @@ export function FinanceReregPendingReportPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -279,12 +279,25 @@ export function FinanceReregPendingReportPanel() {
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Sort filter */}
+            <Select value={sortOrder || 'default'} onValueChange={v => setSortOrder(v === 'default' ? null : (v as 'asc' | 'desc'))}>
+              <SelectTrigger className="h-9 text-sm gap-2">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default Sort</SelectItem>
+                <SelectItem value="asc">Earliest Deadline</SelectItem>
+                <SelectItem value="desc">Latest Deadline</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Reset */}
-          {hasFilters && (
+          {(hasFilters || sortOrder) && (
             <div className="mt-3 flex justify-end">
-              <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={() => { handleReset(); setSortOrder(null); }} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <X className="w-3.5 h-3.5" />
                 Reset Filters
               </Button>
