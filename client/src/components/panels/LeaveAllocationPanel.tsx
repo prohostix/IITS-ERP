@@ -169,8 +169,8 @@ export function LeaveAllocationPanel() {
       ) : (
         <div className="space-y-3">
           {filtered.map(alloc => {
-            const user = typeof alloc.userId === 'object' ? alloc.userId : null;
-            const uid = user?.id || alloc.userId;
+            const user = (alloc as any).user || (typeof alloc.userId === 'object' ? alloc.userId : null);
+            const uid = user?.id || (typeof alloc.userId === 'string' ? alloc.userId : alloc.id);
             return (
               <Card key={uid} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
@@ -178,15 +178,15 @@ export function LeaveAllocationPanel() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
                         <span className="font-semibold">{user?.name || 'Employee'}</span>
-                        <Badge variant="outline" className="text-xs capitalize">{user?.role?.replace(/_/g, ' ')}</Badge>
+                        {user?.role && <Badge variant="outline" className="text-xs capitalize">{user.role.replace(/_/g, ' ')}</Badge>}
                         {user?.designation && <Badge variant="outline" className="text-xs">{user.designation}</Badge>}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                         {[
-                          { label: 'Sick', total: alloc.sickLeave, used: alloc.usedSick, color: 'text-red-500' },
-                          { label: 'Casual', total: alloc.casualLeave, used: alloc.usedCasual, color: 'text-blue-500' },
-                          { label: 'Earned', total: alloc.earnedLeave, used: alloc.usedEarned, color: 'text-green-500' },
-                          { label: 'Comp.', total: alloc.complementaryLeave, used: alloc.usedComplementary, color: 'text-purple-500' },
+                          { label: 'Sick', total: alloc.sickLeave, used: alloc.usedSick || 0, color: 'text-red-500' },
+                          { label: 'Casual', total: alloc.casualLeave, used: alloc.usedCasual || 0, color: 'text-blue-500' },
+                          { label: 'Earned', total: alloc.earnedLeave, used: alloc.usedEarned || 0, color: 'text-green-500' },
+                          { label: 'Comp.', total: alloc.complementaryLeave, used: alloc.usedComplementary || 0, color: 'text-purple-500' },
                         ].map(({ label, total, used, color }) => (
                           <div key={label}>
                             <p className="text-xs text-muted-foreground">{label}</p>
