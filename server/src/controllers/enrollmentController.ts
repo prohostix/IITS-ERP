@@ -218,6 +218,16 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     if (config && typeof config === 'object' && !Array.isArray(config)) {
       for (const [field, requirement] of Object.entries(config)) {
         if (requirement === 'required') {
+          if (field.startsWith('doc_')) {
+            const docMap: any = { doc_aadhaar: 'Aadhaar Card', doc_10th: '10th Certificate', doc_12th: '12th Certificate', doc_degree: 'Degree Certificate' };
+            const reqName = docMap[field];
+            const docs = req.body.documents || [];
+            if (!docs.some((d: any) => d.reqName === reqName)) {
+              res.status(400).json({ success: false, message: `Document '${reqName}' is required by this center's configuration` });
+              return;
+            }
+            continue;
+          }
           const val = req.body[field];
           if (val === undefined || val === null || String(val).trim() === '') {
             res.status(400).json({ success: false, message: `Field '${field}' is required by this center's configuration` });
@@ -443,6 +453,16 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     if (config && typeof config === 'object' && !Array.isArray(config)) {
       for (const [field, requirement] of Object.entries(config)) {
         if (requirement === 'required') {
+          if (field.startsWith('doc_')) {
+            const docMap: any = { doc_aadhaar: 'Aadhaar Card', doc_10th: '10th Certificate', doc_12th: '12th Certificate', doc_degree: 'Degree Certificate' };
+            const reqName = docMap[field];
+            const docs = req.body.documents || (enrollment as any).documents || [];
+            if (!docs.some((d: any) => d.reqName === reqName)) {
+              res.status(400).json({ success: false, message: `Document '${reqName}' is required by this center's configuration` });
+              return;
+            }
+            continue;
+          }
           const val = req.body[field] !== undefined ? req.body[field] : (enrollment as any)[field];
           if (val === undefined || val === null || String(val).trim() === '') {
             res.status(400).json({ success: false, message: `Field '${field}' is required by this center's configuration` });

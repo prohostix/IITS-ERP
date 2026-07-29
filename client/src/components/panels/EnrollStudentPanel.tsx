@@ -383,7 +383,7 @@ export function EnrollStudentPanel() {
     const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
     if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
       for (const [field, requirement] of Object.entries(parsedConfig)) {
-        if (requirement === 'required') {
+        if (requirement === 'required' && !field.startsWith('doc_')) {
           const val = (form as any)[field];
           if (val === undefined || val === null || String(val).trim() === '') {
             missing.push(field);
