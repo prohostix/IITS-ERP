@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, RefreshCw, Upload, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Wallet, RefreshCw, Upload, ArrowUpRight, ArrowDownLeft, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,12 +74,40 @@ export function StudyCenterWalletPanel() {
       });
       toast.success('Top-up request submitted');
       setOpen(false);
-      setForm({ amount: '', paymentMethod: 'offline', referenceNumber: '' });
+      setForm({ amount: '', paymentMethod: 'bank_transfer', referenceNumber: '' });
       setFile(null);
       fetchAll();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to submit top-up');
     }
+  };
+
+  const exportToCSV = () => {
+    if (transactions.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+    const headers = ['Date', 'Type', 'Amount', 'Description', 'Reference', 'Method'];
+    const csvContent = [
+      headers.join(','),
+      ...transactions.map(tx => [
+        new Date(tx.createdAt).toLocaleDateString(),
+        tx.type.toUpperCase(),
+        tx.amount,
+        `"${tx.description.replace(/"/g, '""')}"`,
+        `"${tx.reference?.replace(/"/g, '""') || ''}"`,
+        tx.method
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `wallet_transactions_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -121,9 +149,14 @@ export function StudyCenterWalletPanel() {
 
         <TabsContent value="ledger">
           <Card>
-            <CardHeader>
-              <CardTitle>Account Ledger</CardTitle>
-              <CardDescription>Statements of all deposits and enrollment charges.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle>Account Ledger</CardTitle>
+                <CardDescription>Statements of all deposits and enrollment charges.</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={exportToCSV} disabled={transactions.length === 0}>
+                <Download className="w-4 h-4 mr-2" /> Export CSV
+              </Button>
             </CardHeader>
             <CardContent>
               {loading ? (

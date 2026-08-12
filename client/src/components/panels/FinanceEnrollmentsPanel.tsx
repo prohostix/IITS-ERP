@@ -38,8 +38,8 @@ interface Summary {
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   payment_pending:     { label: 'Fee Pending',      color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: <Clock className="w-3 h-3" /> },
-  document_review:     { label: 'Doc Review',       color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         icon: <AlertCircle className="w-3 h-3" /> },
-  finance_review:      { label: 'Finance Review',   color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: <Clock className="w-3 h-3" /> },
+  document_review:     { label: 'Doc Review',       color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: <Search className="w-3 h-3" /> },
+  pending_finance_review:      { label: 'Finance Review',   color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', icon: <Clock className="w-3 h-3" /> },
   enrolled:            { label: 'Enrolled',         color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',     icon: <CheckCircle className="w-3 h-3" /> },
   rejected:            { label: 'Rejected',         color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',             icon: <XCircle className="w-3 h-3" /> },
   department_rejected: { label: 'Dept Rejected',    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',             icon: <Ban className="w-3 h-3" /> },
@@ -49,7 +49,7 @@ const FILTER_TABS = [
   { key: '', label: 'All' },
   { key: 'payment_pending', label: 'Fee Pending' },
   { key: 'document_review', label: 'Doc Review' },
-  { key: 'finance_review', label: 'Finance Review' },
+  { key: 'pending_finance_review', label: 'Finance Review' },
   { key: 'enrolled', label: 'Enrolled' },
   { key: 'rejected', label: 'Rejected' },
 ];
@@ -61,6 +61,7 @@ export function FinanceEnrollmentsPanel() {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
+  const [refundDialog, setRefundDialog] = useState<{ open: boolean; id: string, amount: string, status: string }>({ open: false, id: '', amount: '', status: 'processed' });
   const [remarks, setRemarks] = useState('');
 
   const fetchData = async (status = statusFilter, q = search) => {
@@ -114,6 +115,20 @@ export function FinanceEnrollmentsPanel() {
     }
   };
 
+  const handleRefund = async () => {
+    try {
+      await api.post(`/finance/enrollments/${refundDialog.id}/refund`, {
+        refundAmount: Number(refundDialog.amount),
+        refundStatus: refundDialog.status
+      });
+      toast.success('Refund processed successfully');
+      setRefundDialog({ open: false, id: '', amount: '', status: 'processed' });
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to process refund');
+    }
+  };
+
   const getProgramName = (e: Enrollment) =>
     e.program && typeof e.program === 'object'
       ? `${e.program.name} (${e.program.code})`
@@ -140,10 +155,10 @@ export function FinanceEnrollmentsPanel() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <SummaryCard label="Fee Pending" count={summary.payment_pending} icon={<Clock className="w-4 h-4" />} color="text-orange-500 bg-orange-50 dark:bg-orange-900/20" onClick={() => handleTabChange('payment_pending')} />
-          <SummaryCard label="Doc Review" count={summary.document_review} icon={<AlertCircle className="w-4 h-4" />} color="text-blue-500 bg-blue-50 dark:bg-blue-900/20" onClick={() => handleTabChange('document_review')} />
-          <SummaryCard label="Finance Review" count={summary.finance_review} icon={<Clock className="w-4 h-4" />} color="text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20" onClick={() => handleTabChange('finance_review')} />
-          <SummaryCard label="Enrolled" count={summary.enrolled} icon={<GraduationCap className="w-4 h-4" />} color="text-green-500 bg-green-50 dark:bg-green-900/20" onClick={() => handleTabChange('enrolled')} />
+          <SummaryCard label="Payment Pending" count={summary.payment_pending} icon={<Clock className="w-4 h-4" />} color="text-slate-500 bg-slate-50 dark:bg-slate-900/20" onClick={() => handleTabChange('payment_pending')} />
+          <SummaryCard label="Doc Review" count={summary.document_review} icon={<Search className="w-4 h-4" />} color="text-blue-500 bg-blue-50 dark:bg-blue-900/20" onClick={() => handleTabChange('document_review')} />
+          <SummaryCard label="Finance Review" count={summary.pending_finance_review || 0} icon={<Clock className="w-4 h-4" />} color="text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20" onClick={() => handleTabChange('pending_finance_review')} />
+          <SummaryCard label="Enrolled" count={summary.enrolled} icon={<CheckCircle className="w-4 h-4" />} color="text-green-500 bg-green-50 dark:bg-green-900/20" onClick={() => handleTabChange('enrolled')} />
           <SummaryCard label="Rejected" count={summary.rejected} icon={<XCircle className="w-4 h-4" />} color="text-red-500 bg-red-50 dark:bg-red-900/20" onClick={() => handleTabChange('rejected')} />
           <SummaryCard label="Dept Rejected" count={summary.department_rejected} icon={<Ban className="w-4 h-4" />} color="text-red-400 bg-red-50 dark:bg-red-900/20" onClick={() => handleTabChange('department_rejected')} />
         </div>
@@ -255,7 +270,7 @@ export function FinanceEnrollmentsPanel() {
                       {new Date(e.createdAt).toLocaleDateString()}
                     </td>
                     <td className="p-3 text-right">
-                      {e.status === 'finance_review' && (
+                      {e.status === 'pending_finance_review' && (
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleApprove(e.id)}>
                             <CheckCircle className="w-3 h-3 mr-1" />Enroll
@@ -263,6 +278,13 @@ export function FinanceEnrollmentsPanel() {
                           <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { setRejectDialog({ open: true, id: e.id }); setRemarks(''); }}>
                             <XCircle className="w-3 h-3 mr-1" />Reject
                           </Button>
+                        </div>
+                      )}
+                      {e.status === 'enrolled' && (
+                        <div className="flex gap-1.5 justify-end">
+                           <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" onClick={() => setRefundDialog({ open: true, id: e.id, amount: '', status: 'processed' })}>
+                             Refund
+                           </Button>
                         </div>
                       )}
                     </td>
@@ -286,6 +308,30 @@ export function FinanceEnrollmentsPanel() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialog({ open: false, id: '' })}>Cancel</Button>
             <Button variant="destructive" onClick={handleReject} disabled={!remarks.trim()}>Reject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refundDialog.open} onOpenChange={open => !open && setRefundDialog({ ...refundDialog, open: false })}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Process Refund</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Refund Amount (Optional)</Label>
+              <Input type="number" value={refundDialog.amount} onChange={e => setRefundDialog({...refundDialog, amount: e.target.value})} placeholder="Amount to refund..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Refund Status</Label>
+              <select className="w-full p-2 border rounded-md" value={refundDialog.status} onChange={e => setRefundDialog({...refundDialog, status: e.target.value})}>
+                <option value="processing">Processing</option>
+                <option value="processed">Processed (Credit Wallet)</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialog({ ...refundDialog, open: false })}>Cancel</Button>
+            <Button onClick={handleRefund}>Submit Refund</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -42,7 +42,7 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
   const summary = {
     payment_pending: 0,
     document_review: 0,
-    finance_review: 0,
+    pending_finance_review: 0,
     enrolled: 0,
     rejected: 0,
     department_rejected: 0
@@ -50,8 +50,8 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 
   allEnrollmentsForSummary.forEach(e => {
     if (e.status === 'payment_pending') summary.payment_pending++;
-    else if (e.status === 'document_review') summary.document_review++;
-    else if (e.status === 'finance_review') summary.finance_review++;
+    else if (e.status === 'document_review' || e.status === 'pending_doc_review') summary.document_review++;
+    else if (e.status === 'pending_finance_review') summary.pending_finance_review++;
     else if (e.status === 'enrolled') summary.enrolled++;
     else if (e.status === 'rejected') summary.rejected++;
     else if (e.status === 'department_rejected') summary.department_rejected++;
@@ -62,7 +62,7 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 
 export const getFinanceEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const enrollments = await prisma.enrollment.findMany({
-    where: { organizationId: req.user.organizationId, status: 'finance_review' as any },
+    where: { organizationId: req.user.organizationId, status: 'pending_finance_review' },
     include: { program: true, studyCenter: true, payment: true },
     orderBy: { createdAt: 'asc' }
   });
@@ -141,32 +141,8 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   // Use the totalFee calculated at enrollment time (which respects paymentMethod), or fallback
   const totalFee = (dbEnrollment as any).totalFee || (subtotal + gstAmount);
 
-  // 3. Perform wallet check and deduction inside a transaction
+  // 3. Perform final updates and create student inside a transaction
   const enrollment = await prisma.$transaction(async (tx) => {
-    // Lock and get StudyCenterWallet
-    const wallet = await tx.studyCenterWallet.findUnique({
-      where: { studyCenterId: dbEnrollment.studyCenterId }
-    });
-
-    if (!wallet || wallet.balance < totalFee) {
-      throw new Error(`Insufficient wallet balance in study center. Available: ₹${wallet?.balance || 0}, Required: ₹${totalFee}`);
-    }
-
-    // Deduct wallet balance
-    const updatedWallet = await tx.studyCenterWallet.update({
-      where: { id: wallet.id },
-      data: { balance: { decrement: totalFee } }
-    });
-
-    // Create EnrollmentPayment record
-    await tx.enrollmentPayment.create({
-      data: {
-        enrollmentId: dbEnrollment.id,
-        studyCenterId: dbEnrollment.studyCenterId,
-        walletId: wallet.id,
-        amount: totalFee
-      }
-    });
 
     // Create/find User
     let user = await tx.user.findUnique({ where: { email: dbEnrollment.studentEmail } });
@@ -353,4 +329,47 @@ export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res
   } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
+});
+
+export const processRefund = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { refundAmount, refundStatus } = req.body;
+
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id },
+    include: { payment: true }
+  });
+
+  if (!enrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (refundStatus === 'processed' && enrollment.paymentType === 'wallet') {
+      const amountToCredit = Number(refundAmount) || (enrollment.payment ? enrollment.payment.amount : 0);
+      
+      const wallet = await tx.studyCenterWallet.findUnique({
+        where: { studyCenterId: enrollment.studyCenterId }
+      });
+
+      if (wallet && amountToCredit > 0) {
+        await tx.studyCenterWallet.update({
+          where: { id: wallet.id },
+          data: { balance: { increment: amountToCredit } }
+        });
+      }
+    }
+
+    await tx.enrollment.update({
+      where: { id },
+      data: {
+        status: refundStatus === 'processed' ? 'refunded' : enrollment.status,
+        refundStatus,
+        refundAmount: Number(refundAmount) || null
+      }
+    });
+  });
+
+  res.json({ success: true, message: 'Refund processed successfully' });
 });

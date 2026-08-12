@@ -313,6 +313,28 @@ export function EnrollStudentPanel() {
     }
   };
 
+  const isFieldMandatory = (key: string, defaultRequired: boolean = false) => {
+    // Check if the university made it optional (for Premium universities)
+    const uniOptFields = selectedProgram?.university?.optionalFields;
+    if (uniOptFields) {
+      try {
+        const parsedOpt = typeof uniOptFields === 'string' ? JSON.parse(uniOptFields) : uniOptFields;
+        if (Array.isArray(parsedOpt) && parsedOpt.includes(key)) {
+          return false;
+        }
+      } catch (e) {}
+    }
+    
+    // Check center config
+    const config = centerConfig?.customEnrollmentFields;
+    const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+    const status = parsedConfig?.[key];
+    
+    if (status === 'required') return true;
+    if (status === 'optional') return false;
+    return defaultRequired;
+  };
+
   const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' | 'number' | 'tel' = 'text') => {
     const config = centerConfig?.customEnrollmentFields;
     const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
@@ -320,7 +342,7 @@ export function EnrollStudentPanel() {
 
     if (status === 'hidden') return null;
 
-    const isRequired = status === 'required';
+    const isRequired = isFieldMandatory(key, false);
 
     if (type === 'file') {
       return (
@@ -492,7 +514,7 @@ export function EnrollStudentPanel() {
       const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['admissionDate', 'abcId', 'debId']) {
-          if (parsedConfig[field] === 'required') {
+          if (isFieldMandatory(field, false)) {
             const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
@@ -505,7 +527,7 @@ export function EnrollStudentPanel() {
       // Validate Step 2: studentName, studentEmail, studentPhone, studentAddress
       const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
       for (const key of baseRequired) {
-        if (!(form as any)[key]?.trim()) {
+        if (isFieldMandatory(key, true) && !(form as any)[key]?.trim()) {
           toast.error(`Field '${key.replace('student', '')}' is required`);
           return false;
         }
@@ -519,7 +541,7 @@ export function EnrollStudentPanel() {
       const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob']) {
-          if (parsedConfig[field] === 'required') {
+          if (isFieldMandatory(field, false)) {
             const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
@@ -534,7 +556,7 @@ export function EnrollStudentPanel() {
       const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
         for (const field of ['fatherName', 'motherName', 'parentMobile', 'studentPhoto']) {
-          if (parsedConfig[field] === 'required') {
+          if (isFieldMandatory(field, false)) {
             const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
               toast.error(`Field '${field}' is required by this center's configuration`);
@@ -791,23 +813,23 @@ export function EnrollStudentPanel() {
               <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 2: Candidate Personal Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label>Full Name <span className="text-destructive">*</span></Label>
+                  <Label>Full Name {isFieldMandatory('studentName', true) && <span className="text-destructive">*</span>}</Label>
                   <Input value={form.studentName} onChange={e => setForm(f => ({ ...f, studentName: e.target.value }))} placeholder="Student's name" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Email Address <span className="text-destructive">*</span></Label>
+                  <Label>Email Address {isFieldMandatory('studentEmail', true) && <span className="text-destructive">*</span>}</Label>
                   <Input type="email" value={form.studentEmail} onChange={e => setForm(f => ({ ...f, studentEmail: e.target.value }))} onBlur={checkEmail} placeholder="student@example.com" />
                   {checkingEmail && <p className="text-xs text-muted-foreground mt-1 animate-pulse">Checking email availability...</p>}
                   {emailUnique === false && <p className="text-xs text-destructive mt-1 flex items-center gap-1"><ShieldAlert className="w-3 h-3"/> Email already registered for this intake.</p>}
                   {emailUnique === true && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><Check className="w-3 h-3"/> Email available.</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Phone Number <span className="text-destructive">*</span></Label>
+                  <Label>Phone Number {isFieldMandatory('studentPhone', true) && <span className="text-destructive">*</span>}</Label>
                   <Input type="tel" inputMode="numeric" pattern="[0-9]*" value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value.replace(/\D/g, '') }))} placeholder="Primary phone" />
                 </div>
                 {renderField('dob', 'Date of Birth', 'date')}
                 <div className="space-y-1 md:col-span-2">
-                  <Label>Home Address <span className="text-destructive">*</span></Label>
+                  <Label>Home Address {isFieldMandatory('studentAddress', true) && <span className="text-destructive">*</span>}</Label>
                   <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Permanent address" />
                 </div>
                 {renderField('pincode', 'Pincode')}

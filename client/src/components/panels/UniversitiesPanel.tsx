@@ -14,6 +14,7 @@ interface Branch { id: string; name: string; code: string; }
 interface University {
   id: string; name: string; code: string; address?: string;
   contact?: string; status: string; coordinatorName?: string;
+  category?: string; optionalFields?: any;
   allowedBranchIds: Branch[];
 }
 
@@ -27,7 +28,7 @@ export function UniversitiesPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', code: '', address: '', contact: '', coordinatorName: '', status: 'active',
+    name: '', code: '', address: '', contact: '', coordinatorName: '', status: 'active', category: 'team_lease', optionalFields: ''
   });
   const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
   const [accessMode, setAccessMode] = useState<'all' | 'exclusive' | 'multi'>('all');
@@ -61,6 +62,7 @@ export function UniversitiesPanel() {
     try {
       const payload = {
         ...formData,
+        optionalFields: formData.optionalFields ? JSON.stringify(formData.optionalFields.split(',').map(s => s.trim())) : null,
         allowedBranchIds: selectedBranchIds,
       };
       if (editingId) {
@@ -78,7 +80,11 @@ export function UniversitiesPanel() {
 
   const handleEdit = (u: University) => {
     setEditingId(u.id);
-    setFormData({ name: u.name, code: u.code, address: u.address || '', contact: u.contact || '', coordinatorName: u.coordinatorName || '', status: u.status });
+    let optFieldsStr = '';
+    if (u.optionalFields && Array.isArray(u.optionalFields)) {
+       optFieldsStr = u.optionalFields.join(', ');
+    }
+    setFormData({ name: u.name, code: u.code, address: u.address || '', contact: u.contact || '', coordinatorName: u.coordinatorName || '', status: u.status, category: u.category || 'team_lease', optionalFields: optFieldsStr });
     const ids = (u.allowedBranchIds || []).map(b => b.id);
     setSelectedBranchIds(ids);
     if (ids.length === 0) setAccessMode('all');
@@ -154,6 +160,31 @@ export function UniversitiesPanel() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Category</Label>
+                  <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="team_lease">Team Lease</SelectItem>
+                      <SelectItem value="direct_iits">Direct IITS Payment</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.category === 'premium' && (
+                  <div>
+                    <Label>Optional Fields (comma-separated)</Label>
+                    <Input 
+                       placeholder="e.g. abcId, dob, fatherName" 
+                       value={formData.optionalFields} 
+                       onChange={(e) => setFormData({ ...formData, optionalFields: e.target.value })} 
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">These fields won't be mandatory during enrollment.</p>
+                  </div>
+                )}
               </div>
 
               {/* ── Branch Access ── */}
@@ -336,6 +367,7 @@ export function UniversitiesPanel() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className="text-xs bg-slate-50 capitalize">{u.category?.replace('_', ' ') || 'Team Lease'}</Badge>
               <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">{u.status}</Badge>
               {isOrgAdmin && (
                 <>

@@ -40,17 +40,22 @@ interface Metrics {
 
 export function UniversityStudentsPanel() {
   const [universities, setUniversities] = useState<University[]>([]);
-  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
+
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
+
   const [search, setSearch] = useState('');
   const [programFilter, setProgramFilter] = useState('all');
   const [centerFilter, setCenterFilter] = useState('all');
+  const [sessionFilter, setSessionFilter] = useState('all');
+
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [centers, setCenters] = useState<{ id: string; name: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
 
-  useEffect(() => { fetchUniversities(); fetchCenters(); }, []);
+  useEffect(() => { fetchUniversities(); fetchCenters(); fetchSessions(); }, []);
 
   const fetchUniversities = async () => {
     setLoading(true);
@@ -70,6 +75,15 @@ export function UniversityStudentsPanel() {
       setCenters(res.data.data || []);
     } catch {
       toast.error('Failed to load centers');
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const res = await api.get('/operations/admission-sessions');
+      setSessions(res.data.data || []);
+    } catch {
+      toast.error('Failed to load sessions');
     }
   };
 
@@ -100,6 +114,7 @@ export function UniversityStudentsPanel() {
       if (search) params.search = search;
       if (programFilter !== 'all') params.programId = programFilter;
       if (centerFilter !== 'all') params.studyCenterId = centerFilter;
+      if (sessionFilter !== 'all') params.sessionId = sessionFilter;
       const res = await api.get(`/operations/universities/${selectedUniversity.id}/students`, { params });
       setEnrollments(res.data.data || []);
     } catch {
@@ -107,11 +122,11 @@ export function UniversityStudentsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [selectedUniversity, search, programFilter]);
+  }, [selectedUniversity, search, programFilter, centerFilter, sessionFilter]);
 
   useEffect(() => {
     if (selectedUniversity) refreshStudents();
-  }, [search, programFilter, centerFilter, selectedUniversity, refreshStudents]);
+  }, [search, programFilter, centerFilter, sessionFilter, selectedUniversity, refreshStudents]);
 
   // ── University list view ──────────────────────────────────────────────────
   if (!selectedUniversity) {
@@ -216,6 +231,17 @@ export function UniversityStudentsPanel() {
             <SelectItem value="all">All Centers</SelectItem>
             {centers.map(c => (
               <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sessionFilter} onValueChange={setSessionFilter}>
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder="All Sessions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sessions</SelectItem>
+            {sessions.map(s => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

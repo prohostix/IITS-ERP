@@ -11,9 +11,9 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
   };
 
   if (isHistory) {
-    where.status = { in: ['finance_review', 'enrolled', 'rejected'] } as any;
+    where.status = { in: ['pending_finance_review', 'payment_pending', 'enrolled', 'rejected'] } as any;
   } else {
-    where.status = { in: ['submitted', 'document_review'] } as any;
+    where.status = 'pending_doc_review';
   }
 
   const enrollments = await prisma.enrollment.findMany({
@@ -24,14 +24,27 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId, status: 'dept_review' as any }, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
+  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_doc_review' }, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 
 export const approveDeptEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const currentEnrollment = await prisma.enrollment.findUnique({
+    where: { id: req.params.id },
+    include: { program: { include: { university: true } } }
+  });
+
+  if (!currentEnrollment || !currentEnrollment.program?.university) {
+    res.status(404).json({ success: false, message: 'Enrollment or University not found' });
+    return;
+  }
+
+  const category = (currentEnrollment.program.university as any).category || 'team_lease';
+  const nextStatus = category === 'team_lease' ? 'pending_finance_review' : 'payment_pending';
+
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
-    data: { status: 'finance_review' as any, departmentReviewer: { connect: { id: req.user.id } }, departmentReviewedAt: new Date() },
+    data: { status: nextStatus, departmentReviewer: { connect: { id: req.user.id } }, departmentReviewedAt: new Date() },
     include: { program: true }
   });
 

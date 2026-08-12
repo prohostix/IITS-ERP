@@ -45,8 +45,10 @@ interface Enrollment {
 const STATUS_COLOR: Record<string, string> = {
   payment_pending: 'bg-muted text-muted-foreground',
   document_review: 'bg-info/10 text-info',
+  pending_doc_review: 'bg-info/10 text-info',
   dept_review: 'bg-warning/10 text-warning',
   finance_review: 'bg-orange-100 text-orange-700',
+  pending_finance_review: 'bg-orange-100 text-orange-700',
   enrolled: 'bg-success/10 text-success',
   rejected: 'bg-destructive/10 text-destructive',
 };

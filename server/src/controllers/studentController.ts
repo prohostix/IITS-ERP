@@ -26,6 +26,9 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   if (req.query.programId) {
     where.programId = req.query.programId as string;
   }
+  if (req.query.sessionId) {
+    where.enrollments = { some: { sessionId: req.query.sessionId as string } };
+  }
   if (req.query.search) {
     const search = req.query.search as string;
     where.OR = [

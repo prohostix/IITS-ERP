@@ -328,6 +328,8 @@ model University {
   country              String?
   coordinatorName      String?
   status               String                @default("active")
+  category             String                @default("team_lease") // "team_lease", "direct_iits", "premium"
+  optionalFields       Json?                 @default("{}")
   admissionSessions    AdmissionSession[]
   programs             Program[]
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -861,7 +863,7 @@ model Enrollment {
   studentEmail         String
   studentPhone         String
   studentAddress       String
-  status               String             @default("payment_pending")
+  status               String             @default("pending_doc_review")
   departmentRemarks    String?
   financeRemarks       String?
   departmentReviewedBy String?
@@ -874,6 +876,10 @@ model Enrollment {
   educationalDetails   Json?              @default("[]")
   paymentMethod        String?            // e.g. 'full_payment' or 'installment'
   totalFee             Float?             // The fee calculated at the time of enrollment
+  paymentType          String?            // "wallet", "emi", "direct_to_university"
+  emiDetails           Json?
+  refundStatus         String?            // "pending", "processed", "rejected"
+  refundAmount         Float?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   universityRemarks    String?

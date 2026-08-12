@@ -14,6 +14,7 @@ import {
   getAllEnrollments,
   getActiveSessions,
   checkEmailUniqueness,
+  processPaymentStage,
 } from '../controllers/enrollmentController.js';
 import {
   getPendingReviews,
@@ -40,6 +41,7 @@ router.get('/sessions', authorize('center_admin'), getActiveSessions);
 router.post('/check-email', authorize('center_admin'), checkEmailUniqueness);
 router.post('/enroll', authorize('center_admin'), createEnrollment);
 router.put('/enroll/:id', authorize('center_admin'), updateEnrollment);
+router.post('/enroll/:id/pay', authorize('center_admin'), processPaymentStage);
 router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
 
 // Center onboarding status & payment (authenticated)

@@ -154,7 +154,7 @@ export const getEnrollablePrograms = asyncHandler(async (req: AuthRequest, res: 
   const programs = await prisma.program.findMany({
     where,
     include: {
-      university: { select: { id: true, name: true, code: true } },
+      university: { select: { id: true, name: true, code: true, category: true, optionalFields: true } },
       programFeeStructure: {
         where: {
           organizationId: req.user.organizationId
@@ -301,7 +301,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       pincode,
       alternativePhone,
       admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
-      status: 'document_review' as any,
+      status: 'pending_doc_review',
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
       paymentMethod: paymentMethod || 'installment',
@@ -516,7 +516,7 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
       programId: targetProgramId,
       sessionId: finalSessionId,
-      status: 'document_review' as any,
+      status: 'pending_doc_review',
       departmentRemarks: null, // Clear remarks since it is re-submitted
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : enrollment.documents,
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : enrollment.educationalDetails,
@@ -524,4 +524,121 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   });
 
   res.status(200).json({ success: true, data: updatedEnrollment });
+});
+
+export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const { paymentType, emiDetails, paymentProof } = req.body;
+
+  const dbEnrollment = await prisma.enrollment.findUnique({
+    where: { id },
+    include: { program: { include: { university: true } } }
+  });
+
+  if (!dbEnrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  if (dbEnrollment.status !== 'payment_pending') {
+    res.status(400).json({ success: false, message: 'Enrollment is not in payment pending stage' });
+    return;
+  }
+
+  const category = (dbEnrollment.program.university as any).category || 'team_lease';
+
+  if (category === 'direct_iits' && paymentType === 'wallet') {
+    // Determine fee
+    let feeStructure = await prisma.programFeeStructure.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        programId: dbEnrollment.programId,
+        admissionSessionId: dbEnrollment.sessionId,
+        level: 'program'
+      }
+    });
+
+    if (!feeStructure) {
+      feeStructure = await prisma.programFeeStructure.findFirst({
+        where: { organizationId: req.user.organizationId, programId: dbEnrollment.programId }
+      });
+    }
+
+    if (!feeStructure) {
+      res.status(400).json({ success: false, message: 'Program fee structure is not configured' });
+      return;
+    }
+
+    const addFees = Array.isArray(feeStructure.additionalFees) ? feeStructure.additionalFees : [];
+    const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
+    const additionalFeesTotal = nonGstFees.reduce((s: number, f: any) => s + f.amount, 0);
+
+    let breakdowns = (feeStructure as any).feeBreakdown;
+    if (typeof breakdowns === 'string') {
+      try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
+    }
+
+    let subtotal = 0;
+    if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+      const b = breakdowns[0];
+      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+    } else {
+      subtotal = feeStructure.baseFee + additionalFeesTotal;
+    }
+
+    const gstEntry = addFees.find((f: any) => f.label === 'GST');
+    const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
+    const totalFee = (dbEnrollment as any).totalFee || (subtotal + gstAmount);
+
+    await prisma.$transaction(async (tx) => {
+      const wallet = await tx.studyCenterWallet.findUnique({
+        where: { studyCenterId: dbEnrollment.studyCenterId }
+      });
+
+      if (!wallet || wallet.balance < totalFee) {
+        throw new Error(`Insufficient wallet balance. Required: ₹${totalFee}`);
+      }
+
+      await tx.studyCenterWallet.update({
+        where: { id: wallet.id },
+        data: { balance: { decrement: totalFee } }
+      });
+
+      await tx.enrollmentPayment.create({
+        data: {
+          enrollmentId: dbEnrollment.id,
+          studyCenterId: dbEnrollment.studyCenterId,
+          walletId: wallet.id,
+          amount: totalFee
+        }
+      });
+
+      await tx.enrollment.update({
+        where: { id },
+        data: {
+          status: 'pending_finance_review',
+          paymentType: 'wallet'
+        }
+      });
+    });
+
+  } else if (category === 'premium') {
+    await prisma.enrollment.update({
+      where: { id },
+      data: {
+        status: 'pending_finance_review',
+        paymentType: paymentType || 'direct_to_university',
+        emiDetails: emiDetails || null,
+        documents: paymentProof ? [
+          ...(Array.isArray(dbEnrollment.documents) ? dbEnrollment.documents : []),
+          { reqName: 'Payment Proof', url: paymentProof }
+        ] : dbEnrollment.documents
+      }
+    });
+  } else {
+    res.status(400).json({ success: false, message: 'Invalid payment stage operation for this category' });
+    return;
+  }
+
+  res.json({ success: true, message: 'Payment stage completed' });
 });

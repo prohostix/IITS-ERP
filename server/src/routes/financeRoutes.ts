@@ -61,6 +61,7 @@ import {
   approveFinanceEnrollment,
   rejectFinanceEnrollment,
   getAllEnrollments,
+  processRefund,
 } from '../controllers/financeEnrollmentController.js';
 import {
   getFinanceSalaryConfigs,
@@ -144,6 +145,7 @@ router.get('/enrollments/all', authorize('finance_admin'), getAllEnrollments);
 router.get('/enrollments', authorize('finance_admin'), getFinanceEnrollments);
 router.put('/enrollments/:id/approve', authorize('finance_admin'), approveFinanceEnrollment);
 router.put('/enrollments/:id/reject', authorize('finance_admin'), rejectFinanceEnrollment);
+router.post('/enrollments/:id/refund', authorize('finance_admin'), processRefund);
 
 // Reports
 router.get('/reports/income-expenditure', authorize('finance_admin'), getIncomeExpenditureReport);

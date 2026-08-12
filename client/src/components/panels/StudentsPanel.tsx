@@ -20,6 +20,7 @@ export function StudentsPanel() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export function StudentsPanel() {
   const [universityFilter, setUniversityFilter] = useState('');
   const [centerFilter, setCenterFilter] = useState('');
   const [programFilter, setProgramFilter] = useState('');
+  const [sessionFilter, setSessionFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchStudents = useCallback(async () => {
@@ -81,6 +83,7 @@ export function StudentsPanel() {
       if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
       if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
       if (programFilter && programFilter !== 'all') query.append('programId', programFilter);
+      if (sessionFilter && sessionFilter !== 'all') query.append('sessionId', sessionFilter);
       if (searchQuery) query.append('search', searchQuery);
       
       const response = await api.get(`/students?${query.toString()}`);
@@ -89,7 +92,7 @@ export function StudentsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, universityFilter, centerFilter, programFilter, searchQuery]);
+  }, [statusFilter, universityFilter, centerFilter, programFilter, sessionFilter, searchQuery]);
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -115,12 +118,21 @@ export function StudentsPanel() {
     }
   }, []);
 
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await api.get('/operations/admission-sessions');
+      setSessions(response.data.data || []);
+    } catch (error) {
+    }
+  }, []);
+
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
     fetchCenters();
     fetchUniversities();
-  }, [fetchStudents, fetchPrograms, fetchCenters, fetchUniversities]);
+    fetchSessions();
+  }, [fetchStudents, fetchPrograms, fetchCenters, fetchUniversities, fetchSessions]);
 
   const fetchInstallments = async (studentId: string) => {
     setFetchingInstallments(true);
@@ -329,6 +341,18 @@ export function StudentsPanel() {
         ))}
 
         <div className="ml-auto flex gap-2">
+          <Select value={sessionFilter} onValueChange={setSessionFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All Sessions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sessions</SelectItem>
+              {sessions.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={universityFilter} onValueChange={setUniversityFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All Universities" />

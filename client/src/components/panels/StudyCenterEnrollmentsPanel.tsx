@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, FileText, GraduationCap, Eye, Calendar, User, Phone, Mail, MapPin, ShieldAlert, Trash2, Plus, Upload } from 'lucide-react';
+import { RefreshCw, FileText, GraduationCap, Eye, Calendar, User, Phone, Mail, MapPin, ShieldAlert, Trash2, Plus, Upload, Printer } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +31,10 @@ interface Enrollment {
 const STATUS_COLOR: Record<string, string> = {
   payment_pending: 'bg-muted text-muted-foreground',
   document_review: 'bg-info/10 text-info',
+  pending_doc_review: 'bg-info/10 text-info',
   dept_review: 'bg-warning/10 text-warning',
   finance_review: 'bg-orange-100 text-orange-700',
+  pending_finance_review: 'bg-orange-100 text-orange-700',
   enrolled: 'bg-success/10 text-success',
   rejected: 'bg-destructive/10 text-destructive',
 };
@@ -61,6 +63,14 @@ export function StudyCenterEnrollmentsPanel() {
   const [editDocuments, setEditDocuments] = useState<any[]>([]);
   const [tempEdu, setTempEdu] = useState({ qualification: '', institution: '', passingYear: '', percentage: '' });
   const [uploading, setUploading] = useState(false);
+
+  // Payment state
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    paymentType: 'wallet',
+    emiDetails: '',
+    paymentProof: ''
+  });
 
   const fetchEnrollments = useCallback(async () => {
     setLoading(true);
@@ -148,6 +158,60 @@ export function StudyCenterEnrollmentsPanel() {
 
   const handleRemoveDocument = (index: number) => {
     setEditDocuments(list => list.filter((_, idx) => idx !== index));
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEnrollment) return;
+    try {
+      await api.post(`/enrollment/enroll/${selectedEnrollment.id}/pay`, paymentForm);
+      alert('Payment stage processed successfully');
+      setPaymentOpen(false);
+      setSelectedEnrollment(null);
+      fetchEnrollments();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to process payment');
+    }
+  };
+
+  const handlePrintApp = (e: Enrollment) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Application Form - ${e.studentName}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+            th { background: #f9f9f9; width: 30%; font-weight: 600; }
+            .section-title { font-size: 18px; margin-top: 30px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+          </style>
+        </head>
+        <body>
+          <h1>Student Application Form</h1>
+          <div class="section-title">Personal Details</div>
+          <table>
+            <tr><th>Student Name</th><td>${e.studentName}</td></tr>
+            <tr><th>Email</th><td>${e.studentEmail}</td></tr>
+            <tr><th>Phone</th><td>${e.studentPhone}</td></tr>
+            <tr><th>Address</th><td>${e.studentAddress}</td></tr>
+          </table>
+          <div class="section-title">Enrollment Details</div>
+          <table>
+            <tr><th>Program</th><td>${typeof e.program === 'object' ? e.program?.name : e.programId}</td></tr>
+            <tr><th>Application Status</th><td>${e.status.replace(/_/g, ' ').toUpperCase()}</td></tr>
+            <tr><th>Date Submitted</th><td>${new Date(e.createdAt).toLocaleDateString()}</td></tr>
+          </table>
+          <script>
+            window.onload = () => { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleUpdateSubmit = async (e: React.FormEvent) => {
@@ -390,12 +454,58 @@ export function StudyCenterEnrollmentsPanel() {
 
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setSelectedEnrollment(null)}>Close</Button>
+                <Button variant="secondary" onClick={() => handlePrintApp(selectedEnrollment)}>
+                  <Printer className="w-4 h-4 mr-2" /> Print App
+                </Button>
                 {selectedEnrollment.status === 'rejected' && (
                   <Button onClick={() => handleStartEdit(selectedEnrollment)}>Edit & Re-submit</Button>
+                )}
+                {selectedEnrollment.status === 'payment_pending' && (
+                  <Button onClick={() => setPaymentOpen(true)}>Process Payment</Button>
                 )}
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Process Payment</DialogTitle>
+            <DialogDescription>Submit payment details for this enrollment.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePaymentSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={paymentForm.paymentType} 
+                onChange={e => setPaymentForm({ ...paymentForm, paymentType: e.target.value })}
+              >
+                <option value="wallet">Wallet Deduction</option>
+                <option value="emi">EMI / Installments</option>
+                <option value="offline">Offline / Receipt</option>
+              </select>
+            </div>
+            {paymentForm.paymentType === 'emi' && (
+              <div className="space-y-2">
+                <Label>EMI Details / NBFC Name</Label>
+                <Input value={paymentForm.emiDetails} onChange={e => setPaymentForm({ ...paymentForm, emiDetails: e.target.value })} required />
+              </div>
+            )}
+            {paymentForm.paymentType === 'offline' && (
+              <div className="space-y-2">
+                <Label>Payment Proof / UTR No.</Label>
+                <Input value={paymentForm.paymentProof} onChange={e => setPaymentForm({ ...paymentForm, paymentProof: e.target.value })} required />
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPaymentOpen(false)}>Cancel</Button>
+              <Button type="submit">Submit Payment</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
