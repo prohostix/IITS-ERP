@@ -219,10 +219,15 @@ export function EnrollStudentPanel() {
 
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       if (method === 'full_payment') {
-        const registrationFee = Number(breakdowns[0]?.registrationFee || 0);
-        const examFees = breakdowns.reduce((sum, b) => sum + Number(b.examFee || 0), 0);
-        const baseFees = breakdowns.reduce((sum, b) => sum + Number(b.baseFee || 0), 0);
-        subtotal = baseFees + registrationFee + examFees + additionalFeesTotal;
+        const fullFee = Number((fs as any).fullProgramFee || 0);
+        if (fullFee > 0) {
+          subtotal = fullFee + additionalFeesTotal;
+        } else {
+          const registrationFee = Number(breakdowns[0]?.registrationFee || 0);
+          const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+          const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+          subtotal = baseFees + registrationFee + examFees + additionalFeesTotal;
+        }
       } else {
         const b = breakdowns[0]; // first payment config
         subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;

@@ -18,6 +18,7 @@ interface ProgramFee {
   universityId?: { id: string; name: string } | string | null;
   admissionSessionId?: { id: string; name: string } | string | null;
   baseFee: number;
+  fullProgramFee?: number;
   additionalFees: { label: string; amount: number }[];
   feeBreakdown?: any[];
   currency: string;
@@ -178,7 +179,9 @@ const fetchAllData = useCallback(async () => {
       currency: 'INR', 
       effectiveFrom: '', 
       additionalFees: '',
-      feeBreakdown: []
+      feeBreakdown: [],
+      baseFee: 0,
+      fullProgramFee: 0
     });
     setOpen(true);
   };
@@ -218,6 +221,8 @@ const fetchAllData = useCallback(async () => {
       billingCycle: fee.billingCycle || 'per_year',
       currency: fee.currency || 'INR',
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
+      baseFee: fee.baseFee || 0,
+      fullProgramFee: fee.fullProgramFee || 0,
       additionalFees: otherFees.map(f => `${f.label}:${f.amount}`).join(', '),
       feeBreakdown: parsedBreakdown
     });
@@ -267,6 +272,7 @@ const fetchAllData = useCallback(async () => {
         universityId: form.universityId || undefined,
         admissionSessionId: form.admissionSessionId || undefined,
         baseFee: totalBaseFee,
+        fullProgramFee: Number(form.fullProgramFee || 0),
         universityFee: totalUniversityFee,
         billingCycle: form.billingCycle,
         currency: form.currency,
@@ -575,7 +581,7 @@ const fetchAllData = useCallback(async () => {
                                 <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
                                   <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year} <span className="font-normal text-muted-foreground ml-1">Due: {b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A'}</span></div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
-                                    <span>One-Time (Reg): {b.registrationFee}</span>
+                                    <span>Reg: {b.registrationFee}</span>
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
                                     <span>Exam: {b.examFee}</span>
@@ -802,12 +808,16 @@ const fetchAllData = useCallback(async () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Currency</Label>
-                <Input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} placeholder="INR" />
+                <Label>Full Program Fee (One-Time Payment)</Label>
+                <Input type="number" value={form.fullProgramFee} onChange={e => setForm(f => ({ ...f, fullProgramFee: parseFloat(e.target.value) || 0 }))} placeholder="E.g. 150000" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              <div className="space-y-1">
+                <Label>Currency</Label>
+                <Input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} placeholder="INR" />
+              </div>
               <div className="space-y-1">
                 <Label>Effective From</Label>
                 <Input type="date" value={form.effectiveFrom} onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
@@ -822,7 +832,7 @@ const fetchAllData = useCallback(async () => {
                     <h4 className="font-medium text-emerald-700">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {block.year}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       <div className="space-y-1">
-                        <Label>Mandatory One-Time Fee (Reg)</Label>
+                        <Label>Registration Fee</Label>
                         <Input type="number" value={block.registrationFee} onChange={e => handleBreakdownChange(idx, 'registrationFee', e.target.value)} />
                       </div>
                       <div className="space-y-1">
