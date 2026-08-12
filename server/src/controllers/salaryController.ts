@@ -53,9 +53,43 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
   const year = Number(req.query.year) || new Date().getFullYear();
   const allocations = await prisma.leaveAllocation.findMany({
     where: { organizationId: req.user.organizationId, year },
-    include: { user: { select: { name: true, email: true } } }
+    include: { user: { select: { name: true, email: true, role: true, designation: true } } }
   });
-  res.json({ success: true, count: allocations.length, data: allocations });
+
+  const startDate = new Date(year, 0, 1);
+  const endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+
+  const leaveRequests = await prisma.leaveRequest.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: 'approved',
+      startDate: { gte: startDate },
+      endDate: { lte: endDate }
+    }
+  });
+
+  const data = allocations.map(alloc => {
+    const userLeaves = leaveRequests.filter(lr => lr.userId === alloc.userId);
+    let usedSick = 0, usedCasual = 0, usedEarned = 0, usedComplementary = 0;
+    
+    for (const lr of userLeaves) {
+      const days = Math.ceil((new Date(lr.endDate).getTime() - new Date(lr.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (lr.type === 'sick') usedSick += days;
+      else if (lr.type === 'casual') usedCasual += days;
+      else if (lr.type === 'earned') usedEarned += days;
+      // complementary doesn't exist in enum, ignore for now or check if added
+    }
+
+    return {
+      ...alloc,
+      usedSick,
+      usedCasual,
+      usedEarned,
+      usedComplementary
+    };
+  });
+
+  res.json({ success: true, count: data.length, data });
 });
 
 export const getLeaveAllocation = asyncHandler(async (req: AuthRequest, res: Response) => {

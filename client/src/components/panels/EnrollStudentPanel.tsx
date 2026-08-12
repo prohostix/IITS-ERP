@@ -101,6 +101,7 @@ export function EnrollStudentPanel() {
   // Dynamic lists for documents and education details
   const [educationList, setEducationList] = useState<EducationDetail[]>([]);
   const [documentList, setDocumentList] = useState<DocumentFile[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<'installment' | 'full_payment'>('installment');
   
   // Single entry helper state for educational details form
   const [tempEdu, setTempEdu] = useState<EducationDetail>({
@@ -185,7 +186,7 @@ export function EnrollStudentPanel() {
     s => !selectedProgram || s.programId === null || s.programId === selectedProgram.id
   );
 
-  const getTotalFee = (p: Program) => {
+  const getTotalFee = (p: Program, pm?: string) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
     
     // Find fee structure for the selected session
@@ -214,9 +215,18 @@ export function EnrollStudentPanel() {
     const nonGstFees = addFees.filter(f => f.label !== 'GST');
     const additionalFeesTotal = nonGstFees.reduce((s, f) => s + f.amount, 0);
 
+    const method = pm || paymentMethod;
+
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
-      const b = breakdowns[0]; // first payment config
-      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+      if (method === 'full_payment') {
+        const registrationFee = Number(breakdowns[0]?.registrationFee || 0);
+        const examFees = breakdowns.reduce((sum, b) => sum + Number(b.examFee || 0), 0);
+        const baseFees = breakdowns.reduce((sum, b) => sum + Number(b.baseFee || 0), 0);
+        subtotal = baseFees + registrationFee + examFees + additionalFeesTotal;
+      } else {
+        const b = breakdowns[0]; // first payment config
+        subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+      }
     } else {
       subtotal = fs.baseFee + additionalFeesTotal;
     }
@@ -417,7 +427,9 @@ export function EnrollStudentPanel() {
         programId: selectedProgram.id,
         sessionId: selectedSessionId,
         documents: documentList,
-        educationalDetails: educationList
+        educationalDetails: educationList,
+        paymentMethod: paymentMethod,
+        totalFee: getTotalFee(selectedProgram)
       });
       toast.success('Enrollment submitted successfully');
       setForm({ 
@@ -721,19 +733,47 @@ export function EnrollStudentPanel() {
               
               {/* Fee Summary Panel */}
               {selectedProgram && selectedSessionId && (
-                <div className="mt-6 p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
-                  <div>
-                    <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
-                      Required Enrollment Fee
-                    </h4>
-                    <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
-                      Initial payment due for enrollment based on configured {getBillingCycleText(selectedProgram).replace('/', '').trim()} pricing structure.
-                    </p>
+                <div className="mt-6 flex flex-col gap-4">
+                  <div className="p-4 border rounded-xl shadow-sm bg-slate-50 dark:bg-slate-900/50">
+                    <h4 className="text-sm font-semibold mb-3">Select Payment Method</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'full_payment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}
+                        onClick={() => setPaymentMethod('full_payment')}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input type="radio" checked={paymentMethod === 'full_payment'} onChange={() => setPaymentMethod('full_payment')} className="accent-primary" />
+                          <span className="font-semibold text-sm">One-Time Payment</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-5">Pay full program fee upfront including all tuition.</p>
+                      </div>
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'installment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}
+                        onClick={() => setPaymentMethod('installment')}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input type="radio" checked={paymentMethod === 'installment'} onChange={() => setPaymentMethod('installment')} className="accent-primary" />
+                          <span className="font-semibold text-sm">Installment ({getBillingCycleText(selectedProgram).replace('/', '').trim()})</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-5">Pay the first installment plus registration fee.</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
-                    <div className="text-2xl font-black text-indigo-700">
-                      ₹{getTotalFee(selectedProgram).toLocaleString()}
+
+                  <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
+                    <div>
+                      <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
+                        Required Enrollment Fee
+                      </h4>
+                      <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
+                        Initial payment due for enrollment based on configured pricing structure.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
+                      <div className="text-2xl font-black text-indigo-700">
+                        ₹{getTotalFee(selectedProgram).toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </div>

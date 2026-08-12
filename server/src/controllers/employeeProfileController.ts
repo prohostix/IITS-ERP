@@ -5,18 +5,36 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getEmployeeProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const profile = await prisma.user.findUnique({
-    where: { id: req.params.userId || req.user.id },
+  const userId = req.params.userId || req.user.id;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
     include: { organization: true, department: true }
   });
-  res.json({ success: true, data: profile });
+  const profile = await prisma.employeeProfile.findUnique({
+    where: { userId }
+  });
+  const salaryConfig = await prisma.salaryConfig.findUnique({
+    where: { userId }
+  });
+  res.json({ success: true, data: { user, profile, salaryConfig } });
 });
 
 export const upsertEmployeeProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
-  const profile = await prisma.user.update({
-    where: { id: userId },
-    data: req.body
+  
+  // Format dates correctly before saving
+  const dataToSave = { ...req.body };
+  if (dataToSave.dateOfBirth) dataToSave.dateOfBirth = new Date(dataToSave.dateOfBirth);
+  if (dataToSave.joinDate) dataToSave.joinDate = new Date(dataToSave.joinDate);
+  if (dataToSave.confirmationDate) dataToSave.confirmationDate = new Date(dataToSave.confirmationDate);
+  if (dataToSave.probationEndDate) dataToSave.probationEndDate = new Date(dataToSave.probationEndDate);
+  if (dataToSave.lastReviewDate) dataToSave.lastReviewDate = new Date(dataToSave.lastReviewDate);
+  if (dataToSave.nextReviewDate) dataToSave.nextReviewDate = new Date(dataToSave.nextReviewDate);
+
+  const profile = await prisma.employeeProfile.upsert({
+    where: { userId },
+    update: dataToSave,
+    create: { ...dataToSave, userId, organizationId: req.user.organizationId }
   });
   res.json({ success: true, data: profile });
 });
@@ -43,11 +61,44 @@ export const updateKRAs = asyncHandler(async (req: AuthRequest, res: Response) =
 
 export const updateSalaryDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
-  const { effectiveFrom, ...salaryData } = req.body;
-  const config = await prisma.salaryConfig.upsert({
+  const { salaryConfig, ctc, basicSalary, bankName, bankAccountNo, ifscCode, panNumber } = req.body;
+
+  const profileData = { 
+    ctc: ctc ? Number(ctc) : null,
+    basicSalary: basicSalary ? Number(basicSalary) : null,
+    bankName, 
+    bankAccountNo, 
+    ifscCode, 
+    panNumber 
+  };
+
+  const profile = await prisma.employeeProfile.upsert({
     where: { userId },
-    update: salaryData,
-    create: { ...salaryData, userId, organizationId: req.user.organizationId, createdBy: req.user.id }
+    update: profileData,
+    create: { ...profileData, userId, organizationId: req.user.organizationId }
   });
-  res.json({ success: true, data: config });
+
+  let config = null;
+  if (salaryConfig) {
+    config = await prisma.salaryConfig.upsert({
+      where: { userId },
+      update: {
+        basicSalary: salaryConfig.basicSalary ? Number(salaryConfig.basicSalary) : 0,
+        allowances: salaryConfig.allowances || {},
+        deductions: salaryConfig.deductions || {},
+        lateDeductionPerMinute: salaryConfig.lateDeductionPerMinute ? Number(salaryConfig.lateDeductionPerMinute) : 0,
+      },
+      create: {
+        userId,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+        basicSalary: salaryConfig.basicSalary ? Number(salaryConfig.basicSalary) : 0,
+        allowances: salaryConfig.allowances || {},
+        deductions: salaryConfig.deductions || {},
+        lateDeductionPerMinute: salaryConfig.lateDeductionPerMinute ? Number(salaryConfig.lateDeductionPerMinute) : 0,
+      }
+    });
+  }
+
+  res.json({ success: true, data: { profile, salaryConfig: config } });
 });

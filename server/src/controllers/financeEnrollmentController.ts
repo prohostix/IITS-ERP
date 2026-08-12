@@ -137,7 +137,9 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 
   const gstEntry = addFees.find((f: any) => f.label === 'GST');
   const gstAmount = gstEntry ? Math.round((subtotal * gstEntry.amount) / 100) : 0;
-  const totalFee = subtotal + gstAmount;
+  
+  // Use the totalFee calculated at enrollment time (which respects paymentMethod), or fallback
+  const totalFee = (dbEnrollment as any).totalFee || (subtotal + gstAmount);
 
   // 3. Perform wallet check and deduction inside a transaction
   const enrollment = await prisma.$transaction(async (tx) => {

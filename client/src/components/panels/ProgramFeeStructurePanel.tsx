@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen, GraduationCap, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -55,7 +55,8 @@ export function ProgramFeeStructurePanel() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
   const [sessions, setSessions] = useState<AdmissionSession[]>([]);
-  const [selectedUniversityId, setSelectedUniversityId] = useState<string>('all');
+  const [selectedUniversityId, setSelectedUniversityId] = useState<string>('');
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProgramFee | null>(null);
@@ -152,8 +153,8 @@ const fetchAllData = useCallback(async () => {
       setSubDepartments(subDeptsRes.data.data || []);
       
       const unis = unisRes.data.data || [];
-      if (unis.length > 0 && selectedUniversityId === 'all') {
-        setSelectedUniversityId(unis[0].id);
+      if (unis.length > 0 && !selectedUniversityId) {
+        // We will leave it unselected to force user to click
       }
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load data');
@@ -170,8 +171,8 @@ const fetchAllData = useCallback(async () => {
     setEditing(null);
     setForm({ 
       level: 'program',
-      programId: '', 
-      universityId: selectedUniversityId !== 'all' ? selectedUniversityId : '',
+      programId: selectedProgramId, 
+      universityId: selectedUniversityId,
       admissionSessionId: '',
       billingCycle: 'per_year', 
       currency: 'INR', 
@@ -351,10 +352,21 @@ const fetchAllData = useCallback(async () => {
   };
 
   // Filter programs based on selected university
-  const filteredPrograms = programs.filter(p => {
-    const pUniId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
-    return selectedUniversityId === 'all' || pUniId === selectedUniversityId;
-  });
+  const filteredPrograms = useMemo(() => {
+    if (!selectedUniversityId) return [];
+    return programs.filter(p => {
+      const uId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
+      return uId === selectedUniversityId;
+    });
+  }, [programs, selectedUniversityId]);
+
+  const filteredFees = useMemo(() => {
+    if (!selectedProgramId) return [];
+    return fees.filter(f => {
+      const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
+      return pId === selectedProgramId;
+    });
+  }, [fees, selectedProgramId]);
 
   // Filter programs based on selected university in the dialog form
   const dialogFilteredPrograms = programs.filter(p => {
@@ -362,17 +374,7 @@ const fetchAllData = useCallback(async () => {
     return !form.universityId || pUniId === form.universityId;
   });
 
-  // Filter fee structures based on selected university
-  const filteredFees = fees.filter(f => {
-    if (f.level === 'university') {
-      const uniId = typeof f.universityId === 'object' ? f.universityId?.id : f.universityId;
-      return selectedUniversityId === 'all' || uniId === selectedUniversityId;
-    }
-    const prog = typeof f.programId === 'object' ? f.programId : programs.find(p => p.id === f.programId);
-    if (!prog) return false;
-    const pUniId = typeof prog.universityId === 'object' ? prog.universityId?.id : prog.universityId;
-    return selectedUniversityId === 'all' || pUniId === selectedUniversityId;
-  });
+
 
   const getProgramName = (fee: ProgramFee) => {
     if (fee.level === 'university') {
@@ -410,19 +412,6 @@ const fetchAllData = useCallback(async () => {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <div className="w-full sm:w-[280px]">
-            <Select value={selectedUniversityId} onValueChange={setSelectedUniversityId}>
-              <SelectTrigger className="w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors border-slate-200 shadow-sm h-10 font-medium">
-                <SelectValue placeholder="Choose a university" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="font-semibold text-primary">All Universities</SelectItem>
-                {universities.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <div className="flex gap-2">
             <Button variant="outline" className="h-10 w-10 p-0 border-slate-200 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={fetchAllData} disabled={loading} title="Refresh Data">
               <RefreshCw className={`w-4 h-4 text-slate-600 dark:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
@@ -430,53 +419,46 @@ const fetchAllData = useCallback(async () => {
             <Button className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all hover:shadow-md" onClick={() => {
               setNewProgramForm(prev => ({
                 ...prev,
-                universityId: selectedUniversityId !== 'all' ? selectedUniversityId : ''
+                universityId: selectedUniversityId
               }));
               setProgramDialogOpen(true);
-            }}>
+            }} disabled={!selectedUniversityId}>
               <Plus className="w-4 h-4 mr-2" /> Program
             </Button>
-            <Button className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all hover:shadow-md" onClick={openCreate}>
+            <Button className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all hover:shadow-md" onClick={openCreate} disabled={!selectedProgramId}>
               <Plus className="w-4 h-4 mr-2" /> Fee Config
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Main content grid */}
+      {/* Main content grid - 3 Tiers */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left 1 Column: Programs & Specialisations list */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
+        {/* Tier 1: Universities */}
+        <div className="space-y-4">
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden h-full">
             <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-lg flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-500" /> Programs List
+                <Building2 className="w-5 h-5 text-indigo-500" /> Universities
               </CardTitle>
-              <CardDescription>Academic courses and specialisations</CardDescription>
+              <CardDescription>Select a university</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
-              ) : filteredPrograms.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">No programs found for this university.</div>
+              ) : universities.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">No universities found.</div>
               ) : (
-                filteredPrograms.map(p => (
-                  <div key={p.id} className="p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-2 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm transition-all group">
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <h4 className="font-semibold text-sm leading-none">{p.name}</h4>
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase">{p.code}</span>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] py-0">{p.specialisations?.length || 0} Specialisations</Badge>
+                universities.map(u => (
+                  <div 
+                    key={u.id} 
+                    onClick={() => { setSelectedUniversityId(u.id); setSelectedProgramId(''); }}
+                    className={`p-3 border rounded-xl cursor-pointer transition-all group ${selectedUniversityId === u.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm'}`}
+                  >
+                    <div className="flex justify-between items-center gap-2">
+                      <h4 className="font-semibold text-sm leading-none">{u.name}</h4>
                     </div>
-                    {p.specialisations && p.specialisations.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {p.specialisations.map((spec, i) => (
-                          <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0">{spec}</Badge>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 ))
               )}
@@ -484,8 +466,45 @@ const fetchAllData = useCallback(async () => {
           </Card>
         </div>
 
-        {/* Right 2 Columns: Fee Structures */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Tier 2: Programs List */}
+        <div className="space-y-4">
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden h-full">
+            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-500" /> Programs List
+              </CardTitle>
+              <CardDescription>Select an academic program</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
+              {!selectedUniversityId ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">Please select a university first.</div>
+              ) : loading ? (
+                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
+              ) : filteredPrograms.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">No programs found for this university.</div>
+              ) : (
+                filteredPrograms.map((p: Program) => (
+                  <div 
+                    key={p.id} 
+                    onClick={() => setSelectedProgramId(p.id)}
+                    className={`p-3 border rounded-xl cursor-pointer transition-all group ${selectedProgramId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm'}`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <h4 className="font-semibold text-sm leading-none">{p.name}</h4>
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase">{p.code}</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] py-0">{p.specialisations?.length || 0} Specs</Badge>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tier 3: Fee Structures */}
+        <div className="space-y-4">
           <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
             <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -494,14 +513,18 @@ const fetchAllData = useCallback(async () => {
               <CardDescription>Defined pricing structures for centers</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
-              {loading ? (
+              {!selectedProgramId ? (
+                <div className="text-center py-16 border rounded-xl border-dashed text-muted-foreground">
+                  Please select a program first to view its fee configurations.
+                </div>
+              ) : loading ? (
                 <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
               ) : filteredFees.length === 0 ? (
                 <div className="text-center py-16 border rounded-xl border-dashed text-muted-foreground">
-                  No fee structures defined yet. Select a program and add pricing rules.
+                  No fee structures defined yet. Add pricing rules.
                 </div>
               ) : (
-                filteredFees.map(fee => {
+                filteredFees.map((fee: ProgramFee) => {
                   const specs = getProgramSpecialisations(fee);
                   const sess = typeof fee.admissionSessionId === 'object' ? fee.admissionSessionId?.name : sessions.find(s => s.id === fee.admissionSessionId)?.name;
                   
@@ -552,7 +575,7 @@ const fetchAllData = useCallback(async () => {
                                 <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
                                   <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year} <span className="font-normal text-muted-foreground ml-1">Due: {b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A'}</span></div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
-                                    <span>Reg: {b.registrationFee}</span>
+                                    <span>One-Time (Reg): {b.registrationFee}</span>
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
                                     <span>Exam: {b.examFee}</span>
@@ -799,7 +822,7 @@ const fetchAllData = useCallback(async () => {
                     <h4 className="font-medium text-emerald-700">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {block.year}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       <div className="space-y-1">
-                        <Label>Registration Fee</Label>
+                        <Label>Mandatory One-Time Fee (Reg)</Label>
                         <Input type="number" value={block.registrationFee} onChange={e => handleBreakdownChange(idx, 'registrationFee', e.target.value)} />
                       </div>
                       <div className="space-y-1">

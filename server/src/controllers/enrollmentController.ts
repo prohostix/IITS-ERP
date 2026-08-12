@@ -193,7 +193,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
     abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
-    pincode, alternativePhone
+    pincode, alternativePhone, paymentMethod, totalFee
   } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
@@ -304,6 +304,8 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       status: 'document_review' as any,
       documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
       educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
+      paymentMethod: paymentMethod || 'installment',
+      totalFee: totalFee ? Number(totalFee) : null,
       organization: { connect: { id: organizationId } },
       program:      { connect: { id: programId } },
       studyCenter:  { connect: { id: studyCenterId } },
