@@ -5,10 +5,52 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const punchIn = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { isWFH = false, isHalfDay = false } = req.body;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const checkInTime = new Date();
+  
+  // Find employee and shift
+  const employee = await prisma.employeeProfile.findUnique({
+    where: { userId: req.user.id },
+    include: { shift: true }
+  });
+
+  let isLate = false;
+  let lateMinutes = 0;
+  let status = 'present';
+
+  if (employee?.shift && !employee.shift.isOpenShift && employee.shift.startTime) {
+    // Calculate late minutes
+    const [hours, minutes] = employee.shift.startTime.split(':').map(Number);
+    const expectedTime = new Date(today);
+    expectedTime.setHours(hours, minutes, 0, 0);
+    
+    const graceTime = employee.shift.graceTimeMinutes * 60000; // in milliseconds
+    const diff = checkInTime.getTime() - expectedTime.getTime();
+    
+    if (diff > graceTime) {
+      isLate = true;
+      lateMinutes = Math.floor(diff / 60000);
+      status = 'late';
+    }
+  }
+
+  if (isHalfDay) status = 'half_day';
+
   const attendance = await prisma.attendance.create({
-    data: { userId: req.user.id, organizationId: req.user.organizationId, date: today, checkIn: new Date(), status: 'present' as any }
+    data: { 
+      userId: req.user.id, 
+      organizationId: req.user.organizationId, 
+      date: today, 
+      checkIn: checkInTime, 
+      status: status as any,
+      isLate,
+      lateMinutes,
+      isWFH,
+      isHalfDay
+    }
   });
   res.status(201).json({ success: true, data: attendance });
 });

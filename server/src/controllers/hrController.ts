@@ -47,7 +47,7 @@ export const getLeaveRequest = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { startDate, endDate, departmentId, ...rest } = req.body;
+  const { startDate, endDate, departmentId, type, isHalfDay, attachmentUrl, reason } = req.body;
   
   let deptId = departmentId || req.user.departmentId;
   if (!deptId) {
@@ -68,14 +68,73 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
     }
   }
 
+  // Calculate required days
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  // naive calculation (including weekends), can be improved
+  let diffTime = Math.abs(end.getTime() - start.getTime());
+  let requiredDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  if (isHalfDay) requiredDays = 0.5;
+
+  const currentYear = new Date().getFullYear();
+  
+  // Skip balance check for unpaid and bereavement (or do custom check if needed)
+  if (type !== 'unpaid' && type !== 'bereavement') {
+    const allocation = await prisma.leaveAllocation.findUnique({
+      where: { userId_year: { userId: req.user.id, year: currentYear } }
+    });
+
+    if (!allocation) {
+      return res.status(400).json({ success: false, message: 'Leave allocation not found for this year.' });
+    }
+
+    // Check previously approved/pending leaves
+    const usedLeaves = await prisma.leaveRequest.findMany({
+      where: { 
+        userId: req.user.id, 
+        type: type, 
+        startDate: { gte: new Date(`${currentYear}-01-01`) },
+        status: { in: ['pending', 'dept_approved', 'approved'] }
+      }
+    });
+
+    let usedDays = 0;
+    usedLeaves.forEach(l => {
+      if (l.isHalfDay) usedDays += 0.5;
+      else {
+        let diff = Math.abs(l.endDate.getTime() - l.startDate.getTime());
+        usedDays += Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+      }
+    });
+
+    const fieldMap: Record<string, string> = {
+      'sick': 'sickLeave',
+      'casual': 'casualLeave',
+      'earned': 'earnedLeave',
+      'compensatory': 'complementaryLeave'
+    };
+    
+    const balanceField = fieldMap[type];
+    if (balanceField) {
+      const allowed = (allocation as any)[balanceField];
+      if (usedDays + requiredDays > allowed) {
+        return res.status(400).json({ success: false, message: `Insufficient leave balance for ${type}. Allowed: ${allowed}, Used/Pending: ${usedDays}, Requested: ${requiredDays}` });
+      }
+    }
+  }
+
   const leave = await prisma.leaveRequest.create({
     data: { 
-      ...rest,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      type,
+      reason,
+      isHalfDay,
+      attachmentUrl,
+      startDate: start,
+      endDate: end,
       userId: req.user.id, 
       organizationId: req.user.organizationId,
-      departmentId: deptId
+      departmentId: deptId,
+      status: 'pending' // pending manager approval
     }
   });
   res.status(201).json({ success: true, data: leave });

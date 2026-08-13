@@ -18,6 +18,9 @@ interface SalaryConfig {
   deductions: { pf: number; tax: number; insurance: number; other: number };
   lateDeductionPerMinute: number;
   effectiveFrom?: string;
+  professionalTax: number;
+  labourWelfareFund: number;
+  tds: number;
   approvalStatus?: 'pending_approval' | 'approved' | 'rejected';
   rejectedRemarks?: string;
 }
@@ -36,6 +39,9 @@ const EMPTY_CONFIG = {
   allowances: { hra: 0, transport: 0, medical: 0, other: 0 },
   deductions: { pf: 0, tax: 0, insurance: 0, other: 0 },
   lateDeductionPerMinute: 0,
+  professionalTax: 0,
+  labourWelfareFund: 0,
+  tds: 0,
   effectiveFrom: new Date().toISOString().split('T')[0],
 };
 
@@ -78,6 +84,9 @@ export function SalaryConfigPanel() {
         allowances: { ...config.allowances },
         deductions: { ...config.deductions },
         lateDeductionPerMinute: config.lateDeductionPerMinute || 0,
+        professionalTax: config.professionalTax || 0,
+        labourWelfareFund: config.labourWelfareFund || 0,
+        tds: config.tds || 0,
         effectiveFrom: config.effectiveFrom ? config.effectiveFrom.split('T')[0] : new Date().toISOString().split('T')[0],
       });
     } else {
@@ -125,8 +134,13 @@ export function SalaryConfigPanel() {
 
   const gross = (f: any) =>
     (f.basicSalary || 0) + Object.values(f.allowances as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
-  const net = (f: any) =>
-    gross(f) - Object.values(f.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+  const net = (f: any) => {
+    const defaultDeductions = Object.values(f.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+    const statutoryDeductions = (f.professionalTax || 0) + (f.labourWelfareFund || 0) + (f.tds || 0);
+    let pf = 0;
+    if (f.basicSalary <= 15000) pf = f.basicSalary * 0.12;
+    return gross(f) - defaultDeductions - statutoryDeductions - pf;
+  };
 
   return (
     <div className="space-y-6">
@@ -298,6 +312,30 @@ export function SalaryConfigPanel() {
               <Label>Effective From</Label>
               <Input type="date" value={form.effectiveFrom}
                 onChange={e => setForm((f: any) => ({ ...f, effectiveFrom: e.target.value }))} />
+            </div>
+            
+            <div className="col-span-1 sm:col-span-2 border-t border-border mt-4 pt-4">
+              <h4 className="font-medium mb-3">Statutory & Compliance</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label>Professional Tax (PT)</Label>
+                  <Input type="number" value={form.professionalTax} onChange={e => setForm((f: any) => ({ ...f, professionalTax: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label>Labour Welfare Fund (LWF)</Label>
+                  <Input type="number" value={form.labourWelfareFund} onChange={e => setForm((f: any) => ({ ...f, labourWelfareFund: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <Label>TDS</Label>
+                  <Input type="number" value={form.tds} onChange={e => setForm((f: any) => ({ ...f, tds: Number(e.target.value) }))} />
+                </div>
+              </div>
+              {form.basicSalary <= 15000 && (
+                <div className="mt-2 text-sm text-muted-foreground flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1 text-warning" />
+                  PF will be automatically deducted at 12% of basic (₹{(form.basicSalary * 0.12).toFixed(2)})
+                </div>
+              )}
             </div>
 
             {/* Live preview */}

@@ -23,6 +23,7 @@ import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
+import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { 
   BarChart, 
   Bar, 
@@ -103,6 +104,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
@@ -139,6 +141,7 @@ export function getSalesNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'manager_hiring', label: 'My Hiring Requests' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'announcements', label: 'Announcements' },
     { id: 'notice-board', label: 'Notice Board' },

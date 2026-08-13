@@ -30,11 +30,59 @@ export const getSalaryConfig = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { effectiveFrom, ...salaryData } = req.body;
+  let { effectiveFrom, basicSalary, allowances, professionalTax, labourWelfareFund, tds, ...salaryData } = req.body;
+  
+  // Calculate total allowances
+  let totalAllowances = 0;
+  if (Array.isArray(allowances)) {
+    totalAllowances = allowances.reduce((acc, a) => acc + (Number(a.amount) || 0), 0);
+  } else if (typeof allowances === 'object' && allowances !== null) {
+    totalAllowances = Object.values(allowances).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
+  }
+
+  const grossSalary = Number(basicSalary) + totalAllowances;
+  if (Number(basicSalary) < grossSalary * 0.5) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Basic Salary must be at least 50% of Gross Salary.' 
+    });
+  }
+
+  // Statutory Calculations
+  let pfDeduction = 0;
+  if (Number(basicSalary) <= 15000) {
+    // 12% of basic
+    pfDeduction = Number(basicSalary) * 0.12;
+  }
+
+  const deductions = req.body.deductions || {};
+  deductions['PF'] = pfDeduction;
+
   const config = await prisma.salaryConfig.upsert({
     where: { userId: req.params.userId },
-    update: { ...salaryData, organizationId: req.user.organizationId, createdBy: req.user.id },
-    create: { ...salaryData, userId: req.params.userId, organizationId: req.user.organizationId, createdBy: req.user.id }
+    update: { 
+      ...salaryData,
+      basicSalary: Number(basicSalary),
+      allowances: allowances || [],
+      deductions,
+      professionalTax: Number(professionalTax || 0),
+      labourWelfareFund: Number(labourWelfareFund || 0),
+      tds: Number(tds || 0),
+      organizationId: req.user.organizationId, 
+      createdBy: req.user.id 
+    },
+    create: { 
+      ...salaryData,
+      basicSalary: Number(basicSalary),
+      allowances: allowances || [],
+      deductions,
+      professionalTax: Number(professionalTax || 0),
+      labourWelfareFund: Number(labourWelfareFund || 0),
+      tds: Number(tds || 0),
+      userId: req.params.userId, 
+      organizationId: req.user.organizationId, 
+      createdBy: req.user.id 
+    }
   });
   res.json({ success: true, data: config });
 });

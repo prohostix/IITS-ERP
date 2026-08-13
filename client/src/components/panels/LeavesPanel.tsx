@@ -60,7 +60,7 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ type: 'sick', startDate: '', endDate: '', reason: '' });
+  const [form, setForm] = useState({ type: 'sick', startDate: '', endDate: '', reason: '', isHalfDay: false, attachmentUrl: '' });
   const [submitting, setSubmitting] = useState(false);
 
   // Action dialog (approve/reject with remarks)
@@ -110,7 +110,7 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
       await api.post('/hr/leaves', form);
       toast.success('Leave request submitted. Your department manager will review it.');
       setCreateOpen(false);
-      setForm({ type: 'sick', startDate: '', endDate: '', reason: '' });
+      setForm({ type: 'sick', startDate: '', endDate: '', reason: '', isHalfDay: false, attachmentUrl: '' });
       fetchLeaves();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to submit leave request');
@@ -400,14 +400,22 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
               </Select>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div>
                 <Label>Start Date</Label>
-                <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} required />
+                <Input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
               </div>
-              <div className="space-y-2">
+              <div>
                 <Label>End Date</Label>
-                <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} required />
+                <Input type="date" required disabled={form.isHalfDay} value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} />
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="isHalfDay" checked={form.isHalfDay} onChange={e => setForm({ ...form, isHalfDay: e.target.checked, endDate: form.startDate })} />
+              <Label htmlFor="isHalfDay">Half Day</Label>
+            </div>
+            <div>
+              <Label>Attachment URL (Optional)</Label>
+              <Input placeholder="Link to medical certificate or document" value={form.attachmentUrl} onChange={e => setForm({ ...form, attachmentUrl: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Reason</Label>

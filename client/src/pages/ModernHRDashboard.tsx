@@ -36,6 +36,8 @@ import { HROrgChartPanel } from '@/components/panels/HROrgChartPanel';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { EmployeeActivityReportPanel } from '@/components/panels/EmployeeActivityReportPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
+import { HiringPanel } from '@/components/panels/hr/HiringPanel';
+import { ShiftPanel } from '@/components/panels/hr/ShiftPanel';
 
 export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
@@ -59,6 +61,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'employees': return <EmployeesPanel />;
       case 'leaves': return <LeavesPanel />;
       case 'attendance': return <AttendancePanel />;
+      case 'hiring': return <HiringPanel />;
       case 'vacancies': return <VacanciesPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'complaints': return <ComplaintsPanel />;
@@ -72,6 +75,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'org-chart': return <HROrgChartPanel />;
       case 'managers': return <ManagerAssignmentPanel />;
       case 'att-settings': return <HRSettingsPanel />;
+      case 'shift-settings': return <ShiftPanel />;
       case 'activity_report': return <EmployeeActivityReportPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
@@ -97,6 +101,7 @@ export function getHRNavItems() {
     { id: 'employees', label: 'Employees' },
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'attendance', label: 'Attendance' },
+    { id: 'hiring', label: 'Hiring & Recruitment' },
     { id: 'vacancies', label: 'Vacancies' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'complaints', label: 'Complaints' },
@@ -110,6 +115,7 @@ export function getHRNavItems() {
     { id: 'org-chart', label: 'Org Chart' },
     { id: 'managers', label: 'Managers' },
     { id: 'att-settings', label: 'Att. Settings' },
+    { id: 'shift-settings', label: 'Shift Settings' },
     { id: 'activity_report', label: 'Activity Report' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },

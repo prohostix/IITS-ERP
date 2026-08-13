@@ -14,8 +14,22 @@ import {
   createOrUpdateHRSettings,
   biometricSync,
 } from '../controllers/attendanceController.js';
+import {
+  createShift,
+  getShifts,
+  updateShift,
+  deleteShift,
+  assignShiftToEmployee
+} from '../controllers/shiftController.js';
 
 const router = express.Router();
+
+// Shift Management Routes
+router.get('/shifts', protect, authorize('hr_admin', 'superadmin'), getShifts);
+router.post('/shifts', protect, authorize('hr_admin', 'superadmin'), createShift);
+router.put('/shifts/:id', protect, authorize('hr_admin', 'superadmin'), updateShift);
+router.delete('/shifts/:id', protect, authorize('hr_admin', 'superadmin'), deleteShift);
+router.post('/shifts/assign', protect, authorize('hr_admin', 'superadmin'), assignShiftToEmployee);
 
 // Static routes MUST come before /:id to avoid Express matching them as IDs
 

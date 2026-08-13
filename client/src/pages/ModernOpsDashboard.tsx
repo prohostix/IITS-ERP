@@ -37,6 +37,7 @@ import { PollsPanel } from '@/components/panels/PollsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
+import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { useAuth } from '@/hooks/useAuth';
 
 export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
@@ -86,6 +87,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
       case 'polls': return <PollsPanel />;
@@ -123,6 +125,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'manager_hiring', label: 'My Hiring Requests' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'notice-board', label: 'Notice Board' },
     { id: 'polls', label: 'Polls' },
