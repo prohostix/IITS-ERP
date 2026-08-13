@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { sendEmail } from '../utils/mailer.js';
 
 export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payrolls = await prisma.payroll.findMany({
@@ -53,8 +54,24 @@ export const processPayroll = asyncHandler(async (req: AuthRequest, res: Respons
 export const confirmPayroll = asyncHandler(async (req: AuthRequest, res: Response) => {
   const payroll = await prisma.payroll.update({
     where: { id: req.params.id },
-    data: { status: 'confirmed' as any, financeApprovedAt: new Date() }
+    data: { status: 'confirmed' as any, financeApprovedAt: new Date() },
+    include: { user: { select: { name: true, email: true } } }
   });
+
+  if (payroll.user?.email) {
+    const monthStr = payroll.month;
+    const html = `
+      <h3>Your Payslip for ${monthStr} is Ready</h3>
+      <p>Dear ${payroll.user.name},</p>
+      <p>Your payroll for <strong>${monthStr}</strong> has been confirmed by Finance.</p>
+      <p>You can now log in to the Employee Portal to view and download your PDF Payslip.</p>
+      <br/>
+      <p>Regards,<br/>PYPE ERP HR Team</p>
+    `;
+    // non-blocking email send
+    sendEmail(payroll.user.email, `Payslip Ready: ${monthStr}`, html).catch(console.error);
+  }
+
   res.status(200).json({ success: true, data: payroll });
 });
 

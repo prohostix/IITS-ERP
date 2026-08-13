@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Play, CheckCircle, Send, RefreshCw, Edit, Save, X } from 'lucide-react';
+import { DollarSign, Play, CheckCircle, Send, RefreshCw, Edit, Save, X, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import html2pdf from 'html2pdf.js';
+import { PayslipDocument } from './hr/PayslipDocument';
 
 interface Payroll {
   id: string;
@@ -115,6 +117,35 @@ export function PayrollPanel() {
 
   const calcNet = (f: any) =>
     calcGross(f) - Object.values((f.deductions || {}) as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+
+  const [pdfPayroll, setPdfPayroll] = useState<Payroll | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const downloadPayslip = (p: Payroll) => {
+    setPdfPayroll(p);
+    setDownloadingPdf(true);
+    // Give state time to flush to DOM
+    setTimeout(() => {
+      const element = document.getElementById(`payslip-${p.id}`);
+      if (element) {
+        html2pdf()
+          .set({
+            margin: 10,
+            filename: `Payslip_${p.month}_${p.employeeId?.name || 'Employee'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          })
+          .from(element)
+          .save()
+          .then(() => setDownloadingPdf(false))
+          .catch(() => {
+            toast.error('Failed to generate PDF');
+            setDownloadingPdf(false);
+          });
+      }
+    }, 100);
+  };
 
   const handleEditSave = async () => {
     if (!editPayroll) return;
@@ -227,6 +258,11 @@ export function PayrollPanel() {
                               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Confirm
                             </Button>
                           )}
+                          {(p.status === 'confirmed' || p.status === 'paid' || p.status === 'transferred_to_finance') && (
+                            <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingPdf}>
+                              <Download className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );
@@ -237,6 +273,11 @@ export function PayrollPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Hidden PDF Container */}
+      <div className="hidden">
+        {pdfPayroll && <PayslipDocument payroll={{...pdfPayroll, user: pdfPayroll.employeeId?.userId || pdfPayroll.employeeId}} />}
+      </div>
 
       {/* Generate Dialog */}
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>

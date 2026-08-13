@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import html2pdf from 'html2pdf.js';
+import { OfferLetterDocument } from './OfferLetterDocument';
 
 export function HiringPanel() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -74,19 +76,44 @@ export function HiringPanel() {
     }
   ];
 
+  const [pdfData, setPdfData] = useState<any>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
   const generatePDF = (candidate: any, type: 'offer' | 'appointment') => {
-    const content = `
-      <h1>${type === 'offer' ? 'Offer Letter' : 'Appointment Letter'}</h1>
-      <p>Dear ${candidate.name},</p>
-      <p>We are pleased to ${type === 'offer' ? 'offer you a position' : 'appoint you'} at our organization.</p>
-      <p>Regards,<br/>HR Department</p>
-    `;
-    const newWindow = window.open();
-    if (newWindow) {
-      newWindow.document.write(content);
-      newWindow.document.close();
-      newWindow.print();
-    }
+    // Standardize data for the template
+    const templateData = {
+      id: candidate.id,
+      candidateName: candidate.name,
+      candidateEmail: candidate.email,
+      designation: candidate.hiringRequest?.title || 'Employee',
+      department: candidate.hiringRequest?.department?.name || 'General',
+      joiningDate: candidate.joinDate || new Date().toISOString(),
+      salary: candidate.salary || 600000 // default for demo
+    };
+
+    setPdfData(templateData);
+    setDownloadingPdf(true);
+
+    setTimeout(() => {
+      const element = document.getElementById(`offer-letter-${candidate.id}`);
+      if (element) {
+        html2pdf()
+          .set({
+            margin: 10,
+            filename: `${type.charAt(0).toUpperCase() + type.slice(1)}_Letter_${candidate.name}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          })
+          .from(element)
+          .save()
+          .then(() => setDownloadingPdf(false))
+          .catch(() => {
+            toast.error('Failed to generate PDF');
+            setDownloadingPdf(false);
+          });
+      }
+    }, 100);
   };
 
   const candidateColumns = [
@@ -155,6 +182,11 @@ export function HiringPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Hidden PDF Container */}
+      <div className="hidden">
+        {pdfData && <OfferLetterDocument data={pdfData} />}
+      </div>
     </div>
   );
 }
