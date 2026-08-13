@@ -38,6 +38,8 @@ import { EmployeeActivityReportPanel } from '@/components/panels/EmployeeActivit
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { HiringPanel } from '@/components/panels/hr/HiringPanel';
 import { ShiftPanel } from '@/components/panels/hr/ShiftPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
@@ -80,6 +82,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'my_documents': return <MyDocumentsPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
       default: return null;
@@ -121,6 +124,7 @@ export function getHRNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'My Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'my_documents', label: 'My Documents' },
     { id: 'notice-board', label: 'Notice Board' },
     { id: 'subdepartments', label: 'Sub-Departments' },
   ];

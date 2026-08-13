@@ -174,3 +174,14 @@ export const getManagerHiringRequests = async (req: AuthRequest, res: Response) 
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getMyDocuments = async (req: AuthRequest, res: Response) => {
+  try {
+    const candidate = await prisma.candidate.findFirst({
+      where: { email: req.user.email }
+    });
+    res.json({ success: true, data: candidate });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch documents' });
+  }
+};

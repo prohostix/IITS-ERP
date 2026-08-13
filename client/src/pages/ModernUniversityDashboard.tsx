@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { UniversityEnrollmentReviewPanel } from '@/components/panels/UniversityEnrollmentReviewPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 interface Enrollment {
   id: string;

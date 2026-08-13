@@ -30,6 +30,8 @@ import { TeamPerformancePanel } from '@/components/panels/TeamPerformancePanel';
 import { SubOpsPortalPanel } from '@/components/panels/SubOpsPortalPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalationsPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab?: string; onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();

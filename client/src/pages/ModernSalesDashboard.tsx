@@ -42,6 +42,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate }: { initialTab?: string; isSubDeptManager?: boolean; onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
@@ -104,6 +106,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'announcements': return <AnnouncementsPanel />;
@@ -141,6 +144,7 @@ export function getSalesNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'my_documents', label: 'My Documents' },
     { id: 'manager_hiring', label: 'My Hiring Requests' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'announcements', label: 'Announcements' },
@@ -558,6 +562,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'my_attendance': return <AttendancePanel isPersonalView />;
           case 'my_leaves': return <LeavesPanel isPersonalView />;
           case 'my_payslips': return <PayrollPanel />;
+      case 'my_documents': return <MyDocumentsPanel />;
           case 'tasks': return <TasksPanel />;
           case 'announcements': return <AnnouncementsPanel />;
           case 'notice-board': return <NoticeBoardPanel />;

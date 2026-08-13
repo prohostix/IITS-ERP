@@ -20,6 +20,8 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernOrgAdminDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});

@@ -32,6 +32,8 @@ import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 export function getBranchManagerNavItems() {
   return [
     { id: '__branch_section', label: 'Branch Overview', isSection: true },
@@ -57,6 +59,7 @@ export function getBranchManagerNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'my_documents', label: 'My Documents' },
     { id: 'manager_hiring', label: 'My Hiring Requests' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'notice-board', label: 'Notice Board' },
@@ -122,6 +125,7 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;

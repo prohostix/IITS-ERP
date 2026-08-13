@@ -33,6 +33,8 @@ import { DepartmentsPanel } from '@/components/panels/DepartmentsPanel';
 import { LicensesPanel } from '@/components/panels/LicensesPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 const globalActivity = [
   { time: '00:00', requests: 120, latency: 45 },
   { time: '04:00', requests: 80, latency: 42 },

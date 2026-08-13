@@ -17,8 +17,11 @@ import api from '@/lib/api';
 
 export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
-  const isHR = user?.role === 'hr_admin' && !isPersonalView;
-  const canViewAll = ['hr_admin', 'org_admin', 'ceo'].includes(user?.role || '') && !isPersonalView;
+  const DEPT_MANAGER_ROLES = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'];
+  const isBranchManager = Boolean((user as any)?.branchId);
+  const isHR = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(user?.role || '') && !isPersonalView;
+  const isDeptManager = (DEPT_MANAGER_ROLES.includes(user?.role || '') || isBranchManager || isHR) && !isPersonalView;
+  const canViewAll = isDeptManager;
   
   const [attendance, setAttendance] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);

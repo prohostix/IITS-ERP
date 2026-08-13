@@ -6,10 +6,14 @@ import {
   updateHiringRequestStatus, 
   addCandidate, 
   updateCandidateStatus, 
-  getManagerHiringRequests 
+  getManagerHiringRequests,
+  getMyDocuments
 } from '../controllers/hiringController.js';
 
 const router = Router();
+
+// Employee API
+router.get('/my-documents', authorize(), getMyDocuments);
 
 // Manager API
 router.post('/request', authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), createHiringRequest);

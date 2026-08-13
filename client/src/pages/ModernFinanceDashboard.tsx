@@ -62,6 +62,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
@@ -132,6 +134,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
+      case 'my_documents': return <MyDocumentsPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
@@ -186,6 +189,7 @@ export function getFinanceNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'My Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
+    { id: 'my_documents', label: 'My Documents' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'notice-board', label: 'Notice Board' },
     { id: 'subdepartments', label: 'Sub-Departments' },

@@ -11,6 +11,8 @@ import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import api from '@/lib/api';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+
 
 export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
