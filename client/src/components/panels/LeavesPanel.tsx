@@ -396,6 +396,8 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                   <SelectItem value="casual">Casual Leave</SelectItem>
                   <SelectItem value="earned">Earned Leave</SelectItem>
                   <SelectItem value="unpaid">Unpaid Leave</SelectItem>
+                  <SelectItem value="compensatory">Compensatory Off</SelectItem>
+                  <SelectItem value="bereavement">Bereavement Leave</SelectItem>
                 </SelectContent>
               </Select>
             </div>

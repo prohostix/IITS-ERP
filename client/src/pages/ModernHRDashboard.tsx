@@ -39,6 +39,8 @@ import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { HiringPanel } from '@/components/panels/hr/HiringPanel';
 import { ShiftPanel } from '@/components/panels/hr/ShiftPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { AttendanceCalendarPanel } from '@/components/panels/hr/AttendanceCalendarPanel';
 
 
 export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
@@ -62,7 +64,9 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'users': return <HRUsersPanel />;
       case 'employees': return <EmployeesPanel />;
       case 'leaves': return <LeavesPanel />;
+      case 'leave-approvals': return <LeaveApprovalsPanel />;
       case 'attendance': return <AttendancePanel />;
+      case 'attendance-calendar': return <AttendanceCalendarPanel />;
       case 'hiring': return <HiringPanel />;
       case 'vacancies': return <VacanciesPanel />;
       case 'holidays': return <HolidaysPanel />;

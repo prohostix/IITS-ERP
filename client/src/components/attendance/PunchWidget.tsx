@@ -156,6 +156,9 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
     };
   }, [mapOpen, location]);
 
+  const [isWFH, setIsWFH] = useState(false);
+  const [isHalfDay, setIsHalfDay] = useState(false);
+
   // Cleanup map on close
   useEffect(() => {
     if (!mapOpen && leafletMap.current) {
@@ -173,6 +176,8 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
         latitude: location.lat,
         longitude: location.lng,
         address: location.address,
+        isWFH,
+        isHalfDay,
       });
       toast.success(res.data.message || (punchType === 'in' ? 'Punched in!' : 'Punched out!'));
       setMapOpen(false);
@@ -242,6 +247,19 @@ export function PunchWidget({ compact = false, variant = 'default' }: PunchWidge
                   </span>
                 </span>
               </div>
+
+              {punchType === 'in' && (
+                <div className="flex gap-4 my-2">
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input type="checkbox" checked={isWFH} onChange={(e) => setIsWFH(e.target.checked)} className="rounded border-gray-300 text-primary focus:ring-primary" />
+                    Work From Home (WFH)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input type="checkbox" checked={isHalfDay} onChange={(e) => setIsHalfDay(e.target.checked)} className="rounded border-gray-300 text-primary focus:ring-primary" />
+                    Half Day
+                  </label>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setMapOpen(false)} disabled={punching}>
