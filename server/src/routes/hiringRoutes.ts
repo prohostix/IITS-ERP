@@ -7,7 +7,7 @@ import {
   addCandidate, 
   updateCandidateStatus, 
   getManagerHiringRequests 
-} from '../controllers/hiringController';
+} from '../controllers/hiringController.js';
 
 const router = Router();
 

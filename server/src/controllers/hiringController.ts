@@ -1,9 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import { PrismaClient, HiringStatus, EmploymentRole, InductionStatus } from '@prisma/client';
+import { HiringStatus, EmploymentRole, InductionStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 // Manager API: Create a hiring request
 export const createHiringRequest = async (req: AuthRequest, res: Response) => {

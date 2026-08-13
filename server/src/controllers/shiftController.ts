@@ -1,8 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 export const createShift = async (req: AuthRequest, res: Response) => {
   try {
