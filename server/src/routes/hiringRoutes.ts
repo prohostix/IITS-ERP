@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authorize } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 import { 
   createHiringRequest, 
   getHiringRequests, 
@@ -13,17 +13,17 @@ import {
 const router = Router();
 
 // Employee API
-router.get('/my-documents', authorize(), getMyDocuments);
+router.get('/my-documents', protect, authorize(), getMyDocuments);
 
 // Manager API
-router.post('/request', authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), createHiringRequest);
-router.get('/manager-requests', authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), getManagerHiringRequests);
+router.post('/request', protect, authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), createHiringRequest);
+router.get('/manager-requests', protect, authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), getManagerHiringRequests);
 
 // HR API
-router.get('/requests', authorize('hr_admin', 'org_admin', 'superadmin'), getHiringRequests);
-router.put('/requests/:id/status', authorize('hr_admin', 'org_admin', 'superadmin'), updateHiringRequestStatus);
+router.get('/requests', protect, authorize('hr_admin', 'org_admin', 'superadmin'), getHiringRequests);
+router.put('/requests/:id/status', protect, authorize('hr_admin', 'org_admin', 'superadmin'), updateHiringRequestStatus);
 
-router.post('/candidates', authorize('hr_admin', 'org_admin', 'superadmin'), addCandidate);
-router.put('/candidates/:id/status', authorize('hr_admin', 'org_admin', 'superadmin'), updateCandidateStatus);
+router.post('/candidates', protect, authorize('hr_admin', 'org_admin', 'superadmin'), addCandidate);
+router.put('/candidates/:id/status', protect, authorize('hr_admin', 'org_admin', 'superadmin'), updateCandidateStatus);
 
 export default router;
