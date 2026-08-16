@@ -16,7 +16,7 @@ interface Program {
   code: string;
   specialisations?: string[];
   certificateRequirements?: { name: string; isMandatory: boolean }[];
-  university?: { id: string; name: string; code: string };
+  university?: { id: string; name: string; code: string; category?: string };
   programFeeStructure?: {
     level: string;
     admissionSessionId?: string | null;
@@ -1079,7 +1079,7 @@ export function EnrollStudentPanel() {
               <Button
                 type="button"
                 onClick={triggerConfirm}
-                disabled={!selectedProgram || submitting || (balance < getTotalFee(selectedProgram))}
+                disabled={!selectedProgram || submitting || (selectedProgram?.university?.category === 'direct_iits' && balance < getTotalFee(selectedProgram))}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-semibold"
               >
                 <GraduationCap className="w-4.5 h-4.5" />
@@ -1087,7 +1087,7 @@ export function EnrollStudentPanel() {
               </Button>
             )}
           </div>
-          {activeStep === 4 && selectedProgram && balance < getTotalFee(selectedProgram) && (
+          {activeStep === 4 && selectedProgram && selectedProgram?.university?.category === 'direct_iits' && balance < getTotalFee(selectedProgram) && (
             <p className="text-xs text-destructive text-center mt-3">Insufficient wallet balance. Please top up first.</p>
           )}
         </CardContent>

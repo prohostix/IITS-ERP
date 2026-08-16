@@ -43,7 +43,7 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     include: { 
       enrollments: true,
       center: true,
-      program: true
+      program: { include: { university: true } }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -448,7 +448,7 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
   const { installmentName, amount } = req.body;
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
-    include: { program: true }
+    include: { program: { include: { university: true } } }
   });
 
   if (!student) {
@@ -456,21 +456,27 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
     return;
   }
 
+  const category = (student.program.university as any)?.category || 'team_lease';
+
   const wallet = await prisma.studyCenterWallet.findUnique({
     where: { studyCenterId: req.user.studyCenterId || '' }
   });
 
-  if (!wallet || wallet.balance < amount) {
-    res.status(400).json({ success: false, message: `Insufficient wallet balance. Available: ₹${wallet?.balance || 0}` });
-    return;
+  if (category === 'direct_iits') {
+    if (!wallet || wallet.balance < amount) {
+      res.status(400).json({ success: false, message: `Insufficient wallet balance. Available: ₹${wallet?.balance || 0}` });
+      return;
+    }
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Deduct wallet
-    await tx.studyCenterWallet.update({
-      where: { id: wallet.id },
-      data: { balance: { decrement: amount } }
-    });
+    // 1. Deduct wallet only for direct_iits
+    if (category === 'direct_iits' && wallet) {
+      await tx.studyCenterWallet.update({
+        where: { id: wallet.id },
+        data: { balance: { decrement: amount } }
+      });
+    }
 
     // 2. Create Invoice
     const invoiceNo = `INV-STU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;

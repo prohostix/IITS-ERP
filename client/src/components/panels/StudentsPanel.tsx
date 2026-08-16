@@ -582,7 +582,7 @@ export function StudentsPanel() {
                                 <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30 font-semibold text-xs flex items-center gap-1">
                                   <Clock className="w-3.5 h-3.5" /> Pending
                                 </Badge>
-                                {user?.role === 'center_admin' && (
+                                {user?.role === 'center_admin' && (!selectedStudent?.programId?.university?.category || selectedStudent?.programId?.university?.category === 'direct_iits') && (
                                   <Button
                                     size="sm"
                                     variant="outline"

@@ -33,7 +33,7 @@ export const getUniversity = asyncHandler(async (req: AuthRequest, res: Response
 export const createUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { allowedBranchIds, ...rest } = req.body;
   const data: any = { organizationId: req.user.organizationId };
-  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId']) {
+  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId', 'category', 'coordinatorName', 'optionalFields']) {
     if (rest[field] !== undefined) data[field] = rest[field];
   }
   const university = await prisma.university.create({
@@ -49,7 +49,7 @@ export const createUniversity = asyncHandler(async (req: AuthRequest, res: Respo
 export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { allowedBranchIds, ...rest } = req.body;
   const data: any = {};
-  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId']) {
+  for (const field of ['name', 'code', 'address', 'contact', 'country', 'status', 'subDepartmentId', 'category', 'coordinatorName', 'optionalFields']) {
     if (rest[field] !== undefined) data[field] = rest[field];
   }
   const university = await prisma.university.update({
