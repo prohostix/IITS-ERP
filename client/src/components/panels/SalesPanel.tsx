@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MetricCard, MetricCardGrid } from '@/components/dashboard/MetricCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +30,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { leads, targets, employees, studyCenters } from '@/data/mockData';
-import type { Lead, Target as TargetType } from '@/types/erp';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface SalesPanelProps {
   activeModule: string;
@@ -64,13 +64,40 @@ const pipelineStages = [
 ];
 
 export function SalesPanel({ activeModule }: SalesPanelProps) {
-  const [leadList] = useState<Lead[]>(leads);
-  const [targetList] = useState<TargetType[]>(targets.filter(t => t.employeeId || t.type === 'centers'));
+  const [leadList, setLeadList] = useState<any[]>([]);
+  const [targetList, setTargetList] = useState<any[]>([]);
+  const [employeeList, setEmployeeList] = useState<any[]>([]);
+  const [centersList, setCentersList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [leadsRes, targetsRes, empRes, centersRes] = await Promise.all([
+        api.get('/sales/leads').catch(() => ({ data: { data: [] } })),
+        api.get('/sales/targets').catch(() => ({ data: { data: [] } })),
+        api.get('/employees').catch(() => ({ data: { data: [] } })),
+        api.get('/sales/my-centers').catch(() => ({ data: { data: [] } })),
+      ]);
+      setLeadList(leadsRes.data.data || []);
+      setTargetList(targetsRes.data.data || []);
+      setEmployeeList(empRes.data.data || []);
+      setCentersList(centersRes.data.data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch sales data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalLeads = leadList.length;
   const convertedLeads = leadList.filter(l => l.status === 'converted').length;
   const newLeads = leadList.filter(l => l.status === 'new').length;
-  const conversionRate = Math.round((convertedLeads / totalLeads) * 100);
+  const conversionRate = totalLeads ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
   const leadColumns = [
     { key: 'centerName', header: 'Center Name' },
@@ -80,7 +107,7 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
     { 
       key: 'status', 
       header: 'Status',
-      render: (row: Lead) => (
+      render: (row: any) => (
         <Badge className={
           row.status === 'converted' ? 'bg-green-100 text-green-800' :
           row.status === 'new' ? 'bg-blue-100 text-blue-800' :
@@ -94,36 +121,40 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
     { 
       key: 'source', 
       header: 'Source',
-      render: (row: Lead) => (
-        <Badge variant="outline" className="capitalize">{row.source.replace('_', ' ')}</Badge>
+      render: (row: any) => (
+        <Badge variant="outline" className="capitalize">{(row.source || '').replace('_', ' ')}</Badge>
       )
     },
   ];
 
   const targetColumns = [
-    { key: 'employeeId', header: 'Employee', render: (row: TargetType) => row.employeeId ? 'BDE' : 'Center' },
-    { key: 'type', header: 'Type', render: (row: TargetType) => (
+    { key: 'employeeId', header: 'Employee', render: (row: any) => row.employeeId ? 'BDE' : 'Center' },
+    { key: 'type', header: 'Type', render: (row: any) => (
       <Badge variant="outline" className="capitalize">{row.type}</Badge>
     )},
     { key: 'period', header: 'Period' },
-    { key: 'target', header: 'Target', render: (row: TargetType) => row.target.toLocaleString() },
-    { key: 'achieved', header: 'Achieved', render: (row: TargetType) => row.achieved.toLocaleString() },
+    { key: 'target', header: 'Target', render: (row: any) => (row.target || 0).toLocaleString() },
+    { key: 'achieved', header: 'Achieved', render: (row: any) => (row.achieved || 0).toLocaleString() },
     { 
       key: 'progress', 
       header: 'Progress',
-      render: (row: TargetType) => (
+      render: (row: any) => (
         <div className="flex items-center gap-2">
           <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full ${row.achieved >= row.target ? 'bg-green-500' : 'bg-blue-500'}`}
-              style={{ width: `${Math.min((row.achieved / row.target) * 100, 100)}%` }}
+              className={`h-full rounded-full ${(row.achieved || 0) >= (row.target || 1) ? 'bg-green-500' : 'bg-blue-500'}`}
+              style={{ width: `${Math.min(((row.achieved || 0) / (row.target || 1)) * 100, 100)}%` }}
             />
           </div>
-          <span className="text-sm">{Math.round((row.achieved / row.target) * 100)}%</span>
+          <span className="text-sm">{Math.round(((row.achieved || 0) / (row.target || 1)) * 100)}%</span>
         </div>
       )
     },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading sales data...</div>;
+  }
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -156,7 +187,6 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
         />
       </MetricCardGrid>
 
-      {/* Sales Pipeline */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Sales Pipeline</CardTitle>
@@ -368,7 +398,7 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
       <h2 className="text-2xl font-bold">Referrals</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {employees.filter(e => e.role === 'employee' && e.departmentId === 'dept-sales-001').map(emp => (
+        {employeeList.filter(e => e.role === 'employee' && e.departmentId === 'dept-sales-001').map(emp => (
           <Card key={emp.id}>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -382,12 +412,12 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
               </div>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-2xl font-bold">{leads.filter(l => l.referredBy === emp.id).length}</p>
+                  <p className="text-2xl font-bold">{leadList.filter(l => l.referredBy === emp.id).length}</p>
                   <p className="text-xs text-slate-500">Referrals</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {leads.filter(l => l.referredBy === emp.id && l.status === 'converted').length}
+                    {leadList.filter(l => l.referredBy === emp.id && l.status === 'converted').length}
                   </p>
                   <p className="text-xs text-slate-500">Converted</p>
                 </div>
@@ -403,13 +433,13 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={studyCenters.filter(c => c.referredBy)}
+            data={centersList.filter(c => c.referredBy)}
             columns={[
               { key: 'code', header: 'Code' },
               { key: 'name', header: 'Center Name' },
               { key: 'status', header: 'Status' },
               { key: 'referredBy', header: 'Referred By', render: () => 'BDE' },
-              { key: 'approvedAt', header: 'Approved Date', render: (row) => row.approvedAt?.toLocaleDateString() || '-' },
+              { key: 'approvedAt', header: 'Approved Date', render: (row: any) => row.approvedAt ? new Date(row.approvedAt).toLocaleDateString() : '-' },
             ]}
             title=""
             searchFields={['name', 'code']}
@@ -442,7 +472,7 @@ export function SalesPanel({ activeModule }: SalesPanelProps) {
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.filter(e => e.departmentId === 'dept-sales-001').map(e => (
+                    {employeeList.filter(e => e.departmentId === 'dept-sales-001').map(e => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>

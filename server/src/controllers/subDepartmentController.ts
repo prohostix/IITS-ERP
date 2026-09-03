@@ -46,6 +46,7 @@ export const createSubDepartment = asyncHandler(async (req: AuthRequest, res: Re
       organizationId,
       name,
       parentDeptId,
+      type: parentDept.type,
       features: features || [],
       managerId: req.user.id,
       // Handle relations

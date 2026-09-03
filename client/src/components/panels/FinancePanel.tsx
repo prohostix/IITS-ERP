@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MetricCard, MetricCardGrid } from '@/components/dashboard/MetricCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +30,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { invoices, paymentEntries, expenseClaims, targets, studyCenters, students, admissionSessions } from '@/data/mockData';
-import type { Invoice, PaymentEntry, ExpenseClaim, Target as TargetType } from '@/types/erp';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface FinancePanelProps {
   activeModule: string;
@@ -54,74 +54,116 @@ const paymentMethodData = [
 ];
 
 export function FinancePanel({ activeModule }: FinancePanelProps) {
-  const [invoiceList] = useState<Invoice[]>(invoices);
-  const [paymentList] = useState<PaymentEntry[]>(paymentEntries);
-  const [expenseList] = useState<ExpenseClaim[]>(expenseClaims);
-  const [targetList] = useState<TargetType[]>(targets);
+  const [invoiceList, setInvoiceList] = useState<any[]>([]);
+  const [paymentList, setPaymentList] = useState<any[]>([]);
+  const [expenseList, setExpenseList] = useState<any[]>([]);
+  const [targetList, setTargetList] = useState<any[]>([]);
+  const [studyCenters, setStudyCenters] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [admissionSessions, setAdmissionSessions] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>({});
+  const [loading, setLoading] = useState(true);
 
-  const pendingInvoices = invoiceList.filter(i => i.status === 'sent');
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [
+        metricsRes,
+        invRes,
+        payRes,
+        expRes,
+        centerRes,
+        studentRes,
+        targetsRes,
+        sessionsRes,
+      ] = await Promise.all([
+        api.get('/dashboard/metrics').catch(() => ({ data: { data: {} } })),
+        api.get('/finance/invoices').catch(() => ({ data: { data: [] } })),
+        api.get('/finance/payments').catch(() => ({ data: { data: [] } })),
+        api.get('/finance/expenses').catch(() => ({ data: { data: [] } })),
+        api.get('/operations/centers').catch(() => ({ data: { data: [] } })),
+        api.get('/student').catch(() => ({ data: { data: [] } })),
+        api.get('/finance/targets').catch(() => ({ data: { data: [] } })),
+        api.get('/operations/sessions').catch(() => ({ data: { data: [] } })),
+      ]);
+      setMetrics(metricsRes.data.data || {});
+      setInvoiceList(invRes.data.data || []);
+      setPaymentList(payRes.data.data || []);
+      setExpenseList(expRes.data.data || []);
+      setStudyCenters(centerRes.data.data || []);
+      setStudents(studentRes.data.data || []);
+      setTargetList(targetsRes.data.data || []);
+      setAdmissionSessions(sessionsRes.data.data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch finance data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pendingInvoices = invoiceList.filter(i => i.status === 'sent' || i.status === 'pending');
   const overdueInvoices = invoiceList.filter(i => i.status === 'overdue');
   const pendingExpenses = expenseList.filter(e => e.status === 'pending');
 
-  const totalRevenue = invoiceList.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total, 0);
-  const pendingAmount = pendingInvoices.reduce((sum, i) => sum + i.total, 0);
-  const overdueAmount = overdueInvoices.reduce((sum, i) => sum + i.total, 0);
-
   const invoiceColumns = [
-    { key: 'invoiceNo', header: 'Invoice No' },
+    { key: 'invoiceNo', header: 'Invoice No', render: (row: any) => row.invoiceNo || row.id.substring(0, 8) },
     { key: 'centerId', header: 'Center', render: () => 'Delhi Center' },
     { 
       key: 'amount', 
       header: 'Amount',
-      render: (row: Invoice) => `₹${row.amount.toLocaleString()}`
+      render: (row: any) => `₹${(row.amount || row.total || 0).toLocaleString()}`
     },
     { 
       key: 'total', 
       header: 'Total',
-      render: (row: Invoice) => `₹${row.total.toLocaleString()}`
+      render: (row: any) => `₹${(row.total || 0).toLocaleString()}`
     },
     { key: 'status', header: 'Status' },
     { 
       key: 'createdAt', 
       header: 'Date',
-      render: (row: Invoice) => row.createdAt.toLocaleDateString()
+      render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : 'N/A'
     },
   ];
 
   const paymentColumns = [
-    { key: 'referenceNo', header: 'Reference No' },
+    { key: 'referenceNo', header: 'Reference No', render: (row: any) => row.referenceNo || row.id.substring(0, 8) },
     { 
       key: 'amount', 
       header: 'Amount',
-      render: (row: PaymentEntry) => `₹${row.amount.toLocaleString()}`
+      render: (row: any) => `₹${(row.amount || 0).toLocaleString()}`
     },
     { 
       key: 'method', 
       header: 'Method',
-      render: (row: PaymentEntry) => (
-        <Badge variant="outline" className="capitalize">{row.method.replace('_', ' ')}</Badge>
+      render: (row: any) => (
+        <Badge variant="outline" className="capitalize">{(row.method || 'Unknown').replace('_', ' ')}</Badge>
       )
     },
     { key: 'receivedBy', header: 'Received By', render: () => 'Accountant' },
     { 
       key: 'receivedAt', 
       header: 'Date',
-      render: (row: PaymentEntry) => row.receivedAt.toLocaleDateString()
+      render: (row: any) => row.receivedAt ? new Date(row.receivedAt).toLocaleDateString() : 'N/A'
     },
   ];
 
   const expenseColumns = [
-    { key: 'employeeId', header: 'Employee', render: () => 'BDE 1' },
+    { key: 'employeeId', header: 'Employee', render: (row: any) => row.employeeId || 'BDE 1' },
     { 
       key: 'amount', 
       header: 'Amount',
-      render: (row: ExpenseClaim) => `₹${row.amount.toLocaleString()}`
+      render: (row: any) => `₹${(row.amount || 0).toLocaleString()}`
     },
     { 
       key: 'category', 
       header: 'Category',
-      render: (row: ExpenseClaim) => (
-        <Badge variant="outline" className="capitalize">{row.category}</Badge>
+      render: (row: any) => (
+        <Badge variant="outline" className="capitalize">{row.category || 'General'}</Badge>
       )
     },
     { key: 'description', header: 'Description' },
@@ -129,54 +171,58 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
   ];
 
   const targetColumns = [
-    { key: 'type', header: 'Type', render: (row: TargetType) => (
+    { key: 'type', header: 'Type', render: (row: any) => (
       <Badge variant="outline" className="capitalize">{row.type}</Badge>
     )},
     { key: 'period', header: 'Period' },
-    { key: 'target', header: 'Target', render: (row: TargetType) => row.target.toLocaleString() },
-    { key: 'achieved', header: 'Achieved', render: (row: TargetType) => row.achieved.toLocaleString() },
+    { key: 'target', header: 'Target', render: (row: any) => (row.target || 0).toLocaleString() },
+    { key: 'achieved', header: 'Achieved', render: (row: any) => (row.achieved || 0).toLocaleString() },
     { 
       key: 'progress', 
       header: 'Progress',
-      render: (row: TargetType) => (
+      render: (row: any) => (
         <div className="flex items-center gap-2">
           <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full ${row.achieved >= row.target ? 'bg-green-500' : 'bg-blue-500'}`}
-              style={{ width: `${Math.min((row.achieved / row.target) * 100, 100)}%` }}
+              className={`h-full rounded-full ${(row.achieved || 0) >= (row.target || 1) ? 'bg-green-500' : 'bg-blue-500'}`}
+              style={{ width: `${Math.min(((row.achieved || 0) / (row.target || 1)) * 100, 100)}%` }}
             />
           </div>
-          <span className="text-sm">{Math.round((row.achieved / row.target) * 100)}%</span>
+          <span className="text-sm">{Math.round(((row.achieved || 0) / (row.target || 1)) * 100)}%</span>
         </div>
       )
     },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading finance data...</div>;
+  }
 
   const renderDashboard = () => (
     <div className="space-y-6">
       <MetricCardGrid columns={4}>
         <MetricCard
           title="Total Revenue"
-          value={`₹${totalRevenue.toLocaleString()}`}
+          value={`₹${(metrics.totalRevenue || 0).toLocaleString()}`}
           icon={DollarSign}
           trend="up"
-          trendValue="+12% this month"
+          trendValue="Collected"
         />
         <MetricCard
           title="Pending Invoices"
-          value={`₹${pendingAmount.toLocaleString()}`}
+          value={metrics.pendingInvoices || 0}
           icon={Receipt}
           badge={{ label: `${pendingInvoices.length} invoices`, variant: 'secondary' }}
         />
         <MetricCard
-          title="Overdue Amount"
-          value={`₹${overdueAmount.toLocaleString()}`}
+          title="Total Payments"
+          value={metrics.totalPayments || 0}
           icon={AlertTriangle}
-          badge={{ label: `${overdueInvoices.length} invoices`, variant: 'destructive' }}
+          badge={{ label: 'Recorded', variant: 'default' }}
         />
         <MetricCard
           title="Pending Expenses"
-          value={`₹${pendingExpenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}`}
+          value={metrics.pendingExpenses || 0}
           icon={Wallet}
           badge={{ label: `${pendingExpenses.length} claims`, variant: 'secondary' }}
         />
@@ -232,11 +278,11 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Pending Invoices</CardTitle>
-            <Button variant="outline" size="sm">View All</Button>
+            <Button variant="outline" size="sm" onClick={fetchData}>Refresh</Button>
           </CardHeader>
           <CardContent>
             <DataTable
-              data={pendingInvoices}
+              data={pendingInvoices.slice(0, 5)}
               columns={invoiceColumns.slice(0, 5)}
               searchable={false}
               pageSize={5}
@@ -247,11 +293,11 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Pending Expense Claims</CardTitle>
-            <Button variant="outline" size="sm">View All</Button>
+            <Button variant="outline" size="sm" onClick={fetchData}>Refresh</Button>
           </CardHeader>
           <CardContent>
             <DataTable
-              data={pendingExpenses}
+              data={pendingExpenses.slice(0, 5)}
               columns={expenseColumns.slice(0, 4)}
               searchable={false}
               pageSize={5}
@@ -267,6 +313,9 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Invoices</h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData}>
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -352,8 +401,7 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             columns={invoiceColumns}
             title="Pending Invoices"
             searchFields={['invoiceNo']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
 
@@ -363,8 +411,7 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             columns={invoiceColumns}
             title="Overdue Invoices"
             searchFields={['invoiceNo']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
       </Tabs>
@@ -375,10 +422,13 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Payments</h2>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData}>Refresh</Button>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       <DataTable
@@ -394,10 +444,13 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Expense Claims</h2>
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchData}>Refresh</Button>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="pending">
@@ -413,8 +466,7 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             columns={expenseColumns}
             title="Pending Claims"
             searchFields={['description']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
 
@@ -493,13 +545,16 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
 
   const renderApprovals = () => (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Pending Approvals</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Pending Approvals</h2>
+        <Button variant="outline" onClick={fetchData}>Refresh</Button>
+      </div>
       
       <Tabs defaultValue="centers">
         <TabsList>
           <TabsTrigger value="centers">Centers ({studyCenters.filter(c => c.status === 'pending').length})</TabsTrigger>
           <TabsTrigger value="students">Students ({students.filter(s => s.status === 'pending').length})</TabsTrigger>
-          <TabsTrigger value="sessions">Sessions</TabsTrigger>
+          <TabsTrigger value="sessions">Sessions ({admissionSessions.filter(s => s.status === 'pending').length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="centers" className="mt-4">
@@ -513,8 +568,7 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             ]}
             title="Pending Center Approvals"
             searchFields={['name', 'code']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
 
@@ -529,8 +583,7 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             ]}
             title="Pending Student Approvals"
             searchFields={['name', 'enrollmentNo']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
 
@@ -539,13 +592,12 @@ export function FinancePanel({ activeModule }: FinancePanelProps) {
             data={admissionSessions.filter(s => s.status === 'pending')}
             columns={[
               { key: 'name', header: 'Session Name' },
-              { key: 'startDate', header: 'Start Date', render: (row) => row.startDate.toLocaleDateString() },
-              { key: 'endDate', header: 'End Date', render: (row) => row.endDate.toLocaleDateString() },
+              { key: 'startDate', header: 'Start Date', render: (row: any) => row.startDate ? new Date(row.startDate).toLocaleDateString() : 'N/A' },
+              { key: 'endDate', header: 'End Date', render: (row: any) => row.endDate ? new Date(row.endDate).toLocaleDateString() : 'N/A' },
             ]}
             title="Pending Session Approvals"
             searchFields={['name']}
-            actions={(row) => [
-            ]}
+            actions={(row) => []}
           />
         </TabsContent>
       </Tabs>

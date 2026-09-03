@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { MetricCard, MetricCardGrid } from '@/components/dashboard/MetricCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +33,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { employees, studyCenters, escalations, getDashboardMetrics } from '@/data/mockData';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface CEODashboardProps {
   activeModule: string;
@@ -71,34 +73,66 @@ const leadConversionData = [
 ];
 
 export function CEODashboard({ activeModule }: CEODashboardProps) {
-  const metrics = getDashboardMetrics('ceo', 'org-001');
+  const [metrics, setMetrics] = useState<any>({});
+  const [escalations, setEscalations] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [studyCenters, setStudyCenters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [metricsRes, escRes, empRes, centerRes] = await Promise.all([
+        api.get('/dashboard/metrics'),
+        api.get('/escalation'),
+        api.get('/users'),
+        api.get('/operations/centers')
+      ]);
+      setMetrics(metricsRes.data.data || {});
+      setEscalations(escRes.data.data || []);
+      setEmployees(empRes.data.data?.filter((u: any) => u.role !== 'student') || []);
+      setStudyCenters(centerRes.data.data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const escalationColumns = [
     { key: 'type', header: 'Type', render: (row: any) => (
-      <Badge variant="outline" className="capitalize">{row.type.replace('_', ' ')}</Badge>
+      <Badge variant="outline" className="capitalize">{row.type?.replace('_', ' ') || 'General'}</Badge>
     )},
-    { key: 'description', header: 'Description' },
+    { key: 'description', header: 'Description', render: (row: any) => row.description || row.title || 'N/A' },
     { 
       key: 'impact', 
       header: 'Impact',
       render: (row: any) => (
         <Badge className={
-          row.impact === 'critical' ? 'bg-red-100 text-red-800' :
-          row.impact === 'high' ? 'bg-orange-100 text-orange-800' :
-          row.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+          row.priority === 'critical' || row.impact === 'critical' ? 'bg-red-100 text-red-800' :
+          row.priority === 'high' || row.impact === 'high' ? 'bg-orange-100 text-orange-800' :
+          row.priority === 'medium' || row.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
           'bg-blue-100 text-blue-800'
         }>
-          {row.impact}
+          {row.priority || row.impact || 'low'}
         </Badge>
       )
     },
     { 
-      key: 'raisedAt', 
+      key: 'createdAt', 
       header: 'Raised',
-      render: (row: any) => new Date(row.raisedAt).toLocaleDateString()
+      render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : 'N/A'
     },
     { key: 'status', header: 'Status' },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading dashboard...</div>;
+  }
 
   const renderMainDashboard = () => (
     <div className="space-y-6">
@@ -109,67 +143,67 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
           value={metrics.totalEmployees || 0}
           icon={Users}
           trend="up"
-          trendValue="+3 this month"
+          trendValue="Active"
           description="Across all departments"
         />
         <MetricCard
           title="Active Students"
-          value={metrics.activeStudents || 0}
+          value={metrics.totalStudents || 0}
           icon={School}
           trend="up"
-          trendValue="+12 this month"
-          description={`${metrics.pendingAdmissions} pending admissions`}
+          trendValue="Current"
+          description={`${metrics.pendingApplications || 0} pending applications`}
         />
         <MetricCard
           title="Monthly Revenue"
-          value={`₹${(metrics.monthlyRevenue || 0).toLocaleString()}`}
+          value={`₹${(metrics.totalRevenue || 0).toLocaleString()}`}
           icon={DollarSign}
           trend="up"
-          trendValue="+8% vs last month"
-          description={`${metrics.pendingInvoices} pending invoices`}
+          trendValue="Total paid"
+          description={`${metrics.pendingInvoices || 0} pending invoices`}
         />
         <MetricCard
           title="Active Centers"
           value={metrics.activeCenters || 0}
           icon={TrendingUp}
           trend="up"
-          trendValue="+2 this quarter"
-          description={`${metrics.pendingCenters} pending approval`}
+          trendValue="Verified"
+          description={`${metrics.pendingCenters || 0} pending approval`}
         />
       </MetricCardGrid>
 
       {/* Performance Metrics */}
       <MetricCardGrid columns={4}>
         <MetricCard
-          title="Task Completion Rate"
-          value="87%"
+          title="Completed Tasks"
+          value={metrics.completedTasks || 0}
           icon={CheckCircle}
           trend="up"
-          trendValue="+5% this week"
-          badge={{ label: 'On Track', variant: 'default' }}
-        />
-        <MetricCard
-          title="Overdue Tasks"
-          value={metrics.overdueTasks || 0}
-          icon={Clock}
-          trend="down"
-          trendValue="-2 this week"
-          badge={{ label: 'Action Needed', variant: 'destructive' }}
-        />
-        <MetricCard
-          title="Lead Conversion"
-          value="24%"
-          icon={Target}
-          trend="up"
-          trendValue="+3% this month"
+          trendValue="Total"
           badge={{ label: 'Good', variant: 'default' }}
         />
         <MetricCard
-          title="Critical Escalations"
-          value={metrics.criticalIssues || 0}
+          title="Pending Tasks"
+          value={metrics.pendingTasks || 0}
+          icon={Clock}
+          trend="down"
+          trendValue="To do"
+          badge={{ label: 'Action Needed', variant: 'destructive' }}
+        />
+        <MetricCard
+          title="Converted Leads"
+          value={metrics.convertedLeads || 0}
+          icon={Target}
+          trend="up"
+          trendValue={`out of ${metrics.totalLeads || 0}`}
+          badge={{ label: 'Good', variant: 'default' }}
+        />
+        <MetricCard
+          title="Active Escalations"
+          value={metrics.activeEscalations || 0}
           icon={AlertTriangle}
           trend="neutral"
-          trendValue="No change"
+          trendValue="Attention"
           badge={{ label: 'Monitor', variant: 'secondary' }}
         />
       </MetricCardGrid>
@@ -289,11 +323,11 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
             <AlertTriangle className="w-5 h-5 text-orange-500" />
             Recent Escalations
           </CardTitle>
-          <Button variant="outline" size="sm">View All</Button>
+          <Button variant="outline" size="sm" onClick={fetchData}>Refresh</Button>
         </CardHeader>
         <CardContent>
           <DataTable
-            data={escalations}
+            data={escalations.slice(0, 5)}
             columns={escalationColumns}
             searchable={false}
             pageSize={5}
@@ -308,31 +342,34 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Escalations</h2>
         <div className="flex gap-2">
-          <Button variant="outline">Filter</Button>
+          <Button variant="outline" onClick={fetchData}>Refresh</Button>
           <Button variant="outline">Export</Button>
         </div>
       </div>
 
       <Tabs defaultValue="active">
         <TabsList>
-          <TabsTrigger value="active">Active ({escalations.filter(e => e.status === 'active').length})</TabsTrigger>
+          <TabsTrigger value="active">Active ({escalations.filter((e: any) => e.status !== 'resolved').length})</TabsTrigger>
           <TabsTrigger value="resolved">Resolved</TabsTrigger>
           <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
         
         <TabsContent value="active" className="mt-4">
           <DataTable
-            data={escalations.filter(e => e.status === 'active')}
+            data={escalations.filter((e: any) => e.status !== 'resolved')}
             columns={escalationColumns}
             title="Active Escalations"
-            searchFields={['description', 'type']}
+            searchFields={['description', 'title']}
           />
         </TabsContent>
         
         <TabsContent value="resolved" className="mt-4">
-          <div className="text-center py-12 text-slate-500">
-            No resolved escalations yet
-          </div>
+          <DataTable
+            data={escalations.filter((e: any) => e.status === 'resolved')}
+            columns={escalationColumns}
+            title="Resolved Escalations"
+            searchFields={['description', 'title']}
+          />
         </TabsContent>
         
         <TabsContent value="all" className="mt-4">
@@ -340,7 +377,7 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
             data={escalations}
             columns={escalationColumns}
             title="All Escalations"
-            searchFields={['description', 'type']}
+            searchFields={['description', 'title']}
           />
         </TabsContent>
       </Tabs>
@@ -393,14 +430,13 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
           <DataTable
             data={employees}
             columns={[
-              { key: 'employeeId', header: 'ID' },
+              { key: 'id', header: 'ID', render: (row: any) => row.id.substring(0, 8) },
               { key: 'name', header: 'Name' },
-              { key: 'designation', header: 'Designation' },
-              { key: 'departmentId', header: 'Department', render: () => 'Operations' },
+              { key: 'role', header: 'Role', render: (row: any) => row.role.replace('_', ' ') },
               { key: 'status', header: 'Status' },
             ]}
             title="Employee Performance"
-            searchFields={['name', 'employeeId', 'designation']}
+            searchFields={['name', 'role']}
           />
         </TabsContent>
         
@@ -442,8 +478,6 @@ export function CEODashboard({ activeModule }: CEODashboardProps) {
               { key: 'code', header: 'Code' },
               { key: 'name', header: 'Center Name' },
               { key: 'status', header: 'Status' },
-              { key: 'students', header: 'Students', render: (row) => row.students?.length || 0 },
-              { key: 'referredBy', header: 'Referred By', render: (row) => row.referredBy || 'Direct' },
             ]}
             title="Center Performance"
             searchFields={['name', 'code']}

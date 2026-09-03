@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MetricCard, MetricCardGrid } from '@/components/dashboard/MetricCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,18 +18,56 @@ import {
   Search,
   Filter,
 } from 'lucide-react';
-import { universities, studyCenters, students, admissionSessions, tasks } from '@/data/mockData';
-import type { University, StudyCenter, Student, AdmissionSession } from '@/types/erp';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface OperationsPanelProps {
   activeModule: string;
 }
 
 export function OperationsPanel({ activeModule }: OperationsPanelProps) {
-  const [uniList] = useState<University[]>(universities);
-  const [centerList] = useState<StudyCenter[]>(studyCenters);
-  const [studentList] = useState<Student[]>(students);
-  const [sessionList] = useState<AdmissionSession[]>(admissionSessions);
+  const [uniList, setUniList] = useState<any[]>([]);
+  const [centerList, setCenterList] = useState<any[]>([]);
+  const [studentList, setStudentList] = useState<any[]>([]);
+  const [sessionList, setSessionList] = useState<any[]>([]);
+  const [tasksList, setTasksList] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [
+        metricsRes,
+        uniRes,
+        centerRes,
+        studentRes,
+        sessionRes,
+        tasksRes,
+      ] = await Promise.all([
+        api.get('/dashboard/metrics'),
+        api.get('/operations/universities'),
+        api.get('/operations/centers'),
+        api.get('/student'),
+        api.get('/operations/sessions'),
+        api.get('/tasks').catch(() => ({ data: { data: [] } })),
+      ]);
+      setMetrics(metricsRes.data.data || {});
+      setUniList(uniRes.data.data || []);
+      setCenterList(centerRes.data.data || []);
+      setStudentList(studentRes.data.data || []);
+      setSessionList(sessionRes.data.data || []);
+      setTasksList(tasksRes.data.data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch operations data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const pendingStudents = studentList.filter(s => s.status === 'pending');
   const pendingCenters = centerList.filter(c => c.status === 'pending');
@@ -49,7 +87,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
     { 
       key: 'status', 
       header: 'Status',
-      render: (row: StudyCenter) => (
+      render: (row: any) => (
         <Badge className={
           row.status === 'active' ? 'bg-green-100 text-green-800' :
           row.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -69,7 +107,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
     { 
       key: 'status', 
       header: 'Status',
-      render: (row: Student) => (
+      render: (row: any) => (
         <Badge className={
           row.status === 'active' ? 'bg-green-100 text-green-800' :
           row.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -87,20 +125,24 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
     { 
       key: 'startDate', 
       header: 'Start Date',
-      render: (row: AdmissionSession) => row.startDate.toLocaleDateString()
+      render: (row: any) => row.startDate ? new Date(row.startDate).toLocaleDateString() : 'N/A'
     },
     { 
       key: 'endDate', 
       header: 'End Date',
-      render: (row: AdmissionSession) => row.endDate.toLocaleDateString()
+      render: (row: any) => row.endDate ? new Date(row.endDate).toLocaleDateString() : 'N/A'
     },
     { 
       key: 'examDate', 
       header: 'Exam Date',
-      render: (row: AdmissionSession) => row.examDate?.toLocaleDateString() || '-'
+      render: (row: any) => row.examDate ? new Date(row.examDate).toLocaleDateString() : '-'
     },
     { key: 'status', header: 'Status' },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading operations data...</div>;
+  }
 
   const renderDashboard = () => (
     <div className="space-y-6">
@@ -169,7 +211,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={tasks.filter(t => t.departmentId === 'dept-ops-001').slice(0, 5)}
+            data={tasksList.filter((t: any) => t.departmentId === 'dept-ops-001').slice(0, 5)}
             columns={[
               { key: 'title', header: 'Task' },
               { key: 'assignedTo', header: 'Assigned To', render: () => 'Operations Executive' },
@@ -178,7 +220,7 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
               { 
                 key: 'deadline', 
                 header: 'Deadline',
-                render: (row) => new Date(row.deadline).toLocaleDateString()
+                render: (row) => row.deadline ? new Date(row.deadline).toLocaleDateString() : 'N/A'
               },
             ]}
             searchable={false}

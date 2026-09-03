@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MetricCard, MetricCardGrid } from '@/components/dashboard/MetricCard';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { Button } from '@/components/ui/button';
@@ -15,17 +15,40 @@ import {
   TrendingUp,
   Plus,
 } from 'lucide-react';
-import { organizations, licenses, getDashboardMetrics } from '@/data/mockData';
-import type { Organization, License } from '@/types/erp';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface SuperadminPanelProps {
   activeModule: string;
 }
 
 export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
-  const metrics = getDashboardMetrics('superadmin');
-  const [orgList] = useState<Organization[]>(organizations);
-  const [licenseList] = useState<License[]>(licenses);
+  const [metrics, setMetrics] = useState<any>({});
+  const [orgList, setOrgList] = useState<any[]>([]);
+  const [licenseList, setLicenseList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [metricsRes, orgRes, licenseRes] = await Promise.all([
+        api.get('/dashboard/metrics'),
+        api.get('/org'),
+        api.get('/licenses').catch(() => ({ data: { data: [] } })),
+      ]);
+      setMetrics(metricsRes.data.data || {});
+      setOrgList(orgRes.data.data || []);
+      setLicenseList(licenseRes.data.data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch superadmin data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const organizationColumns = [
     { key: 'name', header: 'Organization Name' },
@@ -35,51 +58,55 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
     { 
       key: 'licenseExpiry', 
       header: 'License Expiry',
-      render: (row: Organization) => row.licenseExpiry?.toLocaleDateString() || '-'
+      render: (row: any) => row.licenseExpiry ? new Date(row.licenseExpiry).toLocaleDateString() : '-'
     },
   ];
 
   const licenseColumns = [
     { key: 'name', header: 'License Name' },
-    { key: 'type', header: 'Type', render: (row: License) => (
+    { key: 'type', header: 'Type', render: (row: any) => (
       <Badge variant="outline" className="capitalize">{row.type}</Badge>
     )},
     { key: 'maxUsers', header: 'Max Users' },
     { key: 'maxStorage', header: 'Storage (GB)' },
-    { key: 'price', header: 'Price', render: (row: License) => `₹${row.price.toLocaleString()}` },
+    { key: 'price', header: 'Price', render: (row: any) => `₹${row.price.toLocaleString()}` },
     { key: 'status', header: 'Status' },
   ];
+
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading superadmin data...</div>;
+  }
 
   const renderDashboard = () => (
     <div className="space-y-6">
       <MetricCardGrid columns={4}>
         <MetricCard
           title="Total Organizations"
-          value={metrics.totalOrganizations || 0}
+          value={orgList.length}
           icon={Building2}
           trend="up"
-          trendValue="+2 this month"
+          trendValue="Active"
         />
         <MetricCard
           title="Active Licenses"
-          value={metrics.activeLicenses || 0}
+          value={licenseList.filter(l => l.status === 'active').length || 0}
           icon={Key}
           trend="up"
-          trendValue="+1 this month"
+          trendValue="Assigned"
         />
         <MetricCard
           title="Total Users"
-          value="156"
+          value={metrics.totalUsers || 0}
           icon={Users}
           trend="up"
-          trendValue="+12 this month"
+          trendValue="Global"
         />
         <MetricCard
           title="Total Revenue"
           value={`₹${(metrics.totalRevenue || 0).toLocaleString()}`}
           icon={TrendingUp}
           trend="up"
-          trendValue="+15% this quarter"
+          trendValue="Total Platform"
         />
       </MetricCardGrid>
 
@@ -108,14 +135,17 @@ export function SuperadminPanel({ activeModule }: SuperadminPanelProps) {
                 <div key={license.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div>
                     <p className="font-medium">{license.name}</p>
-                    <p className="text-sm text-slate-500">{license.features.length} features</p>
+                    <p className="text-sm text-slate-500">{license.features?.length || 0} features</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">₹{license.price.toLocaleString()}</p>
-                    <p className="text-sm text-slate-500">{license.durationMonths} months</p>
+                    <p className="font-medium">₹{license.price?.toLocaleString() || 0}</p>
+                    <p className="text-sm text-slate-500">{license.durationMonths || 12} months</p>
                   </div>
                 </div>
               ))}
+              {licenseList.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">No licenses found</div>
+              )}
             </div>
           </CardContent>
         </Card>
