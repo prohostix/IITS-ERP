@@ -640,6 +640,8 @@ model LeaveRequest {
   startDate        DateTime
   endDate          DateTime
   reason           String
+  isHalfDay        Boolean      @default(false)
+  attachmentUrl    String?
   status           LeaveStatus  @default(pending)
   deptAdminRemarks String?
   hrRemarks        String?

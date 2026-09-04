@@ -67,8 +67,9 @@ export function SubDepartmentsPanel() {
         api.get('/operations/centers').catch(() => ({ data: { data: [] } })),
       ]);
       setSubDepartments(sdRes.data.data || []);
-      setDepartments(deptRes.data.data || []);
-      setUsers(userRes.data.data || []);
+      const depts = deptRes.data.data || [];
+      setUsers(userRes.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
+      setDepartments(depts);
       setUniversities(uniRes.data.data || []);
       setPrograms(progRes.data.data || []);
       setCenters(centerRes.data.data || []);

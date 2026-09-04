@@ -49,7 +49,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   const fetchEmployees = useCallback(async () => {
     try {
       const res = await api.get('/users');
-      setEmployees(res.data.data || []);
+      setEmployees(res.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
     } catch (err) {
     }
   }, []);

@@ -78,7 +78,7 @@ export function DepartmentsPanel() {
       ]);
       setDepartments(deptsRes.data.data || []);
       setOrganizations(orgsRes.data.data || []);
-      setUsers(usersRes.data.data || []);
+      setUsers(usersRes.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
     } catch (error: any) {
       toast.error('Failed to fetch data');
     } finally {

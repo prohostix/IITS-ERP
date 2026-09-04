@@ -103,7 +103,7 @@ export function ManagerAssignmentPanel() {
 
       setDepartments(deptsWithSubs);
       // Filter out superadmin/org_admin for manager candidates
-      setUsers(allUsers.filter((u) => !['superadmin', 'org_admin'].includes(u.role)));
+      setUsers(allUsers.filter((u) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)));
     } catch (_err) {
       toast.error('Failed to load hierarchy data');
     } finally {

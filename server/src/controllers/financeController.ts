@@ -1014,20 +1014,28 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     const commIn = enrollment.commissionIn;
     const commOut = commIn?.commissionOuts?.[0] || null;
 
-    return {
-      id: enrollment.id,
-      studentName: enrollment.studentName,
-      enrollmentNumber: enrollment.enrollmentNumber,
-      uniEnrollmentNumber: enrollment.uniEnrollmentNumber,
-      admissionDate: enrollment.admissionDate || enrollment.createdAt,
-      admissionSession: enrollment.session?.name || '',
-      centerName: enrollment.studyCenter?.name || '',
-      subCenterName: enrollment.studyCenter?.branchName || '',
-      program: enrollment.program?.name || '',
-      university: (feeStruct?.university?.name || (enrollment.program as any)?.university?.name) || '',
-      centerPaymentAmount: payment?.amount || null,
-      centerPaymentStatus: payment ? 'Paid' : 'Due',
-      centerPaymentFor: enrollment.status || '',
+      let centerPaymentAmount = payment?.amount ?? null;
+      let centerPaymentStatus = payment ? 'Paid' : 'Due';
+      
+      if (!payment && enrollment.paymentType === 'direct_to_university') {
+        centerPaymentAmount = 0;
+        centerPaymentStatus = 'Paid';
+      }
+
+      return {
+        id: enrollment.id,
+        studentName: enrollment.studentName,
+        enrollmentNumber: enrollment.enrollmentNumber,
+        uniEnrollmentNumber: enrollment.uniEnrollmentNumber,
+        admissionDate: enrollment.admissionDate || enrollment.createdAt,
+        admissionSession: enrollment.session?.name || '',
+        centerName: enrollment.studyCenter?.name || '',
+        subCenterName: enrollment.studyCenter?.branchName || '',
+        program: enrollment.program?.name || '',
+        university: (feeStruct?.university?.name || (enrollment.program as any)?.university?.name) || '',
+        centerPaymentAmount,
+        centerPaymentStatus,
+        centerPaymentFor: enrollment.status || '',
       universityPaymentAmount: uniPayments.length > 0 ? totalUniAmount : null,
       universityPaidAmount: uniPayments.length > 0 ? paidUniAmount : 0,
       universityPaymentStatus: uniStatus,

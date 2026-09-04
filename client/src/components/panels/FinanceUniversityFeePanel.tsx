@@ -143,14 +143,17 @@ export function FinanceUniversityFeePanel() {
   };
 
   const groupedPayments = useMemo(() => {
-    return payments.reduce((acc, p) => {
-      if (!p.student) return acc;
-      if (!acc[p.student.id]) {
-        acc[p.student.id] = { student: p.student, cycles: [] };
+    return payments.reduce((acc: any, p: any) => {
+      if (!acc[p.enrollmentId]) {
+        acc[p.enrollmentId] = {
+          student: p.student,
+          enrollmentId: p.enrollmentId,
+          cycles: []
+        };
       }
-      acc[p.student.id].cycles.push(p);
+      acc[p.enrollmentId].cycles.push(p);
       return acc;
-    }, {} as Record<string, { student: Student, cycles: UniversityFeePayment[] }>);
+    }, {} as Record<string, { student: Student, enrollmentId: string, cycles: UniversityFeePayment[] }>);
   }, [payments]);
 
   
@@ -253,14 +256,14 @@ export function FinanceUniversityFeePanel() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {groupedArray.map(group => {
-                      const isExpanded = expandedStudents[group.student.id];
+                      const isExpanded = expandedStudents[group.enrollmentId];
                       const totalAmount = group.cycles.reduce((sum, c) => (activeTab === 'pending' && c.status === 'pending') || activeTab === 'paid' ? sum + c.amount : sum, 0);
 
                       return (
-                        <React.Fragment key={group.student.id}>
+                        <React.Fragment key={group.enrollmentId}>
                           <tr 
                             className="hover:bg-muted/20 transition-colors cursor-pointer"
-                            onClick={() => toggleStudent(group.student.id)}
+                            onClick={() => toggleStudent(group.enrollmentId)}
                           >
                             <td className="p-3 text-center text-muted-foreground">
                               {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}

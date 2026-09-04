@@ -70,7 +70,7 @@ export function BranchesPanel() {
         api.get('/departments'),
       ]);
       setBranches(branchRes.data.data || []);
-      setAllUsers(userRes.data.data || []);
+      setAllUsers(userRes.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
       setAllDepts(deptRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load branches');

@@ -125,7 +125,7 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
       if (lr.type === 'sick') usedSick += days;
       else if (lr.type === 'casual') usedCasual += days;
       else if (lr.type === 'earned') usedEarned += days;
-      // complementary doesn't exist in enum, ignore for now or check if added
+      else if (lr.type === 'compensatory') usedComplementary += days;
     }
 
     return {
@@ -159,17 +159,27 @@ export const upsertLeaveAllocation = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { year = new Date().getFullYear(), casual, sick, earned } = req.body;
-  const casualNum = Number(casual) || 0;
-  const sickNum = Number(sick) || 0;
-  const earnedNum = Number(earned) || 0;
-  const users = await prisma.user.findMany({ where: { organizationId: req.user.organizationId, status: 'active' as any } });
+  const { year = new Date().getFullYear(), casualLeave, sickLeave, earnedLeave, complementaryLeave } = req.body;
+  const casualNum = Number(casualLeave) || 0;
+  const sickNum = Number(sickLeave) || 0;
+  const earnedNum = Number(earnedLeave) || 0;
+  const compNum = Number(complementaryLeave) || 0;
+
+  const users = await prisma.user.findMany({ 
+    where: { 
+      organizationId: req.user.organizationId, 
+      status: 'active' as any,
+      role: {
+        notIn: ['ceo', 'org_admin', 'superadmin', 'center_admin', 'student']
+      }
+    } 
+  });
   
   const results = await Promise.all(users.map(u => 
     prisma.leaveAllocation.upsert({
       where: { userId_year: { userId: u.id, year } },
-      update: { casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum },
-      create: { userId: u.id, organizationId: req.user.organizationId, year, casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum, createdBy: req.user.id }
+      update: { casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum, complementaryLeave: compNum },
+      create: { userId: u.id, organizationId: req.user.organizationId, year, casualLeave: casualNum, sickLeave: sickNum, earnedLeave: earnedNum, complementaryLeave: compNum, createdBy: req.user.id }
     })
   ));
 

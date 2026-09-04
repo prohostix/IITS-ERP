@@ -73,7 +73,7 @@ export function HRPanel({ activeModule }: HRPanelProps) {
         api.get('/hr/leaves').catch(() => ({ data: { data: [] } })),
       ]);
       setMetrics(metricsRes.data.data || {});
-      setEmployeeList(usersRes.data.data?.filter((u: any) => u.role !== 'student') || []);
+      setEmployeeList(usersRes.data.data?.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role)) || []);
       setLeaveList(leaveRes.data.data || []);
       // Vacancies and complaints endpoints might not be fully implemented, use safe defaults
       setVacancyList([]);

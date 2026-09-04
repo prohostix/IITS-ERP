@@ -130,9 +130,9 @@ export function HRUsersPanel() {
     try {
       const response = await api.get('/users');
       const allUsers = response.data.data || response.data || [];
-      // Exclude top-level admin roles — everyone else is headcount
+      // Exclude top-level admin roles, centers and students — everyone else is headcount
       const staffUsers = allUsers.filter((user: User) =>
-        !['ceo', 'org_admin', 'superadmin'].includes(user.role)
+        !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(user.role)
       );
       setUsers(staffUsers);
     } catch (_error) {
@@ -506,7 +506,6 @@ export function HRUsersPanel() {
                     <SelectItem value="ops_admin">Operations Admin</SelectItem>
                     <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
                     <SelectItem value="sales_admin">Sales Admin</SelectItem>
-                    <SelectItem value="center_admin">Center Admin</SelectItem>
                     <SelectItem value="bde">BDE</SelectItem>
                   </SelectContent>
                 </Select>

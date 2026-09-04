@@ -62,7 +62,8 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
   const fetchEmployees = async () => {
     try {
       const response = await api.get('/users');
-      setEmployees(response.data.data || []);
+      const allUsers = response.data.data || [];
+      setEmployees(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role)));
     } catch (error) {
     }
   };

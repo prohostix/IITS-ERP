@@ -53,7 +53,7 @@ export function EmployeesPanel() {
       // Only exclude ceo and org_admin — all other roles (including *_admin) are employees
       const employeesOnly = allUsers.filter((user: any) => {
         const role = user.role?.toLowerCase() || '';
-        return role !== 'ceo' && role !== 'org_admin';
+        return role !== 'ceo' && role !== 'org_admin' && role !== 'center_admin' && role !== 'student';
       });
       setEmployees(employeesOnly);
     } catch (error) {
@@ -220,7 +220,6 @@ export function EmployeesPanel() {
                       <SelectItem value="ops_admin">Operations Admin</SelectItem>
                       <SelectItem value="ops_sub_admin">Operations Sub-Admin</SelectItem>
                       <SelectItem value="sales_admin">Sales Admin</SelectItem>
-                      <SelectItem value="center_admin">Center Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -96,6 +96,9 @@ export const generateMonthlyPayroll = asyncHandler(async (req: AuthRequest, res:
     where: { 
       organizationId: req.user.organizationId, 
       status: 'active' as any,
+      role: {
+        notIn: ['ceo', 'org_admin', 'superadmin', 'center_admin', 'student']
+      }
     },
     include: {
       salaryConfig: true,
