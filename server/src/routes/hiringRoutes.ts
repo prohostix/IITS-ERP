@@ -13,7 +13,7 @@ import {
 const router = Router();
 
 // Employee API
-router.get('/my-documents', protect, authorize(), getMyDocuments);
+router.get('/my-documents', protect, getMyDocuments);
 
 // Manager API
 router.post('/request', protect, authorize('ops_admin', 'ops_sub_admin', 'org_admin', 'hr_admin', 'sales_admin', 'finance_admin', 'center_admin', 'university_admin', 'superadmin'), createHiringRequest);

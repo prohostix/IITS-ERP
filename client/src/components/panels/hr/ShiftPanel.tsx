@@ -38,7 +38,7 @@ export function ShiftPanel() {
   const fetchShifts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/hr/shifts');
+      const res = await api.get('/attendance/shifts');
       setShifts(res.data.data || []);
     } catch {
       toast.error('Failed to load shifts');
@@ -51,10 +51,10 @@ export function ShiftPanel() {
     e.preventDefault();
     try {
       if (form.id) {
-        await api.put(`/hr/shifts/${form.id}`, form);
+        await api.put(`/attendance/shifts/${form.id}`, form);
         toast.success('Shift updated');
       } else {
-        await api.post('/hr/shifts', form);
+        await api.post('/attendance/shifts', form);
         toast.success('Shift created');
       }
       setDialogOpen(false);
@@ -67,7 +67,7 @@ export function ShiftPanel() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this shift?')) return;
     try {
-      await api.delete(`/hr/shifts/${id}`);
+      await api.delete(`/attendance/shifts/${id}`);
       toast.success('Shift deleted');
       fetchShifts();
     } catch {
