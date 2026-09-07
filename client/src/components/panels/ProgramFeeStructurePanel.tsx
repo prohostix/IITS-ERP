@@ -88,7 +88,10 @@ export function ProgramFeeStructurePanel() {
     currency: 'INR', 
     effectiveFrom: '', 
     additionalFees: '',
-    feeBreakdown: [] as any[]
+    feeBreakdown: [] as any[],
+    baseFee: '0',
+    universityFee: '0',
+    fullProgramFee: '0',
   });
 
   
@@ -251,10 +254,12 @@ const fetchAllData = useCallback(async () => {
       
       let totalBaseFee = 0;
       let totalUniversityFee = 0;
+      let aggregatedCommissionRate = 0;
       
       const cleanBreakdown = form.feeBreakdown.map(b => {
          totalBaseFee += Number(b.baseFee || 0);
          totalUniversityFee += Number(b.universityFee || 0);
+         if (Number(b.commissionRate || 0) > 0) aggregatedCommissionRate = Number(b.commissionRate);
          return {
            year: b.year,
            registrationFee: Number(b.registrationFee || 0),
@@ -279,7 +284,7 @@ const fetchAllData = useCallback(async () => {
         effectiveFrom: form.effectiveFrom || undefined,
         additionalFees: addFees,
         feeBreakdown: cleanBreakdown,
-        commissionRate: 0,
+        commissionRate: aggregatedCommissionRate,
       };
 
       if (editing) {
