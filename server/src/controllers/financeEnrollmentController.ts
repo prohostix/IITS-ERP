@@ -226,7 +226,11 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 
   // Automatically calculate and create expected CommissionIn
   if ((feeStructure.commissionRate && feeStructure.commissionRate > 0) || isDirectToUni) {
-    const expectedAmount = (feeStructure.commissionRate && feeStructure.commissionRate > 0) ? (feeStructure.baseFee * feeStructure.commissionRate) / 100 : 0;
+    // For no-wallet universities: use commissionRate if set, otherwise 0
+    // This allows the admin to set a commission rate on the fee structure and have it reflected here
+    const expectedAmount = (feeStructure.commissionRate && feeStructure.commissionRate > 0 && feeStructure.baseFee)
+      ? (feeStructure.baseFee * feeStructure.commissionRate) / 100
+      : 0;
 
     const existingComm = await prisma.commissionIn.findUnique({
       where: { enrollmentId: enrollment.id }

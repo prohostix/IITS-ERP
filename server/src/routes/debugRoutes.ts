@@ -5,28 +5,62 @@ const router = express.Router();
 
 const NO_WALLET_CATEGORIES = ['direct_iits', 'team_lease'];
 
-router.get('/fix-commissions', async (req, res) => {
+// Re-calculate expectedAmount for all no-wallet CommissionIn records using fee structures
+router.get('/recalc-commissions', async (req, res) => {
   try {
-    const enrollments = await prisma.enrollment.findMany({
-      where: { status: 'enrolled' },
-      include: { commissionIn: true, program: { include: { university: true } } }
+    const commissions = await prisma.commissionIn.findMany({
+      where: { expectedAmount: 0, status: 'pending' },
+      include: {
+        enrollment: {
+          include: { program: { include: { university: true } } }
+        }
+      }
     });
 
-    let createdCount = 0;
+    let updatedCount = 0;
     const log: string[] = [];
 
-    for (const e of enrollments) {
+    for (const comm of commissions) {
+      const e = comm.enrollment;
+      if (!e) continue;
       const category = (e as any).program?.university?.category;
       const isDirectToUni = e.paymentType === 'direct_to_university' || NO_WALLET_CATEGORIES.includes(category);
-      if (isDirectToUni && !e.commissionIn) {
-        await prisma.commissionIn.create({
-          data: { organizationId: e.organizationId, enrollmentId: e.id, expectedAmount: 0, status: 'pending' }
-        });
-        createdCount++;
-        log.push(`Created CommissionIn for ${e.studentName} (${e.id}) [category: ${category}]`);
-      }
+      if (!isDirectToUni) continue;
+
+      // Look up the fee structure for this enrollment
+      const feeStructure = await prisma.programFeeStructure.findFirst({
+        where: {
+          organizationId: e.organizationId,
+          programId: e.programId,
+          ...(e.sessionId ? { admissionSessionId: e.sessionId } : {}),
+          level: 'program'
+        }
+      }) || await prisma.programFeeStructure.findFirst({
+        where: {
+          organizationId: e.organizationId,
+          programId: e.programId,
+          level: 'program'
+        }
+      });
+
+      if (!feeStructure) continue;
+
+      const commRate = (feeStructure as any).commissionRate;
+      const baseFee = (feeStructure as any).baseFee;
+      if (!commRate || commRate <= 0 || !baseFee) continue;
+
+      const expectedAmount = (baseFee * commRate) / 100;
+
+      await prisma.commissionIn.update({
+        where: { id: comm.id },
+        data: { expectedAmount }
+      });
+
+      updatedCount++;
+      log.push(`Updated ${e.studentName}: ₹${expectedAmount} (rate: ${commRate}%, base: ₹${baseFee})`);
     }
-    res.json({ success: true, createdCount, log });
+
+    res.json({ success: true, updatedCount, log });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
