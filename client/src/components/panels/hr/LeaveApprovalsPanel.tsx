@@ -24,9 +24,10 @@ export function LeaveApprovalsPanel() {
     fetchLeaves();
   }, []);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, type: 'dept' | 'hr' = 'dept') => {
     try {
-      await api.put(`/hr/leaves/${id}/approve`, { status: 'approved' });
+      const endpoint = type === 'hr' ? `/hr/leaves/${id}/hr-approve` : `/hr/leaves/${id}/dept-approve`;
+      await api.patch(endpoint, { action: 'approve', remarks: '' });
       toast.success('Leave approved successfully');
       fetchLeaves();
     } catch (e: any) {
@@ -34,9 +35,10 @@ export function LeaveApprovalsPanel() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, type: 'dept' | 'hr' = 'dept') => {
     try {
-      await api.put(`/hr/leaves/${id}/approve`, { status: 'rejected' });
+      const endpoint = type === 'hr' ? `/hr/leaves/${id}/hr-approve` : `/hr/leaves/${id}/dept-approve`;
+      await api.patch(endpoint, { action: 'reject', remarks: 'Rejected' });
       toast.success('Leave rejected successfully');
       fetchLeaves();
     } catch (e: any) {
@@ -111,14 +113,20 @@ export function LeaveApprovalsPanel() {
       header: 'Actions',
       cell: ({ row }: any) => {
         const status = row.original.status;
-        if (status !== 'pending') return null;
-        
-        return (
+        const id = row.original.id;
+        if (status === 'pending') return (
           <div className="flex gap-2">
-            <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(row.original.id)}>Approve</Button>
-            <Button size="sm" variant="destructive" onClick={() => handleReject(row.original.id)}>Reject</Button>
+            <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(id, 'dept')}>Dept Approve</Button>
+            <Button size="sm" variant="destructive" onClick={() => handleReject(id, 'dept')}>Reject</Button>
           </div>
         );
+        if (status === 'dept_approved') return (
+          <div className="flex gap-2">
+            <Button size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleApprove(id, 'hr')}>HR Approve</Button>
+            <Button size="sm" variant="destructive" onClick={() => handleReject(id, 'hr')}>Reject</Button>
+          </div>
+        );
+        return null;
       }
     }
   ];

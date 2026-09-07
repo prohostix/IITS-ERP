@@ -205,7 +205,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     }
 
     // Link enrollment to student
-    return await tx.enrollment.update({
+    const updatedEnrollment = await tx.enrollment.update({
       where: { id: dbEnrollment.id },
       data: {
         status: 'enrolled' as any,
@@ -214,27 +214,29 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         student: { connect: { id: student.id } },
         enrollmentNumber: enrollmentNo
       },
-      include: { program: true }
+      include: { program: { include: { university: true } } }
     });
+    return updatedEnrollment;
   });
 
+  const isDirectToUni = enrollment.paymentType === 'direct_to_university' || (enrollment as any).program?.university?.category === 'direct_iits';
+
   // Automatically calculate and create expected CommissionIn
-  if (feeStructure.commissionRate && feeStructure.commissionRate > 0) {
-    const expectedAmount = (feeStructure.baseFee * feeStructure.commissionRate) / 100;
-    if (expectedAmount > 0) {
-      const existingComm = await prisma.commissionIn.findUnique({
-        where: { enrollmentId: enrollment.id }
+  if ((feeStructure.commissionRate && feeStructure.commissionRate > 0) || isDirectToUni) {
+    const expectedAmount = (feeStructure.commissionRate && feeStructure.commissionRate > 0) ? (feeStructure.baseFee * feeStructure.commissionRate) / 100 : 0;
+
+    const existingComm = await prisma.commissionIn.findUnique({
+      where: { enrollmentId: enrollment.id }
+    });
+    if (!existingComm) {
+      await prisma.commissionIn.create({
+        data: {
+          organizationId: req.user.organizationId,
+          enrollmentId: enrollment.id,
+          expectedAmount,
+          status: 'pending'
+        }
       });
-      if (!existingComm) {
-        await prisma.commissionIn.create({
-          data: {
-            organizationId: req.user.organizationId,
-            enrollmentId: enrollment.id,
-            expectedAmount,
-            status: 'pending'
-          }
-        });
-      }
     }
   }
 

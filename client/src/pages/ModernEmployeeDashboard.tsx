@@ -87,14 +87,18 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
     }
   };
 
-  // Compute leave balance
+  // Compute leave balance from real allocation data
   const approvedLeaves = leaves.filter((l: any) => l.status === 'approved');
   const usedDays = approvedLeaves.reduce((s: number, l: any) => {
     if (!l.startDate || !l.endDate) return s;
+    if (l.isHalfDay) return s + 0.5;
     const diff = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / 86400000) + 1;
     return s + diff;
   }, 0);
-  const totalLeaveAllowance = 21; // standard annual
+  // Use allocation from metrics if available, otherwise fallback to sum of standard types
+  const totalLeaveAllowance = metrics.leaveAllocation
+    ? (metrics.leaveAllocation.sickLeave || 0) + (metrics.leaveAllocation.casualLeave || 0) + (metrics.leaveAllocation.earnedLeave || 0)
+    : 39; // 12 sick + 12 casual + 15 earned
   const remainingLeaves = Math.max(0, totalLeaveAllowance - usedDays);
 
   // Work hours this week from attendance

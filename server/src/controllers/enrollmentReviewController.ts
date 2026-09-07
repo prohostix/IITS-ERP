@@ -40,7 +40,8 @@ export const approveDeptEnrollment = asyncHandler(async (req: AuthRequest, res: 
   }
 
   const category = (currentEnrollment.program.university as any).category || 'team_lease';
-  const nextStatus = category === 'team_lease' ? 'pending_finance_review' : 'payment_pending';
+  const isDirectToUni = currentEnrollment.paymentType === 'direct_to_university';
+  const nextStatus = (category === 'team_lease' || category === 'direct_iits' || isDirectToUni) ? 'pending_finance_review' : 'payment_pending';
 
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },

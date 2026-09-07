@@ -22,9 +22,22 @@ const mapLeaveRequest = (leave: any) => ({
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isGodMode = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const isDeptManager = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'].includes(req.user.role);
   const whereClause: any = { organizationId: req.user.organizationId };
-  if (!isGodMode && req.user.departmentId) {
+
+  // Dept managers only see their own department's leaves; fallback to all if no dept
+  if (!isGodMode && isDeptManager && req.user.departmentId) {
     whereClause.departmentId = req.user.departmentId;
+  }
+
+  // Support ?status= filter (e.g. status=pending)
+  if (req.query.status) {
+    whereClause.status = req.query.status;
+  }
+
+  // Support ?userId= filter for admin drill-downs
+  if (req.query.userId && isGodMode) {
+    whereClause.userId = req.query.userId;
   }
 
   const leaves = await prisma.leaveRequest.findMany({
@@ -141,9 +154,26 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 });
 
 export const updateLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { startDate, endDate, ...rest } = req.body;
-  const updateData: any = { ...rest };
+  const existing = await prisma.leaveRequest.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ success: false, message: 'Leave request not found' });
+    return;
+  }
+
+  const isAdmin = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  if (!isAdmin && (existing.userId !== req.user.id || existing.status !== 'pending')) {
+    res.status(403).json({ success: false, message: 'You can only edit your own pending leave requests' });
+    return;
+  }
+
+  const { startDate, endDate, type, reason, isHalfDay, attachmentUrl } = req.body;
+  const updateData: any = {};
   
+  // Only allow editing fields the employee controls; block status changes via this endpoint
+  if (type !== undefined) updateData.type = type;
+  if (reason !== undefined) updateData.reason = reason;
+  if (isHalfDay !== undefined) updateData.isHalfDay = isHalfDay;
+  if (attachmentUrl !== undefined) updateData.attachmentUrl = attachmentUrl;
   if (startDate) updateData.startDate = new Date(startDate);
   if (endDate) updateData.endDate = new Date(endDate);
 
@@ -155,13 +185,27 @@ export const updateLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 });
 
 export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const leave = await prisma.leaveRequest.findUnique({ where: { id: req.params.id } });
+  if (!leave) {
+    res.status(404).json({ success: false, message: 'Leave request not found' });
+    return;
+  }
+
+  const isAdmin = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const isOwner = leave.userId === req.user.id;
+
+  // Only the owner can delete their own pending requests; admins can delete any
+  if (!isAdmin && (!isOwner || leave.status !== 'pending')) {
+    res.status(403).json({ success: false, message: 'You can only withdraw your own pending leave requests' });
+    return;
+  }
+
   await prisma.leaveRequest.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });
 });
 
 export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
-  // Use the path to determine the action, allowing HR admins to act as Dept Managers
   const isHr = req.path.includes('hr-approve');
 
   const updateData: any = {};
@@ -177,15 +221,45 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
 
   const leave = await prisma.leaveRequest.update({
     where: { id: req.params.id },
-    data: updateData
+    data: updateData,
+    include: { user: { select: { name: true } } }
   });
+
+  // Notify the employee
+  try {
+    const actionLabel = action === 'approve' ? (isHr ? 'fully approved' : 'approved by department') : 'rejected';
+    await prisma.notification.create({
+      data: {
+        organizationId: req.user.organizationId,
+        userId: leave.userId,
+        title: `Leave Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+        message: `Your ${leave.type} leave request has been ${actionLabel}.${remarks ? ' Remarks: ' + remarks : ''}`,
+        type: 'general' as any,
+        priority: 'medium',
+        link: 'leaves'
+      }
+    });
+  } catch (_) { /* non-fatal */ }
+
   res.json({ success: true, data: leave });
 });
 
 export const deptApproveLeave = approveLeave;
 export const hrApproveLeave = approveLeave;
 export const getLeaveStats = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: {} });
+  const leaves = await prisma.leaveRequest.findMany({
+    where: { organizationId: req.user.organizationId },
+    select: { status: true, type: true }
+  });
+  const stats = {
+    total: leaves.length,
+    pending: leaves.filter(l => l.status === 'pending').length,
+    dept_approved: leaves.filter(l => l.status === 'dept_approved').length,
+    approved: leaves.filter(l => l.status === 'approved').length,
+    rejected: leaves.filter(l => l.status === 'rejected').length,
+    byType: leaves.reduce((acc: any, l) => { acc[l.type] = (acc[l.type] || 0) + 1; return acc; }, {}),
+  };
+  res.json({ success: true, data: stats });
 });
 export const getMyLeaves = asyncHandler(async (req: AuthRequest, res: Response) => {
   const leaves = await prisma.leaveRequest.findMany({ 

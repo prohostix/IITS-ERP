@@ -48,6 +48,7 @@ import backupRoutes from './routes/backupRoutes.js';
 import incentiveRoutes from './routes/incentiveRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
+import debugRoutes from './routes/debugRoutes.js';
 import enrollmentRoutes from './routes/enrollmentRoutes.js';
 import commissionRoutes from './routes/commissionRoutes.js';
 
