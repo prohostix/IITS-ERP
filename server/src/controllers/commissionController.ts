@@ -23,7 +23,7 @@ export const getCommissionInList = asyncHandler(async (req: AuthRequest, res: Re
     include: {
       enrollment: {
         include: {
-          program: { select: { name: true } },
+          program: { select: { name: true, university: { select: { name: true } } } },
           studyCenter: { select: { name: true } }
         }
       }

@@ -238,6 +238,7 @@ export function CommissionsPanel() {
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Student Name</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Program</th>
+                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">University</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Study Center</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Expected Commission</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Received Commission</th>
@@ -251,6 +252,7 @@ export function CommissionsPanel() {
                         <tr key={item.id} className="hover:bg-slate-50/50">
                           <td className="px-4 py-3 font-medium whitespace-nowrap">{item.enrollment?.studentName || '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{item.enrollment?.program?.name || '-'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{item.enrollment?.program?.university?.name || '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{item.enrollment?.studyCenter?.name || '-'}</td>
                           <td className="px-4 py-3 font-semibold whitespace-nowrap">₹{item.expectedAmount.toLocaleString('en-IN')}</td>
                           <td className="px-4 py-3 font-semibold whitespace-nowrap">
