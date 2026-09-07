@@ -73,7 +73,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   // 1. Fetch enrollment details first to inspect program and studyCenterId
   const dbEnrollment = await prisma.enrollment.findUnique({
     where: { id: req.params.id },
-    include: { program: true }
+    include: { program: { include: { university: true } } }
   });
 
   if (!dbEnrollment) {
@@ -219,7 +219,10 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     return updatedEnrollment;
   });
 
-  const isDirectToUni = enrollment.paymentType === 'direct_to_university' || (enrollment as any).program?.university?.category === 'direct_iits';
+  // Use dbEnrollment (pre-transaction) which already has university included
+  const uniCategory = (dbEnrollment as any).program?.university?.category;
+  const NO_WALLET_CATEGORIES = ['direct_iits', 'team_lease'];
+  const isDirectToUni = dbEnrollment.paymentType === 'direct_to_university' || NO_WALLET_CATEGORIES.includes(uniCategory);
 
   // Automatically calculate and create expected CommissionIn
   if ((feeStructure.commissionRate && feeStructure.commissionRate > 0) || isDirectToUni) {
