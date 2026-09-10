@@ -96,6 +96,23 @@ export function LeaveApprovalsPanel() {
       )
     },
     {
+      id: 'approvers',
+      header: 'Approvers',
+      cell: ({ row }: any) => (
+        <div className="text-xs space-y-1">
+          {row.original.deptApprovedBy && (
+            <div className="text-muted-foreground">Dept: <span className="font-medium text-foreground">{row.original.deptApprovedBy.name}</span></div>
+          )}
+          {row.original.hrApprovedBy && (
+            <div className="text-muted-foreground">HR: <span className="font-medium text-foreground">{row.original.hrApprovedBy.name}</span></div>
+          )}
+          {!row.original.deptApprovedBy && !row.original.hrApprovedBy && (
+            <span className="text-muted-foreground italic">None yet</span>
+          )}
+        </div>
+      )
+    },
+    {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }: any) => {

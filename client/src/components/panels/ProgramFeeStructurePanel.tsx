@@ -226,6 +226,7 @@ const fetchAllData = useCallback(async () => {
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
       baseFee: fee.baseFee || 0,
       fullProgramFee: fee.fullProgramFee || 0,
+      commissionRate: fee.commissionRate !== undefined ? String(fee.commissionRate) : '0',
       additionalFees: otherFees.map(f => `${f.label}:${f.amount}`).join(', '),
       feeBreakdown: parsedBreakdown
     });
@@ -284,7 +285,7 @@ const fetchAllData = useCallback(async () => {
         effectiveFrom: form.effectiveFrom || undefined,
         additionalFees: addFees,
         feeBreakdown: cleanBreakdown,
-        commissionRate: aggregatedCommissionRate,
+        commissionRate: aggregatedCommissionRate > 0 ? aggregatedCommissionRate : Number(form.commissionRate || 0),
       };
 
       if (editing) {

@@ -287,32 +287,40 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                             <span className="line-clamp-1">{leave.reason}</span>
                           </div>
 
-                          {/* Expandable remarks */}
-                          {(leave.deptAdminRemarks || leave.hrRemarks) && (
+                          {/* Expandable remarks/approver details */}
+                          {(leave.deptAdminRemarks || leave.hrRemarks || leave.deptApprovedBy || leave.hrApprovedBy) && (
                             <button
                               className="flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
                               onClick={() => setExpanded(isExpanded ? null : leave.id)}
                             >
                               {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                              {isExpanded ? 'Hide remarks' : 'View remarks'}
+                              {isExpanded ? 'Hide details' : 'View details'}
                             </button>
                           )}
 
                           {isExpanded && (
                             <div className="mt-3 space-y-2 text-xs border-t pt-3">
-                              {leave.deptAdminRemarks && (
+                              {(leave.deptAdminRemarks || leave.deptApprovedBy) && (
                                 <div>
                                   <span className="font-semibold text-foreground/70">Dept Manager:</span>
-                                  <span className="ml-1 text-muted-foreground">{leave.deptAdminRemarks}</span>
+                                  {leave.deptAdminRemarks ? (
+                                    <span className="ml-1 text-muted-foreground">{leave.deptAdminRemarks}</span>
+                                  ) : (
+                                    <span className="ml-1 text-muted-foreground italic">No remarks</span>
+                                  )}
                                   {leave.deptApprovedBy && (
                                     <span className="ml-1 text-muted-foreground/60">— {(leave.deptApprovedBy).name}</span>
                                   )}
                                 </div>
                               )}
-                              {leave.hrRemarks && (
+                              {(leave.hrRemarks || leave.hrApprovedBy) && (
                                 <div>
                                   <span className="font-semibold text-foreground/70">HR:</span>
-                                  <span className="ml-1 text-muted-foreground">{leave.hrRemarks}</span>
+                                  {leave.hrRemarks ? (
+                                    <span className="ml-1 text-muted-foreground">{leave.hrRemarks}</span>
+                                  ) : (
+                                    <span className="ml-1 text-muted-foreground italic">No remarks</span>
+                                  )}
                                   {leave.hrApprovedBy && (
                                     <span className="ml-1 text-muted-foreground/60">— {(leave.hrApprovedBy).name}</span>
                                   )}

@@ -335,7 +335,7 @@ export function EnrollStudentPanel() {
     return defaultRequired;
   };
 
-  const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' | 'number' | 'tel' = 'text') => {
+  const renderField = (key: string, label: string, type: 'text' | 'date' | 'file' | 'number' | 'tel' | 'select' = 'text', options?: string[]) => {
     const config = centerConfig?.customEnrollmentFields;
     const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
     const status = parsedConfig?.[key] || 'optional';
@@ -370,6 +370,25 @@ export function EnrollStudentPanel() {
               </Button>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    if (type === 'select' && options) {
+      return (
+        <div key={key} className="space-y-1">
+          <Label>
+            {label} {isRequired && <span className="text-destructive">*</span>}
+          </Label>
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            value={(form as any)[key] || ''}
+            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+            required={isRequired}
+          >
+            <option value="" disabled>Select {label}</option>
+            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
         </div>
       );
     }
@@ -834,8 +853,8 @@ export function EnrollStudentPanel() {
                 </div>
                 {renderField('pincode', 'Pincode')}
                 {renderField('alternativePhone', 'Alternative Phone', 'tel')}
-                {renderField('religion', 'Religion')}
-                {renderField('caste', 'Caste / Category')}
+                {renderField('religion', 'Religion', 'select', ['Hindu', 'Muslim', 'Sikh', 'Christian', 'Jain'])}
+                {renderField('caste', 'Caste / Category', 'select', ['General', 'OEC', 'OBC', 'SC', 'ST', 'Other'])}
               </div>
             </div>
           )}
