@@ -115,6 +115,7 @@ export function PrismaLayout({
       case 'managers': return <Users className={iconClass} />;
       case 'students':
       case 'enroll_student': return <GraduationCap className={iconClass} />;
+      case 'student_payment_log':
       case 'invoices':
       case 'program_fees':
       case 'fees':

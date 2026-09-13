@@ -31,7 +31,7 @@ const replacement = `export const getActivityReport = asyncHandler(async (req: A
       }
     }
   });
-
+  
   const data = users.map(u => {
     const att = u.attendances[0];
     return {

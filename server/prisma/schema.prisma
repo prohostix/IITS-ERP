@@ -43,6 +43,7 @@ model Organization {
   expenseClaims         ExpenseClaim[]
   feeStructures         FeeStructure[]
   gstSettings           GSTSetting[]
+  studentFeeReceipts    StudentFeeReceipt[]
   hrSettings            HRSettings?
   holidays              Holiday[]
   incentiveStructures   IncentiveStructure[]
@@ -183,6 +184,7 @@ model User {
   financeReviewedEnrollments    Enrollment[]           @relation("FinanceReviewedBy")
   universityReviewedEnrollments Enrollment[]           @relation("UniversityReviewedBy")
   salesLedEnrollments           Enrollment[]           @relation("SalesUserEnrollments")
+  studentFeeReceipts            StudentFeeReceipt[]
   deptAdminEscalations          Escalation[]           @relation("EscalationDeptAdmin")
   employeeEscalations           Escalation[]           @relation("EscalationEmployee")
   handledEscalations            Escalation[]           @relation("EscalationHandledBy")
@@ -477,8 +479,9 @@ model Student {
   referredBy            String?
   enrollments           Enrollment[]
   internalMarks         InternalMark[]
-  invoices              Invoice[]
+
   universityFeePayments UniversityFeePayment[] @relation("StudentUniFeePayments")
+  invoices              Invoice[]
   center                StudyCenter            @relation(fields: [centerId], references: [id])
   user                  User                   @relation(fields: [email], references: [email])
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -915,6 +918,8 @@ model Enrollment {
   universityReviewer   User?              @relation("UniversityReviewedBy", fields: [universityReviewedBy], references: [id])
   payment              EnrollmentPayment?
   commissionIn         CommissionIn?
+  studentFeeReceipts   StudentFeeReceipt[]
+  extraFees            Json?              @default("[]")
 
   @@unique([studentId, programId, sessionId])
   @@index([organizationId, status])
@@ -1418,6 +1423,27 @@ model EnrollmentPayment {
   wallet        StudyCenterWallet @relation(fields: [walletId], references: [id])
 
   @@index([studyCenterId])
+}
+
+model StudentFeeReceipt {
+  id              String       @id @default(uuid())
+  organizationId  String
+  enrollmentId    String
+  amount          Float
+  paymentMode     String
+  referenceNo     String?
+  receiptDate     DateTime     @default(now())
+  remarks         String?
+  recordedBy      String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  enrollment      Enrollment   @relation(fields: [enrollmentId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recorder        User         @relation(fields: [recordedBy], references: [id])
+
+  @@index([enrollmentId])
+  @@index([organizationId])
 }
 
 model IncentiveStructure {

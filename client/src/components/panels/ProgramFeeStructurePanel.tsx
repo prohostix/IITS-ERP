@@ -24,7 +24,6 @@ interface ProgramFee {
   currency: string;
   effectiveFrom: string;
   billingCycle?: string;
-  registrationFee?: number;
   examFee?: number;
   gstPercentage?: number;
   universityFee?: number;
@@ -113,7 +112,6 @@ export function ProgramFeeStructurePanel() {
        while (newBreakdown.length < numBlocks) {
          newBreakdown.push({
            year: newBreakdown.length + 1,
-           registrationFee: '0',
            baseFee: '0',
            universityFee: '0',
            examFee: '0',
@@ -207,12 +205,12 @@ const fetchAllData = useCallback(async () => {
     if (Array.isArray(parsedBreakdown) && parsedBreakdown.length > 0) {
        parsedBreakdown = parsedBreakdown.map((b: any) => ({
          year: b.year,
-         registrationFee: String(b.registrationFee || '0'),
          baseFee: String(b.baseFee || '0'),
          universityFee: String(b.universityFee || '0'),
          examFee: String(b.examFee || '0'),
          commissionRate: String(b.commissionRate || '0'),
-         dueDate: b.dueDate || ''
+         dueDate: b.dueDate || '',
+         additionalFees: b.additionalFees || ''
        }));
     }
 
@@ -263,12 +261,12 @@ const fetchAllData = useCallback(async () => {
          if (Number(b.commissionRate || 0) > 0) aggregatedCommissionRate = Number(b.commissionRate);
          return {
            year: b.year,
-           registrationFee: Number(b.registrationFee || 0),
            baseFee: Number(b.baseFee || 0),
            universityFee: Number(b.universityFee || 0),
            examFee: Number(b.examFee || 0),
            commissionRate: Number(b.commissionRate || 0),
-           dueDate: b.dueDate
+           dueDate: b.dueDate,
+           additionalFees: b.additionalFees || ''
          };
       });
 
@@ -587,11 +585,11 @@ const fetchAllData = useCallback(async () => {
                                 <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
                                   <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year} <span className="font-normal text-muted-foreground ml-1">Due: {b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A'}</span></div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
-                                    <span>Reg: {b.registrationFee}</span>
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
                                     <span>Exam: {b.examFee}</span>
                                     {b.commissionRate > 0 && <span className="col-span-2 text-indigo-600">Comm: {b.commissionRate}%</span>}
+                                    {b.additionalFees && <span className="col-span-2 text-xs text-slate-500">Add: {b.additionalFees}</span>}
                                   </div>
                                 </div>
                               ))}
@@ -837,10 +835,6 @@ const fetchAllData = useCallback(async () => {
                   <div key={idx} className="p-4 border rounded-lg space-y-4 bg-slate-50 dark:bg-slate-900">
                     <h4 className="font-medium text-emerald-700">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {block.year}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <Label>Registration Fee</Label>
-                        <Input type="number" value={block.registrationFee} onChange={e => handleBreakdownChange(idx, 'registrationFee', e.target.value)} />
-                      </div>
                       <div className="space-y-1">
                         <Label>Tuition / Base Fee</Label>
                         <Input type="number" value={block.baseFee} onChange={e => handleBreakdownChange(idx, 'baseFee', e.target.value)} />

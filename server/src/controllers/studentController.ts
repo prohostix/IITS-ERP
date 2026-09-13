@@ -377,7 +377,15 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         continue;
       }
 
-      const totalAmount = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0);
+      let breakdownAdditionalFeesTotal = 0;
+      if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
+        const custom = b.additionalFees.split(',').map((s: string) => {
+          const parts = s.trim().split(':');
+          return Number(parts[1]) || 0;
+        });
+        breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
+      }
+      const totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0) + breakdownAdditionalFeesTotal;
 
       installments.push({
         name,

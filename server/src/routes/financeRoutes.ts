@@ -64,6 +64,11 @@ import {
   processRefund,
 } from '../controllers/financeEnrollmentController.js';
 import {
+  getStudentPaymentLogs,
+  recordReceipt,
+  addExtraFee,
+} from '../controllers/financeStudentPaymentController.js';
+import {
   getFinanceSalaryConfigs,
   approveSalaryConfig,
 } from '../controllers/salaryController.js';
@@ -139,6 +144,11 @@ router.get('/wallet-topups', authorize('finance_admin'), getWalletTopUps);
 router.put('/wallet-topups/:id/approve', authorize('finance_admin'), approveWalletTopUp);
 router.put('/wallet-topups/:id/reject', authorize('finance_admin'), rejectWalletTopUp);
 router.get('/wallet-ledger', authorize('finance_admin'), getWalletLedger);
+
+// Student Payments (Finance)
+router.get('/student-payments', authorize('finance_admin'), getStudentPaymentLogs);
+router.post('/student-payments/:id/receipt', authorize('finance_admin'), recordReceipt);
+router.post('/student-payments/:id/extra-fee', authorize('finance_admin'), addExtraFee);
 
 // Finance Enrollment Review
 router.get('/enrollments/all', authorize('finance_admin'), getAllEnrollments);

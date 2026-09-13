@@ -111,6 +111,7 @@ const navItems: NavItem[] = [
     icon: DollarSign,
     roles: ['finance_admin', 'ceo'],
     children: [
+      { id: 'student_payment_log', label: 'Student Payment Log', icon: Receipt, roles: ['finance_admin', 'ceo'] },
       { id: 'invoices', label: 'Invoices', icon: Receipt, roles: ['finance_admin', 'ceo'] },
       { id: 'payments', label: 'Payments', icon: Wallet, roles: ['finance_admin', 'ceo'] },
       { id: 'university_fees', label: 'University Fees', icon: School, roles: ['finance_admin', 'ceo'] },

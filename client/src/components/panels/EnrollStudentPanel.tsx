@@ -218,19 +218,27 @@ export function EnrollStudentPanel() {
     const method = pm || paymentMethod;
 
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+      const getBreakdownAddFees = (b: any) => {
+        if (typeof b.additionalFees !== 'string' || b.additionalFees.trim() === '') return 0;
+        return b.additionalFees.split(',').reduce((sum: number, s: string) => {
+          const parts = s.trim().split(':');
+          return sum + (Number(parts[1]) || 0);
+        }, 0);
+      };
+
       if (method === 'full_payment') {
         const fullFee = Number((fs as any).fullProgramFee || 0);
         if (fullFee > 0) {
           subtotal = fullFee + additionalFeesTotal;
         } else {
-          const registrationFee = Number(breakdowns[0]?.registrationFee || 0);
           const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
           const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
-          subtotal = baseFees + registrationFee + examFees + additionalFeesTotal;
+          const bdAddFees = breakdowns.reduce((sum: number, b: any) => sum + getBreakdownAddFees(b), 0);
+          subtotal = baseFees + examFees + additionalFeesTotal + bdAddFees;
         }
       } else {
         const b = breakdowns[0]; // first payment config
-        subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + getBreakdownAddFees(b);
       }
     } else {
       subtotal = fs.baseFee + additionalFeesTotal;

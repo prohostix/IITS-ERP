@@ -46,6 +46,7 @@ import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
 import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
+import { FinanceStudentPaymentLogsPanel } from '@/components/panels/FinanceStudentPaymentLogsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -139,6 +140,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'notice-board': return <NoticeBoardPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'total_report': return <FinanceTotalReportPanel />;
+      case 'student_payment_log': return <FinanceStudentPaymentLogsPanel />;
       case 'commissions': return <CommissionsPanel />;
       case 'rereg_report': return <FinanceReregReportWrapper />;
       default: return null;
@@ -156,6 +158,7 @@ export function getFinanceNavItems() {
   return [
     { id: '__finance_section', label: 'Finance Management', isSection: true },
     { id: 'overview', label: 'Overview' },
+    { id: 'student_payment_log', label: 'Student Payment Log' },
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
     { id: 'university_fees', label: 'University Fees' },

@@ -581,7 +581,15 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
     let subtotal = 0;
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0];
-      subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+      let breakdownAdditionalFeesTotal = 0;
+      if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
+        const custom = b.additionalFees.split(',').map((s: string) => {
+          const parts = s.trim().split(':');
+          return Number(parts[1]) || 0;
+        });
+        breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
+      }
+      subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
     } else {
       subtotal = feeStructure.baseFee + additionalFeesTotal;
     }
