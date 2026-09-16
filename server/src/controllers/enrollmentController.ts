@@ -194,7 +194,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
     abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
-    pincode, alternativePhone, paymentMethod, totalFee
+    pincode, alternativePhone, maritalStatus, currentlyWorking, paymentMethod, totalFee
   } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
@@ -327,6 +327,8 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           studentPhoto,
           pincode,
           alternativePhone,
+          maritalStatus,
+          currentlyWorking,
           status: 'pending',
           organization: { connect: { id: organizationId } },
           center: { connect: { id: studyCenterId } },
@@ -355,6 +357,8 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
         studentPhoto,
         pincode,
         alternativePhone,
+        maritalStatus,
+        currentlyWorking,
         admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
         status: 'pending_doc_review',
         documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],

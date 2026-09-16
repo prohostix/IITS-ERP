@@ -95,7 +95,9 @@ export function EnrollStudentPanel() {
     studentPhoto: '',
     admissionDate: new Date().toISOString().substring(0, 10),
     pincode: '',
-    alternativePhone: ''
+    alternativePhone: '',
+    maritalStatus: '',
+    currentlyWorking: ''
   });
 
   // Dynamic lists for documents and education details
@@ -863,6 +865,8 @@ export function EnrollStudentPanel() {
                 {renderField('alternativePhone', 'Alternative Phone', 'tel')}
                 {renderField('religion', 'Religion', 'select', ['Hindu', 'Muslim', 'Sikh', 'Christian', 'Jain'])}
                 {renderField('caste', 'Caste / Category', 'select', ['General', 'OEC', 'OBC', 'SC', 'ST', 'Other'])}
+                {renderField('maritalStatus', 'Marital Status', 'select', ['Single', 'Married', 'Divorced', 'Widowed'])}
+                {renderField('currentlyWorking', 'Currently Working', 'select', ['Yes', 'No'])}
               </div>
             </div>
           )}

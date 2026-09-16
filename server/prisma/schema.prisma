@@ -470,6 +470,8 @@ model Student {
   studentPhoto          String?
   pincode               String?
   alternativePhone      String?
+  maritalStatus         String?
+  currentlyWorking      String?
   status                String                 @default("pending")
   joinDate              DateTime               @default(now())
   enrolledAt            DateTime?
@@ -877,6 +879,8 @@ model Enrollment {
   studentPhoto         String?
   pincode              String?
   alternativePhone     String?
+  maritalStatus        String?
+  currentlyWorking     String?
   admissionDate        DateTime?          @default(now())
   enrollmentNumber     String?            @unique
   uniEnrollmentNumber  String?
