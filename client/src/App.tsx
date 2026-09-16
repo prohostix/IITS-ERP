@@ -12,6 +12,7 @@ import { getSalesNavItems } from '@/pages/ModernSalesDashboard';
 import { getBranchManagerNavItems } from '@/pages/ModernBranchManagerDashboard';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { useLocation, Router } from 'wouter';
 
 type ViewMode = 'dashboard' | 'table';
 
@@ -100,8 +101,12 @@ const TABLE_TO_TAB: Record<string, string> = {
 
 function App() {
   const { user, logout } = useAuth();
-  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
-  const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  const [location, setLocation] = useLocation();
+
+  const [tableData, setTableData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  // For employee sub-dept managers: track their department type to show correct nav
+  const [deptType, setDeptType] = useState<string | null>(null);
 
   // Set default table based on user role
   const getDefaultTable = (role?: string) => {
@@ -116,22 +121,54 @@ function App() {
       default: return 'tasks';
     }
   };
-  
-  const [activeTable, setActiveTable] = useState(() => getDefaultTable(user?.role));
-  const [tableData, setTableData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  // For employee sub-dept managers: track their department type to show correct nav
-  const [deptType, setDeptType] = useState<string | null>(null);
 
-  // When user loads/changes, reset activeTable to the correct default
+  // Parse path (e.g., "/users" -> "users", "/" -> "")
+  const pathPart = location.split('/')[1] || '';
+
+  // Determine activeTable, viewMode, and activeTab from the URL path
+  let activeTable = pathPart;
+  let viewMode: ViewMode = 'table';
+  let activeTab: string | undefined = undefined;
+
+  // If at root or invalid, default to the user's role default
+  if (!pathPart) {
+    activeTable = getDefaultTable(user?.role);
+    viewMode = 'dashboard';
+    activeTab = undefined;
+  } else {
+    if (activeTable === 'dashboard') {
+      viewMode = 'dashboard';
+      activeTable = 'dashboard';
+      activeTab = undefined;
+    } else {
+      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'hr_admin', 'sales_admin'];
+      const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
+      const isEmployeeRole = user?.role === 'employee';
+      const isBranchManager = Boolean((user as any)?.branchId);
+      
+      if (user && (roleDashboardRoles.includes(user.role) || isEmployeeSubDeptManager || isEmployeeRole || isBranchManager)) {
+        viewMode = 'dashboard';
+        activeTab = activeTable;
+      } else {
+        const tab = TABLE_TO_TAB[activeTable];
+        if (tab) {
+          viewMode = 'dashboard';
+          activeTab = tab;
+        } else {
+          viewMode = 'table';
+          activeTab = undefined;
+        }
+      }
+    }
+  }
+
+  // When user loads/changes, go to the default route if on root
   useEffect(() => {
-    if (user?.role) {
-      setActiveTable(getDefaultTable(user.role));
-      setActiveTab(undefined);
-      setViewMode('dashboard');
+    if (user?.role && location === '/') {
+      setLocation(`/${getDefaultTable(user.role)}`);
       setDeptType(null);
     }
-  }, [user?.role]);
+  }, [user?.role, location, setLocation]);
 
   // Fetch department type for employee sub-dept managers (mirrors Dashboard.tsx logic)
   useEffect(() => {
@@ -333,39 +370,9 @@ function App() {
   const handleTableChange = (table: string) => {
     // Section headers are non-clickable
     if (table.startsWith('__')) return;
-
-    if (table === 'dashboard') {
-      setViewMode('dashboard');
-      setActiveTable('dashboard');
-      setActiveTab(undefined);
-      return;
-    }
-
-    // For role-specific dashboards (ops, hr, finance, sales), the nav item IDs
-    // are already the correct tab IDs — pass them directly
-    const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'hr_admin', 'sales_admin'];
-    const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
-    const isEmployeeRole = user?.role === 'employee';
-    const isBranchManager = Boolean((user as any)?.branchId);
-    if (user && (roleDashboardRoles.includes(user.role) || isEmployeeSubDeptManager || isEmployeeRole || isBranchManager)) {
-      setViewMode('dashboard');
-      setActiveTable(table);
-      setActiveTab(table);
-      return;
-    }
-
-    // For other roles, use the TABLE_TO_TAB mapping
-    const tab = TABLE_TO_TAB[table];
-    if (tab) {
-      setViewMode('dashboard');
-      setActiveTable(table);
-      setActiveTab(tab);
-    } else {
-      // Fallback to table view for unmapped items
-      setViewMode('table');
-      setActiveTable(table);
-      setActiveTab(undefined);
-    }
+    
+    // Use wouter to change URL, which naturally drives the state above
+    setLocation(`/${table}`);
   };
 
   const fetchTableData = async () => {
@@ -804,4 +811,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWrapper() {
+  return (
+    <Router>
+      <App />
+    </Router>
+  );
+}

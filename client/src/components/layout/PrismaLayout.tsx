@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'wouter';
 import { 
   Database, 
   ChevronRight, 
@@ -248,29 +249,32 @@ export function PrismaLayout({
             }
             const isActive = activeTable === table.id;
             return (
-              <button
-                key={table.id}
-                onClick={() => onTableChange(table.id)}
-                className={cn(
-                  'w-full px-4 py-2.5 rounded-lg text-left text-sm transition-all duration-200 flex items-center gap-3 group',
-                  isActive
-                    ? 'bg-sidebar-primary/20 text-sidebar-primary font-semibold shadow-sm'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                )}
-              >
-                <div className={cn(
-                  "p-1.5 rounded-md transition-colors shrink-0",
-                  isActive
-                    ? "bg-sidebar-primary text-white"
-                    : "bg-sidebar-accent text-sidebar-foreground/60 group-hover:text-sidebar-foreground"
-                )}>
-                  {table.icon}
-                </div>
-                <span className="truncate">{table.label}</span>
-                {isActive && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary shrink-0" />
-                )}
-              </button>
+              <Link key={table.id} href={`/${table.id}`}>
+                <a
+                  onClick={() => {
+                    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                  }}
+                  className={cn(
+                    'w-full px-4 py-2.5 rounded-lg text-left text-sm transition-all duration-200 flex items-center gap-3 group',
+                    isActive
+                      ? 'bg-sidebar-primary/20 text-sidebar-primary font-semibold shadow-sm'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  )}
+                >
+                  <div className={cn(
+                    "p-1.5 rounded-md transition-colors shrink-0",
+                    isActive
+                      ? "bg-sidebar-primary text-white"
+                      : "bg-sidebar-accent text-sidebar-foreground/60 group-hover:text-sidebar-foreground"
+                  )}>
+                    {table.icon}
+                  </div>
+                  <span className="truncate">{table.label}</span>
+                  {isActive && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary shrink-0" />
+                  )}
+                </a>
+              </Link>
             );
           })}
         </nav>
