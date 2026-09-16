@@ -29,6 +29,8 @@ interface Enrollment {
   dob?: string;
   religion?: string;
   caste?: string;
+  maritalStatus?: string;
+  currentlyWorking?: string;
   fatherName?: string;
   motherName?: string;
   parentMobile?: string;
@@ -367,6 +369,14 @@ export function DeptEnrollmentReviewPanel() {
                     <div>
                       <span className="text-xs text-muted-foreground block font-semibold">Caste / Category</span>
                       <span className="font-medium">{selectedEnrollment.caste || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Marital Status</span>
+                      <span className="font-medium">{selectedEnrollment.maritalStatus || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Currently Working</span>
+                      <span className="font-medium">{selectedEnrollment.currentlyWorking || 'N/A'}</span>
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground block font-semibold">ABC ID</span>

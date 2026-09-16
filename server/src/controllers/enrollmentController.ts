@@ -481,7 +481,7 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
     abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
-    pincode, alternativePhone
+    pincode, alternativePhone, maritalStatus, currentlyWorking
   } = req.body;
   const organizationId = req.user.organizationId;
   const studyCenterId = req.user.studyCenterId;
@@ -574,6 +574,8 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       studentPhoto: studentPhoto !== undefined ? studentPhoto : enrollment.studentPhoto,
       pincode: pincode !== undefined ? pincode : enrollment.pincode,
       alternativePhone: alternativePhone !== undefined ? alternativePhone : enrollment.alternativePhone,
+      maritalStatus: maritalStatus !== undefined ? maritalStatus : enrollment.maritalStatus,
+      currentlyWorking: currentlyWorking !== undefined ? currentlyWorking : enrollment.currentlyWorking,
       admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
       programId: targetProgramId,
       sessionId: finalSessionId,

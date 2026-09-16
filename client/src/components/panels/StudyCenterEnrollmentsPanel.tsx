@@ -355,6 +355,24 @@ export function StudyCenterEnrollmentsPanel() {
                       <p className="font-medium">{selectedEnrollment.studentAddress}</p>
                     </div>
                   </div>
+                  {selectedEnrollment.maritalStatus && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-4 h-4" /> {/* Spacer icon */}
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Marital Status</p>
+                        <p className="font-medium">{selectedEnrollment.maritalStatus}</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedEnrollment.currentlyWorking && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-4 h-4" /> {/* Spacer icon */}
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Currently Working</p>
+                        <p className="font-medium">{selectedEnrollment.currentlyWorking}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Course Details */}
