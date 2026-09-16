@@ -248,6 +248,7 @@ model User {
   requestedHirings              HiringRequest[]        @relation("HiringRequestedBy")
   approvedHirings               HiringRequest[]        @relation("HiringApprovedBy")
   inductionsCompleted           Candidate[]            @relation("InductionCompletedBy")
+  permissions                   Json?                  @default("[]")
 
   @@index([organizationId, role])
   @@index([departmentId])

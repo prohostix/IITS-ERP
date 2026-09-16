@@ -64,7 +64,16 @@ export function UsersPanel() {
   const [importErrors, setImportErrors] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<any | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    password?: string;
+    role: string;
+    organizationId: string;
+    departmentId: string;
+    canAddPrograms: boolean;
+    permissions: string[];
+  }>({
     name: '',
     email: '',
     password: '',
@@ -72,6 +81,7 @@ export function UsersPanel() {
     organizationId: '',
     departmentId: '',
     canAddPrograms: false,
+    permissions: [],
   });
 
   useEffect(() => {
@@ -226,6 +236,7 @@ export function UsersPanel() {
       organizationId: user.organizationId?.id || user.organizationId || currentUser?.organizationId || '',
       departmentId: user.departmentId?.id || user.departmentId || '',
       canAddPrograms: user.canAddPrograms || false,
+      permissions: user.permissions || [],
     });
     setIsDialogOpen(true);
   };
@@ -539,12 +550,19 @@ export function UsersPanel() {
                   <SelectContent>
                     <SelectItem value="org_admin">Organization Admin</SelectItem>
                     <SelectItem value="ceo">CEO</SelectItem>
+                    <SelectItem value="general_manager">General Manager</SelectItem>
                     <SelectItem value="hr_admin">HR Admin</SelectItem>
+                    <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
                     <SelectItem value="finance_admin">Finance Admin</SelectItem>
+                    <SelectItem value="finance_sub_admin">Finance Sub Admin</SelectItem>
                     <SelectItem value="ops_admin">Operations Admin</SelectItem>
+                    <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
                     <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                    <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
                     <SelectItem value="center_admin">Center Admin</SelectItem>
+                    <SelectItem value="branch_manager">Branch Manager</SelectItem>
                     <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -568,6 +586,51 @@ export function UsersPanel() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.role.endsWith('_sub_admin') && (
+                <div className="space-y-3 pt-2">
+                  <Label>Module Permissions</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md border">
+                    {[
+                      { id: 'attendance', label: 'Attendance' },
+                      { id: 'leaves', label: 'Leaves' },
+                      { id: 'payroll', label: 'Payroll' },
+                      { id: 'invoices', label: 'Invoices' },
+                      { id: 'users', label: 'Users' },
+                      { id: 'employees', label: 'Employees' },
+                      { id: 'vacancies', label: 'Vacancies' },
+                      { id: 'complaints', label: 'Complaints' },
+                      { id: 'leads', label: 'Leads' },
+                      { id: 'deals', label: 'Deals' },
+                      { id: 'referrals', label: 'Referrals' },
+                      { id: 'centers', label: 'Study Centers' },
+                      { id: 'programs', label: 'Programs' },
+                      { id: 'payments', label: 'Payments' },
+                      { id: 'fees', label: 'Fee Structures' },
+                    ].map(perm => (
+                      <div key={perm.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`perm-${perm.id}`}
+                          checked={formData.permissions.includes(perm.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, permissions: [...formData.permissions, perm.id] });
+                            } else {
+                              setFormData({ ...formData, permissions: formData.permissions.filter(p => p !== perm.id) });
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor={`perm-${perm.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          {perm.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"

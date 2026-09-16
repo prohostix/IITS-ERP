@@ -112,12 +112,18 @@ function App() {
   const getDefaultTable = (role?: string) => {
     switch (role) {
       case 'superadmin': return 'organizations';
-      case 'ceo': return 'dashboard';
+      case 'ceo':
+      case 'general_manager': return 'dashboard';
+      case 'center_admin':
+      case 'branch_manager': return 'overview';
       case 'ops_admin':
       case 'ops_sub_admin':
       case 'finance_admin':
+      case 'finance_sub_admin':
       case 'hr_admin':
-      case 'sales_admin': return 'overview';
+      case 'hr_sub_admin':
+      case 'sales_admin':
+      case 'sales_sub_admin': return 'overview';
       default: return 'tasks';
     }
   };
@@ -141,7 +147,7 @@ function App() {
       activeTable = 'dashboard';
       activeTab = undefined;
     } else {
-      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'hr_admin', 'sales_admin'];
+      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'];
       const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
       const isEmployeeRole = user?.role === 'employee';
       const isBranchManager = Boolean((user as any)?.branchId);

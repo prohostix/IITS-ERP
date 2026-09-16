@@ -21,8 +21,8 @@ const mapLeaveRequest = (leave: any) => ({
 });
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGodMode = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
-  const isDeptManager = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'].includes(req.user.role);
+  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role);
   const whereClause: any = { organizationId: req.user.organizationId };
 
   // Dept managers only see their own department's leaves; fallback to all if no dept
@@ -160,7 +160,7 @@ export const updateLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
     return;
   }
 
-  const isAdmin = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const isAdmin = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
   if (!isAdmin && (existing.userId !== req.user.id || existing.status !== 'pending')) {
     res.status(403).json({ success: false, message: 'You can only edit your own pending leave requests' });
     return;
@@ -191,7 +191,7 @@ export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
     return;
   }
 
-  const isAdmin = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
+  const isAdmin = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
   const isOwner = leave.userId === req.user.id;
 
   // Only the owner can delete their own pending requests; admins can delete any

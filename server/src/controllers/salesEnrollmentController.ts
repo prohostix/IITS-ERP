@@ -569,7 +569,7 @@ export const rejectSalesEnrollment = asyncHandler(async (req: AuthRequest, res: 
           organizationId: req.user.organizationId,
           userId: (enrollment as any).salesUserId,
           title: 'Application Rejected',
-          message: `${enrollment.studentName}'s application was rejected by ${req.user.role === 'ops_admin' ? 'Operations' : 'Finance'}. Reason: ${remarks}`,
+          message: `${enrollment.studentName}'s application was rejected by ${['ops_admin', 'ops_sub_admin'].includes(req.user.role) ? 'Operations' : 'Finance'}. Reason: ${remarks}`,
           type: 'general' as any,
           priority: 'high',
           link: 'student-applications',

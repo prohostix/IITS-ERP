@@ -9,7 +9,7 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
   if (req.query.assignedTo) where.assignedTo = req.query.assignedTo as string;
   if (req.query.status) where.status = req.query.status as string;
 
-  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin'].includes(req.user.role);
+  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'sales_sub_admin'].includes(req.user.role);
   if (!isAdmin) {
     where.OR = [
       { assignedTo: req.user.id },
@@ -29,7 +29,7 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
 });
 
 export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin'].includes(req.user.role);
+  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'sales_sub_admin'].includes(req.user.role);
   
   const where: any = { id: req.params.id, organizationId: req.user.organizationId };
   if (!isAdmin) {

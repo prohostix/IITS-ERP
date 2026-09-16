@@ -63,8 +63,23 @@ export const authorize = (...roles: string[]) => {
       return;
     }
 
-    if (roles.includes(req.user.role)) {
+    const effectiveRole = req.user.role === 'general_manager' ? 'ceo' : req.user.role;
+
+    if (roles.includes(effectiveRole)) {
+      req.user.role = effectiveRole; // Overwrite so downstream controllers treat them as the aliased role
       return next();
+    }
+    
+    // Check dynamic permissions for sub-admins
+    const isSubAdmin = ['hr_sub_admin', 'finance_sub_admin', 'sales_sub_admin', 'ops_sub_admin'].includes(req.user.role);
+    if (isSubAdmin) {
+      const perms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+      // A simple heuristic: if the URL path (either baseUrl or path) contains the permission string, grant access.
+      // E.g. permission 'leaves' allows access to /api/hr/leaves
+      const hasPermission = perms.some((p: string) => req.path.includes(`/${p}`) || req.baseUrl.includes(`/${p}`));
+      if (hasPermission) {
+        return next();
+      }
     }
 
     const deptType = req.user.department?.type || req.user.subDepartment?.parentDept?.type;

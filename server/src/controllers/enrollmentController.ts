@@ -444,7 +444,7 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
   const where: any = { organizationId: req.user.organizationId };
 
   // Scoping for Sales users: only show admissions from centers they manually added/referred
-  if (['sales_admin', 'bde'].includes(req.user.role)) {
+  if (['sales_admin', 'sales_sub_admin', 'bde'].includes(req.user.role)) {
     where.studyCenter = { referredBy: req.user.id };
   }
 

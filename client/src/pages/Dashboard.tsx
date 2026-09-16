@@ -141,7 +141,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernSuperadminDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (user?.role === 'ceo') {
+  if (user?.role === 'ceo' || user?.role === 'general_manager') {
     return <ModernCEODashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
@@ -149,7 +149,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernOrgAdminDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (user?.role === 'finance_admin') {
+  if (user?.role === 'finance_admin' || user?.role === 'finance_sub_admin') {
     return <ModernFinanceDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
@@ -157,11 +157,11 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernOpsDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (user?.role === 'hr_admin') {
+  if (user?.role === 'hr_admin' || user?.role === 'hr_sub_admin') {
     return <ModernHRDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (user?.role === 'sales_admin') {
+  if (user?.role === 'sales_admin' || user?.role === 'sales_sub_admin') {
     return <ModernSalesDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
@@ -177,7 +177,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernStudentDashboard />;
   }
 
-  if (user?.role === 'employee') {
+  if (user?.role === 'employee' || user?.role === 'branch_manager') {
     return <ModernEmployeeDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 

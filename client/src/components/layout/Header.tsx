@@ -38,22 +38,36 @@ const roleIcons: Record<string, React.ElementType> = {
   superadmin: Shield,
   org_admin: Building2,
   ceo: UserCog,
+  general_manager: UserCog,
   ops_admin: GraduationCap,
   finance_admin: DollarSign,
   hr_admin: Briefcase,
   sales_admin: TrendingUp,
+  ops_sub_admin: GraduationCap,
+  finance_sub_admin: DollarSign,
+  hr_sub_admin: Briefcase,
+  sales_sub_admin: TrendingUp,
+  branch_manager: Building2,
   employee: User,
+  staff: User,
 };
 
 const roleLabels: Record<string, string> = {
   superadmin: 'Super Admin',
   org_admin: 'Organization Admin',
   ceo: 'CEO',
+  general_manager: 'General Manager',
   ops_admin: 'Operations Admin',
   finance_admin: 'Finance Admin',
   hr_admin: 'HR Admin',
   sales_admin: 'Sales Admin',
+  ops_sub_admin: 'Ops Sub Admin',
+  finance_sub_admin: 'Finance Sub Admin',
+  hr_sub_admin: 'HR Sub Admin',
+  sales_sub_admin: 'Sales Sub Admin',
+  branch_manager: 'Branch Manager',
   employee: 'Employee',
+  staff: 'Staff',
 };
 
 export function Header({ onMenuToggle, title }: HeaderProps) {

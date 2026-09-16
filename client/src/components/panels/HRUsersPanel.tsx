@@ -74,16 +74,28 @@ export function HRUsersPanel() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    password?: string;
+    role: string;
+    designation: string;
+    departmentId: string;
+    additionalDepartmentIds: string[];
+    subDepartmentId: string;
+    reportingTo: string;
+    permissions: string[];
+  }>({
     name: '',
     email: '',
     password: '',
     role: 'employee',
     designation: '',
     departmentId: '',
-    additionalDepartmentIds: [] as string[],
+    additionalDepartmentIds: [],
     subDepartmentId: '',
     reportingTo: '',
+    permissions: [],
   });
 
   const [transferData, setTransferData] = useState({
@@ -132,7 +144,7 @@ export function HRUsersPanel() {
       const allUsers = response.data.data || response.data || [];
       // Exclude top-level admin roles, centers and students — everyone else is headcount
       const staffUsers = allUsers.filter((user: User) =>
-        !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(user.role)
+        !['ceo', 'general_manager', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(user.role)
       );
       setUsers(staffUsers);
     } catch (_error) {
@@ -313,6 +325,7 @@ export function HRUsersPanel() {
       additionalDepartmentIds: additionalIds,
       subDepartmentId: subDeptId?.toString() || '',
       reportingTo: reportingToId?.toString() || '',
+      permissions: user.permissions || [],
     });
     setDialogOpen(true);
   };
@@ -501,11 +514,16 @@ export function HRUsersPanel() {
                   <SelectContent>
                     <SelectItem value="employee">Employee</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="general_manager">General Manager</SelectItem>
                     <SelectItem value="hr_admin">HR Admin</SelectItem>
+                    <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
                     <SelectItem value="finance_admin">Finance Admin</SelectItem>
+                    <SelectItem value="finance_sub_admin">Finance Sub Admin</SelectItem>
                     <SelectItem value="ops_admin">Operations Admin</SelectItem>
                     <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
                     <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                    <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
+                    <SelectItem value="branch_manager">Branch Manager</SelectItem>
                     <SelectItem value="bde">BDE</SelectItem>
                   </SelectContent>
                 </Select>
@@ -582,6 +600,51 @@ export function HRUsersPanel() {
                   </Select>
                 </div>
               )}
+
+              {formData.role.endsWith('_sub_admin') && (
+                <div className="space-y-3 pt-2">
+                  <Label>Module Permissions</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md border">
+                    {[
+                      { id: 'attendance', label: 'Attendance' },
+                      { id: 'leaves', label: 'Leaves' },
+                      { id: 'payroll', label: 'Payroll' },
+                      { id: 'invoices', label: 'Invoices' },
+                      { id: 'users', label: 'Users' },
+                      { id: 'employees', label: 'Employees' },
+                      { id: 'vacancies', label: 'Vacancies' },
+                      { id: 'complaints', label: 'Complaints' },
+                      { id: 'leads', label: 'Leads' },
+                      { id: 'deals', label: 'Deals' },
+                      { id: 'referrals', label: 'Referrals' },
+                      { id: 'centers', label: 'Study Centers' },
+                      { id: 'programs', label: 'Programs' },
+                      { id: 'payments', label: 'Payments' },
+                      { id: 'fees', label: 'Fee Structures' },
+                    ].map(perm => (
+                      <div key={perm.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`hr-perm-${perm.id}`}
+                          checked={formData.permissions.includes(perm.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, permissions: [...formData.permissions, perm.id] });
+                            } else {
+                              setFormData({ ...formData, permissions: formData.permissions.filter(p => p !== perm.id) });
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor={`hr-perm-${perm.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          {perm.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="reportingTo">Reports To</Label>
                 <Select

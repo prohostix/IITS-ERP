@@ -206,7 +206,27 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
   if (!user) return null;
 
   const filteredNavItems = navItems.filter(item => {
-    if (!item.roles.includes(user.role)) return false;
+    let hasRoleAccess = item.roles.includes(user.role as any);
+    
+    // Sub-admin inheritance
+    if (!hasRoleAccess) {
+      if (user.role === 'hr_sub_admin' && item.roles.includes('hr_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'finance_sub_admin' && item.roles.includes('finance_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'sales_sub_admin' && item.roles.includes('sales_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'ops_sub_admin' && item.roles.includes('ops_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'general_manager' && item.roles.includes('ceo' as any)) hasRoleAccess = true;
+    }
+
+    if (!hasRoleAccess) return false;
+
+    // Apply granular permissions for sub-admins
+    if (user.role.endsWith('_sub_admin')) {
+      const perms = (user as any).permissions || [];
+      // Employee base tabs like holidays/announcements shouldn't be blocked if they are inherited via 'employee' role
+      if (!item.roles.includes('employee' as any) && !perms.includes(item.id)) {
+        return false;
+      }
+    }
 
     // Filter department-specific tabs for employee role
     if (item.department && user.role === 'employee') {

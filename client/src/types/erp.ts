@@ -4,13 +4,18 @@ export type UserRole =
   | 'superadmin' 
   | 'org_admin' 
   | 'ceo' 
+  | 'general_manager'
   | 'ops_admin' 
   | 'ops_sub_admin' 
   | 'finance_admin' 
+  | 'finance_sub_admin'
   | 'hr_admin' 
+  | 'hr_sub_admin'
   | 'sales_admin' 
+  | 'sales_sub_admin'
   | 'bde' 
   | 'center_admin' 
+  | 'branch_manager'
   | 'employee'
   | 'staff';
 
@@ -79,6 +84,7 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  permissions?: string[];
   avatar?: string;
   phone?: string;
   designation?: string;

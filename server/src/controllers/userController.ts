@@ -201,7 +201,7 @@ export const bulkImportUsers = asyncHandler(async (req: AuthRequest, res: Respon
     processedEmails.add(email);
 
     // Validate role
-    const validRoles = ['org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin', 'center_admin', 'employee'];
+    const validRoles = ['org_admin', 'ceo', 'general_manager', 'hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager', 'employee', 'staff', 'superadmin'];
     if (!validRoles.includes(role)) {
       results.failedCount++;
       results.errors.push({

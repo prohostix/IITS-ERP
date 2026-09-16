@@ -80,7 +80,7 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.pendingCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'pending_payment' as any } });
   }
 
-  if (['sales_admin', 'ceo'].includes(role)) {
+  if (['sales_admin', 'sales_sub_admin', 'ceo'].includes(role)) {
     metrics.totalLeads = await prisma.lead.count({ where: { organizationId: organizationId } });
     metrics.convertedLeads = await prisma.lead.count({ where: { organizationId: organizationId, status: 'converted' as any } });
   }

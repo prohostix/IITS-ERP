@@ -32,9 +32,9 @@ interface DesignationNode {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  org_admin: '#7c3aed', ceo: '#2563eb', ops_admin: '#ea580c',
-  finance_admin: '#16a34a', hr_admin: '#db2777', sales_admin: '#ca8a04',
-  center_admin: '#0d9488', ops_sub_admin: '#f97316', employee: '#6b7280', staff: '#94a3b8',
+  org_admin: '#7c3aed', ceo: '#2563eb', general_manager: '#2563eb', ops_admin: '#ea580c', ops_sub_admin: '#ea580c',
+  finance_admin: '#16a34a', finance_sub_admin: '#16a34a', hr_admin: '#0891b2', hr_sub_admin: '#0891b2',
+  sales_admin: '#db2777', sales_sub_admin: '#db2777', center_admin: '#8b5cf6', branch_manager: '#8b5cf6', bde: '#4f46e5', employee: '#6b7280', staff: '#94a3b8',
 };
 
 // ─── OrgNode ──────────────────────────────────────────────────────────────────
@@ -406,7 +406,7 @@ export function OrgHierarchyPanel() {
         api.get('/org/branches'),
       ]);
       setNodes(nodesRes.data.data || []);
-      setAllUsers(usersRes.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
+      setAllUsers(usersRes.data.data?.filter((u: any) => !['ceo', 'general_manager', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
       setAllDepts(deptsRes.data.data || []);
       setAllSubDepts(subDeptsRes.data.data || []);
       setAllBranches(branchRes.data.data || []);
