@@ -8,17 +8,31 @@ import { createNotification, broadcastNotification } from './notificationControl
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
+  const andConditions: any[] = [];
+
   if (req.user.role === 'student') {
     where.email = req.user.email;
   } else if (req.user.role === 'center_admin') {
-    where.centerId = req.user.studyCenterId || '';
+    const cid = req.user.studyCenterId || '';
+    andConditions.push({
+      OR: [
+        { centerId: cid },
+        { enrollments: { some: { studyCenterId: cid } } }
+      ]
+    });
   }
   
   if (req.query.status) {
     where.status = req.query.status as string;
   }
   if (req.query.centerId && req.user.role !== 'center_admin') {
-    where.centerId = req.query.centerId as string;
+    const cid = req.query.centerId as string;
+    andConditions.push({
+      OR: [
+        { centerId: cid },
+        { enrollments: { some: { studyCenterId: cid } } }
+      ]
+    });
   }
   if (req.query.universityId) {
     where.program = { ...where.program, universityId: req.query.universityId as string };
@@ -27,15 +41,21 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     where.programId = req.query.programId as string;
   }
   if (req.query.sessionId) {
-    where.enrollments = { some: { sessionId: req.query.sessionId as string } };
+    where.enrollments = { some: { ...where.enrollments?.some, sessionId: req.query.sessionId as string } };
   }
   if (req.query.search) {
     const search = req.query.search as string;
-    where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
-      { enrollmentNo: { contains: search, mode: 'insensitive' } }
-    ];
+    andConditions.push({
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { enrollmentNo: { contains: search, mode: 'insensitive' } }
+      ]
+    });
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   const students = await prisma.student.findMany({
@@ -116,6 +136,13 @@ export const createStudent = asyncHandler(async (req: AuthRequest, res: Response
         status: 'active'
       }
     });
+  }
+
+  // Check if Student already exists
+  const existingStudent = await prisma.student.findUnique({ where: { email } });
+  if (existingStudent) {
+    res.status(400).json({ success: false, message: 'A student with this email already exists' });
+    return;
   }
 
   let finalProgramId = programId;
@@ -324,6 +351,10 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   const installments = [];
   const invoices = student.invoices || [];
 
+  const addFees = Array.isArray(feeStructure.additionalFees) ? feeStructure.additionalFees : [];
+  const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
+  const additionalFeesTotal = nonGstFees.reduce((s: number, f: any) => s + f.amount, 0);
+
   // Parse feeBreakdown from fee structure
   let breakdownArray: any[] = [];
   if (feeStructure.feeBreakdown) {
@@ -385,7 +416,13 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         });
         breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
       }
-      const totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0) + breakdownAdditionalFeesTotal;
+      let totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0) + breakdownAdditionalFeesTotal;
+      if (i === 0) totalAmount += additionalFeesTotal;
+
+      const gstEntry = addFees.find((f: any) => f.label === 'GST');
+      if (gstEntry) {
+        totalAmount += Math.round((totalAmount * gstEntry.amount) / 100);
+      }
 
       installments.push({
         name,
@@ -399,9 +436,15 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   } else {
     // Fallback if no breakdown configured
     const baseFee = feeStructure.baseFee;
+    let fallbackAmount = baseFee + additionalFeesTotal;
+    const gstEntry = addFees.find((f: any) => f.label === 'GST');
+    if (gstEntry) {
+      fallbackAmount += Math.round((fallbackAmount * gstEntry.amount) / 100);
+    }
+
     installments.push({
       name: `${cycleLabel} 1`,
-      amount: baseFee,
+      amount: fallbackAmount,
       status: 'paid',
       dueDate: student.enrolledAt || student.createdAt,
       paidAt: student.enrolledAt || student.createdAt
@@ -438,9 +481,14 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         continue;
       }
 
+      let fallbackAmount = baseFee;
+      if (gstEntry) {
+        fallbackAmount += Math.round((fallbackAmount * gstEntry.amount) / 100);
+      }
+
       installments.push({
         name,
-        amount: baseFee,
+        amount: fallbackAmount,
         status,
         dueDate,
         paidAt,
@@ -465,12 +513,14 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
   }
 
   const category = (student.program.university as any)?.category || 'team_lease';
+  const NO_WALLET_CATEGORIES = ['direct_iits', 'team_lease'];
+  const isNoWallet = NO_WALLET_CATEGORIES.includes(category);
 
   const wallet = await prisma.studyCenterWallet.findUnique({
     where: { studyCenterId: req.user.studyCenterId || '' }
   });
 
-  if (category === 'direct_iits') {
+  if (!isNoWallet) {
     if (!wallet || wallet.balance < amount) {
       res.status(400).json({ success: false, message: `Insufficient wallet balance. Available: ₹${wallet?.balance || 0}` });
       return;
@@ -478,8 +528,8 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Deduct wallet only for direct_iits
-    if (category === 'direct_iits' && wallet) {
+    // 1. Deduct wallet only for universities that use wallets
+    if (!isNoWallet && wallet) {
       await tx.studyCenterWallet.update({
         where: { id: wallet.id },
         data: { balance: { decrement: amount } }
@@ -510,9 +560,9 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
         organizationId: req.user.organizationId,
         invoiceId: invoice.id,
         amount,
-        method: 'wallet_debit',
+        method: isNoWallet ? 'direct_to_university' : 'wallet_debit',
         receivedBy: req.user.id,
-        notes: `Paid in advance by study center for student ${student.name} - ${installmentName}`
+        notes: isNoWallet ? `Student paid directly to the university - ${installmentName}` : `Paid in advance by study center for student ${student.name} - ${installmentName}`
       }
     });
 

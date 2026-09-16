@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import bcrypt from 'bcryptjs';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
   const centerId = req.user.studyCenterId || '';
@@ -282,35 +283,91 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
-  const enrollment = await prisma.enrollment.create({
-    data: {
-      studentName,
-      studentEmail,
-      studentPhone,
-      studentAddress,
-      specialisation,
-      abcId,
-      debId,
-      dob,
-      religion,
-      caste,
-      fatherName,
-      motherName,
-      parentMobile,
-      studentPhoto,
-      pincode,
-      alternativePhone,
-      admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
-      status: 'pending_doc_review',
-      documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
-      educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
-      paymentMethod: paymentMethod || 'installment',
-      totalFee: totalFee ? Number(totalFee) : null,
-      organization: { connect: { id: organizationId } },
-      program:      { connect: { id: programId } },
-      studyCenter:  { connect: { id: studyCenterId } },
-      session:      { connect: { id: finalSessionId } },
+  const enrollment = await prisma.$transaction(async (tx) => {
+    // 1. Create or find User
+    let user = await tx.user.findUnique({ where: { email: studentEmail } });
+    if (!user) {
+      const rawPassword = 'password123'; // Default password for new students
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
+      const userId = `STD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      user = await tx.user.create({
+        data: {
+          userId,
+          email: studentEmail,
+          password: hashedPassword,
+          name: studentName,
+          role: 'student',
+          organizationId: organizationId,
+          status: 'active'
+        }
+      });
     }
+
+    // 2. Create or find Student (set status to pending)
+    let student = await tx.student.findUnique({ where: { email: studentEmail } });
+    if (!student) {
+      const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      student = await tx.student.create({
+        data: {
+          name: studentName,
+          enrollmentNo,
+          phone: studentPhone,
+          address: studentAddress,
+          specialisation,
+          sessionId: finalSessionId,
+          abcId,
+          debId,
+          dob,
+          religion,
+          caste,
+          fatherName,
+          motherName,
+          parentMobile,
+          studentPhoto,
+          pincode,
+          alternativePhone,
+          status: 'pending',
+          organization: { connect: { id: organizationId } },
+          center: { connect: { id: studyCenterId } },
+          user: { connect: { email: studentEmail } },
+          program: { connect: { id: programId } }
+        }
+      });
+    }
+
+    // 3. Create Enrollment
+    return tx.enrollment.create({
+      data: {
+        studentName,
+        studentEmail,
+        studentPhone,
+        studentAddress,
+        specialisation,
+        abcId,
+        debId,
+        dob,
+        religion,
+        caste,
+        fatherName,
+        motherName,
+        parentMobile,
+        studentPhoto,
+        pincode,
+        alternativePhone,
+        admissionDate: admissionDate ? new Date(admissionDate) : new Date(),
+        status: 'pending_doc_review',
+        documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : [],
+        educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : [],
+        paymentMethod: paymentMethod || 'installment',
+        totalFee: totalFee ? Number(totalFee) : null,
+        organization: { connect: { id: organizationId } },
+        program:      { connect: { id: programId } },
+        studyCenter:  { connect: { id: studyCenterId } },
+        session:      { connect: { id: finalSessionId } },
+        student:      { connect: { id: student.id } },
+      }
+    });
   });
 
   // Notify Operations Users

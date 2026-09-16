@@ -169,7 +169,14 @@ export function FinanceStudentPaymentLogsPanel() {
                         </div>
                       </div>
                       <div className="col-span-3">
-                        <p className="text-sm font-medium text-slate-700">{log.program?.name}</p>
+                        <p className="text-sm font-medium text-slate-700">
+                          {log.program?.name}
+                          {log.program?.billingCycle && (
+                            <span className="text-xs text-slate-500 ml-1">
+                              ({log.program.billingCycle === 'per_semester' ? 'Semester' : log.program.billingCycle === 'per_year' || log.program.billingCycle === 'yearly' ? 'Yearly' : log.program.billingCycle === 'one_time' ? 'One Time' : log.program.billingCycle})
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div className="col-span-1 text-right font-semibold">₹{log.totalFee?.toLocaleString()}</div>
                       <div className="col-span-2 text-right font-medium text-green-600">₹{log.received?.toLocaleString()}</div>
@@ -204,7 +211,7 @@ export function FinanceStudentPaymentLogsPanel() {
                           {/* Main Fee Card */}
                           <div className="bg-white border rounded-xl p-4 shadow-sm">
                             <div className="flex justify-between items-start mb-3">
-                              <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">Base Fee</Badge>
+                              <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">Total Enrollment Fee</Badge>
                             </div>
                             <div className="space-y-2 text-sm">
                               <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-semibold">₹{log.baseFee?.toLocaleString()}</span></div>

@@ -130,7 +130,15 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   let subtotal = 0;
   if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
     const b = breakdowns[0]; // first payment config
-    subtotal = Number(b.baseFee || 0) + Number(b.registrationFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+    let breakdownAdditionalFeesTotal = 0;
+    if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
+      const custom = b.additionalFees.split(',').map((s: string) => {
+        const parts = s.trim().split(':');
+        return Number(parts[1]) || 0;
+      });
+      breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
+    }
+    subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
   } else {
     subtotal = feeStructure.baseFee + additionalFeesTotal;
   }
@@ -197,10 +205,32 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
           program: { connect: { id: dbEnrollment.programId } }
         }
       });
-    } else if (!student.enrolledAt) {
+    } else {
+      // Sync fields in case they were updated during the review process
+      const updateData: any = {
+        status: 'active',
+        name: dbEnrollment.studentName,
+        phone: dbEnrollment.studentPhone,
+        address: dbEnrollment.studentAddress,
+        specialisation: dbEnrollment.specialisation,
+        abcId: dbEnrollment.abcId,
+        debId: dbEnrollment.debId,
+        dob: dbEnrollment.dob,
+        religion: dbEnrollment.religion,
+        caste: dbEnrollment.caste,
+        fatherName: dbEnrollment.fatherName,
+        motherName: dbEnrollment.motherName,
+        parentMobile: dbEnrollment.parentMobile,
+        studentPhoto: dbEnrollment.studentPhoto,
+        pincode: dbEnrollment.pincode,
+        alternativePhone: dbEnrollment.alternativePhone
+      };
+      if (!student.enrolledAt) {
+        updateData.enrolledAt = new Date();
+      }
       student = await tx.student.update({
         where: { id: student.id },
-        data: { enrolledAt: new Date() }
+        data: updateData
       });
     }
 

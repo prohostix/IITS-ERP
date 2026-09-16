@@ -26,7 +26,14 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
     where,
     include: {
       program: {
-        select: { name: true, code: true, universityId: true }
+        select: { 
+          name: true, 
+          code: true, 
+          universityId: true,
+          programFeeStructure: {
+            select: { billingCycle: true, admissionSessionId: true, organizationId: true }
+          }
+        }
       },
       studentFeeReceipts: {
         orderBy: { receiptDate: 'desc' }
@@ -53,7 +60,12 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
       id: enr.id,
       studentName: enr.studentName,
       enrollmentNumber: enr.enrollmentNumber || '',
-      program: enr.program,
+      program: {
+        ...enr.program,
+        billingCycle: enr.program?.programFeeStructure?.find(
+          f => f.admissionSessionId === enr.sessionId && f.organizationId === enr.organizationId
+        )?.billingCycle || enr.program?.programFeeStructure?.[0]?.billingCycle
+      },
       totalFee,
       baseFee: enr.totalFee || 0,
       extraFees,

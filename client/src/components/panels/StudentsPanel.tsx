@@ -155,7 +155,15 @@ export function StudentsPanel() {
 
   const handlePayInstallment = async (installmentName: string, amount: number) => {
     if (!selectedStudent) return;
-    if (!confirm(`Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} using your study center wallet?`)) return;
+    
+    const uniCategory = selectedStudent.program?.university?.category;
+    const isNoWallet = uniCategory === 'direct_iits' || uniCategory === 'team_lease';
+    
+    const message = isNoWallet 
+      ? `Are you sure you want to mark ₹${amount.toLocaleString()} for ${installmentName} as paid directly to the university?`
+      : `Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} using your study center wallet?`;
+      
+    if (!confirm(message)) return;
 
     setPayingInstallment(true);
     try {

@@ -138,34 +138,78 @@ export const submitStudentApplication = asyncHandler(async (req: Request, res: R
   const now = new Date();
 
   // Create enrollment with document_review status
-  const enrollment = await prisma.enrollment.create({
-    data: {
-      organizationId: organizationId,
-      studentName,
-      studentEmail,
-      studentPhone,
-      studentAddress,
-      programId,
-      studyCenterId: studyCenter.id,
-      sessionId: session.id,
-      status: 'document_review' as any,
-      salesUserId,
-      statusHistory: [
-        {
-          status: 'submitted' as any,
-          actorId: 'student',
-          actorName: studentName,
-          timestamp: now.toISOString(),
-          note: 'Student submitted application via sales invite link',
-        },
-        {
-          status: 'document_review' as any,
-          actorId: 'system',
-          timestamp: now.toISOString(),
-          note: 'Forwarded to Operations for document verification',
-        },
-      ],
-    } as any,
+  const enrollment = await prisma.$transaction(async (tx) => {
+    // 1. Create or find User
+    let user = await tx.user.findUnique({ where: { email: studentEmail } });
+    if (!user) {
+      const rawPassword = 'password123';
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
+      const userId = `STD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      user = await tx.user.create({
+        data: {
+          userId,
+          email: studentEmail,
+          password: hashedPassword,
+          name: studentName,
+          role: 'student',
+          organizationId: organizationId,
+          status: 'active'
+        }
+      });
+    }
+
+    // 2. Create or find Student (set status to pending)
+    let student = await tx.student.findUnique({ where: { email: studentEmail } });
+    if (!student) {
+      const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      student = await tx.student.create({
+        data: {
+          name: studentName,
+          enrollmentNo,
+          phone: studentPhone,
+          address: studentAddress,
+          sessionId: session.id,
+          status: 'pending',
+          organization: { connect: { id: organizationId } },
+          center: { connect: { id: studyCenter.id } },
+          user: { connect: { email: studentEmail } },
+          program: { connect: { id: programId } }
+        }
+      });
+    }
+
+    // 3. Create Enrollment
+    return tx.enrollment.create({
+      data: {
+        organizationId: organizationId,
+        studentName,
+        studentEmail,
+        studentPhone,
+        studentAddress,
+        programId,
+        studyCenterId: studyCenter.id,
+        sessionId: session.id,
+        status: 'document_review' as any,
+        salesUserId,
+        studentId: student.id,
+        statusHistory: [
+          {
+            status: 'submitted' as any,
+            actorId: 'student',
+            actorName: studentName,
+            timestamp: now.toISOString(),
+            note: 'Student submitted application via sales invite link',
+          },
+          {
+            status: 'document_review' as any,
+            actorId: 'system',
+            timestamp: now.toISOString(),
+            note: 'Forwarded to Operations for document verification',
+          },
+        ],
+      } as any,
+    });
   });
 
   // Notify the sales user
@@ -376,23 +420,39 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
   const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   // Find or create Student
-  let student = await prisma.student.findUnique({ where: { email: enrollment.studentEmail } });
-  if (!student) {
-    student = await prisma.student.create({
-      data: {
+    let student = await prisma.student.findUnique({ where: { email: enrollment.studentEmail } });
+    if (!student) {
+      student = await prisma.student.create({
+        data: {
+          name: enrollment.studentName,
+          enrollmentNo,
+          phone: enrollment.studentPhone,
+          address: enrollment.studentAddress,
+          specialisation: enrollment.specialisation,
+          status: 'active',
+          enrolledAt: new Date(),
+          organization: { connect: { id: req.user.organizationId } },
+          center: { connect: { id: enrollment.studyCenterId } },
+          user: { connect: { email: enrollment.studentEmail } },
+          program: { connect: { id: enrollment.programId } }
+        }
+      });
+    } else {
+      const updateData: any = {
+        status: 'active',
         name: enrollment.studentName,
-        enrollmentNo,
         phone: enrollment.studentPhone,
         address: enrollment.studentAddress,
-        specialisation: enrollment.specialisation,
-        status: 'active',
-        organization: { connect: { id: req.user.organizationId } },
-        center: { connect: { id: enrollment.studyCenterId } },
-        user: { connect: { email: enrollment.studentEmail } },
-        program: { connect: { id: enrollment.programId } }
+        specialisation: enrollment.specialisation
+      };
+      if (!student.enrolledAt) {
+        updateData.enrolledAt = new Date();
       }
-    });
-  }
+      student = await prisma.student.update({
+        where: { id: student.id },
+        data: updateData
+      });
+    }
 
   const updated = await prisma.enrollment.update({
     where: { id: req.params.id },

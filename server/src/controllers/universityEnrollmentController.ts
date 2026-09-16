@@ -77,6 +77,13 @@ export const approveUniversityEnrollment = asyncHandler(async (req: AuthRequest,
     } as any,
   });
 
+  if (updatedEnrollment.studentId) {
+    await prisma.student.update({
+      where: { id: updatedEnrollment.studentId },
+      data: { enrolledAt: now, status: 'active' }
+    });
+  }
+
   // Notify center_admin users of the partner portal
   try {
     const centerAdmins = await prisma.user.findMany({
