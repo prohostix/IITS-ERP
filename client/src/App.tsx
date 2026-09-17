@@ -154,7 +154,7 @@ function App() {
       
       if (user && (roleDashboardRoles.includes(user.role) || isEmployeeSubDeptManager || isEmployeeRole || isBranchManager)) {
         viewMode = 'dashboard';
-        activeTab = activeTable;
+        activeTab = TABLE_TO_TAB[activeTable] || activeTable;
       } else {
         const tab = TABLE_TO_TAB[activeTable];
         if (tab) {
