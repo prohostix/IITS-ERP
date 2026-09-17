@@ -138,7 +138,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       });
       breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
     }
-    subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
+    subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
   } else {
     subtotal = feeStructure.baseFee + additionalFeesTotal;
   }

@@ -235,12 +235,13 @@ export function EnrollStudentPanel() {
         } else {
           const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
           const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+          const uniFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
           const bdAddFees = breakdowns.reduce((sum: number, b: any) => sum + getBreakdownAddFees(b), 0);
-          subtotal = baseFees + examFees + additionalFeesTotal + bdAddFees;
+          subtotal = baseFees + uniFees + examFees + additionalFeesTotal + bdAddFees;
         }
       } else {
         const b = breakdowns[0]; // first payment config
-        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + getBreakdownAddFees(b);
+        subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + getBreakdownAddFees(b);
       }
     } else {
       subtotal = fs.baseFee + additionalFeesTotal;
