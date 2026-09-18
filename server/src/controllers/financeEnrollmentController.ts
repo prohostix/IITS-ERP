@@ -140,7 +140,7 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     }
     subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
   } else {
-    subtotal = feeStructure.baseFee + additionalFeesTotal;
+    subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.universityFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
   }
 
   const gstEntry = addFees.find((f: any) => f.label === 'GST');
