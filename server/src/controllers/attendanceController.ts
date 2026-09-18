@@ -180,28 +180,79 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
         where: {
           date: { gte: startOfDay, lte: endOfDay }
         }
+      },
+      assignedTasks: {
+        where: {
+          createdAt: { gte: startOfDay, lte: endOfDay } // Or targetDate
+        }
+      },
+      auditLogs: {
+        where: {
+          timestamp: { gte: startOfDay, lte: endOfDay }
+        }
       }
     }
   });
 
+  const scheduledHours = 8;
+  const breakMinutes = 60;
+
   const data = users.map(u => {
     const att = u.attendances[0];
-    
+    const tasks = u.assignedTasks || [];
+    const auditLogs = u.auditLogs || [];
+
+    const completedToday = tasks.filter(t => t.status === 'completed').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    const overdue = tasks.filter(t => t.status === 'overdue').length;
+
+    const erpActivity: Record<string, number> = {};
+    auditLogs.forEach(log => {
+      erpActivity[log.action] = (erpActivity[log.action] || 0) + 1;
+    });
+
+    let productiveHours = 0;
+    let timeWasted: number | null = null;
+    let workingHours = att?.workingHours || 0;
+
+    if (att && att.checkIn) {
+      productiveHours = workingHours;
+      timeWasted = Math.max(0, scheduledHours - productiveHours);
+    }
+
     return {
-      id: u.id,
+      userId: u.id,
       name: u.name,
       email: u.email,
+      role: u.role || 'Employee',
+      designation: u.designation || '',
       department: u.department?.name || '-',
-      checkIn: att?.checkIn || null,
-      checkOut: att?.checkOut || null,
-      status: att?.status || 'absent',
-      workingHours: att?.workingHours || 0,
-      isLate: att?.isLate || false,
-      lateMinutes: att?.lateMinutes || 0
+      departmentId: u.departmentId,
+      attendance: att ? {
+        status: att.status,
+        checkIn: att.checkIn,
+        checkOut: att.checkOut,
+        isLate: att.isLate,
+        lateMinutes: att.lateMinutes,
+        workingHours: att.workingHours
+      } : null,
+      productiveHours,
+      scheduledHours,
+      timeWasted,
+      breakMinutes,
+      erpActions: auditLogs.length,
+      erpActivity,
+      tasks: {
+        total: tasks.length,
+        completedToday,
+        inProgress,
+        overdue,
+        list: tasks.map(t => ({ id: t.id, title: t.title, status: t.status }))
+      }
     };
   });
 
-  res.json({ success: true, data, scheduledHours: 8, breakMinutes: 60 });
+  res.json({ success: true, data, scheduledHours, breakMinutes });
 });
 
 export const getMyAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
