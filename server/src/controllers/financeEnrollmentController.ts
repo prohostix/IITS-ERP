@@ -278,19 +278,17 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     if (dbEnrollment.paymentMethod === 'installment' && breakdowns.length > 0) {
       const b = breakdowns[0];
       const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
-      const bBase = Number(b.baseFee || 0);
       const bUni = Number(b.universityFee || 0);
       
       if (bCommRate > 0) {
-        expectedAmount = ((bBase + bUni) * bCommRate) / 100;
+        expectedAmount = (bUni * bCommRate) / 100;
       }
     } else {
       const commRate = Number(feeStructure.commissionRate || 0);
-      const base = Number(feeStructure.baseFee || 0);
       const uni = Number(feeStructure.universityFee || 0);
       
       if (commRate > 0) {
-        expectedAmount = ((base + uni) * commRate) / 100;
+        expectedAmount = (uni * commRate) / 100;
       }
     }
 
