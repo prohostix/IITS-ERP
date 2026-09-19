@@ -59,9 +59,33 @@ async function main() {
       const isDirectToUni = dbEnrollment.paymentType === 'direct_to_university' || NO_WALLET_CATEGORIES.includes(uniCategory);
 
       if ((feeStructure.commissionRate && feeStructure.commissionRate > 0) || isDirectToUni) {
-        const expectedAmount = (feeStructure.commissionRate && feeStructure.commissionRate > 0 && feeStructure.baseFee)
-          ? (feeStructure.baseFee * feeStructure.commissionRate) / 100
-          : 0;
+        
+        let breakdowns: any[] = [];
+        if (typeof (feeStructure as any).feeBreakdown === 'string') {
+          try { breakdowns = JSON.parse((feeStructure as any).feeBreakdown); } catch (e) { breakdowns = []; }
+        } else if (Array.isArray((feeStructure as any).feeBreakdown)) {
+          breakdowns = (feeStructure as any).feeBreakdown;
+        }
+
+        let expectedAmount = 0;
+        if (dbEnrollment.paymentMethod === 'installment' && breakdowns.length > 0) {
+          const b = breakdowns[0];
+          const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
+          const bBase = Number(b.baseFee || 0);
+          const bUni = Number(b.universityFee || 0);
+          
+          if (bCommRate > 0) {
+            expectedAmount = ((bBase + bUni) * bCommRate) / 100;
+          }
+        } else {
+          const commRate = Number(feeStructure.commissionRate || 0);
+          const base = Number(feeStructure.baseFee || 0);
+          const uni = Number(feeStructure.universityFee || 0);
+          
+          if (commRate > 0) {
+            expectedAmount = ((base + uni) * commRate) / 100;
+          }
+        }
 
         if (expectedAmount > 0) {
           await prisma.commissionIn.update({

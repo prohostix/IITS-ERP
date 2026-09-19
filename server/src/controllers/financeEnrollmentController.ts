@@ -259,12 +259,40 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   const isDirectToUni = dbEnrollment.paymentType === 'direct_to_university' || NO_WALLET_CATEGORIES.includes(uniCategory);
 
   // Automatically calculate and create expected CommissionIn
-  if ((feeStructure.commissionRate && feeStructure.commissionRate > 0) || isDirectToUni) {
-    // For no-wallet universities: use commissionRate if set, otherwise 0
-    // This allows the admin to set a commission rate on the fee structure and have it reflected here
-    const expectedAmount = (feeStructure.commissionRate && feeStructure.commissionRate > 0 && feeStructure.baseFee)
-      ? (feeStructure.baseFee * feeStructure.commissionRate) / 100
-      : 0;
+  let breakdowns: any[] = [];
+  if (typeof feeStructure.feeBreakdown === 'string') {
+    try { breakdowns = JSON.parse(feeStructure.feeBreakdown); } catch (e) { breakdowns = []; }
+  } else if (Array.isArray(feeStructure.feeBreakdown)) {
+    breakdowns = feeStructure.feeBreakdown;
+  }
+
+  const commRateForCheck = Number(feeStructure.commissionRate || 0);
+  let hasBreakdownCommRate = false;
+  if (breakdowns.length > 0 && breakdowns[0].commissionRate) {
+    hasBreakdownCommRate = Number(breakdowns[0].commissionRate) > 0;
+  }
+
+  if (commRateForCheck > 0 || hasBreakdownCommRate || isDirectToUni) {
+    let expectedAmount = 0;
+    
+    if (dbEnrollment.paymentMethod === 'installment' && breakdowns.length > 0) {
+      const b = breakdowns[0];
+      const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
+      const bBase = Number(b.baseFee || 0);
+      const bUni = Number(b.universityFee || 0);
+      
+      if (bCommRate > 0) {
+        expectedAmount = ((bBase + bUni) * bCommRate) / 100;
+      }
+    } else {
+      const commRate = Number(feeStructure.commissionRate || 0);
+      const base = Number(feeStructure.baseFee || 0);
+      const uni = Number(feeStructure.universityFee || 0);
+      
+      if (commRate > 0) {
+        expectedAmount = ((base + uni) * commRate) / 100;
+      }
+    }
 
     const existingComm = await prisma.commissionIn.findUnique({
       where: { enrollmentId: enrollment.id }
