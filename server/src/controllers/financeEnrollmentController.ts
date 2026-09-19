@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import bcrypt from 'bcryptjs';
+import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status, search } = req.query;
@@ -81,36 +82,13 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     return;
   }
 
-  // 2. Fetch program fee structure matching session
-  let feeStructure = await prisma.programFeeStructure.findFirst({
-    where: {
-      organizationId: req.user.organizationId,
-      programId: dbEnrollment.programId,
-      admissionSessionId: dbEnrollment.sessionId,
-      level: 'program'
-    }
-  });
-
-  // Fallback 1: Any program level structure
-  if (!feeStructure) {
-    feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: req.user.organizationId,
-        programId: dbEnrollment.programId,
-        level: 'program'
-      }
-    });
-  }
-
-  // Fallback 2: Any available structure
-  if (!feeStructure) {
-    feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: req.user.organizationId,
-        programId: dbEnrollment.programId
-      }
-    });
-  }
+  // 2. Fetch program fee structure matching session and specialisation
+  let feeStructure = await resolveProgramFeeStructure(
+    req.user.organizationId,
+    dbEnrollment.programId,
+    dbEnrollment.sessionId,
+    dbEnrollment.specialisation
+  );
 
   if (!feeStructure) {
     res.status(400).json({ success: false, message: 'Program fee structure is not configured' });

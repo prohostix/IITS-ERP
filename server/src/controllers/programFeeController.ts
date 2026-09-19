@@ -43,7 +43,7 @@ export const getProgramFee = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
+  const { level, programId, universityId, admissionSessionId, specialisation, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
 
   // For program level, check if structure already exists
   if (level === 'program' && programId) {
@@ -51,11 +51,12 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
       where: { 
         level: 'program', 
         programId,
-        admissionSessionId: admissionSessionId || null
+        admissionSessionId: admissionSessionId || null,
+        specialisation: specialisation || null
       } 
     });
     if (existing) {
-      res.status(400).json({ success: false, message: 'Program fee structure already exists for this program and session. Please edit the existing one.' });
+      res.status(400).json({ success: false, message: 'Program fee structure already exists for this program, session, and specialisation. Please edit the existing one.' });
       return;
     }
   } else if (level === 'university' && universityId) {
@@ -78,6 +79,7 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
       programId: level === 'program' ? programId : null,
       universityId: universityId || null,
       admissionSessionId: admissionSessionId || null,
+      specialisation: specialisation || null,
       billingCycle,
       baseFee: baseFee !== undefined ? parseFloat(baseFee) : 0,
       universityFee: universityFee !== undefined ? parseFloat(universityFee) : 0,
@@ -93,33 +95,29 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { level, programId, universityId, admissionSessionId, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
+  const { level, programId, universityId, admissionSessionId, specialisation, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
   const data: any = {};
   if (level !== undefined) data.level = level;
 
   if (programId !== undefined) {
     const finalProgramId = (level === 'program' || data.level === 'program') ? programId : null;
-    if (finalProgramId) {
-      data.program = { connect: { id: finalProgramId } };
+    if (finalProgramId && finalProgramId !== '__none__') {
+      data.programId = finalProgramId;
     } else {
-      data.program = { disconnect: true };
+      data.programId = null;
     }
   }
   
   if (universityId !== undefined) {
-    if (universityId) {
-      data.university = { connect: { id: universityId } };
-    } else {
-      data.university = { disconnect: true };
-    }
+    data.universityId = universityId === '__none__' || !universityId ? null : universityId;
   }
 
   if (admissionSessionId !== undefined) {
-    if (admissionSessionId) {
-      data.admissionSession = { connect: { id: admissionSessionId } };
-    } else {
-      data.admissionSession = { disconnect: true };
-    }
+    data.admissionSessionId = admissionSessionId === '__none__' || !admissionSessionId ? null : admissionSessionId;
+  }
+  
+  if (specialisation !== undefined) {
+    data.specialisation = specialisation === '__none__' || !specialisation ? null : specialisation;
   }
   if (billingCycle !== undefined) data.billingCycle = billingCycle;
   if (baseFee !== undefined) data.baseFee = parseFloat(baseFee);

@@ -381,17 +381,20 @@ export const duplicateSession = asyncHandler(async (req: AuthRequest, res: Respo
       reregPaymentClosingDate: originalSession.reregPaymentClosingDate,
       programFeeStructures: {
         create: originalSession.programFeeStructures.map(fee => ({
+          level: fee.level,
           organizationId: fee.organizationId,
           universityId: fee.universityId,
           programId: fee.programId,
+          specialisation: fee.specialisation,
+          billingCycle: fee.billingCycle,
           baseFee: fee.baseFee,
+          fullProgramFee: fee.fullProgramFee,
+          universityFee: fee.universityFee,
           additionalFees: fee.additionalFees || [],
-          totalFee: fee.totalFee,
-          status: fee.status,
+          feeBreakdown: fee.feeBreakdown || [],
           currency: fee.currency,
-          minDownPayment: fee.minDownPayment,
-          installmentOptions: fee.installmentOptions || [],
-          lateFeePolicy: fee.lateFeePolicy || {}
+          commissionRate: fee.commissionRate,
+          createdBy: req.user.id
         }))
       }
     }

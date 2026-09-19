@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 
 async function main() {
   console.log('Starting backfill for CommissionIn expectedAmounts...');
@@ -23,34 +24,13 @@ async function main() {
 
     const dbEnrollment = comm.enrollment;
     
-    // Fetch program fee structure matching session
-    let feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: comm.organizationId,
-        programId: dbEnrollment.programId,
-        admissionSessionId: dbEnrollment.sessionId,
-        level: 'program'
-      }
-    });
-
-    if (!feeStructure) {
-      feeStructure = await prisma.programFeeStructure.findFirst({
-        where: {
-          organizationId: comm.organizationId,
-          programId: dbEnrollment.programId,
-          level: 'program'
-        }
-      });
-    }
-
-    if (!feeStructure) {
-      feeStructure = await prisma.programFeeStructure.findFirst({
-        where: {
-          organizationId: comm.organizationId,
-          programId: dbEnrollment.programId
-        }
-      });
-    }
+    // 2. Fetch program fee structure matching session and specialisation
+    let feeStructure = await resolveProgramFeeStructure(
+      dbEnrollment.organizationId,
+      dbEnrollment.programId,
+      dbEnrollment.sessionId,
+      dbEnrollment.specialisation
+    );
 
     if (feeStructure) {
       // Calculate expected amount

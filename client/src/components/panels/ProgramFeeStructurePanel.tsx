@@ -28,6 +28,7 @@ interface ProgramFee {
   gstPercentage?: number;
   universityFee?: number;
   commissionRate?: number;
+  specialisation?: string | null;
 }
 
 interface University {
@@ -60,29 +61,17 @@ export function ProgramFeeStructurePanel() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProgramFee | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'wizard'>('list');
+  const [wizardStep, setWizardStep] = useState(1);
   
-  // Dialog state for adding a program
-  const [programDialogOpen, setProgramDialogOpen] = useState(false);
-  const [subDepartments, setSubDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [specInput, setSpecInput] = useState('');
-  
-  const [newProgramForm, setNewProgramForm] = useState({
-    name: '',
-    code: '',
-    universityId: '',
-    subDepartmentId: '',
-    courseType: 'Online Degree',
-    duration: 12,
-    status: 'active',
-    hasSemesters: false,
-    specialisations: [] as string[]
-  });
+  // Unused program creation logic removed as per new UI flow
 
   const [form, setForm] = useState({ 
     level: 'program',
     programId: '', 
     universityId: '',
     admissionSessionId: '',
+    specialisation: '',
     billingCycle: 'per_year', 
     currency: 'INR', 
     effectiveFrom: '', 
@@ -176,6 +165,7 @@ const fetchAllData = useCallback(async () => {
       programId: selectedProgramId, 
       universityId: selectedUniversityId,
       admissionSessionId: '',
+    specialisation: '',
       billingCycle: 'per_year', 
       currency: 'INR', 
       effectiveFrom: '', 
@@ -189,6 +179,8 @@ const fetchAllData = useCallback(async () => {
 
   const openEdit = (fee: ProgramFee) => {
     setEditing(fee);
+    setViewMode('wizard');
+    setWizardStep(4);
     
     const otherFees = fee.additionalFees?.filter(
       f => !['registration fee', 'exam fee', 'gst'].includes(f.label.toLowerCase())
@@ -219,6 +211,7 @@ const fetchAllData = useCallback(async () => {
       programId: progId || '',
       universityId: uniId || '',
       admissionSessionId: sessId || '',
+      specialisation: fee.specialisation || '',
       billingCycle: fee.billingCycle || 'per_year',
       currency: fee.currency || 'INR',
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
@@ -275,6 +268,7 @@ const fetchAllData = useCallback(async () => {
         programId: form.level === 'program' ? form.programId : undefined,
         universityId: form.universityId || undefined,
         admissionSessionId: form.admissionSessionId || undefined,
+        specialisation: form.specialisation || undefined,
         baseFee: totalBaseFee,
         fullProgramFee: Number(form.fullProgramFee || 0),
         universityFee: totalUniversityFee,
@@ -294,6 +288,7 @@ const fetchAllData = useCallback(async () => {
         toast.success('Fee structure created');
       }
       setOpen(false);
+      setViewMode('list');
       fetchAllData();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to save');
@@ -311,56 +306,7 @@ const fetchAllData = useCallback(async () => {
     }
   };
 
-  // Program creation handlers
-  const handleAddSpecialisation = () => {
-    if (!specInput.trim()) return;
-    if (newProgramForm.specialisations.includes(specInput.trim())) {
-      toast.error('Specialisation already added');
-      return;
-    }
-    setNewProgramForm(prev => ({
-      ...prev,
-      specialisations: [...prev.specialisations, specInput.trim()]
-    }));
-    setSpecInput('');
-  };
-
-  const handleRemoveSpecialisation = (spec: string) => {
-    setNewProgramForm(prev => ({
-      ...prev,
-      specialisations: prev.specialisations.filter(s => s !== spec)
-    }));
-  };
-
-  const handleCreateProgram = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        ...newProgramForm,
-        subDepartmentId: newProgramForm.subDepartmentId || null
-      };
-      await api.post('/operations/programs', payload);
-      toast.success('Program and specialisations created successfully');
-      setProgramDialogOpen(false);
-      
-      setNewProgramForm({
-        name: '',
-        code: '',
-        universityId: selectedUniversityId !== 'all' ? selectedUniversityId : '',
-        subDepartmentId: '',
-        courseType: 'Online Degree',
-        duration: 12,
-        status: 'active',
-        hasSemesters: false,
-        specialisations: []
-      });
-      
-      fetchAllData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create program');
-    }
-  };
-
+  // Program creation handlers removed as per new UI flow
   // Filter programs based on selected university
   const filteredPrograms = useMemo(() => {
     if (!selectedUniversityId) return [];
@@ -401,161 +347,80 @@ const fetchAllData = useCallback(async () => {
     return prog?.specialisations || [];
   };
 
+
   return (
     <div className="space-y-6">
-      {/* Modern Unified Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Program Fee Management</h2>
-          <p className="text-muted-foreground text-sm mt-1 max-w-xl">Configure universities, academic programs, specialisations, and their associated pricing structures.</p>
-          
-          <div className="mt-4 flex items-center gap-3">
-             <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Programs</span>
-                <span className="text-sm font-black text-slate-900 dark:text-white">{filteredPrograms.length}</span>
-             </div>
-             <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-200/60 dark:border-emerald-800 shadow-sm">
-                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Fee Configs</span>
-                <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">{filteredFees.length}</span>
-             </div>
+      {viewMode === 'list' ? (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Program Fee Structures</h2>
+              <p className="text-muted-foreground">Manage fee structures for programs or entire universities</p>
+            </div>
+            <Button onClick={() => { resetForm(); setViewMode('wizard'); }}><Plus className="w-4 h-4 mr-2" />Add New</Button>
           </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-10 w-10 p-0 border-slate-200 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={fetchAllData} disabled={loading} title="Refresh Data">
-              <RefreshCw className={`w-4 h-4 text-slate-600 dark:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all hover:shadow-md" onClick={() => {
-              setNewProgramForm(prev => ({
-                ...prev,
-                universityId: selectedUniversityId
-              }));
-              setProgramDialogOpen(true);
-            }} disabled={!selectedUniversityId}>
-              <Plus className="w-4 h-4 mr-2" /> Program
-            </Button>
-            <Button className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all hover:shadow-md" onClick={openCreate} disabled={!selectedProgramId}>
-              <Plus className="w-4 h-4 mr-2" /> Fee Config
-            </Button>
+
+          <div className="flex gap-4">
+            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={selectedUniversityId} onChange={(e) => setSelectedUniversityId(e.target.value)}>
+              <option value="">All Universities</option>
+              {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={selectedProgramId} onChange={(e) => setSelectedProgramId(e.target.value)}>
+              <option value="">All Programs</option>
+              {programs.filter(p => !selectedUniversityId || p.universityId === selectedUniversityId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <Button variant="outline" size="icon" onClick={fetchAllData}><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></Button>
           </div>
-        </div>
-      </div>
 
-      {/* Main content grid - 3 Tiers */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Tier 1: Universities */}
-        <div className="space-y-4">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden h-full">
-            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-indigo-500" /> Universities
-              </CardTitle>
-              <CardDescription>Select a university</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
-              {loading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
-              ) : universities.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">No universities found.</div>
-              ) : (
-                universities.map(u => (
-                  <div 
-                    key={u.id} 
-                    onClick={() => { setSelectedUniversityId(u.id); setSelectedProgramId(''); }}
-                    className={`p-3 border rounded-xl cursor-pointer transition-all group ${selectedUniversityId === u.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm'}`}
-                  >
-                    <div className="flex justify-between items-center gap-2">
-                      <h4 className="font-semibold text-sm leading-none">{u.name}</h4>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {loading ? (
+              <div className="col-span-full text-center py-12 text-muted-foreground">Loading fee structures...</div>
+            ) : filteredFees.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-slate-50 border border-dashed rounded-lg text-muted-foreground">
+                <IndianRupee className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                <p>No fee structures found.</p>
+                <Button variant="link" onClick={() => setViewMode('wizard')} className="mt-2 text-indigo-600">Create the first one</Button>
+              </div>
+            ) : (
+              filteredFees.map(fee => {
+                const progName = fee.level === 'program' 
+                  ? (typeof fee.programId === 'object' && fee.programId ? fee.programId.name : programs.find(p => p.id === fee.programId)?.name || 'Unknown Program')
+                  : 'All Programs';
+                const uniName = typeof fee.universityId === 'object' && fee.universityId ? fee.universityId.name : universities.find(u => u.id === fee.universityId)?.name || 'Unknown University';
+                const sess = typeof fee.admissionSessionId === 'object' && fee.admissionSessionId ? fee.admissionSessionId.name : sessions.find(s => s.id === fee.admissionSessionId)?.name || '';
+                const specs = fee.level === 'program' ? (typeof fee.programId === 'object' && fee.programId?.specialisations ? fee.programId.specialisations : programs.find(p => p.id === fee.programId)?.specialisations || []) : [];
 
-        {/* Tier 2: Programs List */}
-        <div className="space-y-4">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden h-full">
-            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-500" /> Programs List
-              </CardTitle>
-              <CardDescription>Select an academic program</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
-              {!selectedUniversityId ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">Please select a university first.</div>
-              ) : loading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}</div>
-              ) : filteredPrograms.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">No programs found for this university.</div>
-              ) : (
-                filteredPrograms.map((p: Program) => (
-                  <div 
-                    key={p.id} 
-                    onClick={() => setSelectedProgramId(p.id)}
-                    className={`p-3 border rounded-xl cursor-pointer transition-all group ${selectedProgramId === p.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm'}`}
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <h4 className="font-semibold text-sm leading-none">{p.name}</h4>
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase">{p.code}</span>
+                return (
+                  <Card key={fee.id} className="overflow-hidden border-slate-200 hover:border-slate-300 transition-colors">
+                    <CardHeader className="bg-slate-50/50 pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            {fee.level === 'program' ? <BookOpen className="w-4 h-4 text-indigo-500" /> : <Building2 className="w-4 h-4 text-emerald-500" />}
+                            {progName}
+                          </CardTitle>
+                          <CardDescription className="mt-1">{uniName}</CardDescription>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-slate-900">{fee.currency || 'INR'} {(fee.fullProgramFee || 0).toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">Total Program Fee</div>
+                        </div>
                       </div>
-                      <Badge variant="outline" className="text-[10px] py-0">{p.specialisations?.length || 0} Specs</Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tier 3: Fee Structures */}
-        <div className="space-y-4">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
-            <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <IndianRupee className="w-5 h-5 text-emerald-500" /> Fee Configurations
-              </CardTitle>
-              <CardDescription>Defined pricing structures for centers</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
-              {!selectedProgramId ? (
-                <div className="text-center py-16 border rounded-xl border-dashed text-muted-foreground">
-                  Please select a program first to view its fee configurations.
-                </div>
-              ) : loading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
-              ) : filteredFees.length === 0 ? (
-                <div className="text-center py-16 border rounded-xl border-dashed text-muted-foreground">
-                  No fee structures defined yet. Add pricing rules.
-                </div>
-              ) : (
-                filteredFees.map((fee: ProgramFee) => {
-                  const specs = getProgramSpecialisations(fee);
-                  const sess = typeof fee.admissionSessionId === 'object' ? fee.admissionSessionId?.name : sessions.find(s => s.id === fee.admissionSessionId)?.name;
-                  
-                  return (
-                    <Card key={fee.id} className="hover:border-primary/30 transition-all bg-background shadow-sm">
-                      <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex-1 space-y-1.5 min-w-0">
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-base flex items-center gap-2">
-                              {fee.level === 'university' ? <Building2 className="w-4 h-4 text-indigo-500" /> : <BookOpen className="w-4 h-4 text-blue-500" />}
-                              {getProgramName(fee)}
-                            </h4>
+                            <Badge variant="outline" className="text-xs bg-indigo-50">{fee.level.toUpperCase()}</Badge>
                             <Badge variant="outline" className="text-xs">{fee.billingCycle?.replace('_', ' ')}</Badge>
                             {sess && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-none text-xs">{sess}</Badge>}
+                            {fee.specialisation && <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border-none text-xs">{fee.specialisation}</Badge>}
                           </div>
                           
-                          {/* Specialisations listing in Fee Structure */}
-                          {specs.length > 0 && (
+                          {specs.length > 0 && !fee.specialisation && (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs text-muted-foreground font-medium flex items-center gap-0.5">
-                                <GraduationCap className="w-3 h-3 text-primary" /> Specialisations:
+                                <GraduationCap className="w-3 h-3 text-primary" /> Appies to:
                               </span>
                               {specs.map((s: string, idx: number) => (
                                 <span key={idx} className="text-xs px-1.5 py-0.2 bg-slate-100 rounded text-slate-700">{s}</span>
@@ -572,24 +437,16 @@ const fetchAllData = useCallback(async () => {
                                 {fee.currency || 'INR'} {fee.universityFee.toLocaleString()} Uni Fee
                               </Badge>
                             )}
-                            {fee.effectiveFrom && (
-                              <span className="text-xs text-slate-500 font-medium ml-1 flex items-center gap-1">
-                                Effective: {new Date(fee.effectiveFrom).toLocaleDateString()}
-                              </span>
-                            )}
                           </div>
                           
                           {fee.feeBreakdown && fee.feeBreakdown.length > 0 && (
                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {fee.feeBreakdown.map((b: any, idx: number) => (
                                 <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
-                                  <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year} <span className="font-normal text-muted-foreground ml-1">Due: {b.dueDate ? new Date(b.dueDate).toLocaleDateString() : 'N/A'}</span></div>
+                                  <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year}</div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
-                                    <span>Exam: {b.examFee}</span>
-                                    {b.commissionRate > 0 && <span className="col-span-2 text-indigo-600">Comm: {b.commissionRate}%</span>}
-                                    {b.additionalFees && <span className="col-span-2 text-xs text-slate-500">Add: {b.additionalFees}</span>}
                                   </div>
                                 </div>
                               ))}
@@ -604,274 +461,261 @@ const fetchAllData = useCallback(async () => {
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-      </div>
-
-      {/* Dialog for Program Creation with Multiple Specialisations */}
-      <Dialog open={programDialogOpen} onOpenChange={setProgramDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>Add New Program</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateProgram} className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>Program Name <span className="text-destructive">*</span></Label>
-                <Input value={newProgramForm.name} onChange={e => setNewProgramForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. MBA" required />
-              </div>
-              <div className="space-y-1">
-                <Label>Program Code <span className="text-destructive">*</span></Label>
-                <Input value={newProgramForm.code} onChange={e => setNewProgramForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. MBA-ONLINE" required />
-              </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-lg border shadow-sm flex flex-col min-h-[600px]">
+          <div className="px-6 py-5 border-b flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Fee Structure Management</h2>
+              <p className="text-muted-foreground text-sm">Configure program fees and billing structures step by step.</p>
             </div>
-
-            <div className="space-y-1">
-              <Label>University <span className="text-destructive">*</span></Label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                value={newProgramForm.universityId}
-                onChange={e => setNewProgramForm(f => ({ ...f, universityId: e.target.value }))}
-                required
-              >
-                <option value="">Select university</option>
-                {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Sub-Department <span className="text-muted-foreground text-xs">(optional)</span></Label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                value={newProgramForm.subDepartmentId}
-                onChange={e => setNewProgramForm(f => ({ ...f, subDepartmentId: e.target.value }))}
-              >
-                <option value="">None</option>
-                {subDepartments.map(sd => <option key={sd.id} value={sd.id}>{sd.name}</option>)}
-              </select>
-            </div>
-
-            {/* Specialisations listing chips selection */}
-            <div className="space-y-2">
-              <Label>Specialisations <span className="text-muted-foreground text-xs">(optional — add multiple)</span></Label>
-              <div className="flex gap-2">
-                <Input 
-                  value={specInput} 
-                  onChange={e => setSpecInput(e.target.value)} 
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSpecialisation();
-                    }
-                  }}
-                  placeholder="e.g. Computer Science, then press Enter" 
-                />
-                <Button type="button" onClick={handleAddSpecialisation} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200">
-                  Add
-                </Button>
-              </div>
-
-              {newProgramForm.specialisations.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1.5">
-                  {newProgramForm.specialisations.map((spec, index) => (
-                    <Badge key={index} variant="secondary" className="flex items-center gap-1.5 px-2 py-1">
-                      {spec}
-                      <button 
-                        type="button" 
-                        onClick={() => handleRemoveSpecialisation(spec)} 
-                        className="text-muted-foreground hover:text-destructive text-xs font-bold font-mono"
-                      >
-                        ×
-                      </button>
-                    </Badge>
+            <Button variant="ghost" onClick={() => { setViewMode('list'); resetForm(); }}>Cancel</Button>
+          </div>
+          
+          <div className="p-6 flex-1 bg-slate-50/50">
+            {wizardStep === 1 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">1</span> Select University</h3>
+                  <p className="text-sm text-muted-foreground ml-8">Choose a university to manage its programs' fee structures.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ml-8">
+                  {universities.map(u => (
+                    <div 
+                      key={u.id} 
+                      onClick={() => { setForm({ ...form, universityId: u.id, admissionSessionId: '', programId: '', specialisation: '' }); setWizardStep(2); }}
+                      className="p-4 border rounded-xl bg-white hover:border-indigo-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 group-hover:bg-indigo-100 transition-colors">
+                        <Building2 className="w-6 h-6 text-indigo-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800">{u.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">{u.code}</p>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Course Type selector buttons/chips */}
-            <div className="space-y-2">
-              <Label>Course Type <span className="text-destructive">*</span></Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {['Skill Course', 'Online Degree', 'B.Voc Degree', 'Credit Transfer'].map((type) => (
-                  <Button
-                    key={type}
-                    type="button"
-                    variant={newProgramForm.courseType === type ? 'default' : 'outline'}
-                    onClick={() => setNewProgramForm(f => ({ ...f, courseType: type }))}
-                    className={`w-full text-sm font-medium ${newProgramForm.courseType === type ? 'bg-indigo-50 border-indigo-500 text-indigo-700 hover:bg-indigo-100' : 'hover:bg-slate-50'}`}
-                  >
-                    {type}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Duration dropdown */}
-            <div className="space-y-1">
-              <Label>Duration <span className="text-destructive">*</span></Label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                value={newProgramForm.duration}
-                onChange={e => setNewProgramForm(f => ({ ...f, duration: Number(e.target.value) }))}
-                required
-              >
-                <option value={3}>3 months</option>
-                <option value={6}>6 months</option>
-                <option value={9}>9 months</option>
-                <option value={11}>11 months</option>
-                <option value={12}>1 year (12 months)</option>
-                <option value={18}>1.5 years (18 months)</option>
-                <option value={24}>2 years (24 months)</option>
-                <option value={30}>2.5 years (30 months)</option>
-                <option value={36}>3 years (36 months)</option>
-                <option value={42}>3.5 years (42 months)</option>
-                <option value={48}>4 years (48 months)</option>
-              </select>
-            </div>
-
-            {/* Dialog Footer Actions */}
-            <div className="pt-4 border-t flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setProgramDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">Create Program</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog for Fee Structure Create/Edit */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>{editing ? 'Edit Fee Structure' : 'Add New Fee Structure'}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
-            
-
-            <div className="space-y-1">
-              <Label>University <span className="text-destructive">*</span></Label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                value={form.universityId}
-                onChange={e => setForm(f => ({ ...f, universityId: e.target.value }))}
-                required
-              >
-                <option value="">Select university first</option>
-                {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-
-            {form.level === 'program' && (
-              <div className="space-y-1">
-                <Label>Program <span className="text-destructive">*</span></Label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                  value={form.programId}
-                  onChange={e => setForm(f => ({ ...f, programId: e.target.value }))}
-                  required
-                >
-                  <option value="">Select program...</option>
-                  {dialogFilteredPrograms.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-                </select>
               </div>
             )}
 
-            <div className="space-y-1">
-              <Label>Admission Session</Label>
-              <select
-                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                value={form.admissionSessionId}
-                onChange={e => setForm(f => ({ ...f, admissionSessionId: e.target.value }))}
-              >
-                <option value="">Standard / All Sessions</option>
-                {sessions
-                  .filter(s => form.universityId ? (s as any).universityId === form.universityId : true)
-                  .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
+            {wizardStep === 2 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-6 flex items-center gap-3">
+                  <Button variant="outline" size="icon" onClick={() => setWizardStep(1)} className="rounded-full w-8 h-8"><span className="sr-only">Back</span>&larr;</Button>
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">2</span> Select Session</h3>
+                    <p className="text-sm text-muted-foreground ml-8">{universities.find(u => u.id === form.universityId)?.name} - Choose a session to configure fees for.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ml-11">
+                  <div 
+                    onClick={() => { setForm({ ...form, admissionSessionId: '__none__' }); setWizardStep(3); }}
+                    className="p-4 border rounded-xl bg-white hover:border-blue-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                      <Calendar className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">Default (All Sessions)</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Fallback fee structure</p>
+                    </div>
+                  </div>
+                  {sessions.filter(s => !s.universityId || s.universityId === form.universityId).map(s => (
+                    <div 
+                      key={s.id} 
+                      onClick={() => { setForm({ ...form, admissionSessionId: s.id }); setWizardStep(3); }}
+                      className="p-4 border rounded-xl bg-white hover:border-blue-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100">
+                        <Calendar className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800">{s.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">Term dates: {new Date(s.startDate).toLocaleDateString()} - {new Date(s.endDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>Billing Cycle</Label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                  value={form.billingCycle}
-                  onChange={e => setForm(f => ({ ...f, billingCycle: e.target.value }))}
-                >
-                  <option value="per_semester">Per Semester</option>
-                  <option value="per_year">Per Year</option>
-                  <option value="total">Total (one-time)</option>
-                </select>
+            {wizardStep === 3 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-6 flex items-center gap-3">
+                  <Button variant="outline" size="icon" onClick={() => setWizardStep(2)} className="rounded-full w-8 h-8"><span className="sr-only">Back</span>&larr;</Button>
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">3</span> Select Program</h3>
+                    <p className="text-sm text-muted-foreground ml-8">Choose a program.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ml-11">
+                  {programs.filter(p => p.universityId === form.universityId).map(p => {
+                    const hasSpecs = p.specialisations && p.specialisations.length > 0;
+                    return (
+                      <div 
+                        key={p.id} 
+                        onClick={() => { 
+                          setForm({ ...form, programId: p.id, specialisation: '' }); 
+                          if (hasSpecs) setWizardStep(3.5); 
+                          else setWizardStep(4); 
+                        }}
+                        className="p-4 border rounded-xl bg-white hover:border-purple-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center shrink-0 group-hover:bg-purple-100">
+                          <BookOpen className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-800">{p.name}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{p.code}</p>
+                          {hasSpecs && <Badge variant="secondary" className="mt-2 text-[10px] bg-slate-100 text-slate-600">Has Specialisations</Badge>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Full Program Fee (One-Time Payment)</Label>
-                <Input type="number" value={form.fullProgramFee} onChange={e => setForm(f => ({ ...f, fullProgramFee: parseFloat(e.target.value) || 0 }))} placeholder="E.g. 150000" />
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div className="space-y-1">
-                <Label>Currency</Label>
-                <Input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} placeholder="INR" />
+            {wizardStep === 3.5 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-6 flex items-center gap-3">
+                  <Button variant="outline" size="icon" onClick={() => setWizardStep(3)} className="rounded-full w-8 h-8"><span className="sr-only">Back</span>&larr;</Button>
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">3.5</span> Select Specialisation</h3>
+                    <p className="text-sm text-muted-foreground ml-8">{programs.find(p => p.id === form.programId)?.name} has multiple specialisations. Choose one to configure its fee structure.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ml-11">
+                  <div 
+                    onClick={() => { setForm({ ...form, specialisation: '' }); setWizardStep(4); }}
+                    className="p-4 border rounded-xl bg-white hover:border-emerald-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">Default (All Specialisations)</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Applies to all</p>
+                    </div>
+                  </div>
+                  {programs.find(p => p.id === form.programId)?.specialisations?.map((s, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => { setForm({ ...form, specialisation: s }); setWizardStep(4); }}
+                      className="p-4 border rounded-xl bg-white hover:border-emerald-300 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100">
+                        <GraduationCap className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-800">{s}</h4>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Effective From</Label>
-                <Input type="date" value={form.effectiveFrom} onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
-              </div>
-            </div>
+            )}
 
-            {form.feeBreakdown && form.feeBreakdown.length > 0 && (
-              <div className="space-y-4 mt-6">
-                <h3 className="font-semibold text-lg">{form.billingCycle === 'per_semester' ? 'Semester' : 'Yearly'} Fee Breakdown ({form.feeBreakdown.length} {form.billingCycle === 'per_semester' ? 'Semesters' : 'Years'})</h3>
-                {form.feeBreakdown.map((block, idx) => (
-                  <div key={idx} className="p-4 border rounded-lg space-y-4 bg-slate-50 dark:bg-slate-900">
-                    <h4 className="font-medium text-emerald-700">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {block.year}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <Label>Tuition / Base Fee</Label>
-                        <Input type="number" value={block.baseFee} onChange={e => handleBreakdownChange(idx, 'baseFee', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>University Fee</Label>
-                        <Input type="number" value={block.universityFee} onChange={e => handleBreakdownChange(idx, 'universityFee', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Exam Fee</Label>
-                        <Input type="number" value={block.examFee} onChange={e => handleBreakdownChange(idx, 'examFee', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Commission Rate (%)</Label>
-                        <Input type="number" step="0.01" value={block.commissionRate} onChange={e => handleBreakdownChange(idx, 'commissionRate', e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Payment Due Date</Label>
-                        <Input type="date" value={block.dueDate} onChange={e => handleBreakdownChange(idx, 'dueDate', e.target.value)} />
-                      </div>
-                      <div className="space-y-1 md:col-span-2 lg:col-span-3">
-                        <Label>Additional Fees <span className="text-muted-foreground text-xs">(label:amount, comma-separated)</span></Label>
-                        <Input value={block.additionalFees || ''} onChange={e => handleBreakdownChange(idx, 'additionalFees', e.target.value)} placeholder="Verification:100, Library:50" />
+            {wizardStep === 4 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 max-w-4xl mx-auto">
+                <div className="mb-6 flex items-center justify-between border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" size="icon" onClick={() => setWizardStep(programs.find(p => p.id === form.programId)?.specialisations?.length ? 3.5 : 3)} className="rounded-full w-8 h-8"><span className="sr-only">Back</span>&larr;</Button>
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">4</span> Configure Fee Details</h3>
+                      <div className="flex items-center gap-2 mt-1 ml-8">
+                        <Badge variant="outline" className="bg-indigo-50 text-indigo-700">{universities.find(u => u.id === form.universityId)?.name}</Badge>
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700">{programs.find(p => p.id === form.programId)?.name}</Badge>
+                        {form.specialisation && <Badge variant="outline" className="bg-emerald-50 text-emerald-700">{form.specialisation}</Badge>}
+                        {form.admissionSessionId !== '__none__' && <Badge variant="outline" className="bg-amber-50 text-amber-700">{sessions.find(s => s.id === form.admissionSessionId)?.name}</Badge>}
                       </div>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label>Level <span className="text-destructive">*</span></Label>
+                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} disabled>
+                        <option value="program">Program</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label>Billing Cycle <span className="text-destructive">*</span></Label>
+                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.billingCycle} onChange={(e) => setForm({...form, billingCycle: e.target.value})}>
+                        <option value="per_year">Per Year</option>
+                        <option value="per_semester">Per Semester</option>
+                        <option value="full_program">Full Program (One Time)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <Label>Total Program Fee <span className="text-muted-foreground text-xs">(optional display)</span></Label>
+                      <Input type="number" min="0" value={form.fullProgramFee} onChange={(e) => setForm({...form, fullProgramFee: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Base Fee (Tuition) per {form.billingCycle === 'per_semester' ? 'Sem' : 'Year'} <span className="text-destructive">*</span></Label>
+                      <Input type="number" min="0" required value={form.baseFee} onChange={(e) => setForm({...form, baseFee: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>University Fee per {form.billingCycle === 'per_semester' ? 'Sem' : 'Year'}</Label>
+                      <Input type="number" min="0" value={form.universityFee} onChange={(e) => setForm({...form, universityFee: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-base font-semibold">Fee Breakdown / Installments</Label>
+                      <span className="text-xs text-muted-foreground">Auto-generated based on program duration and billing cycle.</span>
+                    </div>
+                    <div className="space-y-3">
+                      {form.feeBreakdown.map((b, idx) => (
+                        <div key={idx} className="flex flex-wrap items-end gap-2 p-3 border rounded-md bg-slate-50 relative group">
+                          <div className="w-full font-medium text-sm text-indigo-900 border-b pb-1 mb-1">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year}</div>
+                          
+                          <div className="flex-1 min-w-[120px] space-y-1">
+                            <Label className="text-xs">Tuition Fee</Label>
+                            <Input type="number" value={b.baseFee} onChange={(e) => handleBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div className="flex-1 min-w-[120px] space-y-1">
+                            <Label className="text-xs">University Fee</Label>
+                            <Input type="number" value={b.universityFee} onChange={(e) => handleBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div className="flex-1 min-w-[120px] space-y-1">
+                            <Label className="text-xs">Exam Fee</Label>
+                            <Input type="number" value={b.examFee} onChange={(e) => handleBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div className="flex-1 min-w-[120px] space-y-1">
+                            <Label className="text-xs">Commission Rate (%)</Label>
+                            <Input type="number" value={b.commissionRate} onChange={(e) => handleBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => { setViewMode('list'); resetForm(); }}>Cancel</Button>
+                    <Button type="submit" disabled={loading} className="min-w-[120px]">{loading ? 'Saving...' : (editing ? 'Update Fee Structure' : 'Create Fee Structure')}</Button>
+                  </div>
+                </form>
               </div>
             )}
-            
           </div>
-          <DialogFooter className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} className="bg-indigo-600 hover:bg-indigo-700 text-white">Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

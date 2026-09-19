@@ -16,11 +16,14 @@ interface Program {
   code: string;
   specialisations?: string[];
   certificateRequirements?: { name: string; isMandatory: boolean }[];
-  university?: { id: string; name: string; code: string; category?: string };
+  university?: { id: string; name: string; code: string; category?: string; optionalFields?: any[] };
   programFeeStructure?: {
     level: string;
     admissionSessionId?: string | null;
+    specialisation?: string | null;
     baseFee: number;
+    universityFee?: number;
+    feeBreakdown?: any[];
     currency: string;
     billingCycle?: string;
     gstPercentage?: number;
@@ -191,14 +194,28 @@ export function EnrollStudentPanel() {
   const getTotalFee = (p: Program, pm?: string) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return 0;
     
-    // Find fee structure for the selected session
+    // Priority 1: Find fee structure matching session and specialisation
     let fs = p.programFeeStructure.find(
-      f => f.level === 'program' && f.admissionSessionId === selectedSessionId
+      f => f.level === 'program' && f.admissionSessionId === selectedSessionId && f.specialisation === form.specialisation
     );
     
-    // Fallback 1: Any program level fee structure
+    // Priority 2: Find fee structure matching specialisation only
     if (!fs) {
-      fs = p.programFeeStructure.find(f => f.level === 'program');
+      fs = p.programFeeStructure.find(
+        f => f.level === 'program' && f.specialisation === form.specialisation
+      );
+    }
+    
+    // Priority 3: Find fee structure matching session (default/null specialisation)
+    if (!fs) {
+      fs = p.programFeeStructure.find(
+        f => f.level === 'program' && f.admissionSessionId === selectedSessionId && !f.specialisation
+      );
+    }
+
+    // Fallback 1: Any program level fee structure matching null specialisation
+    if (!fs) {
+      fs = p.programFeeStructure.find(f => f.level === 'program' && !f.specialisation);
     }
     
     // Fallback 2: Any fee structure
@@ -256,7 +273,17 @@ export function EnrollStudentPanel() {
 
   const getBillingCycleText = (p: Program) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return '';
-    const cycle = p.programFeeStructure[0].billingCycle;
+    
+    let fs = p.programFeeStructure.find(
+      f => f.admissionSessionId === form.sessionId && f.specialisation === form.specialisation
+    );
+    if (!fs) fs = p.programFeeStructure.find(f => !f.admissionSessionId && f.specialisation === form.specialisation);
+    if (!fs) fs = p.programFeeStructure.find(f => f.admissionSessionId === form.sessionId && !f.specialisation);
+    if (!fs) fs = p.programFeeStructure.find(f => f.level === 'program' && !f.specialisation && !f.admissionSessionId);
+    if (!fs) fs = p.programFeeStructure[0];
+    
+    if (!fs) return '';
+    const cycle = fs.billingCycle;
     if (cycle === 'per_year') return ' / year';
     if (cycle === 'per_semester') return ' / sem';
     if (cycle === 'full_program') return ' / program';

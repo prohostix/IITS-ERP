@@ -31,7 +31,7 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
           code: true, 
           universityId: true,
           programFeeStructure: {
-            select: { billingCycle: true, admissionSessionId: true, organizationId: true }
+            select: { billingCycle: true, admissionSessionId: true, organizationId: true, specialisation: true }
           }
         }
       },
@@ -62,9 +62,14 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
       enrollmentNumber: enr.enrollmentNumber || '',
       program: {
         ...enr.program,
-        billingCycle: enr.program?.programFeeStructure?.find(
-          f => f.admissionSessionId === enr.sessionId && f.organizationId === enr.organizationId
-        )?.billingCycle || enr.program?.programFeeStructure?.[0]?.billingCycle
+        billingCycle: (() => {
+          const pfs = enr.program?.programFeeStructure || [];
+          return pfs.find(f => f.admissionSessionId === enr.sessionId && f.specialisation === enr.specialisation)?.billingCycle ||
+                 pfs.find(f => !f.admissionSessionId && f.specialisation === enr.specialisation)?.billingCycle ||
+                 pfs.find(f => f.admissionSessionId === enr.sessionId && !f.specialisation)?.billingCycle ||
+                 pfs.find(f => !f.admissionSessionId && !f.specialisation)?.billingCycle ||
+                 pfs[0]?.billingCycle;
+        })()
       },
       totalFee,
       baseFee: enr.totalFee || 0,

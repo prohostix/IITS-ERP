@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
+import { z } from 'zod';
+import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import bcrypt from 'bcryptjs';
@@ -638,21 +640,13 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
   const category = (dbEnrollment.program.university as any).category || 'team_lease';
 
   if (paymentType === 'wallet') {
-    // Determine fee
-    let feeStructure = await prisma.programFeeStructure.findFirst({
-      where: {
-        organizationId: req.user.organizationId,
-        programId: dbEnrollment.programId,
-        admissionSessionId: dbEnrollment.sessionId,
-        level: 'program'
-      }
-    });
-
-    if (!feeStructure) {
-      feeStructure = await prisma.programFeeStructure.findFirst({
-        where: { organizationId: req.user.organizationId, programId: dbEnrollment.programId }
-      });
-    }
+    // Determine fee using helper
+    let feeStructure = await resolveProgramFeeStructure(
+      req.user.organizationId,
+      dbEnrollment.programId,
+      dbEnrollment.sessionId,
+      dbEnrollment.specialisation
+    );
 
     if (!feeStructure) {
       res.status(400).json({ success: false, message: 'Program fee structure is not configured' });
