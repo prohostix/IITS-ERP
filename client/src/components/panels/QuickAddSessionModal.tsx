@@ -33,13 +33,20 @@ export function QuickAddSessionModal({ universityId }: { universityId: string })
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/operations/sessions', { 
-        ...formData, 
+      const payload: any = { 
+        name: formData.name,
+        status: formData.status,
         universityId,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
         capacity: Number(formData.capacity)
-      });
+      };
+
+      if (formData.programId && formData.programId !== '__none__') {
+        payload.programId = formData.programId;
+      }
+
+      await api.post('/operations/sessions', payload);
       toast.success('Session added successfully');
       setOpen(false);
       setFormData({ name: '', programId: '', startDate: '', endDate: '', capacity: 0, status: 'active' });
