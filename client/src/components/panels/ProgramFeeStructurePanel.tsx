@@ -158,14 +158,14 @@ const fetchAllData = useCallback(async () => {
     fetchAllData();
   }, [fetchAllData]);
 
-  const openCreate = () => {
+  const resetForm = () => {
     setEditing(null);
     setForm({ 
       level: 'program',
       programId: selectedProgramId, 
       universityId: selectedUniversityId,
       admissionSessionId: '',
-    specialisation: '',
+      specialisation: '',
       billingCycle: 'per_year', 
       currency: 'INR', 
       effectiveFrom: '', 
@@ -174,7 +174,7 @@ const fetchAllData = useCallback(async () => {
       baseFee: 0,
       fullProgramFee: 0
     });
-    setOpen(true);
+    setWizardStep(1);
   };
 
   const openEdit = (fee: ProgramFee) => {
