@@ -376,28 +376,56 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     });
 
     const prog = await tx.program.findUnique({ where: { id: programId }, include: { university: true } });
-    if ((prog?.university as any)?.category === 'direct_iits' && totalFee) {
-      const feeAmount = Number(totalFee);
-      const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
-      if (!wallet || wallet.balance < feeAmount) {
-        throw new Error('Insufficient wallet balance');
+    if ((prog?.university as any)?.category === 'direct_iits') {
+      const feeStructure = await resolveProgramFeeStructure(organizationId, programId, finalSessionId, specialisation || null);
+      if (!feeStructure) throw new Error('Fee structure not found for this program');
+
+      let uniFee = 0;
+      let commRate = feeStructure.commissionRate ? Number(feeStructure.commissionRate) : 0;
+      
+      let breakdowns = feeStructure.feeBreakdown as any;
+      if (typeof breakdowns === 'string') {
+        try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
       }
-      await tx.studyCenterWallet.update({
-        where: { id: wallet.id },
-        data: { balance: { decrement: feeAmount } }
-      });
-      await tx.enrollmentPayment.create({
-        data: {
-          enrollmentId: enrollment.id,
-          studyCenterId: studyCenterId,
-          walletId: wallet.id,
-          amount: feeAmount
+
+      if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+        if (paymentMethod === 'full_payment') {
+          uniFee = breakdowns.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
+        } else {
+          uniFee = Number(breakdowns[0].universityFee || 0);
+          if (breakdowns[0].commissionRate !== undefined && breakdowns[0].commissionRate !== null && breakdowns[0].commissionRate !== '') {
+            commRate = Number(breakdowns[0].commissionRate);
+          }
         }
-      });
-      await tx.enrollment.update({
-        where: { id: enrollment.id },
-        data: { paymentType: 'wallet' }
-      });
+      }
+
+      if (uniFee > 0) {
+        const commissionAmount = (uniFee * commRate) / 100;
+        const feeAmount = Math.round(uniFee - commissionAmount);
+        
+        if (feeAmount > 0) {
+          const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
+          if (!wallet || wallet.balance < feeAmount) {
+            throw new Error(`Insufficient wallet balance. Required: ₹${feeAmount} for University Fee (after commission)`);
+          }
+          await tx.studyCenterWallet.update({
+            where: { id: wallet.id },
+            data: { balance: { decrement: feeAmount } }
+          });
+          await tx.enrollmentPayment.create({
+            data: {
+              enrollmentId: enrollment.id,
+              studyCenterId: studyCenterId,
+              walletId: wallet.id,
+              amount: feeAmount
+            }
+          });
+          await tx.enrollment.update({
+            where: { id: enrollment.id },
+            data: { paymentType: 'wallet' }
+          });
+        }
+      }
     }
 
     return enrollment;
