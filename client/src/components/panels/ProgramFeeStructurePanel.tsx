@@ -317,12 +317,21 @@ const fetchAllData = useCallback(async () => {
   }, [programs, selectedUniversityId]);
 
   const filteredFees = useMemo(() => {
-    if (!selectedProgramId) return [];
-    return fees.filter(f => {
-      const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
-      return pId === selectedProgramId;
-    });
-  }, [fees, selectedProgramId]);
+    let result = fees;
+    if (selectedUniversityId) {
+      result = result.filter(f => {
+         const uId = typeof f.universityId === 'object' ? f.universityId?.id : f.universityId;
+         return uId === selectedUniversityId;
+      });
+    }
+    if (selectedProgramId) {
+      result = result.filter(f => {
+         const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
+         return pId === selectedProgramId;
+      });
+    }
+    return result;
+  }, [fees, selectedUniversityId, selectedProgramId]);
 
   // Filter programs based on selected university in the dialog form
   const dialogFilteredPrograms = programs.filter(p => {
