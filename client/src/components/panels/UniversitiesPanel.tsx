@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
-
+import { QuickAddProgramModal } from './QuickAddProgramModal';
+import { QuickAddSessionModal } from './QuickAddSessionModal';
 interface Branch { id: string; name: string; code: string; }
 interface University {
   id: string; name: string; code: string; address?: string;
@@ -371,6 +372,10 @@ export function UniversitiesPanel() {
               <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">{u.status}</Badge>
               {isOrgAdmin && (
                 <>
+                  <div className="flex items-center border-l border-r border-slate-200 px-2 mx-1">
+                    <QuickAddProgramModal universityId={u.id} />
+                    <QuickAddSessionModal universityId={u.id} />
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(u)}><Edit className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </>
