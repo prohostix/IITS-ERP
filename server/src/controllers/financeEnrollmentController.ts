@@ -343,6 +343,20 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 });
 
 export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const existing = await prisma.enrollment.findUnique({ where: { id: req.params.id } });
+  if (existing?.paymentType === 'wallet') {
+    const payment = await prisma.enrollmentPayment.findFirst({ where: { enrollmentId: existing.id } });
+    if (payment) {
+      await prisma.$transaction(async (tx) => {
+        await tx.studyCenterWallet.update({
+          where: { studyCenterId: existing.studyCenterId },
+          data: { balance: { increment: payment.amount } }
+        });
+        await tx.enrollmentPayment.delete({ where: { id: payment.id } });
+      });
+    }
+  }
+
   const enrollment = await prisma.enrollment.update({
     where: { id: req.params.id },
     data: { status: 'rejected' as any, financeReviewer: { connect: { id: req.user.id } }, financeReviewedAt: new Date(), financeRemarks: req.body.remarks },

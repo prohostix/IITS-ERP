@@ -339,7 +339,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     // 3. Create Enrollment
-    return tx.enrollment.create({
+    const enrollment = await tx.enrollment.create({
       data: {
         studentName,
         studentEmail,
@@ -372,6 +372,33 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
         student:      { connect: { id: student.id } },
       }
     });
+
+    const prog = await tx.program.findUnique({ where: { id: programId }, include: { university: true } });
+    if ((prog?.university as any)?.category === 'direct_iits' && totalFee) {
+      const feeAmount = Number(totalFee);
+      const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
+      if (!wallet || wallet.balance < feeAmount) {
+        throw new Error('Insufficient wallet balance');
+      }
+      await tx.studyCenterWallet.update({
+        where: { id: wallet.id },
+        data: { balance: { decrement: feeAmount } }
+      });
+      await tx.enrollmentPayment.create({
+        data: {
+          enrollmentId: enrollment.id,
+          studyCenterId: studyCenterId,
+          walletId: wallet.id,
+          amount: feeAmount
+        }
+      });
+      await tx.enrollment.update({
+        where: { id: enrollment.id },
+        data: { paymentType: 'wallet' }
+      });
+    }
+
+    return enrollment;
   });
 
   // Notify Operations Users
@@ -610,7 +637,7 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
 
   const category = (dbEnrollment.program.university as any).category || 'team_lease';
 
-  if (category === 'direct_iits' && paymentType === 'wallet') {
+  if (paymentType === 'wallet') {
     // Determine fee
     let feeStructure = await prisma.programFeeStructure.findFirst({
       where: {
