@@ -259,24 +259,24 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   const isDirectToUni = dbEnrollment.paymentType === 'direct_to_university' || NO_WALLET_CATEGORIES.includes(uniCategory);
 
   // Automatically calculate and create expected CommissionIn
-  let breakdowns: any[] = [];
+  let breakdownsArray: any[] = [];
   if (typeof feeStructure.feeBreakdown === 'string') {
-    try { breakdowns = JSON.parse(feeStructure.feeBreakdown); } catch (e) { breakdowns = []; }
+    try { breakdownsArray = JSON.parse(feeStructure.feeBreakdown); } catch (e) { breakdownsArray = []; }
   } else if (Array.isArray(feeStructure.feeBreakdown)) {
-    breakdowns = feeStructure.feeBreakdown;
+    breakdownsArray = feeStructure.feeBreakdown;
   }
 
   const commRateForCheck = Number(feeStructure.commissionRate || 0);
   let hasBreakdownCommRate = false;
-  if (breakdowns.length > 0 && breakdowns[0].commissionRate) {
-    hasBreakdownCommRate = Number(breakdowns[0].commissionRate) > 0;
+  if (breakdownsArray.length > 0 && breakdownsArray[0].commissionRate) {
+    hasBreakdownCommRate = Number(breakdownsArray[0].commissionRate) > 0;
   }
 
   if (commRateForCheck > 0 || hasBreakdownCommRate || isDirectToUni) {
     let expectedAmount = 0;
     
-    if (dbEnrollment.paymentMethod === 'installment' && breakdowns.length > 0) {
-      const b = breakdowns[0];
+    if (dbEnrollment.paymentMethod === 'installment' && breakdownsArray.length > 0) {
+      const b = breakdownsArray[0];
       const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
       const bUni = Number(b.universityFee || 0);
       
