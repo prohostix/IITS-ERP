@@ -19,7 +19,7 @@ import {
   verifyStatusChangeRequest,
   confirmStatusChangeRequest,
 } from '../controllers/studentController.js';
-import { getExamDetails, startExam, submitExam } from '../controllers/examController.js';
+import { getExamDetails, startExam, submitExam, getMyExamSubmissions } from '../controllers/examController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -31,6 +31,7 @@ router.route('/marks').get(getInternalMarks).post(authorize('ops_admin', 'employ
 router.route('/marks/:id').get(getInternalMark).put(authorize('ops_admin', 'employee'), updateInternalMark).delete(authorize('ops_admin'), deleteInternalMark);
 
 // Exam routes
+router.get('/exams/submissions', getMyExamSubmissions);
 router.get('/exams/:materialId/details', getExamDetails);
 router.post('/exams/:materialId/start', startExam);
 router.post('/exams/:materialId/submit', submitExam);

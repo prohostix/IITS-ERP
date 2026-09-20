@@ -60,6 +60,8 @@ export function ModernStudentDashboard() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const [mySubmissions, setMySubmissions] = useState<any[]>([]);
+
   useEffect(() => {
     fetchStudentData();
   }, []);
@@ -78,6 +80,10 @@ export function ModernStudentDashboard() {
           const materialsRes = await api.get(`/operations/programs/${studentInfo.program.id}/materials`);
           setMaterials(materialsRes.data.data || []);
         }
+
+        // Fetch submissions
+        const submissionsRes = await api.get('/students/exams/submissions');
+        setMySubmissions(submissionsRes.data.data || []);
       }
     } catch (error) {
       toast.error('Failed to load dashboard data');
@@ -394,9 +400,17 @@ export function ModernStudentDashboard() {
     );
   }
 
-  const renderMaterialsContent = (categories: string[]) => {
-    const filteredMaterials = materials.filter(m => categories.includes(m.category));
+  const renderMaterialsContent = (categories: string[], isCompletedFilter?: boolean) => {
+    let filteredMaterials = materials.filter(m => categories.includes(m.category));
     
+    if (isCompletedFilter !== undefined) {
+      filteredMaterials = filteredMaterials.filter(m => {
+        const submission = mySubmissions.find(s => s.exam?.materialId === m.id);
+        const isCompleted = submission && (submission.status === 'submitted' || submission.status === 'graded');
+        return isCompletedFilter ? isCompleted : !isCompleted;
+      });
+    }
+
     if (filteredMaterials.length === 0) {
       return (
         <Card className="border-none shadow-sm mt-4">
@@ -446,7 +460,9 @@ export function ModernStudentDashboard() {
                     const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
                     const isEbook = ['ebook', 'E-Book'].includes(m.category);
                     if (isExam) {
-                      return <><Play className="w-4 h-4 mr-2" /> Start Exam</>;
+                      const submission = mySubmissions.find(s => s.exam?.materialId === m.id);
+                      const isCompleted = submission && (submission.status === 'submitted' || submission.status === 'graded');
+                      return isCompleted ? <><CheckCircle className="w-4 h-4 mr-2" /> View Result</> : <><Play className="w-4 h-4 mr-2" /> Start Exam</>;
                     }
                     if (isEbook) {
                       return <><BookOpen className="w-4 h-4 mr-2" /> View Book</>;
@@ -860,7 +876,15 @@ export function ModernStudentDashboard() {
                 <p className="text-muted-foreground">Access your examinations.</p>
               </div>
               <div className="space-y-8">
-                {renderMaterialsContent(['exam_subjective', 'Subjective Exam', 'exam_objective', 'Objective Exam'])}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Available Exams</h3>
+                  {renderMaterialsContent(['exam_subjective', 'Subjective Exam', 'exam_objective', 'Objective Exam'], false)}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Completed Exams</h3>
+                  {renderMaterialsContent(['exam_subjective', 'Subjective Exam', 'exam_objective', 'Objective Exam'], true)}
+                </div>
               </div>
             </div>
           )}

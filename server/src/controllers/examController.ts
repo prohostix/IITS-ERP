@@ -250,3 +250,21 @@ export const gradeSubjectiveExam = asyncHandler(async (req: AuthRequest, res: Re
 
   res.json({ submission: updatedSubmission });
 });
+
+export const getMyExamSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const studentInfo = await prisma.student.findFirst({
+    where: { id: req.user.studentId }
+  });
+
+  if (!studentInfo) {
+    res.status(400).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  const submissions = await prisma.examSubmission.findMany({
+    where: { studentId: studentInfo.id },
+    include: { exam: true }
+  });
+
+  res.json({ success: true, data: submissions });
+});
