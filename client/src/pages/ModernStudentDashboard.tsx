@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CheckCircle } from 'lucide-react';
 import { ProgramFeeStructurePanel } from '@/components/panels/ProgramFeeStructurePanel';
 
 export function ModernStudentDashboard() {
@@ -122,14 +123,25 @@ export function ModernStudentDashboard() {
   // Finance calculations (mocked from fee structure or enrollments if available)
   let totalPayable = 0;
   let totalPaid = 0;
+  
   if (student.enrollments && student.enrollments.length > 0) {
-    // Assuming each enrollment has fee details or we just mock a sum for now since we don't have direct fee sum in this object
-    // Wait, the API doesn't return aggregated fees directly on student object in this endpoint.
-    // For visual demonstration, we'll extract it from enrollments if possible.
     student.enrollments.forEach((enr: any) => {
-      // Mock calculation just for layout demonstration if no real fee data
-      totalPayable += 10000;
-      totalPaid += 5000;
+      // Base fee calculation
+      if (enr.totalFee) totalPayable += Number(enr.totalFee);
+      // Extra fees
+      if (enr.extraFees && Array.isArray(enr.extraFees)) {
+        enr.extraFees.forEach((ef: any) => {
+          totalPayable += Number(ef.amount || 0);
+        });
+      }
+      // Payments
+      if (enr.studentFeeReceipts && Array.isArray(enr.studentFeeReceipts)) {
+        enr.studentFeeReceipts.forEach((receipt: any) => {
+          if (receipt.status === 'approved' || receipt.status === 'completed' || receipt.status === 'success' || !receipt.status) {
+            totalPaid += Number(receipt.amount || 0);
+          }
+        });
+      }
     });
   }
 
@@ -144,8 +156,8 @@ export function ModernStudentDashboard() {
     { id: 'schedule', label: 'Schedule', icon: Calendar },
   ];
 
-  const renderMaterialsContent = (category: string) => {
-    const filteredMaterials = materials.filter(m => m.category === category);
+  const renderMaterialsContent = (categories: string[]) => {
+    const filteredMaterials = materials.filter(m => categories.includes(m.category));
     
     if (filteredMaterials.length === 0) {
       return (
@@ -167,17 +179,31 @@ export function ModernStudentDashboard() {
               <CardDescription>Semester {m.semester}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                variant="default" 
-                className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
-                onClick={() => handleDownload(m)}
-              >
-                {m.fileUrl && m.fileUrl.startsWith('http') ? (
-                  <><ExternalLink className="w-4 h-4 mr-2" /> View Link</>
-                ) : (
-                  <><Download className="w-4 h-4 mr-2" /> Download</>
-                )}
-              </Button>
+              {m.category === 'video_class' && m.fileUrl && (m.fileUrl.includes('youtube.com') || m.fileUrl.includes('youtu.be')) ? (
+                <div className="aspect-video w-full rounded-md overflow-hidden bg-slate-100">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src={m.fileUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen>
+                  </iframe>
+                </div>
+              ) : (
+                <Button 
+                  variant="default" 
+                  className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
+                  onClick={() => handleDownload(m)}
+                >
+                  {m.fileUrl && m.fileUrl.startsWith('http') ? (
+                    <><ExternalLink className="w-4 h-4 mr-2" /> View Resource</>
+                  ) : (
+                    <><Download className="w-4 h-4 mr-2" /> Download</>
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -412,16 +438,71 @@ export function ModernStudentDashboard() {
           {activeTab === 'payment_info' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Payment Information</h2>
-                <p className="text-muted-foreground">View your fee structure and transaction history.</p>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Payment History</h2>
+                <p className="text-muted-foreground">View your fee payments and receipts.</p>
               </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                 <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                    <CardContent className="p-6">
+                      <p className="text-sm text-muted-foreground font-medium mb-1">Total Course Fee</p>
+                      <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">₹ {totalPayable.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                    <CardContent className="p-6">
+                      <p className="text-sm text-muted-foreground font-medium mb-1">Total Paid</p>
+                      <p className="text-3xl font-bold text-[#1A2B6D]">₹ {totalPaid.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                    <CardContent className="p-6">
+                      <p className="text-sm text-muted-foreground font-medium mb-1">Remaining Balance</p>
+                      <p className="text-3xl font-bold text-rose-600">₹ {(totalPayable - totalPaid).toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+              </div>
+
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm">
-                <ProgramFeeStructurePanel
-                  programId={student.program?.id || ''}
-                  centerId={student.center?.id || ''}
-                  isEditable={false}
-                  compact={false}
-                />
+                <h3 className="text-lg font-bold mb-4">Transaction History</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-muted-foreground uppercase bg-slate-50 dark:bg-slate-800/50">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold rounded-tl-xl">Receipt No</th>
+                        <th className="px-6 py-4 font-semibold">Date</th>
+                        <th className="px-6 py-4 font-semibold">Amount</th>
+                        <th className="px-6 py-4 font-semibold">Payment Method</th>
+                        <th className="px-6 py-4 font-semibold rounded-tr-xl">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {student.enrollments?.map((enr: any) => 
+                        enr.studentFeeReceipts?.map((receipt: any, idx: number) => (
+                          <tr key={receipt.id} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-6 py-4 font-medium">{receipt.receiptNumber || `RCPT-${idx+1}`}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{new Date(receipt.receiptDate).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">₹ {Number(receipt.amount).toLocaleString()}</td>
+                            <td className="px-6 py-4 capitalize text-muted-foreground">{receipt.paymentMethod?.replace('_', ' ') || '-'}</td>
+                            <td className="px-6 py-4">
+                               <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${receipt.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                 {receipt.status || 'Success'}
+                               </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                      
+                      {(!student.enrollments || student.enrollments.every((enr: any) => !enr.studentFeeReceipts || enr.studentFeeReceipts.length === 0)) && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                            No payment history found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -432,7 +513,7 @@ export function ModernStudentDashboard() {
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Video Classes</h2>
                 <p className="text-muted-foreground">Access your program video lectures.</p>
               </div>
-              {renderMaterialsContent('Video Class')}
+              {renderMaterialsContent(['video_class', 'Video Class'])}
             </div>
           )}
 
@@ -445,11 +526,11 @@ export function ModernStudentDashboard() {
               <div className="space-y-8">
                 <div>
                   <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Subjective Exams</h3>
-                  {renderMaterialsContent('Subjective Exam')}
+                  {renderMaterialsContent(['exam_subjective', 'Subjective Exam'])}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Objective Exams</h3>
-                  {renderMaterialsContent('Objective Exam')}
+                  {renderMaterialsContent(['exam_objective', 'Objective Exam'])}
                 </div>
               </div>
             </div>
@@ -461,7 +542,7 @@ export function ModernStudentDashboard() {
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">E-Books</h2>
                 <p className="text-muted-foreground">Download electronic books for your subjects.</p>
               </div>
-              {renderMaterialsContent('E-Book')}
+              {renderMaterialsContent(['ebook', 'E-Book'])}
             </div>
           )}
           
