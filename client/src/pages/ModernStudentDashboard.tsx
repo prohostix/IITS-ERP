@@ -446,7 +446,15 @@ export function ModernStudentDashboard() {
               ) : (
                 <Button 
                   variant="default" 
-                  className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
+                  className="w-full bg-[#1A2B6D] hover:bg-[#111C43] disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={(() => {
+                    const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
+                    if (isExam) {
+                      const submission = mySubmissions.find(s => s.exam?.materialId === m.id);
+                      return submission && (submission.status === 'submitted' || submission.status === 'graded');
+                    }
+                    return false;
+                  })()}
                   onClick={() => {
                     const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
                     if (isExam) {
@@ -462,7 +470,7 @@ export function ModernStudentDashboard() {
                     if (isExam) {
                       const submission = mySubmissions.find(s => s.exam?.materialId === m.id);
                       const isCompleted = submission && (submission.status === 'submitted' || submission.status === 'graded');
-                      return isCompleted ? <><CheckCircle className="w-4 h-4 mr-2" /> View Result</> : <><Play className="w-4 h-4 mr-2" /> Start Exam</>;
+                      return isCompleted ? <><CheckCircle className="w-4 h-4 mr-2" /> Submitted</> : <><Play className="w-4 h-4 mr-2" /> Start Exam</>;
                     }
                     if (isEbook) {
                       return <><BookOpen className="w-4 h-4 mr-2" /> View Book</>;
