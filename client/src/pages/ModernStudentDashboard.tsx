@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +35,21 @@ export function ModernStudentDashboard() {
   const [loading, setLoading] = useState(true);
   
   // Custom sidebar state
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [location, setLocation] = useLocation();
+  const pathParts = location.split('/');
+  
+  useEffect(() => {
+    if (location === '/' || location === '/student' || location === '/student/') {
+      setLocation('/student/dashboard');
+    }
+  }, [location, setLocation]);
+
+  const defaultTab = 'dashboard';
+  const activeTab = (pathParts[1] === 'student' && pathParts[2]) ? pathParts[2] : defaultTab;
+  
+  const setActiveTab = (tab: string) => {
+    setLocation(`/student/${tab}`);
+  };
   const [activeVideo, setActiveVideo] = useState<any>(null);
   const [activeExamMode, setActiveExamMode] = useState<any>(null);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
