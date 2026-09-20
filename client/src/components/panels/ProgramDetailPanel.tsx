@@ -65,7 +65,8 @@ function formatDuration(months: number) {
   return `${Math.floor(months / 12)}y ${months % 12}m`;
 }
 
-function getFileIcon(mimeType: string) {
+function getFileIcon(mimeType?: string | null) {
+  if (!mimeType) return <File className="w-5 h-5 text-gray-500" />;
   if (mimeType.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />;
   if (mimeType.includes('image')) return <Eye className="w-5 h-5 text-blue-500" />;
   if (mimeType.includes('word') || mimeType.includes('doc')) return <FileText className="w-5 h-5 text-blue-700" />;
