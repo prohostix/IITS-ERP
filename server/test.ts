@@ -1,14 +1,10 @@
-import prisma from './src/lib/prisma.js';
-
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 async function main() {
-  const unis = await prisma.university.findMany({ where: { name: 'Test without wallet' } });
-  console.log("Unis:", unis);
-  if (unis.length > 0) {
-    const fs = await prisma.programFeeStructure.findMany({
-      where: { universityId: unis[0].id }
-    });
-    console.log("Fee structures for uni:", JSON.stringify(fs, null, 2));
-  }
+  const students = await prisma.student.findMany({
+    take: 5,
+    where: { documents: { not: {} } }
+  });
+  console.log(students.map(s => ({ id: s.id, docs: s.documents, type: typeof s.documents })));
 }
-
 main().finally(() => prisma.$disconnect());

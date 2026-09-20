@@ -931,37 +931,56 @@ export function ModernStudentDashboard() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-                {student.documents && Array.isArray(student.documents) && student.documents.length > 0 ? (
-                  student.documents.map((doc: any, i: number) => (
-                    <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg line-clamp-1">{doc.reqName || doc.name || `Document ${i + 1}`}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Button 
-                          variant="default" 
-                          className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
-                          onClick={() => {
-                             const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
-                             const serverUrl = apiBase.replace('/api/v1', '');
-                             window.open(`${serverUrl}${doc.url}`, '_blank');
-                          }}
-                        >
-                          <FileText className="w-4 h-4 mr-2" /> View Document
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full">
-                     <Card className="border-none shadow-sm mt-4">
-                      <CardContent className="flex flex-col items-center justify-center p-10">
-                        <FileText className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-                        <p className="text-muted-foreground text-center">No documents uploaded.</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
+                {(() => {
+                  const getDocs = () => {
+                    if (!student.documents) return [];
+                    if (Array.isArray(student.documents)) return student.documents;
+                    if (typeof student.documents === 'string') {
+                      try {
+                        const parsed = JSON.parse(student.documents);
+                        return Array.isArray(parsed) ? parsed : [];
+                      } catch (e) {
+                        return [];
+                      }
+                    }
+                    return [];
+                  };
+                  const docs = getDocs();
+                  
+                  if (docs.length > 0) {
+                    return docs.map((doc: any, i: number) => (
+                      <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg line-clamp-1">{doc.reqName || doc.name || `Document ${i + 1}`}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Button 
+                            variant="default" 
+                            className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
+                            onClick={() => {
+                               const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+                               const serverUrl = apiBase.replace('/api/v1', '');
+                               window.open(`${serverUrl}${doc.url}`, '_blank');
+                            }}
+                          >
+                            <FileText className="w-4 h-4 mr-2" /> View Document
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ));
+                  }
+                  
+                  return (
+                    <div className="col-span-full">
+                       <Card className="border-none shadow-sm mt-4">
+                        <CardContent className="flex flex-col items-center justify-center p-10">
+                          <FileText className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                          <p className="text-muted-foreground text-center">No documents uploaded.</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
