@@ -933,17 +933,21 @@ export function ModernStudentDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
                 {(() => {
                   const getDocs = () => {
-                    if (!student.documents) return [];
-                    if (Array.isArray(student.documents)) return student.documents;
-                    if (typeof student.documents === 'string') {
-                      try {
-                        const parsed = JSON.parse(student.documents);
-                        return Array.isArray(parsed) ? parsed : [];
-                      } catch (e) {
-                        return [];
+                    if (!student.enrollments || student.enrollments.length === 0) return [];
+                    let allDocs: any[] = [];
+                    student.enrollments.forEach((enr: any) => {
+                      if (enr.documents) {
+                        if (Array.isArray(enr.documents)) {
+                          allDocs = allDocs.concat(enr.documents);
+                        } else if (typeof enr.documents === 'string') {
+                          try {
+                            const parsed = JSON.parse(enr.documents);
+                            if (Array.isArray(parsed)) allDocs = allDocs.concat(parsed);
+                          } catch (e) {}
+                        }
                       }
-                    }
-                    return [];
+                    });
+                    return allDocs;
                   };
                   const docs = getDocs();
                   
