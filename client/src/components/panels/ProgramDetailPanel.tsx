@@ -105,7 +105,7 @@ export function ProgramDetailPanel({
   // Upload form state
   const [uploadType, setUploadType] = useState<'file' | 'url'>('file');
   const [uploadForm, setUploadForm] = useState({
-    title: '', description: '', category: 'study_material', semesterNumber: '', externalUrl: '',
+    title: '', description: '', category: 'study_material', semesterNumber: '', externalUrl: '', durationMinutes: '60'
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -138,9 +138,10 @@ export function ProgramDetailPanel({
     try {
       const fd = new FormData();
       fd.append('title', uploadForm.title);
-      fd.append('description', uploadForm.description);
+      if (uploadForm.description) fd.append('description', uploadForm.description);
       fd.append('category', uploadForm.category);
       if (uploadForm.semesterNumber) fd.append('semesterNumber', uploadForm.semesterNumber);
+      if (uploadForm.durationMinutes) fd.append('durationMinutes', uploadForm.durationMinutes);
       if (uploadType === 'file' && uploadFile) fd.append('file', uploadFile);
       if (uploadType === 'url' && uploadForm.externalUrl) fd.append('externalUrl', uploadForm.externalUrl);
 
@@ -175,6 +176,28 @@ export function ProgramDetailPanel({
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Delete failed');
     }
+  };
+
+  const downloadObjectiveTemplate = () => {
+    const csv = "Question,Marks,Option A,Option B,Option C,Option D,Correct Answer\nWhat is 2+2?,1,3,4,5,6,4\n";
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "objective_exam_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadSubjectiveTemplate = () => {
+    const csv = "Question,Marks\nDescribe the impact of AI.,10\n";
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "subjective_exam_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleEdit = (m: Material) => {
@@ -489,6 +512,36 @@ export function ProgramDetailPanel({
                 </div>
               )}
             </div>
+
+            {(uploadForm.category === 'exam_objective' || uploadForm.category === 'exam_subjective' || uploadForm.category === 'Objective Exam' || uploadForm.category === 'Subjective Exam') && (
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl space-y-3">
+                <h4 className="font-semibold text-indigo-900 dark:text-indigo-300">Exam Details</h4>
+                <div className="space-y-1">
+                  <Label className="text-indigo-800 dark:text-indigo-400">Duration (Minutes)</Label>
+                  <Input 
+                    type="number" 
+                    value={uploadForm.durationMinutes}
+                    onChange={e => setUploadForm(f => ({ ...f, durationMinutes: e.target.value }))}
+                    className="bg-white dark:bg-slate-900"
+                  />
+                </div>
+                
+                <div className="mt-3">
+                  <p className="text-sm text-indigo-800 dark:text-indigo-400 mb-2">
+                    Please upload an Excel or CSV file in the correct format.
+                  </p>
+                  {(uploadForm.category === 'exam_objective' || uploadForm.category === 'Objective Exam') ? (
+                    <Button type="button" variant="outline" size="sm" onClick={downloadObjectiveTemplate} className="w-full text-indigo-700 border-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50">
+                      Download Objective Template (CSV)
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" onClick={downloadSubjectiveTemplate} className="w-full text-indigo-700 border-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50">
+                      Download Subjective Template (CSV)
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <div className="flex items-center justify-between mb-2">
