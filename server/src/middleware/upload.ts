@@ -24,7 +24,7 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx/;
+  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx|csv/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
