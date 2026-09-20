@@ -442,11 +442,20 @@ export function ModernStudentDashboard() {
                     }
                   }}
                 >
-                  {m.fileUrl && m.fileUrl.startsWith('http') ? (
-                    <><ExternalLink className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Start Exam' : 'View Resource'}</>
-                  ) : (
-                    <><Download className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Download Exam' : 'Download'}</>
-                  )}
+                  {(() => {
+                    const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
+                    const isEbook = ['ebook', 'E-Book'].includes(m.category);
+                    if (isExam) {
+                      return <><Play className="w-4 h-4 mr-2" /> Start Exam</>;
+                    }
+                    if (isEbook) {
+                      return <><BookOpen className="w-4 h-4 mr-2" /> View Book</>;
+                    }
+                    if (m.fileUrl && m.fileUrl.startsWith('http')) {
+                      return <><ExternalLink className="w-4 h-4 mr-2" /> View Resource</>;
+                    }
+                    return <><Download className="w-4 h-4 mr-2" /> Download</>;
+                  })()}
                 </Button>
               )}
             </CardContent>
@@ -848,17 +857,10 @@ export function ModernStudentDashboard() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Examinations</h2>
-                <p className="text-muted-foreground">Access your examination question papers (Subjective & Objective).</p>
+                <p className="text-muted-foreground">Access your examinations.</p>
               </div>
               <div className="space-y-8">
-                <div>
-                  <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Subjective Exams</h3>
-                  {renderMaterialsContent(['exam_subjective', 'Subjective Exam'])}
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Objective Exams</h3>
-                  {renderMaterialsContent(['exam_objective', 'Objective Exam'])}
-                </div>
+                {renderMaterialsContent(['exam_subjective', 'Subjective Exam', 'exam_objective', 'Objective Exam'])}
               </div>
             </div>
           )}

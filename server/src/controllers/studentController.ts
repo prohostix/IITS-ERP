@@ -61,7 +61,18 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   const students = await prisma.student.findMany({
     where,
     include: { 
-      enrollments: true,
+      enrollments: {
+        include: {
+          studentFeeReceipts: {
+            orderBy: { receiptDate: 'desc' }
+          },
+          program: {
+            include: {
+              programFeeStructure: true
+            }
+          }
+        }
+      },
       center: true,
       program: { include: { university: true } }
     },
@@ -82,9 +93,20 @@ export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) =
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
     include: { 
-      enrollments: true,
+      enrollments: {
+        include: {
+          studentFeeReceipts: {
+            orderBy: { receiptDate: 'desc' }
+          },
+          program: {
+            include: {
+              programFeeStructure: true
+            }
+          }
+        }
+      },
       center: true,
-      program: true
+      program: { include: { university: true } }
     }
   });
   if (!student) {
