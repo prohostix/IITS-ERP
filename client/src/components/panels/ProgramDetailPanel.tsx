@@ -615,7 +615,7 @@ export function ProgramDetailPanel({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv"
                     className="hidden"
                     onChange={e => setUploadFile(e.target.files?.[0] || null)}
                   />

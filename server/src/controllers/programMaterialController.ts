@@ -85,7 +85,7 @@ export const uploadProgramMaterial = asyncHandler(async (req: AuthRequest, res: 
     }
   });
 
-  if (isExam && req.file && (req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls'))) {
+  if (isExam && req.file && (req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls') || req.file.originalname.endsWith('.csv'))) {
     try {
       const workbook = xlsx.readFile(req.file.path);
       const sheetName = workbook.SheetNames[0];
