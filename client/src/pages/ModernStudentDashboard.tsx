@@ -164,7 +164,7 @@ export function ModernStudentDashboard() {
         <Card className="border-none shadow-sm mt-4">
           <CardContent className="flex flex-col items-center justify-center p-10">
             <FileDown className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-            <p className="text-muted-foreground text-center">No {category} available currently.</p>
+            <p className="text-muted-foreground text-center">No materials available currently.</p>
           </CardContent>
         </Card>
       );
@@ -198,7 +198,7 @@ export function ModernStudentDashboard() {
                   onClick={() => handleDownload(m)}
                 >
                   {m.fileUrl && m.fileUrl.startsWith('http') ? (
-                    <><ExternalLink className="w-4 h-4 mr-2" /> View Resource</>
+                    <><ExternalLink className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Start Exam' : 'View Resource'}</>
                   ) : (
                     <><Download className="w-4 h-4 mr-2" /> Download</>
                   )}
