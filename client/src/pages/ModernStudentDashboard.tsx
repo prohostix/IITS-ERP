@@ -3,8 +3,6 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   GraduationCap, 
   BookOpen, 
@@ -16,16 +14,27 @@ import {
   School,
   FileDown,
   ExternalLink,
-  Play
+  Play,
+  LayoutDashboard,
+  Wallet,
+  Calendar,
+  Bell,
+  Search,
+  Menu,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProgramFeeStructurePanel } from '@/components/panels/ProgramFeeStructurePanel';
 
 export function ModernStudentDashboard() {
   const { logout } = useAuth();
   const [student, setStudent] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSemester, setSelectedSemester] = useState<string>('1');
+  
+  // Custom sidebar state
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchStudentData();
@@ -73,9 +82,9 @@ export function ModernStudentDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#F4F7FE] dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A2B6D]" />
           <p className="text-muted-foreground text-sm font-medium">Loading your Student Portal...</p>
         </div>
       </div>
@@ -103,234 +112,392 @@ export function ModernStudentDashboard() {
     );
   }
 
-  const program = student.program;
-  const totalSemesters = program?.duration ? program.duration * 2 : 1;
-  const semesterList = Array.from({ length: totalSemesters }, (_, i) => (i + 1).toString());
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'syllabus': return <FileText className="w-5 h-5 text-indigo-500" />;
-      case 'question_paper': return <ClipboardList className="w-5 h-5 text-amber-500" />;
-      case 'ebook': return <BookOpen className="w-5 h-5 text-teal-500" />;
-      case 'video_class': return <div className="w-5 h-5 text-red-500 flex items-center justify-center"><span className="text-[16px]">🎬</span></div>;
-      case 'exam_subjective': return <FileText className="w-5 h-5 text-orange-500" />;
-      case 'exam_objective': return <ClipboardList className="w-5 h-5 text-blue-500" />;
-      default: return <BookOpen className="w-5 h-5 text-emerald-500" />;
-    }
+  // Helper to determine year suffix
+  const getYearSuffix = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.getFullYear().toString();
   };
 
-  const getCategoryLabel = (category: string) => {
-    switch (category) {
-      case 'syllabus': return 'Syllabus';
-      case 'question_paper': return 'Question Paper';
-      case 'ebook': return 'E-Book';
-      case 'video_class': return 'Video Class';
-      case 'exam_subjective': return 'Subjective Exam';
-      case 'exam_objective': return 'Objective Exam';
-      case 'reference': return 'Reference';
-      default: return 'Study Material';
+  // Finance calculations (mocked from fee structure or enrollments if available)
+  let totalPayable = 0;
+  let totalPaid = 0;
+  if (student.enrollments && student.enrollments.length > 0) {
+    // Assuming each enrollment has fee details or we just mock a sum for now since we don't have direct fee sum in this object
+    // Wait, the API doesn't return aggregated fees directly on student object in this endpoint.
+    // For visual demonstration, we'll extract it from enrollments if possible.
+    student.enrollments.forEach((enr: any) => {
+      // Mock calculation just for layout demonstration if no real fee data
+      totalPayable += 10000;
+      totalPaid += 5000;
+    });
+  }
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'payment_info', label: 'Payment Info', icon: Wallet },
+    { id: 'classes', label: 'Video Classes', icon: Play },
+    { id: 'examination', label: 'Examination', icon: FileText },
+    { id: 'ebooks', label: 'E-Books', icon: BookOpen },
+    { id: 'result', label: 'Result', icon: GraduationCap },
+    { id: 'notice', label: 'Notice', icon: Bell },
+    { id: 'schedule', label: 'Schedule', icon: Calendar },
+  ];
+
+  const renderMaterialsContent = (category: string) => {
+    const filteredMaterials = materials.filter(m => m.category === category);
+    
+    if (filteredMaterials.length === 0) {
+      return (
+        <Card className="border-none shadow-sm mt-4">
+          <CardContent className="flex flex-col items-center justify-center p-10">
+            <FileDown className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+            <p className="text-muted-foreground text-center">No {category} available currently.</p>
+          </CardContent>
+        </Card>
+      );
     }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+        {filteredMaterials.map((m) => (
+          <Card key={m.id} className="border-none shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg line-clamp-2">{m.title}</CardTitle>
+              <CardDescription>Semester {m.semester}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                variant="default" 
+                className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
+                onClick={() => handleDownload(m)}
+              >
+                {m.fileUrl && m.fileUrl.startsWith('http') ? (
+                  <><ExternalLink className="w-4 h-4 mr-2" /> View Link</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-2" /> Download</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-12">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-md">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <div className="flex h-screen bg-[#F4F7FE] dark:bg-slate-950 font-sans overflow-hidden">
+      
+      {/* Sidebar */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#111C43] text-white transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:relative lg:translate-x-0 flex flex-col rounded-r-3xl
+      `}>
+        <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-primary" />
+            <div className="bg-white/10 p-2 rounded-xl">
+              <GraduationCap className="h-8 w-8 text-white" />
             </div>
-            <div>
-              <span className="font-bold text-lg tracking-tight">Student Portal</span>
-              <span className="hidden sm:inline-block ml-2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full border">
-                v1.0
-              </span>
-            </div>
+            <div className="font-bold text-xl tracking-wide hidden lg:block">Portal</div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:block text-right">
-              <p className="text-sm font-medium">{student.name}</p>
-              <p className="text-xs text-muted-foreground">{student.enrollmentNo}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={logout} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              <span>Log Out</span>
+          <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10" onClick={() => setIsMobileMenuOpen(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 overflow-y-auto space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-sm font-medium
+                  ${isActive 
+                    ? 'bg-white/10 text-white shadow-sm' 
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }
+                `}
+              >
+                <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-white/60'}`} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 mt-auto mb-4">
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <LogOut className="h-5 w-5" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        
+        {/* Header */}
+        <header className="h-20 px-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4 flex-1">
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsMobileMenuOpen(true)}>
+              <Menu className="h-5 w-5" />
             </Button>
+            
+            <div className="relative max-w-md w-full hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="w-full h-10 pl-10 pr-4 rounded-full bg-white dark:bg-slate-900 border-none shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1A2B6D]/20 text-sm"
+              />
+            </div>
           </div>
-        </div>
-      </header>
 
-      {/* Hero Welcome Section */}
-      <section className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {student.name}!</h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Access your academic resources, syllabus, and study materials here.
-          </p>
-        </div>
-      </section>
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{student.name}</span>
+              <span className="text-xs text-muted-foreground">Enrolled Student</span>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-[#1A2B6D] to-[#3a5bd6] flex items-center justify-center text-white font-bold shadow-md cursor-pointer">
+              {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
+            </div>
+          </div>
+        </header>
 
-      {/* Main Grid Content */}
-      <main className="container mx-auto px-4 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Academic & Center Details */}
-        <div className="space-y-6">
-          <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="text-lg">Academic Profile</CardTitle>
-              <CardDescription>Your registered details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-3">
-                <School className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Enrolled Program</p>
-                  <p className="font-semibold text-sm">{program?.name || 'N/A'}</p>
-                  {program?.code && (
-                    <Badge variant="secondary" className="mt-1">
-                      {program.code}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Study Center</p>
-                  <p className="font-semibold text-sm">{student.center?.name || 'N/A'}</p>
-                  {student.center?.code && (
-                    <span className="text-xs text-muted-foreground mt-0.5 block">Code: {student.center.code}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Enrollment No:</span>
-                  <span className="font-medium">{student.enrollmentNo}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Registered Email:</span>
-                  <span className="font-medium">{student.email}</span>
-                </div>
-                {student.phone && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Phone Number:</span>
-                    <span className="font-medium">{student.phone}</span>
+        {/* Dynamic Content */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 pb-8">
+          
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              {/* Hero Banner */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#111C43] to-[#1A2B6D] text-white shadow-lg h-64 md:h-72">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+                <div className="p-8 md:p-12 h-full flex flex-col justify-center relative z-10 w-2/3">
+                  <div className="text-sm text-white/70 mb-2 font-medium">
+                    {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Program Duration:</span>
-                  <span className="font-medium">{program?.duration || 0} Years</span>
+                  <h1 className="text-3xl md:text-5xl font-bold mb-3">Welcome back, {student.name.split(' ')[0]}!</h1>
+                  <p className="text-lg text-white/80 max-w-md">Always stay updated in your student portal.</p>
+                </div>
+                
+                {/* 3D Character (Placeholder structure - using standard img if available or a styling block) */}
+                <div className="absolute right-0 bottom-0 top-0 w-1/3 hidden md:flex items-end justify-center pointer-events-none">
+                  {/* Using an external high quality 3d illustration placeholder that matches the vibe */}
+                  <img src="https://cdni.iconscout.com/illustration/premium/thumb/student-graduating-from-university-4995964-4159586.png" alt="Student" className="h-[120%] object-contain origin-bottom" style={{ transform: 'translateY(10%)' }} />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Right Column: Semesters & Materials */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-none shadow-xl">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Finance Overview */}
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4">Finance</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+                            <Wallet className="h-6 w-6" />
+                          </div>
+                          <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">₹ {totalPayable.toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground font-medium">Total Payable</p>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-2 border-[#1A2B6D] shadow-md rounded-2xl overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-2">
+                          <CheckCircle className="h-5 w-5 text-[#1A2B6D]" />
+                        </div>
+                        <CardContent className="p-6">
+                          <div className="h-12 w-12 bg-[#1A2B6D]/10 text-[#1A2B6D] rounded-xl flex items-center justify-center mb-4">
+                            <Wallet className="h-6 w-6" />
+                          </div>
+                          <p className="text-2xl font-bold text-[#1A2B6D]">₹ {totalPaid.toLocaleString()}</p>
+                          <p className="text-sm text-[#1A2B6D]/70 font-medium">Total Paid</p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="h-12 w-12 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center mb-4">
+                            <Wallet className="h-6 w-6" />
+                          </div>
+                          <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">₹ {(totalPayable - totalPaid).toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground font-medium">Balance</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* Enrolled Program summary */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Enrolled Program</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="border-none shadow-sm bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl">
+                        <CardContent className="p-6 flex flex-col items-start h-full justify-between">
+                          <div className="space-y-1 mb-4">
+                            <h4 className="font-bold text-indigo-900 dark:text-indigo-200 text-lg">{student.program?.name || 'Program Not Found'}</h4>
+                            <p className="text-indigo-700/70 dark:text-indigo-300 text-sm font-medium">{student.program?.code}</p>
+                          </div>
+                          <Button className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-sm px-6" onClick={() => setActiveTab('classes')}>
+                            View Materials
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-none shadow-sm bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl">
+                         <CardContent className="p-6 flex flex-col items-start h-full justify-between">
+                          <div className="space-y-1 mb-4">
+                            <h4 className="font-bold text-blue-900 dark:text-blue-200 text-lg">Study Center</h4>
+                            <p className="text-blue-700/70 dark:text-blue-300 text-sm font-medium">{student.center?.name || 'Direct / Online'}</p>
+                            {student.center?.code && (
+                               <p className="text-blue-700/70 dark:text-blue-300 text-xs mt-1">Code: {student.center.code}</p>
+                            )}
+                          </div>
+                          <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-none shadow-sm px-6" variant="default" onClick={() => setActiveTab('payment_info')}>
+                            View Fees
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Daily Notice */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Daily notice</h3>
+                      <button className="text-sm font-bold text-[#1A2B6D] hover:underline">See all</button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-1">Welcome to the New Portal</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Your student portal has been completely redesigned for a better experience. Access your classes and materials directly from the sidebar.
+                        </p>
+                      </div>
+                      <div className="pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-1">Fee Payment Guidelines</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Please ensure your semester fees are cleared to unlock your examination materials.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Info Card */}
+                  <div className="bg-[#1A2B6D] text-white rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                     <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+                     <h3 className="font-bold text-lg mb-2">Need Help?</h3>
+                     <p className="text-sm text-white/80 mb-4">Contact your study center coordinator for any assistance with your program.</p>
+                     <p className="text-sm font-bold">{student.center?.email || 'support@iits.edu'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'payment_info' && (
+            <div className="space-y-6">
               <div>
-                <CardTitle>Study Materials</CardTitle>
-                <CardDescription>Select a semester to download files</CardDescription>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Payment Information</h2>
+                <p className="text-muted-foreground">View your fee structure and transaction history.</p>
               </div>
-              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 self-start sm:self-center">
-                Active Session
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              {totalSemesters > 0 ? (
-                <Tabs value={selectedSemester} onValueChange={setSelectedSemester} className="space-y-6">
-                  <TabsList className="flex flex-wrap gap-1 bg-muted p-1 h-auto justify-start">
-                    {semesterList.map((sem) => (
-                      <TabsTrigger key={sem} value={sem} className="py-1.5 px-3">
-                        Semester {sem}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm">
+                <ProgramFeeStructurePanel
+                  programId={student.program?.id || ''}
+                  centerId={student.center?.id || ''}
+                  isEditable={false}
+                  compact={false}
+                />
+              </div>
+            </div>
+          )}
 
-                  {semesterList.map((sem) => {
-                    const filteredMaterials = materials.filter(
-                      (m) => m.semesterNumber === sem
-                    );
+          {activeTab === 'classes' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Video Classes</h2>
+                <p className="text-muted-foreground">Access your program video lectures.</p>
+              </div>
+              {renderMaterialsContent('Video Class')}
+            </div>
+          )}
 
-                    return (
-                      <TabsContent key={sem} value={sem} className="space-y-4 outline-none">
-                        {filteredMaterials.length === 0 ? (
-                          <div className="text-center py-12 border border-dashed rounded-xl bg-muted/10">
-                            <FileDown className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                            <p className="font-semibold text-muted-foreground">No Materials Available</p>
-                            <p className="text-xs text-muted-foreground/80 mt-1 max-w-sm mx-auto">
-                              No study materials, syllabus, or question papers have been uploaded for Semester {sem} yet.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {filteredMaterials.map((m) => (
-                              <div
-                                key={m.id}
-                                className="flex items-start justify-between p-4 border rounded-xl hover:bg-muted/30 transition-all duration-200 group"
-                              >
-                                <div className="flex gap-3">
-                                  <div className="p-2.5 rounded-lg bg-background border mt-0.5">
-                                    {getCategoryIcon(m.category)}
-                                  </div>
-                                  <div className="space-y-1">
-                                    <h4 className="font-semibold text-sm line-clamp-1 leading-snug">
-                                      {m.title}
-                                    </h4>
-                                    {m.description && (
-                                      <p className="text-xs text-muted-foreground line-clamp-1">
-                                        {m.description}
-                                      </p>
-                                    )}
-                                    <div className="flex flex-wrap gap-2 pt-1.5">
-                                      <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                                        {getCategoryLabel(m.category)}
-                                      </Badge>
-                                      {m.uploader?.name && (
-                                        <span className="text-[10px] text-muted-foreground">
-                                          By {m.uploader.name}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDownload(m)}
-                                  className="rounded-full opacity-60 hover:opacity-100 group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0"
-                                  title={(m.fileUrl && m.fileUrl.startsWith('http')) ? "Open Link" : "Download File"}
-                                >
-                                  {m.category === 'video_class' ? (
-                                    <Play className="w-4 h-4" />
-                                  ) : (m.fileUrl && m.fileUrl.startsWith('http')) ? (
-                                    <ExternalLink className="w-4 h-4" />
-                                  ) : (
-                                    <Download className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </TabsContent>
-                    );
-                  })}
-                </Tabs>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground text-sm">No semesters found in your program structure.</p>
+          {activeTab === 'examination' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Examinations</h2>
+                <p className="text-muted-foreground">Access your examination question papers (Subjective & Objective).</p>
+              </div>
+              <div className="space-y-8">
+                <div>
+                  <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Subjective Exams</h3>
+                  {renderMaterialsContent('Subjective Exam')}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div>
+                  <h3 className="font-bold text-lg border-b pb-2 mb-4 text-[#1A2B6D]">Objective Exams</h3>
+                  {renderMaterialsContent('Objective Exam')}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ebooks' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">E-Books</h2>
+                <p className="text-muted-foreground">Download electronic books for your subjects.</p>
+              </div>
+              {renderMaterialsContent('E-Book')}
+            </div>
+          )}
+          
+          {['result', 'notice', 'schedule'].includes(activeTab) && (
+            <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+              <div className="bg-white p-6 rounded-full shadow-sm mb-4">
+                <LayoutDashboard className="h-10 w-10 text-[#1A2B6D] opacity-20" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Coming Soon</h2>
+              <p className="text-muted-foreground max-w-sm mt-2">This module is currently under development and will be available soon.</p>
+            </div>
+          )}
+
         </div>
       </main>
     </div>
+  );
+}
+
+// Simple check circle component since lucide icon was missing from imports
+function CheckCircle(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
   );
 }

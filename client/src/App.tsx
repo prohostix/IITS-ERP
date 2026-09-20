@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/Dashboard';
 import { PrismaLayout } from '@/components/layout/PrismaLayout';
+import { ModernStudentDashboard } from '@/pages/ModernStudentDashboard';
 import { DataGrid } from '@/components/ui/data-grid';
 import PublicRegisterPage from '@/pages/PublicRegisterPage';
 import { getOpsNavItems } from '@/pages/ModernOpsDashboard';
@@ -767,6 +768,11 @@ function App() {
   // Redirect to login if not authenticated
   if (!user) {
     return <Login />;
+  }
+
+  // Standalone layout for Student Portal
+  if (user.role === 'student') {
+    return <ModernStudentDashboard />;
   }
 
   // For employees with department or sub-department assignments, route to department dashboard
