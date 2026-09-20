@@ -35,6 +35,7 @@ export function ModernStudentDashboard() {
   
   // Custom sidebar state
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeVideo, setActiveVideo] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -513,7 +514,89 @@ export function ModernStudentDashboard() {
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Video Classes</h2>
                 <p className="text-muted-foreground">Access your program video lectures.</p>
               </div>
-              {renderMaterialsContent(['video_class', 'Video Class'])}
+              
+              {(() => {
+                const videoMaterials = materials.filter(m => ['video_class', 'Video Class'].includes(m.category));
+                
+                if (videoMaterials.length === 0) {
+                  return (
+                    <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
+                      <p className="text-muted-foreground">No video classes available for your program yet.</p>
+                    </div>
+                  );
+                }
+
+                // Default to first video if none selected
+                const currentVideo = activeVideo || videoMaterials[0];
+                const isYouTube = currentVideo.fileUrl && (currentVideo.fileUrl.includes('youtube.com') || currentVideo.fileUrl.includes('youtu.be'));
+
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Player */}
+                    <div className="lg:col-span-2 space-y-4">
+                      <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800">
+                        {isYouTube ? (
+                          <div className="aspect-video w-full bg-slate-100">
+                            <iframe 
+                              width="100%" 
+                              height="100%" 
+                              src={currentVideo.fileUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
+                              title="YouTube video player" 
+                              frameBorder="0" 
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                              allowFullScreen>
+                            </iframe>
+                          </div>
+                        ) : (
+                          <div className="aspect-video w-full bg-slate-900 flex items-center justify-center text-slate-400">
+                             <p>Unsupported video format</p>
+                          </div>
+                        )}
+                        <div className="p-6">
+                          <h3 className="text-xl font-bold mb-2">{currentVideo.title}</h3>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Semester {currentVideo.semester}</span>
+                          </div>
+                          
+                          {isYouTube && (
+                            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <p className="text-sm text-muted-foreground mb-3">If the video is unavailable due to playback restrictions, you can watch it directly on YouTube.</p>
+                              <Button 
+                                variant="outline" 
+                                className="w-full sm:w-auto"
+                                onClick={() => window.open(currentVideo.fileUrl, '_blank')}
+                              >
+                                <ExternalLink className="w-4 h-4 mr-2" /> Watch on YouTube
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Playlist / Classes List */}
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col h-[600px]">
+                      <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                        <h3 className="font-bold text-lg">All Classes ({videoMaterials.length})</h3>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                        {videoMaterials.map(m => (
+                          <div 
+                            key={m.id}
+                            onClick={() => setActiveVideo(m)}
+                            className={`p-3 rounded-lg cursor-pointer transition-colors ${currentVideo.id === m.id ? 'bg-[#1A2B6D]/10 border border-[#1A2B6D]/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}`}
+                          >
+                            <h4 className={`font-medium text-sm line-clamp-2 ${currentVideo.id === m.id ? 'text-[#1A2B6D]' : ''}`}>
+                              {m.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground mt-1">Semester {m.semester}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
