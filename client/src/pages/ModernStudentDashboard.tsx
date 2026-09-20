@@ -39,8 +39,9 @@ export function ModernStudentDashboard() {
   const [activeExamMode, setActiveExamMode] = useState<any>(null);
   const [examQuestions, setExamQuestions] = useState<any[]>([]);
   const [examAnswers, setExamAnswers] = useState<Record<string, string>>({});
-  const [examStatus, setExamStatus] = useState<'not_started' | 'in_progress' | 'submitted'>('not_started');
+  const [examStatus, setExamStatus] = useState<'not_started' | 'in_progress' | 'submitted' | 'graded'>('not_started');
   const [examScore, setExamScore] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -94,11 +95,33 @@ export function ModernStudentDashboard() {
         setExamStatus('in_progress');
         setExamAnswers({});
         setExamScore(null);
+        if (exam.durationMinutes) {
+          setTimeRemaining(exam.durationMinutes * 60);
+        } else {
+          setTimeRemaining(null);
+        }
       }
     } catch (error) {
       toast.error('Could not load exam details. The exam might not be properly configured.');
     }
   };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (examStatus === 'in_progress' && timeRemaining !== null && timeRemaining > 0) {
+      timer = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(timer);
+            handleSubmitExam();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [examStatus, timeRemaining]);
 
   const handleSubmitExam = async () => {
     if (!activeExamMode) return;
@@ -211,6 +234,140 @@ export function ModernStudentDashboard() {
     { id: 'notice', label: 'Notice', icon: Bell },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
   ];
+
+  if (activeExamMode) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-[#F4F7FE] dark:bg-slate-950 overflow-y-auto">
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border-b px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">{activeExamMode.material?.title || 'Examination'}</h2>
+                <p className="text-sm text-muted-foreground capitalize">{activeExamMode.type} Exam</p>
+              </div>
+              <div className="flex items-center gap-4 self-end sm:self-auto">
+                {examStatus === 'in_progress' && timeRemaining !== null && (
+                  <div className="flex items-center text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-md font-semibold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                  </div>
+                )}
+                {examStatus === 'in_progress' && (
+                  <Button onClick={handleSubmitExam} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    Submit Exam
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" onClick={() => { setActiveExamMode(null); fetchStudentData(); }}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {examStatus === 'not_started' && (
+                <div className="text-center py-12">
+                  <h3 className="text-xl font-bold mb-4">Ready to begin?</h3>
+                  <p className="text-muted-foreground mb-6">Once you start, your timer will begin. Do not close this window.</p>
+                  <Button onClick={() => handleStartExam(activeExamMode.material)} size="lg" className="bg-[#1A2B6D] hover:bg-[#111C43]">
+                    Start Exam Now
+                  </Button>
+                </div>
+              )}
+
+              {examStatus === 'in_progress' && (
+                <div className="space-y-8">
+                  {examQuestions.map((q: any, index: number) => (
+                    <div key={q.id} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between items-start mb-4">
+                        <h4 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
+                          <span className="text-[#1A2B6D] mr-2">Q{index + 1}.</span> 
+                          {q.questionText}
+                        </h4>
+                        <span className="text-sm font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 px-2.5 py-1 rounded-full whitespace-nowrap">
+                          {q.marks} Marks
+                        </span>
+                      </div>
+                      
+                      {q.questionType === 'multiple_choice' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                          {q.options?.map((opt: string, i: number) => (
+                            <button
+                              key={i}
+                              onClick={() => setExamAnswers({...examAnswers, [q.id]: opt})}
+                              className={`p-4 rounded-xl border text-left transition-all ${
+                                examAnswers[q.id] === opt 
+                                  ? 'bg-[#1A2B6D]/5 border-[#1A2B6D] ring-1 ring-[#1A2B6D]' 
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-[#1A2B6D]/50'
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ${
+                                  examAnswers[q.id] === opt ? 'border-[#1A2B6D] bg-[#1A2B6D]' : 'border-slate-300'
+                                }`}>
+                                  {examAnswers[q.id] === opt && <div className="w-2 h-2 rounded-full bg-white" />}
+                                </div>
+                                <span>{opt}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-4">
+                          <textarea 
+                            className="w-full min-h-[150px] p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-[#1A2B6D] focus:outline-none transition-all resize-y"
+                            placeholder="Type your answer here..."
+                            value={examAnswers[q.id] || ''}
+                            onChange={(e) => setExamAnswers({...examAnswers, [q.id]: e.target.value})}
+                          ></textarea>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {examStatus === 'submitted' && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-8 rounded-2xl text-center border border-blue-100 dark:border-blue-900 shadow-sm">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Exam Submitted Successfully</h3>
+                  <p className="text-blue-700/80 dark:text-blue-300/80 mb-6">Your answers have been securely recorded.</p>
+                  
+                  {examScore !== null && (
+                    <div className="inline-block bg-white dark:bg-slate-900 px-8 py-4 rounded-xl border shadow-sm">
+                      <p className="text-sm text-muted-foreground font-medium mb-1">Your Objective Score</p>
+                      <p className="text-4xl font-bold text-[#1A2B6D]">{examScore} / {activeExamMode.totalMarks || '-'}</p>
+                    </div>
+                  )}
+                  {examScore === null && (
+                    <div className="inline-block bg-white dark:bg-slate-900 px-8 py-4 rounded-xl border shadow-sm">
+                      <p className="text-sm font-medium">Pending Review</p>
+                      <p className="text-xs text-muted-foreground mt-1">Your subjective exam is pending manual grading by your instructor.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {examStatus === 'graded' && (
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 p-8 rounded-2xl text-center border border-emerald-100 dark:border-emerald-900 shadow-sm">
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Exam Graded</h3>
+                  
+                  <div className="inline-block bg-white dark:bg-slate-900 px-8 py-4 rounded-xl border shadow-sm mt-4">
+                    <p className="text-sm text-muted-foreground font-medium mb-1">Final Score</p>
+                    <p className="text-4xl font-bold text-emerald-600">{examScore} / {activeExamMode.totalMarks || '-'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderMaterialsContent = (categories: string[]) => {
     const filteredMaterials = materials.filter(m => categories.includes(m.category));

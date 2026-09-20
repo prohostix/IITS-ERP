@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Upload, FileText, BookOpen, File, Trash2, Download,
   Clock, GraduationCap, Layers, Tag, Search,
-  Loader2, Eye, Edit, X,
+  Loader2, Eye, Edit, X, Activity,
 } from 'lucide-react';
+import ExamSubmissionsModal from './ExamSubmissionsModal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ interface Material {
   fileSize: number; mimeType: string; semesterNumber?: number;
   uploadedBy: { id: string; name: string; email: string };
   createdAt: string;
+  exam?: { id: string; type: string };
 }
 
 const CATEGORIES = [
@@ -109,6 +111,10 @@ export function ProgramDetailPanel({
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  const [submissionsModalOpen, setSubmissionsModalOpen] = useState(false);
+  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [selectedExamType, setSelectedExamType] = useState<string>('objective');
 
   const fetchDetail = async () => {
     setLoading(true);
@@ -449,10 +455,38 @@ export function ProgramDetailPanel({
                     )}
                   </div>
                 </CardContent>
+                {m.exam && (
+                  <div className="mt-3 pt-3 border-t flex justify-end">
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      onClick={() => {
+                        setSelectedExamId(m.exam.id);
+                        setSelectedExamType(m.exam.type);
+                        setSubmissionsModalOpen(true);
+                      }}
+                      className="text-xs w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                    >
+                      <Activity className="w-3.5 h-3.5 mr-1.5" /> View Submissions
+                    </Button>
+                  </div>
+                )}
               </Card>
             );
           })}
         </div>
+      )}
+
+      {selectedExamId && (
+        <ExamSubmissionsModal
+          examId={selectedExamId}
+          examType={selectedExamType}
+          open={submissionsModalOpen}
+          onOpenChange={(op: boolean) => {
+            setSubmissionsModalOpen(op);
+            if (!op) setSelectedExamId(null);
+          }}
+        />
       )}
 
       {/* Upload / Edit Dialog */}

@@ -184,3 +184,68 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
 
   res.json({ success: true, data: updatedSubmission });
 });
+
+export const getExamSubmissions = asyncHandler(async (req: Request, res: Response) => {
+  const { examId } = req.params;
+
+  const submissions = await prisma.examSubmission.findMany({
+    where: { examId },
+    include: {
+      student: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          enrollmentNo: true
+        }
+      },
+      answers: true
+    },
+    orderBy: { startedAt: 'desc' }
+  });
+
+  res.json({ submissions });
+});
+
+export const gradeSubjectiveExam = asyncHandler(async (req: Request, res: Response) => {
+  const { submissionId } = req.params;
+  const { grades } = req.body; // Array of { questionId, marksAwarded }
+
+  const submission = await prisma.examSubmission.findUnique({
+    where: { id: submissionId },
+    include: { answers: true, exam: true }
+  });
+
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  let totalScore = 0;
+
+  const gradePromises = grades.map((g: any) => {
+    totalScore += Number(g.marksAwarded);
+    return prisma.examAnswer.updateMany({
+      where: {
+        submissionId: submission.id,
+        questionId: g.questionId
+      },
+      data: {
+        marksAwarded: Number(g.marksAwarded),
+        isCorrect: Number(g.marksAwarded) > 0
+      }
+    });
+  });
+
+  await Promise.all(gradePromises);
+
+  const updatedSubmission = await prisma.examSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: 'graded',
+      score: totalScore
+    }
+  });
+
+  res.json({ submission: updatedSubmission });
+});

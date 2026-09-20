@@ -57,6 +57,7 @@ import {
 } from '../controllers/programMaterialController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { getExamSubmissions, gradeSubjectiveExam } from '../controllers/examController.js';
 
 const router = express.Router();
 
@@ -140,5 +141,9 @@ router.delete('/programs/:programId/materials/:materialId', authorize('ops_admin
 
 // Enrollment Uni Enrollment Number Updates
 router.put('/enrollments/:id', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), updateEnrollmentUniNumber);
+
+// Exam grading
+router.get('/exams/:examId/submissions', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), getExamSubmissions);
+router.post('/exams/submissions/:submissionId/grade', authorize('ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'), gradeSubjectiveExam);
 
 export default router;
