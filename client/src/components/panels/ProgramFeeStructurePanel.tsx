@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen, GraduationCap, Building2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen, GraduationCap, Building2, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,8 @@ interface ProgramFee {
   admissionSessionId?: { id: string; name: string } | string | null;
   baseFee: number;
   fullProgramFee?: number;
+  oneTimeUniversityFee?: number;
+  oneTimeCommission?: number;
   additionalFees: { label: string; amount: number }[];
   feeBreakdown?: any[];
   currency: string;
@@ -80,6 +82,9 @@ export function ProgramFeeStructurePanel() {
     baseFee: '0',
     universityFee: '0',
     fullProgramFee: '0',
+    oneTimeFee: '0',
+    oneTimeUniversityFee: '0',
+    oneTimeCommission: '0',
   });
 
   
@@ -130,18 +135,16 @@ export function ProgramFeeStructurePanel() {
 const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [feesRes, progsRes, unisRes, sessionsRes, subDeptsRes] = await Promise.all([
+      const [feesRes, progsRes, unisRes, sessionsRes] = await Promise.all([
         api.get('/finance/program-fees'),
         api.get('/operations/programs'),
         api.get('/operations/universities'),
         api.get('/operations/sessions').catch(() => ({ data: { data: [] } })),
-        api.get('/sub-departments').catch(() => ({ data: { data: [] } })),
       ]);
       setFees(feesRes.data.data || []);
       setPrograms(progsRes.data.data || []);
       setUniversities(unisRes.data.data || []);
       setSessions(sessionsRes.data.data || []);
-      setSubDepartments(subDeptsRes.data.data || []);
       
       const unis = unisRes.data.data || [];
       if (unis.length > 0 && !selectedUniversityId) {
@@ -172,7 +175,10 @@ const fetchAllData = useCallback(async () => {
       additionalFees: '',
       feeBreakdown: [],
       baseFee: 0,
-      fullProgramFee: 0
+      fullProgramFee: 0,
+      oneTimeFee: 0,
+      oneTimeUniversityFee: 0,
+      oneTimeCommission: 0,
     });
     setWizardStep(1);
   };
@@ -206,6 +212,9 @@ const fetchAllData = useCallback(async () => {
        }));
     }
 
+    const oneTimeFeeObj = fee.additionalFees?.find(f => f.label.toLowerCase() === 'one time payment' || f.label.toLowerCase() === 'registration fee' || f.label.toLowerCase() === 'admission fee');
+    const filteredOtherFees = fee.additionalFees?.filter(f => f !== oneTimeFeeObj) || [];
+
     setForm({
       level: fee.level || 'program',
       programId: progId || '',
@@ -217,8 +226,11 @@ const fetchAllData = useCallback(async () => {
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
       baseFee: fee.baseFee || 0,
       fullProgramFee: fee.fullProgramFee || 0,
+      oneTimeFee: oneTimeFeeObj ? oneTimeFeeObj.amount : 0,
+      oneTimeUniversityFee: fee.oneTimeUniversityFee || 0,
+      oneTimeCommission: fee.oneTimeCommission || 0,
       commissionRate: fee.commissionRate !== undefined ? String(fee.commissionRate) : '0',
-      additionalFees: otherFees.map(f => `${f.label}:${f.amount}`).join(', '),
+      additionalFees: filteredOtherFees.map(f => `${f.label}:${f.amount}`).join(', '),
       feeBreakdown: parsedBreakdown
     });
     setOpen(true);
@@ -236,6 +248,9 @@ const fetchAllData = useCallback(async () => {
       }
 
       const addFees = [];
+      if (Number(form.oneTimeFee) > 0) {
+        addFees.push({ label: 'One Time Payment', amount: Number(form.oneTimeFee) });
+      }
       if (form.additionalFees) {
         const custom = form.additionalFees.split(',').map(s => {
           const [label, amount] = s.trim().split(':');
@@ -271,6 +286,8 @@ const fetchAllData = useCallback(async () => {
         specialisation: form.specialisation || undefined,
         baseFee: totalBaseFee,
         fullProgramFee: Number(form.fullProgramFee || 0),
+        oneTimeUniversityFee: Number(form.oneTimeUniversityFee || 0),
+        oneTimeCommission: Number(form.oneTimeCommission || 0),
         universityFee: totalUniversityFee,
         billingCycle: form.billingCycle,
         currency: form.currency,
@@ -446,6 +463,21 @@ const fetchAllData = useCallback(async () => {
                                 {fee.currency || 'INR'} {fee.universityFee.toLocaleString()} Uni Fee
                               </Badge>
                             )}
+                            {fee.oneTimeUniversityFee > 0 && (
+                              <Badge variant="secondary" className="bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200 shadow-sm font-medium px-2 py-0.5">
+                                {fee.currency || 'INR'} {fee.oneTimeUniversityFee.toLocaleString()} One-Time Uni
+                              </Badge>
+                            )}
+                            {fee.oneTimeCommission > 0 && (
+                              <Badge variant="secondary" className="bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200 shadow-sm font-medium px-2 py-0.5">
+                                {fee.oneTimeCommission}% One-Time Comm
+                              </Badge>
+                            )}
+                            {fee.additionalFees?.find((f: any) => ['one time payment', 'registration fee', 'admission fee'].includes(f.label.toLowerCase())) && (
+                              <Badge variant="secondary" className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 shadow-sm font-medium px-2 py-0.5">
+                                {fee.currency || 'INR'} {fee.additionalFees.find((f: any) => ['one time payment', 'registration fee', 'admission fee'].includes(f.label.toLowerCase()))?.amount.toLocaleString()} One Time
+                              </Badge>
+                            )}
                           </div>
                           
                           {fee.feeBreakdown && fee.feeBreakdown.length > 0 && (
@@ -456,6 +488,9 @@ const fetchAllData = useCallback(async () => {
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
+                                    {b.examFee > 0 && <span>Exam: {b.examFee}</span>}
+                                    {b.commissionRate > 0 && <span>Comm: {b.commissionRate}%</span>}
+                                    {b.dueDate && <span className="col-span-2 text-blue-600">Due: {new Date(b.dueDate).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</span>}
                                   </div>
                                 </div>
                               ))}
@@ -660,34 +695,39 @@ const fetchAllData = useCallback(async () => {
                     </div>
 
                     <div className="space-y-1">
-                      <Label>Billing Cycle <span className="text-destructive">*</span></Label>
+                      <Label>Billing Cycle (Installment Type) <span className="text-destructive">*</span></Label>
                       <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.billingCycle} onChange={(e) => setForm({...form, billingCycle: e.target.value})}>
                         <option value="per_year">Per Year</option>
                         <option value="per_semester">Per Semester</option>
-                        <option value="full_program">Full Program (One Time)</option>
                       </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="space-y-1">
-                      <Label>Total Program Fee <span className="text-muted-foreground text-xs">(optional display)</span></Label>
-                      <Input type="number" min="0" value={form.fullProgramFee} onChange={(e) => setForm({...form, fullProgramFee: e.target.value})} />
+                      <Label>Full Payment Amount (One-Time) <span className="text-destructive">*</span></Label>
+                      <p className="text-xs text-muted-foreground">Amount if student pays entire program upfront</p>
+                      <Input type="number" min="0" required value={form.fullProgramFee} onChange={(e) => setForm({...form, fullProgramFee: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label>One Time University Fee <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                      <Input type="number" min="0" value={(form as any).oneTimeUniversityFee} onChange={(e) => setForm({...form, oneTimeUniversityFee: e.target.value} as any)} />
                     </div>
                     <div className="space-y-1">
-                      <Label>Base Fee (Tuition) per {form.billingCycle === 'per_semester' ? 'Sem' : 'Year'} <span className="text-destructive">*</span></Label>
-                      <Input type="number" min="0" required value={form.baseFee} onChange={(e) => setForm({...form, baseFee: e.target.value})} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>University Fee per {form.billingCycle === 'per_semester' ? 'Sem' : 'Year'}</Label>
-                      <Input type="number" min="0" value={form.universityFee} onChange={(e) => setForm({...form, universityFee: e.target.value})} />
+                      <Label>One Time Commission <span className="text-muted-foreground text-xs">(optional, %)</span></Label>
+                      <Input type="number" min="0" max="100" value={(form as any).oneTimeCommission} onChange={(e) => setForm({...form, oneTimeCommission: e.target.value} as any)} />
                     </div>
                   </div>
 
                   <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-base font-semibold">Fee Breakdown / Installments</Label>
-                      <span className="text-xs text-muted-foreground">Auto-generated based on program duration and billing cycle.</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <Label className="text-base font-semibold">Installment Breakdown ({form.billingCycle === 'per_semester' ? 'Semester-wise' : 'Year-wise'})</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Configure per-installment fees. Auto-generated based on program duration.</p>
+                      </div>
                     </div>
                     <div className="space-y-3">
                       {form.feeBreakdown.map((b, idx) => (
@@ -709,6 +749,10 @@ const fetchAllData = useCallback(async () => {
                           <div className="flex-1 min-w-[120px] space-y-1">
                             <Label className="text-xs">Commission Rate (%)</Label>
                             <Input type="number" value={b.commissionRate} onChange={(e) => handleBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div className="flex-1 min-w-[130px] space-y-1">
+                            <Label className="text-xs">Due Date</Label>
+                            <Input type="date" value={b.dueDate || ''} onChange={(e) => handleBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
                           </div>
                         </div>
                       ))}

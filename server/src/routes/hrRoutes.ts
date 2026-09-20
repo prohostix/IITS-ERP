@@ -92,12 +92,12 @@ router.patch('/leaves/:id/hr-approve', authorize('hr_admin', 'org_admin', 'ceo')
 // Attendance
 router.get('/attendance/my', getMyAttendance);
 router.get('/attendance/my-summary', getMyAttendanceSummary);
-router.get('/attendance/activity-report', authorize('hr_admin', 'ceo', 'org_admin'), getActivityReport);
-router.route('/attendance').get(authorize('hr_admin', 'org_admin', 'ceo'), getAttendance).post(authorize('hr_admin'), markAttendance);
+router.get('/attendance/activity-report', authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), getActivityReport);
+router.route('/attendance').get(authorize('hr_admin', 'org_admin', 'ceo', 'superadmin'), getAttendance).post(authorize('hr_admin', 'superadmin'), markAttendance);
 router.route('/attendance/:id')
   .get(getAttendanceById)
-  .put(authorize('hr_admin'), updateAttendance)
-  .delete(authorize('hr_admin'), deleteAttendance);
+  .put(authorize('hr_admin', 'superadmin', 'org_admin'), updateAttendance)
+  .delete(authorize('hr_admin', 'superadmin', 'org_admin'), deleteAttendance);
 
 // Vacancies
 router.route('/vacancies').get(getVacancies).post(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), createVacancy);
@@ -114,16 +114,16 @@ router.patch('/vacancies/:id/fill', authorize('hr_admin', 'ceo', 'org_admin', 's
 router.route('/complaints').get(getComplaints).post(createComplaint);
 router.route('/complaints/:id')
   .get(getComplaint)
-  .put(authorize('hr_admin'), updateComplaint)
-  .delete(authorize('hr_admin'), deleteComplaint);
-router.put('/complaints/:id/resolve', authorize('hr_admin'), resolveComplaint);
+  .put(authorize('hr_admin', 'superadmin', 'org_admin'), updateComplaint)
+  .delete(authorize('hr_admin', 'superadmin', 'org_admin'), deleteComplaint);
+router.put('/complaints/:id/resolve', authorize('hr_admin', 'superadmin', 'org_admin'), resolveComplaint);
 
 // Holidays
-router.route('/holidays').get(getHolidays).post(authorize('hr_admin'), createHoliday);
+router.route('/holidays').get(getHolidays).post(authorize('hr_admin', 'superadmin', 'org_admin'), createHoliday);
 router.route('/holidays/:id')
   .get(getHoliday)
-  .put(authorize('hr_admin'), updateHoliday)
-  .delete(authorize('hr_admin'), deleteHoliday);
+  .put(authorize('hr_admin', 'superadmin', 'org_admin'), updateHoliday)
+  .delete(authorize('hr_admin', 'superadmin', 'org_admin'), deleteHoliday);
 
 // Salary Configuration (per employee)
 router.get('/salary-configs', authorize('hr_admin', 'org_admin', 'ceo', 'superadmin'), getSalaryConfigs);
@@ -143,23 +143,23 @@ router.route('/leave-allocations/:userId')
 router.post('/payroll/generate-smart', authorize('hr_admin', 'org_admin', 'ceo', 'superadmin'), generateSmartPayroll);
 
 // Employee Profiles (KPI / KRA / Salary details)
-router.get('/employee-profiles/:userId', authorize('hr_admin'), getEmployeeProfile);
-router.put('/employee-profiles/:userId', authorize('hr_admin'), upsertEmployeeProfile);
-router.patch('/employee-profiles/:userId/kpis', authorize('hr_admin'), updateKPIs);
-router.patch('/employee-profiles/:userId/kras', authorize('hr_admin'), updateKRAs);
-router.patch('/employee-profiles/:userId/salary', authorize('hr_admin'), updateSalaryDetails);
+router.get('/employee-profiles/:userId', authorize('hr_admin', 'superadmin', 'org_admin'), getEmployeeProfile);
+router.put('/employee-profiles/:userId', authorize('hr_admin', 'superadmin', 'org_admin'), upsertEmployeeProfile);
+router.patch('/employee-profiles/:userId/kpis', authorize('hr_admin', 'superadmin', 'org_admin'), updateKPIs);
+router.patch('/employee-profiles/:userId/kras', authorize('hr_admin', 'superadmin', 'org_admin'), updateKRAs);
+router.patch('/employee-profiles/:userId/salary', authorize('hr_admin', 'superadmin', 'org_admin'), updateSalaryDetails);
 
 // Announcements (HR creates, all org members can read)
 router.get('/announcements', getAnnouncements);
-router.post('/announcements', authorize('hr_admin'), createAnnouncement);
-router.put('/announcements/:id', authorize('hr_admin'), updateAnnouncement);
-router.delete('/announcements/:id', authorize('hr_admin'), deleteAnnouncement);
+router.post('/announcements', authorize('hr_admin', 'superadmin', 'org_admin'), createAnnouncement);
+router.put('/announcements/:id', authorize('hr_admin', 'superadmin', 'org_admin'), updateAnnouncement);
+router.delete('/announcements/:id', authorize('hr_admin', 'superadmin', 'org_admin'), deleteAnnouncement);
 
 // Polls (HR creates, all org members can view and vote)
 router.get('/polls', getPolls);
-router.post('/polls', authorize('hr_admin'), createPoll);
-router.put('/polls/:id', authorize('hr_admin'), updatePoll);
-router.delete('/polls/:id', authorize('hr_admin'), deletePoll);
+router.post('/polls', authorize('hr_admin', 'superadmin', 'org_admin'), createPoll);
+router.put('/polls/:id', authorize('hr_admin', 'superadmin', 'org_admin'), updatePoll);
+router.delete('/polls/:id', authorize('hr_admin', 'superadmin', 'org_admin'), deletePoll);
 router.post('/polls/:id/vote', votePoll);
 
 export default router;

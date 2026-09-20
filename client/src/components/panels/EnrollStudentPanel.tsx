@@ -23,7 +23,10 @@ interface Program {
     specialisation?: string | null;
     baseFee: number;
     universityFee?: number;
+    oneTimeUniversityFee?: number;
+    oneTimeCommission?: number;
     feeBreakdown?: any[];
+    fullProgramFee?: number;
     currency: string;
     billingCycle?: string;
     gstPercentage?: number;
@@ -237,28 +240,21 @@ export function EnrollStudentPanel() {
     const method = pm || paymentMethod;
 
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
-      const getBreakdownAddFees = (b: any) => {
-        if (typeof b.additionalFees !== 'string' || b.additionalFees.trim() === '') return 0;
-        return b.additionalFees.split(',').reduce((sum: number, s: string) => {
-          const parts = s.trim().split(':');
-          return sum + (Number(parts[1]) || 0);
-        }, 0);
-      };
-
       if (method === 'full_payment') {
         const fullFee = Number((fs as any).fullProgramFee || 0);
         if (fullFee > 0) {
+          // fullProgramFee already includes university fee — use as-is
           subtotal = fullFee + additionalFeesTotal;
         } else {
+          // Fallback: sum all semester tuition + exam fees (university fee is internal only)
           const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
           const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
-          const uniFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
-          const bdAddFees = breakdowns.reduce((sum: number, b: any) => sum + getBreakdownAddFees(b), 0);
-          subtotal = baseFees + uniFees + examFees + additionalFeesTotal + bdAddFees;
+          subtotal = baseFees + examFees + additionalFeesTotal;
         }
       } else {
-        const b = breakdowns[0]; // first payment config
-        subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + getBreakdownAddFees(b);
+        const b = breakdowns[0]; // first installment config
+        // University fee is a sub-component of tuition, not an additional charge
+        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
       }
     } else {
       subtotal = fs.baseFee + additionalFeesTotal;
@@ -827,9 +823,10 @@ export function EnrollStudentPanel() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <input type="radio" checked={paymentMethod === 'full_payment'} onChange={() => setPaymentMethod('full_payment')} className="accent-primary" />
-                          <span className="font-semibold text-sm">One-Time Payment</span>
+                          <span className="font-semibold text-sm">Full Payment (One-Time)</span>
                         </div>
-                        <p className="text-xs text-muted-foreground ml-5">Pay full program fee upfront including all tuition.</p>
+                        <p className="text-xs text-muted-foreground ml-5">Pay entire program fee upfront.</p>
+                        <p className="text-sm font-bold text-emerald-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'full_payment').toLocaleString()}</p>
                       </div>
                       <div 
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'installment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}
@@ -839,7 +836,8 @@ export function EnrollStudentPanel() {
                           <input type="radio" checked={paymentMethod === 'installment'} onChange={() => setPaymentMethod('installment')} className="accent-primary" />
                           <span className="font-semibold text-sm">Installment ({getBillingCycleText(selectedProgram).replace('/', '').trim()})</span>
                         </div>
-                        <p className="text-xs text-muted-foreground ml-5">Pay the first installment plus registration fee.</p>
+                        <p className="text-xs text-muted-foreground ml-5">Pay first installment now, rest later.</p>
+                        <p className="text-sm font-bold text-blue-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'installment').toLocaleString()} <span className="font-normal text-xs text-muted-foreground">first installment</span></p>
                       </div>
                     </div>
                   </div>
@@ -847,16 +845,16 @@ export function EnrollStudentPanel() {
                   <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
                     <div>
                       <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
-                        Required Enrollment Fee
+                        {paymentMethod === 'full_payment' ? 'Full Payment Due' : 'First Installment Due'}
                       </h4>
                       <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
-                        Initial payment due for enrollment based on configured pricing structure.
+                        {paymentMethod === 'full_payment' ? 'Complete program fee paid upfront.' : 'Amount due now. Remaining installments billed per schedule.'}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
                       <div className="text-2xl font-black text-indigo-700">
-                        ₹{getTotalFee(selectedProgram).toLocaleString()}
+                        ₹{getTotalFee(selectedProgram, paymentMethod).toLocaleString()}
                       </div>
                     </div>
                   </div>

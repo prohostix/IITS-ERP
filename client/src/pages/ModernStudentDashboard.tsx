@@ -14,7 +14,9 @@ import {
   LogOut, 
   MapPin, 
   School,
-  FileDown
+  FileDown,
+  ExternalLink,
+  Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,9 +54,14 @@ export function ModernStudentDashboard() {
   };
 
   const handleDownload = (m: any) => {
+    const isExternalUrl = m.fileUrl && m.fileUrl.startsWith('http');
+    if (isExternalUrl) {
+      window.open(m.fileUrl, '_blank');
+      return;
+    }
     const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
     const serverUrl = apiBase.replace('/api/v1', '');
-    const url = m.fileUrl.startsWith('http') ? m.fileUrl : `${serverUrl}${m.fileUrl}`;
+    const url = `${serverUrl}${m.fileUrl}`;
     const a = document.createElement('a');
     a.href = url;
     a.download = m.fileName;
@@ -102,23 +109,26 @@ export function ModernStudentDashboard() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'syllabus':
-        return <FileText className="w-5 h-5 text-indigo-500" />;
-      case 'question_paper':
-        return <ClipboardList className="w-5 h-5 text-amber-500" />;
-      default:
-        return <BookOpen className="w-5 h-5 text-emerald-500" />;
+      case 'syllabus': return <FileText className="w-5 h-5 text-indigo-500" />;
+      case 'question_paper': return <ClipboardList className="w-5 h-5 text-amber-500" />;
+      case 'ebook': return <BookOpen className="w-5 h-5 text-teal-500" />;
+      case 'video_class': return <div className="w-5 h-5 text-red-500 flex items-center justify-center"><span className="text-[16px]">🎬</span></div>;
+      case 'exam_subjective': return <FileText className="w-5 h-5 text-orange-500" />;
+      case 'exam_objective': return <ClipboardList className="w-5 h-5 text-blue-500" />;
+      default: return <BookOpen className="w-5 h-5 text-emerald-500" />;
     }
   };
 
   const getCategoryLabel = (category: string) => {
     switch (category) {
-      case 'syllabus':
-        return 'Syllabus';
-      case 'question_paper':
-        return 'Question Paper';
-      default:
-        return 'Study Material';
+      case 'syllabus': return 'Syllabus';
+      case 'question_paper': return 'Question Paper';
+      case 'ebook': return 'E-Book';
+      case 'video_class': return 'Video Class';
+      case 'exam_subjective': return 'Subjective Exam';
+      case 'exam_objective': return 'Objective Exam';
+      case 'reference': return 'Reference';
+      default: return 'Study Material';
     }
   };
 
@@ -294,9 +304,15 @@ export function ModernStudentDashboard() {
                                   size="icon"
                                   onClick={() => handleDownload(m)}
                                   className="rounded-full opacity-60 hover:opacity-100 group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0"
-                                  title="Download File"
+                                  title={(m.fileUrl && m.fileUrl.startsWith('http')) ? "Open Link" : "Download File"}
                                 >
-                                  <Download className="w-4 h-4" />
+                                  {m.category === 'video_class' ? (
+                                    <Play className="w-4 h-4" />
+                                  ) : (m.fileUrl && m.fileUrl.startsWith('http')) ? (
+                                    <ExternalLink className="w-4 h-4" />
+                                  ) : (
+                                    <Download className="w-4 h-4" />
+                                  )}
                                 </Button>
                               </div>
                             ))}

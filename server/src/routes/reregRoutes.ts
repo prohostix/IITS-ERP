@@ -19,21 +19,21 @@ router.use(protect);
 // REREG rules management
 router
   .route('/rules')
-  .post(authorize('finance_admin'), createOrUpdateReregRules)
-  .get(authorize('finance_admin', 'ops_admin'), getReregRules);
+  .post(authorize('finance_admin', 'superadmin', 'org_admin'), createOrUpdateReregRules)
+  .get(authorize('finance_admin', 'ops_admin', 'superadmin', 'org_admin'), getReregRules);
 
 // REREG processing
 router
   .route('/pending')
-  .get(authorize('finance_admin', 'ops_admin'), getPendingReregs);
+  .get(authorize('finance_admin', 'ops_admin', 'superadmin', 'org_admin'), getPendingReregs);
 
 router
   .route('/completed')
-  .get(authorize('finance_admin', 'ops_admin'), getCompletedReregs);
+  .get(authorize('finance_admin', 'ops_admin', 'superadmin', 'org_admin'), getCompletedReregs);
 
 router
   .route('/process/:studentId')
-  .post(authorize('ops_admin'), processRereg);
+  .post(authorize('ops_admin', 'superadmin', 'org_admin'), processRereg);
 
 // Cron job endpoint (should be protected with API key in production)
 router
@@ -42,6 +42,6 @@ router
 
 router
   .route('/stats')
-  .get(authorize('finance_admin'), getReregStats);
+  .get(authorize('finance_admin', 'superadmin', 'org_admin'), getReregStats);
 
 export default router;

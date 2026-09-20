@@ -35,6 +35,10 @@ interface Material {
 const CATEGORIES = [
   { value: 'syllabus', label: 'Syllabus', icon: '📋', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
   { value: 'study_material', label: 'Study Material', icon: '📚', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { value: 'ebook', label: 'E-Book', icon: '📖', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
+  { value: 'video_class', label: 'Video Class', icon: '🎬', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  { value: 'exam_subjective', label: 'Subjective Exam', icon: '📝', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  { value: 'exam_objective', label: 'Objective Exam', icon: '✅', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
   { value: 'question_paper', label: 'Question Paper', icon: '📝', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   { value: 'reference', label: 'Reference', icon: '🔗', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
   { value: 'other', label: 'Other', icon: '📁', color: 'bg-gray-500/10 text-gray-600 border-gray-500/20' },
@@ -98,8 +102,9 @@ export function ProgramDetailPanel({
   const [selectedSemester, setSelectedSemester] = useState<string>(initialSemester || 'all');
 
   // Upload form state
+  const [uploadType, setUploadType] = useState<'file' | 'url'>('file');
   const [uploadForm, setUploadForm] = useState({
-    title: '', description: '', category: 'study_material', semesterNumber: '',
+    title: '', description: '', category: 'study_material', semesterNumber: '', externalUrl: '',
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -124,7 +129,8 @@ export function ProgramDetailPanel({
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile && !editingId) { toast.error('Please select a file'); return; }
+    if (uploadType === 'file' && !uploadFile && !editingId) { toast.error('Please select a file'); return; }
+    if (uploadType === 'url' && !uploadForm.externalUrl.trim()) { toast.error('Please provide an external URL'); return; }
     if (!uploadForm.title.trim()) { toast.error('Title is required'); return; }
 
     setUploading(true);
@@ -134,7 +140,8 @@ export function ProgramDetailPanel({
       fd.append('description', uploadForm.description);
       fd.append('category', uploadForm.category);
       if (uploadForm.semesterNumber) fd.append('semesterNumber', uploadForm.semesterNumber);
-      if (uploadFile) fd.append('file', uploadFile);
+      if (uploadType === 'file' && uploadFile) fd.append('file', uploadFile);
+      if (uploadType === 'url' && uploadForm.externalUrl) fd.append('externalUrl', uploadForm.externalUrl);
 
       if (editingId) {
         await api.put(`/operations/programs/${programId}/materials/${editingId}`, fd, {
@@ -171,11 +178,14 @@ export function ProgramDetailPanel({
 
   const handleEdit = (m: Material) => {
     setEditingId(m.id);
+    const isExternalUrl = m.fileUrl && m.fileUrl.startsWith('http');
+    setUploadType(isExternalUrl ? 'url' : 'file');
     setUploadForm({
       title: m.title,
       description: m.description,
       category: m.category,
       semesterNumber: m.semesterNumber ? String(m.semesterNumber) : '',
+      externalUrl: isExternalUrl ? m.fileUrl : '',
     });
     setUploadFile(null);
     setUploadDialogOpen(true);
@@ -183,11 +193,13 @@ export function ProgramDetailPanel({
 
   const resetUploadForm = () => {
     setEditingId(null);
+    setUploadType('file');
     setUploadForm({ 
       title: '', 
       description: '', 
       category: 'study_material', 
-      semesterNumber: selectedSemester === 'all' ? '' : selectedSemester 
+      semesterNumber: selectedSemester === 'all' ? '' : selectedSemester,
+      externalUrl: '',
     });
     setUploadFile(null);
   };
@@ -478,25 +490,59 @@ export function ProgramDetailPanel({
             </div>
 
             <div className="space-y-1">
-              <Label>{editingId ? 'Replace File' : 'File *'}</Label>
-              <label className={cn(
-                'flex flex-col items-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors',
-                uploadFile ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'
-              )}>
-                <Upload className="w-6 h-6 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground text-center">
-                  {uploadFile
-                    ? `${uploadFile.name} (${formatBytes(uploadFile.size)})`
-                    : editingId ? 'Click to replace file (optional)' : 'Click to select a file'}
-                </span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-                  className="hidden"
-                  onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                />
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>{editingId ? 'Replace Material' : 'Material Source *'}</Label>
+                <div className="flex bg-muted rounded-lg p-0.5">
+                  <button 
+                    type="button"
+                    onClick={() => setUploadType('file')}
+                    className={cn("px-3 py-1 text-xs font-medium rounded-md transition-colors", uploadType === 'file' ? 'bg-background shadow' : 'text-muted-foreground')}
+                  >
+                    File Upload
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setUploadType('url')}
+                    className={cn("px-3 py-1 text-xs font-medium rounded-md transition-colors", uploadType === 'url' ? 'bg-background shadow' : 'text-muted-foreground')}
+                  >
+                    External Link
+                  </button>
+                </div>
+              </div>
+
+              {uploadType === 'file' ? (
+                <div 
+                  className={cn(
+                    "mt-1 border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                    uploadFile ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'
+                  )}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground text-center">
+                    {uploadFile
+                      ? `${uploadFile.name} (${formatBytes(uploadFile.size)})`
+                      : editingId ? 'Click to replace file (optional)' : 'Click to select a file'}
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                    onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <Input 
+                    type="url" 
+                    placeholder="https://youtube.com/..." 
+                    value={uploadForm.externalUrl}
+                    onChange={(e) => setUploadForm({ ...uploadForm, externalUrl: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Provide a link to a video, external document, or online form.</p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 pt-2">

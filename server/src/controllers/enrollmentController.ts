@@ -397,11 +397,20 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
             commRate = Number(breakdowns[0].commissionRate);
           }
         }
+      } else {
+        uniFee = Number(feeStructure.universityFee || 0);
       }
 
-      if (uniFee > 0) {
+      const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
+      const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
+
+      const totalUniFeeToProcess = uniFee + oneTimeUniFee;
+
+      if (totalUniFeeToProcess > 0) {
         const commissionAmount = (uniFee * commRate) / 100;
-        const feeAmount = Math.round(uniFee - commissionAmount);
+        const oneTimeCommAmount = (oneTimeUniFee * oneTimeCommPercent) / 100;
+        const totalCommission = commissionAmount + oneTimeCommAmount;
+        const feeAmount = Math.round(totalUniFeeToProcess - totalCommission);
         
         if (feeAmount > 0) {
           const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
@@ -693,17 +702,10 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
     let subtotal = 0;
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0];
-      let breakdownAdditionalFeesTotal = 0;
-      if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
-        const custom = b.additionalFees.split(',').map((s: string) => {
-          const parts = s.trim().split(':');
-          return Number(parts[1]) || 0;
-        });
-        breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
-      }
-      subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
+      // University fee is internal only — student pays baseFee + examFee
+      subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
     } else {
-      subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.universityFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
+      subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
     }
 
     const gstEntry = addFees.find((f: any) => f.label === 'GST');

@@ -147,7 +147,15 @@ export function StudyCenterEnrollmentsPanel() {
       const res = await api.post('/enrollment/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setEditDocuments(list => [...list, { name: docName || file.name, url: res.data.url }]);
+      setEditDocuments(list => {
+        const existingIndex = list.findIndex(d => d.name === (docName || file.name));
+        if (existingIndex > -1) {
+          const newList = [...list];
+          newList[existingIndex] = { name: docName || file.name, url: res.data.url }; // Replaces and removes status/remarks
+          return newList;
+        }
+        return [...list, { name: docName || file.name, url: res.data.url }];
+      });
       toast.success(`${docName || file.name} uploaded successfully`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'File upload failed');
@@ -193,11 +201,25 @@ export function StudyCenterEnrollmentsPanel() {
         <body>
           <h1>Student Application Form</h1>
           <div class="section-title">Personal Details</div>
-          <table>
-            <tr><th>Student Name</th><td>${e.studentName}</td></tr>
-            <tr><th>Email</th><td>${e.studentEmail}</td></tr>
-            <tr><th>Phone</th><td>${e.studentPhone}</td></tr>
-            <tr><th>Address</th><td>${e.studentAddress}</td></tr>
+          <table style="margin-top: 10px;">
+            <tr>
+              <td style="border: none; padding: 0; width: 80%;">
+                <table style="margin-top: 0;">
+                  <tr><th>Student Name</th><td>${e.studentName}</td></tr>
+                  <tr><th>Email</th><td>${e.studentEmail}</td></tr>
+                  <tr><th>Phone</th><td>${e.studentPhone}</td></tr>
+                  <tr><th>Address</th><td>${e.studentAddress}</td></tr>
+                </table>
+              </td>
+              <td style="border: none; padding: 0; padding-left: 20px; width: 20%; vertical-align: top;">
+                ${e.documents?.find(d => d.name === 'Photo') ? 
+                  `<div style="width: 120px; height: 150px; border: 1px solid #ccc; padding: 5px;">
+                     <img src="${e.documents.find(d => d.name === 'Photo')?.url.startsWith('/') ? e.documents.find(d => d.name === 'Photo')?.url : `/uploads/${e.documents.find(d => d.name === 'Photo')?.url}`}" style="width: 100%; height: 100%; object-fit: cover;" />
+                   </div>` : 
+                  `<div style="width: 120px; height: 150px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px; text-align: center;">Photo <br/>Not Provided</div>`
+                }
+              </td>
+            </tr>
           </table>
           <div class="section-title">Enrollment Details</div>
           <table>
@@ -446,21 +468,26 @@ export function StudyCenterEnrollmentsPanel() {
                     <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                   </h4>
                   {selectedEnrollment.documents && selectedEnrollment.documents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {selectedEnrollment.documents.map((doc, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
-                          <div className="flex items-center gap-2 truncate pr-2">
-                            <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate font-medium">{doc.name}</span>
+                        <div key={idx} className="flex flex-col gap-2 bg-muted/10 p-3 rounded-lg border text-sm">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-2 truncate pr-2">
+                              <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium">{doc.name}</span>
+                              {doc.status === 'approved' && <Badge className="bg-success/10 text-success text-[10px] uppercase">Approved</Badge>}
+                              {doc.status === 'rejected' && <Badge className="bg-destructive/10 text-destructive text-[10px] uppercase">Rejected</Badge>}
+                            </div>
+                            <a
+                              href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
+                            >
+                              View
+                            </a>
                           </div>
-                          <a
-                            href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
-                          >
-                            View
-                          </a>
+                          {doc.remarks && <p className="text-xs text-destructive ml-6">Remark: {doc.remarks}</p>}
                         </div>
                       ))}
                     </div>

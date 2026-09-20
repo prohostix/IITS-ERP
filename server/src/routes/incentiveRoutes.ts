@@ -20,18 +20,18 @@ router.use(protect);
 // Incentive structure management
 router
   .route('/')
-  .post(authorize('finance_admin'), createIncentiveStructure)
-  .get(authorize('finance_admin', 'hr_admin'), getIncentiveStructures);
+  .post(authorize('finance_admin', 'superadmin', 'org_admin'), createIncentiveStructure)
+  .get(authorize('finance_admin', 'hr_admin', 'superadmin', 'org_admin'), getIncentiveStructures);
 
 router
   .route('/:id')
   .get(protect, getIncentiveStructure)
-  .patch(authorize('finance_admin'), updateIncentiveStructure)
-  .delete(authorize('finance_admin'), deleteIncentiveStructure);
+  .patch(authorize('finance_admin', 'superadmin', 'org_admin'), updateIncentiveStructure)
+  .delete(authorize('finance_admin', 'superadmin', 'org_admin'), deleteIncentiveStructure);
 
 router
   .route('/:id/approve')
-  .patch(authorize('finance_admin'), approveIncentiveStructure);
+  .patch(authorize('finance_admin', 'superadmin', 'org_admin'), approveIncentiveStructure);
 
 // Incentive calculation
 router

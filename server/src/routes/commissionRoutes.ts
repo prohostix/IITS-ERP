@@ -11,7 +11,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 router.use(protect);
-router.use(authorize('finance_admin'));
+router.use(authorize('finance_admin', 'superadmin', 'org_admin'));
 
 // Commission In (Earnings)
 router.get('/in', getCommissionInList);

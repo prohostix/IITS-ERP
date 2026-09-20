@@ -26,16 +26,45 @@ export const getProgramDetail = asyncHandler(async (req: AuthRequest, res: Respo
     where: { id: req.params.programId }, 
     include: { university: true } 
   });
-  res.json({ success: true, data: program });
+  
+  if (!program) {
+    res.status(404).json({ success: false, message: 'Program not found' });
+    return;
+  }
+
+  const materials = await prisma.programMaterial.findMany({
+    where: { 
+      programId: req.params.programId, 
+      organizationId: req.user.organizationId, 
+      isActive: true 
+    },
+    include: { uploader: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const byCategory = materials.reduce((acc: any, material: any) => {
+    if (!acc[material.category]) acc[material.category] = [];
+    acc[material.category].push(material);
+    return acc;
+  }, {});
+
+  res.json({ success: true, data: { program, materials, byCategory } });
 });
 
 export const uploadProgramMaterial = asyncHandler(async (req: AuthRequest, res: Response) => {
-  if (!req.file) {
-    res.status(400).json({ success: false, message: 'Please upload a file' });
+  let fileUrl = '';
+  let fileName = '';
+
+  if (req.body.externalUrl) {
+    fileUrl = req.body.externalUrl;
+    fileName = 'External Link';
+  } else if (req.file) {
+    fileUrl = `/uploads/${req.file.filename}`;
+    fileName = req.file.originalname;
+  } else {
+    res.status(400).json({ success: false, message: 'Please upload a file or provide an external URL' });
     return;
   }
-  const fileUrl = `/uploads/${req.file.filename}`;
-  const fileName = req.file.originalname;
 
   const material = await prisma.programMaterial.create({
     data: {
@@ -62,7 +91,10 @@ export const updateProgramMaterial = asyncHandler(async (req: AuthRequest, res: 
     semesterNumber: req.body.semesterNumber ? String(req.body.semesterNumber) : null,
   };
 
-  if (req.file) {
+  if (req.body.externalUrl) {
+    data.fileUrl = req.body.externalUrl;
+    data.fileName = 'External Link';
+  } else if (req.file) {
     data.fileUrl = `/uploads/${req.file.filename}`;
     data.fileName = req.file.originalname;
   }

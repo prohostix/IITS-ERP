@@ -389,6 +389,8 @@ export const duplicateSession = asyncHandler(async (req: AuthRequest, res: Respo
           billingCycle: fee.billingCycle,
           baseFee: fee.baseFee,
           fullProgramFee: fee.fullProgramFee,
+          oneTimeUniversityFee: (fee as any).oneTimeUniversityFee || 0,
+          oneTimeCommission: (fee as any).oneTimeCommission || 0,
           universityFee: fee.universityFee,
           additionalFees: fee.additionalFees || [],
           feeBreakdown: fee.feeBreakdown || [],

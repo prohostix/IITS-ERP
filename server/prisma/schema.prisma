@@ -1485,6 +1485,8 @@ model ProgramFeeStructure {
   billingCycle       String
   baseFee            Float
   fullProgramFee     Float?            @default(0)
+  oneTimeUniversityFee Float?           @default(0)
+  oneTimeCommission  Float?            @default(0)
   universityFee      Float             @default(0)
   additionalFees     Json              @default("[]")
   feeBreakdown       Json              @default("[]")

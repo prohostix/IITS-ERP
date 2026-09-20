@@ -80,7 +80,7 @@ export function UniversityStudentsPanel() {
 
   const fetchSessions = async () => {
     try {
-      const res = await api.get('/operations/admission-sessions');
+      const res = await api.get('/operations/sessions');
       setSessions(res.data.data || []);
     } catch {
       toast.error('Failed to load sessions');

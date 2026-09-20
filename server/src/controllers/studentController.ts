@@ -355,6 +355,48 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
   const additionalFeesTotal = nonGstFees.reduce((s: number, f: any) => s + f.amount, 0);
 
+  const enrollment = student.enrollments?.[0];
+  const isFullPayment = enrollment?.paymentMethod === 'full_payment';
+
+  if (isFullPayment) {
+    const name = 'Full Payment (One-Time)';
+    const matchingInvoice = invoices.find((inv: any) => {
+      const items = Array.isArray(inv.items) ? inv.items : JSON.parse(typeof inv.items === 'string' ? inv.items : '[]');
+      return items.some((item: any) => item.description?.toLowerCase().includes(name.toLowerCase()));
+    });
+
+    let status = 'upcoming';
+    let paidAt = null;
+    let dueDate = new Date(student.enrolledAt || student.createdAt);
+
+    if (matchingInvoice) {
+      if (matchingInvoice.status === 'paid') {
+        status = 'paid';
+        paidAt = matchingInvoice.paidAt || matchingInvoice.updatedAt;
+      } else {
+        status = 'unpaid';
+        dueDate = matchingInvoice.dueDate || dueDate;
+      }
+    } else if (student.enrolledAt) {
+      status = 'paid';
+      paidAt = student.enrolledAt;
+    }
+
+    let fullAmount = enrollment.totalFee || Number((feeStructure as any).fullProgramFee || 0);
+
+    installments.push({
+      name,
+      amount: fullAmount,
+      status,
+      dueDate,
+      paidAt,
+      invoiceId: matchingInvoice?.id
+    });
+
+    res.status(200).json({ success: true, installments });
+    return;
+  }
+
   // Parse feeBreakdown from fee structure
   let breakdownArray: any[] = [];
   if (feeStructure.feeBreakdown) {
@@ -408,16 +450,11 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
         continue;
       }
 
-      let breakdownAdditionalFeesTotal = 0;
-      if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
-        const custom = b.additionalFees.split(',').map((s: string) => {
-          const parts = s.trim().split(':');
-          return Number(parts[1]) || 0;
-        });
-        breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
+      // University fee is a sub-component of tuition (internal only). Student pays baseFee + examFee.
+      let totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0);
+      if (i === 0) {
+        totalAmount += additionalFeesTotal;
       }
-      let totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0) + breakdownAdditionalFeesTotal;
-      if (i === 0) totalAmount += additionalFeesTotal;
 
       const gstEntry = addFees.find((f: any) => f.label === 'GST');
       if (gstEntry) {
@@ -436,6 +473,7 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
   } else {
     // Fallback if no breakdown configured
     const baseFee = feeStructure.baseFee;
+    // University fee is internal only — student pays baseFee only
     let fallbackAmount = baseFee + additionalFeesTotal;
     const gstEntry = addFees.find((f: any) => f.label === 'GST');
     if (gstEntry) {

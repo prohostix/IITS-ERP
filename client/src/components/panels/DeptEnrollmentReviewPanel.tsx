@@ -18,6 +18,7 @@ interface Enrollment {
   studentEmail: string;
   studentPhone?: string;
   studentAddress?: string;
+  studentPhoto?: string;
   programId: string;
   studyCenterId: string;
   status: string;
@@ -40,7 +41,7 @@ interface Enrollment {
   program?: { name: string; code: string; university?: { id: string; name: string } };
   studyCenter?: { id: string; name: string };
   session?: { name: string };
-  documents?: { name: string; url: string }[];
+  documents?: { name: string; url: string; status?: string; remarks?: string }[];
   educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
 }
 
@@ -104,6 +105,23 @@ export function DeptEnrollmentReviewPanel() {
       fetch();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to reject');
+    }
+  };
+
+  const handleDocumentStatus = async (enrollmentId: string, docName: string, status: string, docRemarks: string = '') => {
+    try {
+      await api.put(`/enrollment/review/${enrollmentId}/document`, { docName, status, remarks: docRemarks });
+      toast.success(`Document ${docName} marked as ${status}`);
+      // Update local state
+      if (selectedEnrollment && selectedEnrollment.id === enrollmentId) {
+        setSelectedEnrollment({
+          ...selectedEnrollment,
+          documents: selectedEnrollment.documents?.map(d => d.name === docName ? { ...d, status, remarks: docRemarks } : d)
+        });
+      }
+      fetch();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || `Failed to update document status`);
     }
   };
 
@@ -345,11 +363,23 @@ export function DeptEnrollmentReviewPanel() {
                 </div>
 
                 {/* Personal Details */}
-                <div>
+                <div className="relative">
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
                     <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal Details
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/10 p-4 rounded-xl border text-sm">
+                  
+                  {/* Student Photo - Application Form Style */}
+                  {selectedEnrollment.studentPhoto && (
+                    <div className="absolute top-0 right-0 w-24 h-28 border border-border rounded overflow-hidden shadow-sm hidden sm:block">
+                      <img 
+                        src={selectedEnrollment.studentPhoto.startsWith('/') ? selectedEnrollment.studentPhoto : `/uploads/${selectedEnrollment.studentPhoto}`} 
+                        alt="Student Photo" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/10 p-4 rounded-xl border text-sm sm:pr-28">
                     <div>
                       <span className="text-xs text-muted-foreground block font-semibold">Date of Birth</span>
                       <span className="font-medium">{selectedEnrollment.dob || 'N/A'}</span>
@@ -458,21 +488,42 @@ export function DeptEnrollmentReviewPanel() {
                     <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                   </h4>
                   {selectedEnrollment.documents && selectedEnrollment.documents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {selectedEnrollment.documents.map((doc, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
-                          <div className="flex items-center gap-2 truncate pr-2">
-                            <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate font-medium">{doc.name}</span>
+                        <div key={idx} className="flex justify-between items-center bg-muted/10 p-3 rounded-lg border text-sm">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium">{doc.name}</span>
+                              {doc.status === 'approved' && <Badge className="bg-success/10 text-success text-[10px] uppercase">Approved</Badge>}
+                              {doc.status === 'rejected' && <Badge className="bg-destructive/10 text-destructive text-[10px] uppercase">Rejected</Badge>}
+                            </div>
+                            {doc.remarks && <p className="text-xs text-muted-foreground ml-6">Remark: {doc.remarks}</p>}
                           </div>
-                          <a
-                            href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
-                          >
-                            View
-                          </a>
+                          
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
+                            >
+                              View
+                            </a>
+                            {activeTab === 'pending' && (
+                              <div className="flex items-center gap-1 border-l pl-3 ml-1">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success hover:bg-success/10 hover:text-success" onClick={() => handleDocumentStatus(selectedEnrollment.id, doc.name, 'approved')}>
+                                  <CheckCircle className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => {
+                                  const reason = prompt(`Reason for rejecting ${doc.name}?`);
+                                  if (reason !== null) handleDocumentStatus(selectedEnrollment.id, doc.name, 'rejected', reason);
+                                }}>
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -501,6 +552,8 @@ export function DeptEnrollmentReviewPanel() {
                     <Button
                       className="text-white bg-success hover:bg-success/90"
                       onClick={() => handleApprove(selectedEnrollment.id)}
+                      disabled={selectedEnrollment.documents?.some(d => d.status !== 'approved')}
+                      title={selectedEnrollment.documents?.some(d => d.status !== 'approved') ? "Approve all documents first" : ""}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" /> Approve
                     </Button>

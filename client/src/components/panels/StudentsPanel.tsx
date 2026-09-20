@@ -120,7 +120,7 @@ export function StudentsPanel() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const response = await api.get('/operations/admission-sessions');
+      const response = await api.get('/operations/sessions');
       setSessions(response.data.data || []);
     } catch (error) {
     }
@@ -507,27 +507,42 @@ export function StudentsPanel() {
               </DialogHeader>
 
               <div className="space-y-6 py-4">
-                {/* Contact details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground font-semibold">Email</p>
-                      <p className="font-medium">{selectedStudent.email}</p>
+                <div className="relative pt-2">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
+                    <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal & Contact Details
+                  </h4>
+
+                  {selectedStudent.enrollments?.[0]?.documents?.find((d: any) => d.name === 'Photo') && (
+                    <div className="absolute top-0 right-0 w-24 h-28 border border-border rounded overflow-hidden shadow-sm hidden sm:block">
+                      <img 
+                        src={selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url.startsWith('/') ? selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url : `/uploads/${selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url}`} 
+                        alt="Student Photo" 
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground font-semibold">Phone</p>
-                      <p className="font-medium">{selectedStudent.phone || 'N/A'}</p>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm sm:pr-28">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Email</p>
+                        <p className="font-medium">{selectedStudent.email}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
-                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-xs text-muted-foreground font-semibold">Address</p>
-                      <p className="font-medium">{selectedStudent.address || 'N/A'}</p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Phone</p>
+                        <p className="font-medium">{selectedStudent.phone || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Address</p>
+                        <p className="font-medium">{selectedStudent.address || 'N/A'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -648,21 +663,26 @@ export function StudentsPanel() {
                         <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
                       </h4>
                       {selectedStudent.enrollments[0].documents && selectedStudent.enrollments[0].documents.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                           {selectedStudent.enrollments[0].documents.map((doc: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center bg-muted/10 p-2.5 rounded-lg border text-sm">
-                              <div className="flex items-center gap-2 truncate pr-2">
-                                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate font-medium">{doc.name}</span>
+                            <div key={idx} className="flex flex-col gap-2 bg-muted/10 p-3 rounded-lg border text-sm">
+                              <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 truncate pr-2">
+                                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="font-medium">{doc.name}</span>
+                                  {doc.status === 'approved' && <Badge className="bg-success/10 text-success text-[10px] uppercase">Approved</Badge>}
+                                  {doc.status === 'rejected' && <Badge className="bg-destructive/10 text-destructive text-[10px] uppercase">Rejected</Badge>}
+                                </div>
+                                <a
+                                  href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
+                                >
+                                  View
+                                </a>
                               </div>
-                              <a
-                                href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
-                              >
-                                View
-                              </a>
+                              {doc.remarks && <p className="text-xs text-destructive ml-6">Remark: {doc.remarks}</p>}
                             </div>
                           ))}
                         </div>

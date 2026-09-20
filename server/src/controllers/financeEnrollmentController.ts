@@ -108,17 +108,10 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   let subtotal = 0;
   if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
     const b = breakdowns[0]; // first payment config
-    let breakdownAdditionalFeesTotal = 0;
-    if (typeof b.additionalFees === 'string' && b.additionalFees.trim() !== '') {
-      const custom = b.additionalFees.split(',').map((s: string) => {
-        const parts = s.trim().split(':');
-        return Number(parts[1]) || 0;
-      });
-      breakdownAdditionalFeesTotal = custom.reduce((sum: number, val: number) => sum + val, 0);
-    }
-    subtotal = Number(b.baseFee || 0) + Number(b.universityFee || 0) + Number(b.examFee || 0) + additionalFeesTotal + breakdownAdditionalFeesTotal;
+    // University fee is internal only — student pays baseFee + examFee
+    subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
   } else {
-    subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.universityFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
+    subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
   }
 
   const gstEntry = addFees.find((f: any) => f.label === 'GST');
@@ -261,6 +254,15 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       if (bCommRate > 0) {
         expectedAmount = (bUni * bCommRate) / 100;
       }
+    } else if (dbEnrollment.paymentMethod === 'full_payment' && breakdownsArray.length > 0) {
+      let totalUniFee = breakdownsArray.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
+      let commRate = Number(feeStructure.commissionRate || 0);
+      if (commRate === 0 && breakdownsArray[0].commissionRate) {
+        commRate = Number(breakdownsArray[0].commissionRate);
+      }
+      if (commRate > 0) {
+        expectedAmount = (totalUniFee * commRate) / 100;
+      }
     } else {
       const commRate = Number(feeStructure.commissionRate || 0);
       const uni = Number(feeStructure.universityFee || 0);
@@ -268,6 +270,13 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       if (commRate > 0) {
         expectedAmount = (uni * commRate) / 100;
       }
+    }
+
+    // Add one-time commission percentage of one-time university fee
+    const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
+    const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
+    if (oneTimeCommPercent > 0 && oneTimeUniFee > 0) {
+      expectedAmount += (oneTimeUniFee * oneTimeCommPercent) / 100;
     }
 
     const existingComm = await prisma.commissionIn.findUnique({
@@ -294,30 +303,49 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
       if (existing.length === 0) {
         const breakdown = (feeStructure.feeBreakdown as any[]) || [];
         const isSemester = feeStructure.billingCycle === 'per_semester';
-        
-        if (breakdown.length > 0) {
-          const paymentsToCreate = breakdown.map((cycle, index) => ({
-            organizationId: req.user.organizationId,
-            studentId: enrollment.studentId!,
-            enrollmentId: enrollment.id,
-            semesterOrYear: isSemester ? `Semester ${index + 1}` : `Year ${index + 1}`,
-            amount: Number(cycle.universityFee || 0),
-            status: 'pending'
-          }));
-          await prisma.universityFeePayment.createMany({ data: paymentsToCreate });
-        } else if (feeStructure.universityFee > 0) {
+        const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
+        const isInstallment = dbEnrollment.paymentMethod === 'installment';
+
+        if (isInstallment) {
+          // INSTALLMENT: Create ALL semester/year rows, but lock subsequent ones
+          if (breakdown.length > 0) {
+            const paymentsToCreate = breakdown.map((cycle: any, index: number) => ({
+              organizationId: req.user.organizationId,
+              studentId: enrollment.studentId!,
+              enrollmentId: enrollment.id,
+              semesterOrYear: isSemester ? `Semester ${index + 1}` : `Year ${index + 1}`,
+              amount: Number(cycle.universityFee || 0),
+              status: index === 0 ? 'pending' : 'locked'
+            }));
+            await prisma.universityFeePayment.createMany({ data: paymentsToCreate });
+          } else if (feeStructure.universityFee > 0) {
+            await prisma.universityFeePayment.create({
+              data: {
+                organizationId: req.user.organizationId,
+                studentId: enrollment.studentId!,
+                enrollmentId: enrollment.id,
+                semesterOrYear: isSemester ? 'Semester 1' : 'Year 1',
+                amount: feeStructure.universityFee,
+                status: 'pending'
+              }
+            });
+          }
+        } else {
+          // FULL PAYMENT: Create ONLY a single one-time full payment row
+          const fullAmount = oneTimeUniFee > 0 ? oneTimeUniFee : (feeStructure.fullProgramFee || 0);
           await prisma.universityFeePayment.create({
             data: {
               organizationId: req.user.organizationId,
               studentId: enrollment.studentId!,
               enrollmentId: enrollment.id,
-              semesterOrYear: isSemester ? 'Semester 1' : 'Year 1',
-              amount: feeStructure.universityFee,
+              semesterOrYear: 'Full Payment (One-Time)',
+              amount: fullAmount,
               status: 'pending'
             }
           });
         }
       }
+
     }
   }
 

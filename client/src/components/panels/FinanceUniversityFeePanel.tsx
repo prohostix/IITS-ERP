@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { RefreshCw, CheckCircle, Clock, DollarSign, Upload, Calendar, FileText, ChevronDown, ChevronRight, Search, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -312,6 +312,10 @@ export function FinanceUniversityFeePanel() {
                                       </div>
                                     )}
                                   </div>
+                                ) : p.status === 'locked' ? (
+                                  <Button size="sm" variant="outline" disabled className="text-muted-foreground">
+                                    <Lock className="w-3.5 h-3.5 mr-2" /> Locked
+                                  </Button>
                                 ) : (
                                   <Button size="sm" onClick={() => handlePayClick(p)}>Record Payment</Button>
                                 )}

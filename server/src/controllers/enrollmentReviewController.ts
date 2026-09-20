@@ -28,6 +28,37 @@ export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, re
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 
+export const updateDocumentStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { docName, status, remarks } = req.body;
+  if (!docName || !status) {
+    res.status(400).json({ success: false, message: 'Document name and status are required' });
+    return;
+  }
+
+  const enrollment = await prisma.enrollment.findUnique({ where: { id: req.params.id } });
+  if (!enrollment) {
+    res.status(404).json({ success: false, message: 'Enrollment not found' });
+    return;
+  }
+
+  const documents = Array.isArray(enrollment.documents) ? [...enrollment.documents] : [];
+  const docIndex = documents.findIndex((d: any) => d.name === docName);
+  
+  if (docIndex === -1) {
+    res.status(404).json({ success: false, message: 'Document not found' });
+    return;
+  }
+
+  documents[docIndex] = { ...documents[docIndex], status, remarks: remarks || null };
+
+  const updatedEnrollment = await prisma.enrollment.update({
+    where: { id: req.params.id },
+    data: { documents: documents as any },
+  });
+
+  res.json({ success: true, data: updatedEnrollment });
+});
+
 export const approveDeptEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const currentEnrollment = await prisma.enrollment.findUnique({
     where: { id: req.params.id },

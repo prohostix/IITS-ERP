@@ -30,14 +30,14 @@ router
 
 router
   .route('/requests/:id/approve')
-  .patch(authorize('ops_admin'), approveSessionRequest);
+  .patch(authorize('ops_admin', 'superadmin', 'org_admin'), approveSessionRequest);
 
 router
   .route('/requests/:id/reject')
-  .patch(authorize('ops_admin'), rejectSessionRequest);
+  .patch(authorize('ops_admin', 'superadmin', 'org_admin'), rejectSessionRequest);
 
 router
   .route('/stats')
-  .get(authorize('ops_admin'), getSessionRequestStats);
+  .get(authorize('ops_admin', 'superadmin', 'org_admin'), getSessionRequestStats);
 
 export default router;

@@ -20,7 +20,7 @@ export function ManagerHiringPanel() {
     try {
       const res = await api.get('/hiring/manager-requests');
       setRequests(res.data.data || []);
-      const deptRes = await api.get('/org/departments');
+      const deptRes = await api.get('/departments');
       setDepartments(deptRes.data.data || []);
     } catch (e: any) {
       toast.error('Failed to fetch hiring requests');

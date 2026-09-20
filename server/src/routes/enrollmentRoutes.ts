@@ -21,6 +21,7 @@ import {
   getDeptReviewEnrollments,
   approveDeptEnrollment,
   rejectDeptEnrollment,
+  updateDocumentStatus,
 } from '../controllers/enrollmentReviewController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
@@ -59,11 +60,12 @@ router.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // Global enrollment list (for admins/staff)
-router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'sales_admin', 'bde', 'employee'), getAllEnrollments);
+router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager', 'bde', 'employee', 'staff'), getAllEnrollments);
 
 // Dept/Sub-dept manager review routes
-router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee'), getPendingReviews);
-router.put('/review/:id/approve', authorize('ops_admin', 'ops_sub_admin', 'employee'), approveDeptEnrollment);
-router.put('/review/:id/reject', authorize('ops_admin', 'ops_sub_admin', 'employee'), rejectDeptEnrollment);
+router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), getPendingReviews);
+router.put('/review/:id/approve', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), approveDeptEnrollment);
+router.put('/review/:id/reject', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), rejectDeptEnrollment);
+router.put('/review/:id/document', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), updateDocumentStatus);
 
 export default router;

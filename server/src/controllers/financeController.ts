@@ -852,8 +852,70 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
     }
   });
 
+  // After paying a semester/year installment, unlock the next one
+  const semLabel = payment.semesterOrYear || '';
+  const semMatch = semLabel.match(/^(Semester|Year)\s+(\d+)$/);
+  if (semMatch && payment.enrollmentId) {
+    const prefix = semMatch[1]; // "Semester" or "Year"
+    const currentNum = parseInt(semMatch[2], 10);
+    const nextNum = currentNum + 1;
+    const nextLabel = `${prefix} ${nextNum}`;
+
+    // Check if next semester already exists
+    const nextExists = await prisma.universityFeePayment.findFirst({
+      where: { enrollmentId: payment.enrollmentId, semesterOrYear: nextLabel }
+    });
+
+    if (nextExists) {
+      if (nextExists.status === 'locked') {
+        await prisma.universityFeePayment.update({
+          where: { id: nextExists.id },
+          data: { status: 'pending' }
+        });
+      }
+    } else if (payment.enrollmentId) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: { id: payment.enrollmentId }
+      });
+      if (enrollment) {
+        const { resolveProgramFeeStructure } = await import('../utils/feeStructureHelper.js');
+        const feeStructure = await resolveProgramFeeStructure(
+          payment.organizationId,
+          enrollment.programId,
+          enrollment.sessionId,
+          enrollment.specialisation || null
+        ).catch(() => null);
+
+        if (feeStructure) {
+          let breakdownsArray: any[] = [];
+          if (typeof feeStructure.feeBreakdown === 'string') {
+            try { breakdownsArray = JSON.parse(feeStructure.feeBreakdown); } catch (e) { breakdownsArray = []; }
+          } else if (Array.isArray(feeStructure.feeBreakdown)) {
+            breakdownsArray = feeStructure.feeBreakdown as any[];
+          }
+
+          // nextNum is 1-indexed; breakdown array is 0-indexed
+          const nextBreakdown = breakdownsArray[nextNum - 1];
+          if (nextBreakdown) {
+            await prisma.universityFeePayment.create({
+              data: {
+                organizationId: payment.organizationId,
+                studentId: payment.studentId,
+                enrollmentId: payment.enrollmentId,
+                semesterOrYear: nextLabel,
+                amount: Number(nextBreakdown.universityFee || 0),
+                status: 'pending'
+              }
+            });
+          }
+        }
+      }
+    }
+  }
+
   res.json({ success: true, data: updated });
 });
+
 
 // ─── Total Data Report ─────────────────────────────────────────────────────────
 

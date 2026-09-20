@@ -82,6 +82,9 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
       specialisation: specialisation || null,
       billingCycle,
       baseFee: baseFee !== undefined ? parseFloat(baseFee) : 0,
+      fullProgramFee: req.body.fullProgramFee !== undefined ? parseFloat(req.body.fullProgramFee) : 0,
+      oneTimeUniversityFee: req.body.oneTimeUniversityFee !== undefined ? parseFloat(req.body.oneTimeUniversityFee) : 0,
+      oneTimeCommission: req.body.oneTimeCommission !== undefined ? parseFloat(req.body.oneTimeCommission) : 0,
       universityFee: universityFee !== undefined ? parseFloat(universityFee) : 0,
       additionalFees: additionalFees || [],
       feeBreakdown: feeBreakdown || [],
@@ -95,9 +98,12 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { level, programId, universityId, admissionSessionId, specialisation, billingCycle, baseFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
+  const { level, programId, universityId, admissionSessionId, specialisation, billingCycle, baseFee, fullProgramFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
   const data: any = {};
   if (level !== undefined) data.level = level;
+  if (fullProgramFee !== undefined) data.fullProgramFee = parseFloat(fullProgramFee);
+  if (req.body.oneTimeUniversityFee !== undefined) data.oneTimeUniversityFee = parseFloat(req.body.oneTimeUniversityFee);
+  if (req.body.oneTimeCommission !== undefined) data.oneTimeCommission = parseFloat(req.body.oneTimeCommission);
 
   if (programId !== undefined) {
     const finalProgramId = (level === 'program' || data.level === 'program') ? programId : null;

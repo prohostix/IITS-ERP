@@ -17,7 +17,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 router.use(protect);
-router.use(authorize('ceo'));
+router.use(authorize('ceo', 'superadmin', 'org_admin'));
 
 // Metrics routes
 router.get('/metrics/performance', getPerformanceMetrics);

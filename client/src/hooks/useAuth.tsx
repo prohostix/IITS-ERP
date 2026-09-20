@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
+    window.location.href = '/login';
   }, []);
 
   const hasRole = useCallback((roles: UserRole[]): boolean => {
@@ -74,12 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       superadmin: ['all'],
       org_admin: ['organizations', 'departments', 'users', 'settings'],
       ceo: ['dashboard', 'reports', 'escalations', 'approvals', 'all_departments'],
+      general_manager: ['dashboard', 'reports', 'escalations', 'approvals', 'all_departments'],
       ops_admin: ['operations', 'universities', 'courses', 'centers', 'students', 'marks'],
       ops_sub_admin: ['operations', 'students', 'marks'],
       finance_admin: ['finance', 'invoices', 'payments', 'expenses', 'targets', 'approvals'],
+      finance_sub_admin: ['finance', 'invoices', 'payments', 'expenses'],
       hr_admin: ['hr', 'employees', 'attendance', 'leave', 'recruitment', 'complaints'],
+      hr_sub_admin: ['hr', 'employees', 'attendance', 'leave'],
       sales_admin: ['sales', 'leads', 'deals', 'referrals', 'targets'],
+      sales_sub_admin: ['sales', 'leads', 'deals', 'referrals'],
       center_admin: ['center', 'students', 'invoices', 'marks'],
+      branch_manager: ['center', 'students', 'invoices', 'marks'],
       employee: ['tasks', 'attendance', 'leave', 'profile'],
       staff: ['tasks', 'attendance', 'leave', 'profile'],
       bde: ['sales', 'leads', 'deals', 'tasks', 'attendance', 'leave', 'profile'],

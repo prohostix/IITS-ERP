@@ -17,19 +17,19 @@ router.use(protect);
 // Ops can submit requests, Finance can view all
 router
   .route('/request')
-  .post(authorize('ops_admin'), submitEditDeleteRequest);
+  .post(authorize('ops_admin', 'superadmin', 'org_admin'), submitEditDeleteRequest);
 
 router
   .route('/requests')
-  .get(authorize('ops_admin', 'finance_admin'), getEditDeleteRequests);
+  .get(authorize('ops_admin', 'finance_admin', 'superadmin', 'org_admin'), getEditDeleteRequests);
 
 router
   .route('/requests/:id')
-  .get(authorize('ops_admin', 'finance_admin'), getEditDeleteRequest)
-  .patch(authorize('finance_admin'), respondToEditDeleteRequest);
+  .get(authorize('ops_admin', 'finance_admin', 'superadmin', 'org_admin'), getEditDeleteRequest)
+  .patch(authorize('finance_admin', 'superadmin', 'org_admin'), respondToEditDeleteRequest);
 
 router
   .route('/stats')
-  .get(authorize('finance_admin'), getEditDeleteStats);
+  .get(authorize('finance_admin', 'superadmin', 'org_admin'), getEditDeleteStats);
 
 export default router;
