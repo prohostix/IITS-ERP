@@ -146,13 +146,15 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
   }
 
   let score = 0;
-  const answerPromises = answers.map(async (ans: any) => {
-    const question = exam.questions.find(q => q.id === ans.questionId);
+  const answerPromises = exam.questions.map(async (question: any) => {
+    const ans = answers.find((a: any) => a.questionId === question.id);
+    const answerText = ans ? ans.answerText : '';
+    
     let isCorrect = null;
     let marksAwarded = 0;
 
-    if (question && question.questionType === 'multiple_choice') {
-      isCorrect = (ans.answerText === question.correctAnswer);
+    if (question.questionType === 'multiple_choice') {
+      isCorrect = (answerText === question.correctAnswer);
       if (isCorrect) {
         marksAwarded = question.marks;
         score += marksAwarded;
@@ -162,8 +164,8 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
     return prisma.examAnswer.create({
       data: {
         submissionId: submission.id,
-        questionId: ans.questionId,
-        answerText: ans.answerText,
+        questionId: question.id,
+        answerText: answerText,
         isCorrect,
         marksAwarded
       }
@@ -175,7 +177,7 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
   const updatedSubmission = await prisma.examSubmission.update({
     where: { id: submission.id },
     data: {
-      status: 'submitted',
+      status: exam.type === 'objective' ? 'graded' : 'submitted',
       submittedAt: new Date(),
       score: exam.type === 'objective' ? score : null
     },

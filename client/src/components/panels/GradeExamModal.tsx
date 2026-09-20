@@ -8,13 +8,16 @@ import { Loader2 } from 'lucide-react';
 
 export default function GradeExamModal({ submission, open, onOpenChange, onGraded }: any) {
   const [grades, setGrades] = useState<any[]>(
-    submission?.answers?.map((ans: any) => ({
-      questionId: ans.questionId,
-      marksAwarded: ans.marksAwarded || 0,
-      answerText: ans.answerText,
-      questionText: submission.exam.questions?.find((q: any) => q.id === ans.questionId)?.questionText || 'Unknown Question',
-      maxMarks: submission.exam.questions?.find((q: any) => q.id === ans.questionId)?.marks || 0
-    })) || []
+    submission?.exam?.questions?.map((q: any) => {
+      const ans = submission?.answers?.find((a: any) => a.questionId === q.id);
+      return {
+        questionId: q.id,
+        marksAwarded: ans?.marksAwarded || 0,
+        answerText: ans?.answerText || '',
+        questionText: q.questionText,
+        maxMarks: q.marks
+      };
+    }) || []
   );
   
   const [saving, setSaving] = useState(false);

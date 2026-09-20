@@ -89,9 +89,17 @@ export function ModernStudentDashboard() {
           prefilled[ans.questionId] = ans.answerText || '';
         });
         setExamAnswers(prefilled);
+        if (submission.status === 'in_progress' && exam.durationMinutes) {
+          const started = new Date(submission.startedAt).getTime();
+          const elapsedSeconds = Math.floor((Date.now() - started) / 1000);
+          const remaining = (exam.durationMinutes * 60) - elapsedSeconds;
+          setTimeRemaining(remaining > 0 ? remaining : 0);
+        } else {
+          setTimeRemaining(null);
+        }
       } else {
         // Init exam
-        await api.post(`/students/exams/${m.id}/start`);
+        const startRes = await api.post(`/students/exams/${m.id}/start`);
         setExamStatus('in_progress');
         setExamAnswers({});
         setExamScore(null);
@@ -133,9 +141,11 @@ export function ModernStudentDashboard() {
 
       const res = await api.post(`/students/exams/${activeExamMode.materialId}/submit`, { answers: formattedAnswers });
       toast.success('Exam submitted successfully!');
-      setExamStatus('submitted');
-      if (res.data.data.score !== null) {
-        setExamScore(res.data.data.score);
+      
+      const updatedSubmission = res.data.data;
+      setExamStatus(updatedSubmission.status);
+      if (updatedSubmission.score !== null) {
+        setExamScore(updatedSubmission.score);
       }
     } catch (error) {
       toast.error('Failed to submit exam');
