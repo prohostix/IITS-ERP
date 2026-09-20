@@ -133,9 +133,9 @@ router.post('/centers', authorize('finance_admin', 'org_admin', 'superadmin'), c
 router.put('/centers/:id/finance-verify', authorize('finance_admin', 'superadmin', 'org_admin'), financeVerifyCenter);
 
 // Program Fee Structures
-router.route('/program-fees').get(authorize('finance_admin', 'superadmin', 'org_admin'), getProgramFees).post(authorize('finance_admin', 'superadmin', 'org_admin'), createProgramFee);
+router.route('/program-fees').get(getProgramFees).post(authorize('finance_admin', 'superadmin', 'org_admin'), createProgramFee);
 router.route('/program-fees/:id')
-  .get(authorize('finance_admin', 'superadmin', 'org_admin'), getProgramFee)
+  .get(getProgramFee)
   .put(authorize('finance_admin', 'superadmin', 'org_admin'), updateProgramFee)
   .delete(authorize('finance_admin', 'superadmin', 'org_admin'), deleteProgramFee);
 
