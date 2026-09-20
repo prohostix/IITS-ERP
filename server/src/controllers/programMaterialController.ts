@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import xlsx from 'xlsx';
 
 export const getProgramMaterials = asyncHandler(async (req: AuthRequest, res: Response) => {
   const materials = await prisma.programMaterial.findMany({
@@ -66,6 +67,9 @@ export const uploadProgramMaterial = asyncHandler(async (req: AuthRequest, res: 
     return;
   }
 
+  const isExam = req.body.category === 'exam_objective' || req.body.category === 'exam_subjective' || req.body.category === 'Objective Exam' || req.body.category === 'Subjective Exam';
+  const isObjective = req.body.category === 'exam_objective' || req.body.category === 'Objective Exam';
+
   const material = await prisma.programMaterial.create({
     data: {
       title: req.body.title || 'Untitled',
@@ -80,6 +84,66 @@ export const uploadProgramMaterial = asyncHandler(async (req: AuthRequest, res: 
       uploader: { connect: { id: req.user.id } }
     }
   });
+
+  if (isExam && req.file && (req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls'))) {
+    try {
+      const workbook = xlsx.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = xlsx.utils.sheet_to_json(worksheet);
+
+      let totalMarks = 0;
+      const questionsData = rows.map((row: any, index: number) => {
+        const questionText = row['Question'] || row['question'] || `Question ${index + 1}`;
+        const marks = Number(row['Marks'] || row['marks'] || 1);
+        totalMarks += marks;
+
+        if (isObjective) {
+            const options = [
+                row['Option A'] || row['option a'] || row['Option 1'],
+                row['Option B'] || row['option b'] || row['Option 2'],
+                row['Option C'] || row['option c'] || row['Option 3'],
+                row['Option D'] || row['option d'] || row['Option 4'],
+            ].filter(Boolean);
+
+            const correctAnswer = String(row['Correct Answer'] || row['correct answer'] || '');
+
+            return {
+                questionText,
+                questionType: 'multiple_choice',
+                options,
+                correctAnswer,
+                marks,
+                order: index + 1
+            };
+        } else {
+            return {
+                questionText,
+                questionType: 'descriptive',
+                options: [],
+                correctAnswer: null,
+                marks,
+                order: index + 1
+            };
+        }
+      });
+
+      await prisma.exam.create({
+        data: {
+          materialId: material.id,
+          type: isObjective ? 'objective' : 'subjective',
+          totalMarks,
+          durationMinutes: Number(req.body.durationMinutes || 60),
+          questions: {
+            create: questionsData
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error parsing exam excel:', error);
+    }
+  }
+
   res.status(201).json({ success: true, data: material });
 });
 

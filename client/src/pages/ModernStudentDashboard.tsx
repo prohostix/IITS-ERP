@@ -36,6 +36,12 @@ export function ModernStudentDashboard() {
   // Custom sidebar state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeVideo, setActiveVideo] = useState<any>(null);
+  const [activeExamMode, setActiveExamMode] = useState<any>(null);
+  const [examQuestions, setExamQuestions] = useState<any[]>([]);
+  const [examAnswers, setExamAnswers] = useState<Record<string, string>>({});
+  const [examStatus, setExamStatus] = useState<'not_started' | 'in_progress' | 'submitted'>('not_started');
+  const [examScore, setExamScore] = useState<number | null>(null);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -61,6 +67,55 @@ export function ModernStudentDashboard() {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  
+  const handleStartExam = async (m: any) => {
+    try {
+      const res = await api.get(`/students/exams/${m.id}/details`);
+      const { exam, submission } = res.data.data;
+      
+      setActiveExamMode(exam);
+      setExamQuestions(exam.questions || []);
+      
+      if (submission) {
+        setExamStatus(submission.status);
+        setExamScore(submission.score);
+        // Pre-fill answers
+        const prefilled: Record<string, string> = {};
+        submission.answers?.forEach((ans: any) => {
+          prefilled[ans.questionId] = ans.answerText || '';
+        });
+        setExamAnswers(prefilled);
+      } else {
+        // Init exam
+        await api.post(`/students/exams/${m.id}/start`);
+        setExamStatus('in_progress');
+        setExamAnswers({});
+        setExamScore(null);
+      }
+    } catch (error) {
+      toast.error('Could not load exam details. The exam might not be properly configured.');
+    }
+  };
+
+  const handleSubmitExam = async () => {
+    if (!activeExamMode) return;
+    try {
+      const formattedAnswers = Object.keys(examAnswers).map(questionId => ({
+        questionId,
+        answerText: examAnswers[questionId]
+      }));
+
+      const res = await api.post(`/students/exams/${activeExamMode.materialId}/submit`, { answers: formattedAnswers });
+      toast.success('Exam submitted successfully!');
+      setExamStatus('submitted');
+      if (res.data.data.score !== null) {
+        setExamScore(res.data.data.score);
+      }
+    } catch (error) {
+      toast.error('Failed to submit exam');
     }
   };
 
@@ -196,7 +251,14 @@ export function ModernStudentDashboard() {
                 <Button 
                   variant="default" 
                   className="w-full bg-[#1A2B6D] hover:bg-[#111C43]"
-                  onClick={() => handleDownload(m)}
+                  onClick={() => {
+                    const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
+                    if (isExam) {
+                      handleStartExam(m);
+                    } else {
+                      handleDownload(m);
+                    }
+                  }}
                 >
                   {m.fileUrl && m.fileUrl.startsWith('http') ? (
                     <><ExternalLink className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Start Exam' : 'View Resource'}</>
