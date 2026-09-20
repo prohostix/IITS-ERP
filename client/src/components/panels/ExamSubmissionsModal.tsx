@@ -63,7 +63,7 @@ export default function ExamSubmissionsModal({ examId, open, onOpenChange, examT
                     {submissions.map((sub: any) => (
                       <tr key={sub.id} className="hover:bg-muted/50 transition-colors">
                         <td className="px-4 py-3 font-medium">
-                          {sub.student.firstName} {sub.student.lastName}
+                          {sub.student.name}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {sub.student.enrollmentNo || 'N/A'}

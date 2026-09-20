@@ -46,7 +46,7 @@ export default function GradeExamModal({ submission, open, onOpenChange, onGrade
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            Grade Exam: {submission?.student?.firstName} {submission?.student?.lastName}
+            Grade Exam: {submission?.student?.name}
           </DialogTitle>
         </DialogHeader>
 

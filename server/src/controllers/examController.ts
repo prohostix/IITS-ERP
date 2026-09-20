@@ -185,7 +185,7 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: updatedSubmission });
 });
 
-export const getExamSubmissions = asyncHandler(async (req: Request, res: Response) => {
+export const getExamSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { examId } = req.params;
 
   const submissions = await prisma.examSubmission.findMany({
@@ -194,8 +194,7 @@ export const getExamSubmissions = asyncHandler(async (req: Request, res: Respons
       student: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          name: true,
           enrollmentNo: true
         }
       },
@@ -207,9 +206,9 @@ export const getExamSubmissions = asyncHandler(async (req: Request, res: Respons
   res.json({ submissions });
 });
 
-export const gradeSubjectiveExam = asyncHandler(async (req: Request, res: Response) => {
+export const gradeSubjectiveExam = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { submissionId } = req.params;
-  const { grades } = req.body; // Array of { questionId, marksAwarded }
+  const grades = req.body.grades as Array<{ questionId: string; marksAwarded: number }>; // Array of { questionId, marksAwarded }
 
   const submission = await prisma.examSubmission.findUnique({
     where: { id: submissionId },
