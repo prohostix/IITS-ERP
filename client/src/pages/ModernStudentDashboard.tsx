@@ -151,7 +151,7 @@ export function ModernStudentDashboard() {
     try {
       const formattedAnswers = Object.keys(examAnswers).map(questionId => ({
         questionId,
-        answerText: examAnswers[questionId]
+        answerText: examAnswers[questionId] !== undefined && examAnswers[questionId] !== null ? String(examAnswers[questionId]) : ''
       }));
 
       const res = await api.post(`/students/exams/${activeExamMode.materialId}/submit`, { answers: formattedAnswers });

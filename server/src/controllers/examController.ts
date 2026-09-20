@@ -148,7 +148,7 @@ export const submitExam = asyncHandler(async (req: AuthRequest, res: Response) =
   let score = 0;
   const answerPromises = exam.questions.map(async (question: any) => {
     const ans = answers.find((a: any) => a.questionId === question.id);
-    const answerText = ans ? ans.answerText : '';
+    const answerText = ans && ans.answerText !== undefined && ans.answerText !== null ? String(ans.answerText) : '';
     
     let isCorrect = null;
     let marksAwarded = 0;
