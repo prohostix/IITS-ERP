@@ -173,6 +173,18 @@ export function ModernStudentDashboard() {
     }
   };
 
+  const handleView = (m: any) => {
+    const isExternalUrl = m.fileUrl && m.fileUrl.startsWith('http');
+    if (isExternalUrl) {
+      window.open(m.fileUrl, '_blank');
+      return;
+    }
+    const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+    const serverUrl = apiBase.replace('/api/v1', '');
+    const url = `${serverUrl}${m.fileUrl}`;
+    window.open(url, '_blank');
+  };
+
   const handleDownload = (m: any) => {
     const isExternalUrl = m.fileUrl && m.fileUrl.startsWith('http');
     if (isExternalUrl) {
@@ -457,8 +469,11 @@ export function ModernStudentDashboard() {
                   })()}
                   onClick={() => {
                     const isExam = ['exam_subjective', 'exam_objective', 'Subjective Exam', 'Objective Exam'].includes(m.category);
+                    const isEbook = ['ebook', 'E-Book'].includes(m.category);
                     if (isExam) {
                       handleStartExam(m);
+                    } else if (isEbook) {
+                      handleView(m);
                     } else {
                       handleDownload(m);
                     }
