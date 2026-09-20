@@ -24,7 +24,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CheckCircle } from 'lucide-react';
+
 import { ProgramFeeStructurePanel } from '@/components/panels/ProgramFeeStructurePanel';
 
 export function ModernStudentDashboard() {
