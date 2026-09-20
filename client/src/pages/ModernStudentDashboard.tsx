@@ -200,7 +200,7 @@ export function ModernStudentDashboard() {
                   {m.fileUrl && m.fileUrl.startsWith('http') ? (
                     <><ExternalLink className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Start Exam' : 'View Resource'}</>
                   ) : (
-                    <><Download className="w-4 h-4 mr-2" /> Download</>
+                    <><Download className="w-4 h-4 mr-2" /> {(m.category === 'exam_subjective' || m.category === 'exam_objective' || m.category === 'Subjective Exam' || m.category === 'Objective Exam') ? 'Download Exam' : 'Download'}</>
                   )}
                 </Button>
               )}
