@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { search, universityId, programId, branchId } = req.query;
+  const { search, universityId, programId, branchId, isNoWallet } = req.query;
 
   let where: any = { organizationId: req.user.organizationId };
 
@@ -20,6 +20,10 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
   
   if (universityId && universityId !== 'all') {
     where.program = { universityId: universityId as string };
+  }
+
+  if (isNoWallet === 'true') {
+    where.paymentType = 'direct_to_university';
   }
 
   const enrollments = await prisma.enrollment.findMany({

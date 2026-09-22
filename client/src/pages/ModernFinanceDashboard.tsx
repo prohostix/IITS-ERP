@@ -47,6 +47,7 @@ import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportP
 import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import { FinanceStudentPaymentLogsPanel } from '@/components/panels/FinanceStudentPaymentLogsPanel';
+import { FinanceNoWalletReportPanel } from '@/components/panels/FinanceNoWalletReportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -142,6 +143,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'total_report': return <FinanceTotalReportPanel />;
       case 'student_payment_log': return <FinanceStudentPaymentLogsPanel />;
       case 'commissions': return <CommissionsPanel />;
+      case 'no_wallet_report': return <FinanceNoWalletReportPanel />;
       case 'rereg_report': return <FinanceReregReportWrapper />;
       default: return null;
     }
@@ -183,6 +185,7 @@ export function getFinanceNavItems() {
     { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'sales_targets', label: 'Sales Targets' },
     { id: 'total_report', label: 'Total Data Report' },
+    { id: 'no_wallet_report', label: 'No Wallet Report' },
     { id: 'rereg_report', label: 'Re-Registration Report' },
     { id: 'commissions', label: 'Commissions' },
     { id: 'leaves', label: 'Leave Requests' },

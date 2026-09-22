@@ -122,6 +122,7 @@ export function PrismaLayout({
       case 'fees':
       case 'fee_structures':
       case 'enrollment_review':
+      case 'no_wallet_report':
       case 'leave-alloc': return <FileText className={iconClass} />;
       case 'leads':
       case 'targets':
