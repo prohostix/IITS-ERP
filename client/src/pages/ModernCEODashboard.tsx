@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -124,23 +124,9 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="hidden flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="kpi-kra">KPI / KRA</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="escalations">Escalations</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="leads">Leads</TabsTrigger>
-          <TabsTrigger value="center_onboarding">Centers & Enrollment</TabsTrigger>
-          <TabsTrigger value="activity_report">Activity Report</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
 
-        <TabsContent value="overview" className="space-y-8">
+        {activeTab === 'overview' && <div className="space-y-8">
           {/* Hero Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
@@ -204,7 +190,7 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Departmental Performance Chart */}
             <Card
-              className="lg:col-span-2 overflow-hidden border-none shadow-2xl bg-card/50 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
+              className="lg:col-span-3 overflow-hidden border-none shadow-2xl bg-card/50 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
               onClick={() => handleTabChange('performance')}
             >
               <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -309,52 +295,20 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
 
           {/* Live Escalations Preview */}
           <EscalationPreview onViewAll={() => handleTabChange('escalations')} />
-        </TabsContent>
+        </div>}
 
-        <TabsContent value="performance">
-          <PerformancePanel />
-        </TabsContent>
-
-        <TabsContent value="kpi-kra">
-          <CEOKPIReportPanel />
-        </TabsContent>
-
-        <TabsContent value="users">
-          <UsersPanel />
-        </TabsContent>
-
-        <TabsContent value="departments">
-          <DepartmentsPanel />
-        </TabsContent>
-
-        <TabsContent value="tasks">
-          <CEOTasksPanel />
-        </TabsContent>
-
-        <TabsContent value="escalations">
-          <EscalationsPanel />
-        </TabsContent>
-
-        <TabsContent value="students">
-          <StudentsPanel />
-        </TabsContent>
-
-        <TabsContent value="invoices">
-          <InvoicesPanel />
-        </TabsContent>
-
-        <TabsContent value="leads">
-          <LeadsPanel />
-        </TabsContent>
-
-        <TabsContent value="center_onboarding">
-          <CenterOnboardingOverviewPanel mode="ceo" />
-        </TabsContent>
-
-        <TabsContent value="activity_report">
-          <EmployeeActivityReportPanel />
-        </TabsContent>
-      </Tabs>
+        {activeTab === 'performance' && <PerformancePanel />}
+        {activeTab === 'kpi-kra' && <CEOKPIReportPanel />}
+        {activeTab === 'users' && <UsersPanel />}
+        {activeTab === 'departments' && <DepartmentsPanel />}
+        {activeTab === 'tasks' && <CEOTasksPanel />}
+        {activeTab === 'escalations' && <EscalationsPanel />}
+        {activeTab === 'students' && <StudentsPanel />}
+        {activeTab === 'invoices' && <InvoicesPanel />}
+        {activeTab === 'leads' && <LeadsPanel />}
+        {activeTab === 'center_onboarding' && <CenterOnboardingOverviewPanel mode="ceo" />}
+        {activeTab === 'activity_report' && <EmployeeActivityReportPanel />}
+      </div>
     </div>
   );
 }

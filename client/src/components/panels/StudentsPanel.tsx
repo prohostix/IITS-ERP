@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileT
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,6 +41,7 @@ export function StudentsPanel() {
   const [installments, setInstallments] = useState<any[]>([]);
   const [fetchingInstallments, setFetchingInstallments] = useState(false);
   const [payingInstallment, setPayingInstallment] = useState(false);
+  const [payConfirmData, setPayConfirmData] = useState<{ installmentName: string, amount: number, message: string } | null>(null);
 
   // Status Change Request state
   const [requestStatusOpen, setRequestStatusOpen] = useState(false);
@@ -153,7 +155,7 @@ export function StudentsPanel() {
     }
   }, [selectedStudent]);
 
-  const handlePayInstallment = async (installmentName: string, amount: number) => {
+  const handlePayInstallmentClick = (installmentName: string, amount: number) => {
     if (!selectedStudent) return;
     
     const uniCategory = selectedStudent.program?.university?.category;
@@ -163,17 +165,22 @@ export function StudentsPanel() {
       ? `Are you sure you want to mark ₹${amount.toLocaleString()} for ${installmentName} as paid directly to the university?`
       : `Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} using your study center wallet?`;
       
-    if (!confirm(message)) return;
+    setPayConfirmData({ installmentName, amount, message });
+  };
+
+  const executePayInstallment = async () => {
+    if (!selectedStudent || !payConfirmData) return;
 
     setPayingInstallment(true);
     try {
-      await api.post(`/students/${selectedStudent.id}/pay-installment`, { installmentName, amount });
-      toast.success(`${installmentName} paid successfully!`);
+      await api.post(`/students/${selectedStudent.id}/pay-installment`, { installmentName: payConfirmData.installmentName, amount: payConfirmData.amount });
+      toast.success(`${payConfirmData.installmentName} paid successfully!`);
       fetchInstallments(selectedStudent.id);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to pay installment');
     } finally {
       setPayingInstallment(false);
+      setPayConfirmData(null);
     }
   };
 
@@ -610,7 +617,7 @@ export function StudentsPanel() {
                                     size="sm"
                                     variant="outline"
                                     className="text-xs font-semibold text-primary hover:bg-primary/10 border-primary/30"
-                                    onClick={() => handlePayInstallment(inst.name, inst.amount)}
+                                    onClick={() => handlePayInstallmentClick(inst.name, inst.amount)}
                                     disabled={payingInstallment}
                                   >
                                     Pay Advance
@@ -744,6 +751,23 @@ export function StudentsPanel() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={!!payConfirmData} onOpenChange={(o) => !o && setPayConfirmData(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              {payConfirmData?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executePayInstallment} disabled={payingInstallment}>
+              {payingInstallment ? 'Processing...' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

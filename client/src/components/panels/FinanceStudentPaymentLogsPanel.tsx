@@ -208,15 +208,66 @@ export function FinanceStudentPaymentLogsPanel() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {/* Main Fee Card */}
-                          <div className="bg-white border rounded-xl p-4 shadow-sm">
-                            <div className="flex justify-between items-start mb-3">
-                              <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">Total Enrollment Fee</Badge>
+                          {/* Main Fee Cards (Breakdown) */}
+                          {log.feeBreakdown && log.feeBreakdown.length > 0 ? (
+                            (() => {
+                              let remainingReceived = log.received || 0;
+                              let firstUnpaidFound = false;
+
+                              return log.feeBreakdown.map((b: any, idx: number) => {
+                                const semTotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + (Array.isArray(b.additionalFees) ? b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0) : 0);
+                                
+                                let semStatus = 'Locked';
+                                
+                                if (remainingReceived >= semTotal && semTotal > 0) {
+                                  semStatus = 'Paid';
+                                  remainingReceived -= semTotal;
+                                } else if (remainingReceived > 0) {
+                                  semStatus = 'Partial';
+                                  remainingReceived = 0;
+                                  firstUnpaidFound = true;
+                                } else if (!firstUnpaidFound) {
+                                  semStatus = 'Current';
+                                  firstUnpaidFound = true;
+                                } else {
+                                  semStatus = 'Locked';
+                                }
+
+                                const isLocked = semStatus === 'Locked';
+
+                                return (
+                                  <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm ${isLocked ? 'opacity-70' : ''}`}>
+                                    <div className="flex justify-between items-start mb-3">
+                                      <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">
+                                        {log.program?.billingCycle === 'per_semester' ? `Semester ${b.year || idx + 1}` : `Year ${b.year || idx + 1}`}
+                                      </Badge>
+                                      {isLocked ? (
+                                        <Badge variant="outline" className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-slate-200">Locked</Badge>
+                                      ) : semStatus === 'Paid' ? (
+                                        <Badge variant="outline" className="uppercase text-[10px] tracking-wider bg-green-50 text-green-600 border-green-200">Paid</Badge>
+                                      ) : semStatus === 'Partial' ? (
+                                        <Badge variant="outline" className="uppercase text-[10px] tracking-wider bg-yellow-50 text-yellow-600 border-yellow-200">Partial</Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="uppercase text-[10px] tracking-wider bg-blue-50 text-blue-600 border-blue-200">Current</Badge>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-semibold">₹{semTotal.toLocaleString()}</span></div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()
+                          ) : (
+                            <div className="bg-white border rounded-xl p-4 shadow-sm">
+                              <div className="flex justify-between items-start mb-3">
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">Total Enrollment Fee</Badge>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-semibold">₹{log.baseFee?.toLocaleString()}</span></div>
+                              </div>
                             </div>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-semibold">₹{log.baseFee?.toLocaleString()}</span></div>
-                            </div>
-                          </div>
+                          )}
 
                           {/* Extra Fees */}
                           {log.extraFees?.map((fee: any, idx: number) => (

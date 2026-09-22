@@ -923,7 +923,7 @@ model Enrollment {
   studyCenter          StudyCenter         @relation(fields: [studyCenterId], references: [id])
   universityReviewer   User?               @relation("UniversityReviewedBy", fields: [universityReviewedBy], references: [id])
   payment              EnrollmentPayment?
-  commissionIn         CommissionIn?
+  commissionIn         CommissionIn[]
   studentFeeReceipts   StudentFeeReceipt[]
   extraFees            Json?               @default("[]")
 
@@ -1745,7 +1745,8 @@ model StudentStatusRequest {
 model CommissionIn {
   id             String    @id @default(uuid())
   organizationId String
-  enrollmentId   String    @unique
+  enrollmentId   String
+  title          String?
   expectedAmount Float
   receivedAmount Float     @default(0)
   status         String    @default("pending") // "pending", "received"

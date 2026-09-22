@@ -404,11 +404,14 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
       const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
 
-      const totalUniFeeToProcess = uniFee + oneTimeUniFee;
+      // One-time university fee is ONLY forwarded on full payment.
+      // For installment, only the per-semester university fee is forwarded at this stage.
+      const oneTimeFeeTouse = paymentMethod === 'full_payment' ? oneTimeUniFee : 0;
+      const totalUniFeeToProcess = uniFee + oneTimeFeeTouse;
 
       if (totalUniFeeToProcess > 0) {
         const commissionAmount = (uniFee * commRate) / 100;
-        const oneTimeCommAmount = (oneTimeUniFee * oneTimeCommPercent) / 100;
+        const oneTimeCommAmount = (oneTimeFeeTouse * oneTimeCommPercent) / 100;
         const totalCommission = commissionAmount + oneTimeCommAmount;
         const feeAmount = Math.round(totalUniFeeToProcess - totalCommission);
         
@@ -702,10 +705,15 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
     let subtotal = 0;
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       const b = breakdowns[0];
-      // University fee is internal only — student pays baseFee + examFee
-      subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+      // Per-installment additional fees (Sem 1 / Year 1)
+      const semAdditionalFees = Array.isArray(b.additionalFees)
+        ? b.additionalFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0)
+        : 0;
+      // University fee is internal only — student pays baseFee + examFee + installment-specific fees only
+      // One-time additional fees (additionalFeesTotal) are NOT included in installment payments
+      subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + semAdditionalFees;
     } else {
-      subtotal = Number(feeStructure.baseFee || 0) + Number(feeStructure.examFee || 0) + additionalFeesTotal;
+      subtotal = Number(feeStructure.baseFee || 0) + Number((feeStructure as any).examFee || 0) + additionalFeesTotal;
     }
 
     const gstEntry = addFees.find((f: any) => f.label === 'GST');

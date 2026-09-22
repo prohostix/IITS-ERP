@@ -77,7 +77,7 @@ export function ProgramFeeStructurePanel() {
     billingCycle: 'per_year', 
     currency: 'INR', 
     effectiveFrom: '', 
-    additionalFees: '',
+    additionalFees: [] as { id: string; label: string; amount: string }[],
     feeBreakdown: [] as any[],
     baseFee: '0',
     universityFee: '0',
@@ -111,7 +111,7 @@ export function ProgramFeeStructurePanel() {
            examFee: '0',
            commissionRate: '0',
            dueDate: '',
-           additionalFees: ''
+           additionalFees: [] as { id: string; label: string; amount: string }[]
          });
        }
        if (newBreakdown.length > numBlocks) {
@@ -123,6 +123,59 @@ export function ProgramFeeStructurePanel() {
        return prev;
     });
   }, [form.programId, form.billingCycle, programs, form.level]);
+
+  const addAdditionalFee = () => {
+    setForm(prev => ({
+      ...prev,
+      additionalFees: [...prev.additionalFees, { id: Date.now().toString(), label: '', amount: '' }]
+    }));
+  };
+
+  const removeAdditionalFee = (idx: number) => {
+    setForm(prev => {
+      const newFees = [...prev.additionalFees];
+      newFees.splice(idx, 1);
+      return { ...prev, additionalFees: newFees };
+    });
+  };
+
+  const handleAdditionalFeeChange = (idx: number, field: string, value: string) => {
+    setForm(prev => {
+      const newFees = [...prev.additionalFees];
+      newFees[idx] = { ...newFees[idx], [field]: value };
+      return { ...prev, additionalFees: newFees };
+    });
+  };
+
+  const addBreakdownAdditionalFee = (bIdx: number) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.feeBreakdown];
+      const fees = Array.isArray(newBreakdown[bIdx].additionalFees) ? [...newBreakdown[bIdx].additionalFees] : [];
+      fees.push({ id: Date.now().toString(), label: '', amount: '' });
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, feeBreakdown: newBreakdown };
+    });
+  };
+
+  const removeBreakdownAdditionalFee = (bIdx: number, fIdx: number) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.feeBreakdown];
+      const fees = [...newBreakdown[bIdx].additionalFees];
+      fees.splice(fIdx, 1);
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, feeBreakdown: newBreakdown };
+    });
+  };
+
+  const handleBreakdownAdditionalFeeChange = (bIdx: number, fIdx: number, field: string, value: string) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.feeBreakdown];
+      const fees = [...newBreakdown[bIdx].additionalFees];
+      fees[fIdx] = { ...fees[fIdx], [field]: value };
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, feeBreakdown: newBreakdown };
+    });
+  };
 
   const handleBreakdownChange = (idx: number, field: string, value: string) => {
     setForm(prev => {
@@ -172,7 +225,7 @@ const fetchAllData = useCallback(async () => {
       billingCycle: 'per_year', 
       currency: 'INR', 
       effectiveFrom: '', 
-      additionalFees: '',
+      additionalFees: [] as { id: string; label: string; amount: string }[],
       feeBreakdown: [],
       baseFee: 0,
       fullProgramFee: 0,
@@ -208,7 +261,7 @@ const fetchAllData = useCallback(async () => {
          examFee: String(b.examFee || '0'),
          commissionRate: String(b.commissionRate || '0'),
          dueDate: b.dueDate || '',
-         additionalFees: b.additionalFees || ''
+         additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.map((f: any, i: number) => ({ id: Date.now().toString() + i, label: f.label, amount: String(f.amount) })) : []
        }));
     }
 
@@ -230,7 +283,7 @@ const fetchAllData = useCallback(async () => {
       oneTimeUniversityFee: fee.oneTimeUniversityFee || 0,
       oneTimeCommission: fee.oneTimeCommission || 0,
       commissionRate: fee.commissionRate !== undefined ? String(fee.commissionRate) : '0',
-      additionalFees: filteredOtherFees.map(f => `${f.label}:${f.amount}`).join(', '),
+      additionalFees: filteredOtherFees.map((f: any, i: number) => ({ id: Date.now().toString() + i, label: f.label, amount: String(f.amount) })),
       feeBreakdown: parsedBreakdown
     });
     setOpen(true);
@@ -251,11 +304,8 @@ const fetchAllData = useCallback(async () => {
       if (Number(form.oneTimeFee) > 0) {
         addFees.push({ label: 'One Time Payment', amount: Number(form.oneTimeFee) });
       }
-      if (form.additionalFees) {
-        const custom = form.additionalFees.split(',').map(s => {
-          const [label, amount] = s.trim().split(':');
-          return { label: label?.trim(), amount: Number(amount) };
-        }).filter(f => f.label && !isNaN(f.amount));
+      if (form.additionalFees && form.additionalFees.length > 0) {
+        const custom = form.additionalFees.filter(f => f.label.trim() && !isNaN(Number(f.amount))).map(f => ({ label: f.label.trim(), amount: Number(f.amount) }));
         addFees.push(...custom);
       }
       
@@ -274,7 +324,7 @@ const fetchAllData = useCallback(async () => {
            examFee: Number(b.examFee || 0),
            commissionRate: Number(b.commissionRate || 0),
            dueDate: b.dueDate,
-           additionalFees: b.additionalFees || ''
+           additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.filter((f: any) => f.label.trim() && !isNaN(Number(f.amount))).map((f: any) => ({ label: f.label.trim(), amount: Number(f.amount) })) : []
          };
       });
 
@@ -491,6 +541,13 @@ const fetchAllData = useCallback(async () => {
                                     {b.examFee > 0 && <span>Exam: {b.examFee}</span>}
                                     {b.commissionRate > 0 && <span>Comm: {b.commissionRate}%</span>}
                                     {b.dueDate && <span className="col-span-2 text-blue-600">Due: {new Date(b.dueDate).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</span>}
+                                    {Array.isArray(b.additionalFees) && b.additionalFees.length > 0 && (
+                                      <div className="col-span-2 mt-1 border-t pt-1">
+                                        {b.additionalFees.map((af: any, afi: number) => (
+                                          <span key={afi} className="inline-block mr-2 text-orange-600">{af.label}: {af.amount}</span>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ))}
@@ -722,6 +779,23 @@ const fetchAllData = useCallback(async () => {
                     </div>
                   </div>
 
+                  {/* One-Time Additional Fees */}
+                  <div className="col-span-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <Label className="text-sm font-semibold mb-3 block text-slate-800 dark:text-slate-200">Additional One-Time Fees <span className="text-xs font-normal text-muted-foreground">(optional — charged once at enrollment)</span></Label>
+                    {Array.isArray(form.additionalFees) && form.additionalFees.map((fee, idx) => (
+                      <div key={fee.id} className="flex gap-4 mb-3 items-center">
+                        <Input placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleAdditionalFeeChange(idx, 'label', e.target.value)} className="flex-1 bg-white" />
+                        <Input type="number" placeholder="Amount" value={fee.amount} onChange={e => handleAdditionalFeeChange(idx, 'amount', e.target.value)} className="w-32 bg-white" />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeAdditionalFee(idx)} className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addAdditionalFee} className="mt-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white">
+                      <Plus className="w-4 h-4 mr-2" /> Add One-Time Fee
+                    </Button>
+                  </div>
+
                   <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
@@ -731,28 +805,48 @@ const fetchAllData = useCallback(async () => {
                     </div>
                     <div className="space-y-3">
                       {form.feeBreakdown.map((b, idx) => (
-                        <div key={idx} className="flex flex-wrap items-end gap-2 p-3 border rounded-md bg-slate-50 relative group">
-                          <div className="w-full font-medium text-sm text-indigo-900 border-b pb-1 mb-1">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year}</div>
-                          
-                          <div className="flex-1 min-w-[120px] space-y-1">
-                            <Label className="text-xs">Tuition Fee</Label>
-                            <Input type="number" value={b.baseFee} onChange={(e) => handleBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
+                        <div key={idx} className="p-3 border rounded-md bg-slate-50 relative group">
+                          <div className="w-full font-medium text-sm text-indigo-900 border-b pb-1 mb-3">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year}</div>
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex-1 min-w-[120px] space-y-1">
+                              <Label className="text-xs">Tuition Fee</Label>
+                              <Input type="number" value={b.baseFee} onChange={(e) => handleBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
+                            </div>
+                            <div className="flex-1 min-w-[120px] space-y-1">
+                              <Label className="text-xs">University Fee</Label>
+                              <Input type="number" value={b.universityFee} onChange={(e) => handleBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
+                            </div>
+                            <div className="flex-1 min-w-[120px] space-y-1">
+                              <Label className="text-xs">Exam Fee</Label>
+                              <Input type="number" value={b.examFee} onChange={(e) => handleBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
+                            </div>
+                            <div className="flex-1 min-w-[120px] space-y-1">
+                              <Label className="text-xs">Commission Rate (%)</Label>
+                              <Input type="number" value={b.commissionRate} onChange={(e) => handleBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
+                            </div>
+                            <div className="flex-1 min-w-[130px] space-y-1">
+                              <Label className="text-xs">Due Date</Label>
+                              <Input type="date" value={b.dueDate ? String(b.dueDate).slice(0,10) : ''} onChange={(e) => handleBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-[120px] space-y-1">
-                            <Label className="text-xs">University Fee</Label>
-                            <Input type="number" value={b.universityFee} onChange={(e) => handleBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
-                          </div>
-                          <div className="flex-1 min-w-[120px] space-y-1">
-                            <Label className="text-xs">Exam Fee</Label>
-                            <Input type="number" value={b.examFee} onChange={(e) => handleBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
-                          </div>
-                          <div className="flex-1 min-w-[120px] space-y-1">
-                            <Label className="text-xs">Commission Rate (%)</Label>
-                            <Input type="number" value={b.commissionRate} onChange={(e) => handleBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
-                          </div>
-                          <div className="flex-1 min-w-[130px] space-y-1">
-                            <Label className="text-xs">Due Date</Label>
-                            <Input type="date" value={b.dueDate || ''} onChange={(e) => handleBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
+
+                          {/* Per-installment additional fees */}
+                          <div className="mt-3 bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 block">
+                              Additional Fees for {form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year} <span className="font-normal text-muted-foreground">(optional)</span>
+                            </Label>
+                            {Array.isArray(b.additionalFees) && b.additionalFees.map((fee: any, fIdx: number) => (
+                              <div key={fee.id} className="flex gap-3 mb-2 items-center">
+                                <Input className="h-8 text-sm flex-1" placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleBreakdownAdditionalFeeChange(idx, fIdx, 'label', e.target.value)} />
+                                <Input className="h-8 text-sm w-32" type="number" placeholder="Amount" value={fee.amount} onChange={e => handleBreakdownAdditionalFeeChange(idx, fIdx, 'amount', e.target.value)} />
+                                <Button type="button" variant="ghost" size="sm" onClick={() => removeBreakdownAdditionalFee(idx, fIdx)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button type="button" variant="ghost" size="sm" onClick={() => addBreakdownAdditionalFee(idx)} className="h-8 text-xs text-indigo-600 hover:bg-indigo-50 mt-1">
+                              <Plus className="w-3 h-3 mr-1" /> Add Installment Fee
+                            </Button>
                           </div>
                         </div>
                       ))}

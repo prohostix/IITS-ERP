@@ -1073,14 +1073,14 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       return label.includes('coordinator') || type.includes('coordinator');
     });
 
-    const commIn = enrollment.commissionIn;
-    const commOut = commIn?.commissionOuts?.[0] || null;
+    const commInList = enrollment.commissionIn || [];
+    const commOutList = commInList.flatMap(c => c.commissionOuts || []);
 
-      let centerPaymentAmount = payment?.amount ?? null;
+      let centerPaymentAmount = enrollment.totalFee !== null ? enrollment.totalFee : (payment?.amount ?? null);
       let centerPaymentStatus = payment ? 'Paid' : 'Due';
       
       if (!payment && enrollment.paymentType === 'direct_to_university') {
-        centerPaymentAmount = 0;
+        centerPaymentAmount = enrollment.totalFee !== null ? enrollment.totalFee : 0;
         centerPaymentStatus = 'Paid';
       }
 
@@ -1110,14 +1110,15 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       enrollmentStatus: enrollment.status,
       reRegTotalCollected: reRegPaidAmount,
       // Commission Got from University details
-      commissionInAmount: commIn ? commIn.receivedAmount : null,
-      commissionInExpected: commIn ? commIn.expectedAmount : null,
-      commissionInStatus: commIn ? commIn.status : 'pending',
-      commissionInDate: commIn ? commIn.receivedAt : null,
+      // Commission Got from University details
+      commissionInAmount: commInList.length > 0 ? commInList.reduce((sum: number, c: any) => sum + (c.receivedAmount || 0), 0) : null,
+      commissionInExpected: commInList.length > 0 ? commInList.reduce((sum: number, c: any) => sum + (c.expectedAmount || 0), 0) : null,
+      commissionInStatus: commInList.length > 0 ? (commInList.every((c: any) => c.status === 'received') ? 'received' : 'pending') : 'pending',
+      commissionInDate: commInList.length > 0 ? (commInList.filter((c: any) => c.receivedAt).sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())[0]?.receivedAt || null) : null,
       // Commission Given to Centers details
-      commissionOutAmount: commOut ? commOut.amount : null,
-      commissionOutStatus: commOut ? commOut.status : 'pending',
-      commissionOutDate: commOut ? commOut.paidAt : null,
+      commissionOutAmount: commOutList.length > 0 ? commOutList.reduce((sum: number, c: any) => sum + (c.amount || 0), 0) : null,
+      commissionOutStatus: commOutList.length > 0 ? (commOutList.every((c: any) => c.status === 'paid') ? 'paid' : 'pending') : 'pending',
+      commissionOutDate: commOutList.length > 0 ? (commOutList.filter((c: any) => c.paidAt).sort((a: any, b: any) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0]?.paidAt || null) : null,
     };
   });
 

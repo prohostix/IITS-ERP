@@ -58,7 +58,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
     switch (activeTab) {
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
+          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
 </div>
       );
       case 'users': return <HRUsersPanel />;
@@ -198,7 +198,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recruitment Pipeline — live vacancies */}
-        <Card className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl">
+        <Card className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="cursor-pointer" onClick={() => onNavigate('vacancies')}>
               <CardTitle className="hover:text-primary transition-colors">Open Vacancies</CardTitle>

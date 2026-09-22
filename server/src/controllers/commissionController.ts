@@ -48,11 +48,15 @@ export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, re
     return;
   }
 
+  const parsedReceivedAmount = parseFloat(receivedAmount || String(item.expectedAmount));
+  const newReceivedAmount = item.receivedAmount + parsedReceivedAmount;
+  const status = newReceivedAmount >= item.expectedAmount ? 'received' : 'pending';
+
   const updated = await prisma.commissionIn.update({
     where: { id },
     data: {
-      status: 'received',
-      receivedAmount: parseFloat(receivedAmount || item.expectedAmount),
+      status,
+      receivedAmount: newReceivedAmount,
       receivedAt: new Date(),
       paymentDetails: paymentDetails || '',
     }
@@ -68,7 +72,14 @@ export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, re
       where: { commissionInId: id }
     });
 
-    if (!existingOut) {
+    if (existingOut) {
+      if (payout > 0) {
+        await prisma.commissionOut.update({
+          where: { id: existingOut.id },
+          data: { amount: { increment: payout } }
+        });
+      }
+    } else {
       await prisma.commissionOut.create({
         data: {
           organizationId: req.user.organizationId,
@@ -89,6 +100,11 @@ export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, re
 export const getCommissionOutList = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status } = req.query;
   const where: any = { organizationId: req.user.organizationId };
+  
+  if (req.user.role === 'center_admin') {
+    where.studyCenterId = req.user.studyCenterId;
+  }
+
   if (status) {
     where.status = status;
   }

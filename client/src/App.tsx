@@ -328,6 +328,7 @@ function App() {
         { id: 'students', label: 'Students' },
         { id: 'center_rereg_report', label: 'Re-Registration Report' },
         { id: 'center_programs', label: 'Programs & Materials' },
+        { id: 'center_commission', label: 'Commission' },
         { id: 'tasks', label: 'Tasks' },
       ];
     }

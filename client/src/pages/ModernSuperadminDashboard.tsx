@@ -102,7 +102,7 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
         <TabsContent value="overview" className="space-y-6">
           {/* Overview content - existing dashboard */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2"><OverviewContent metrics={metrics} /></div>
+            <div className="lg:col-span-3"><OverviewContent metrics={metrics} /></div>
 </div>
         </TabsContent>
 
@@ -170,7 +170,7 @@ function OverviewContent({ metrics }: { metrics: any }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Global Traffic Chart */}
-        <Card className="lg:col-span-2 border-none shadow-2xl bg-card/40 backdrop-blur-3xl overflow-hidden">
+        <Card className="lg:col-span-3 border-none shadow-2xl bg-card/40 backdrop-blur-3xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-8">
             <div>
               <CardTitle>System Load & Traffic</CardTitle>

@@ -474,8 +474,9 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
 
       // University fee is a sub-component of tuition (internal only). Student pays baseFee + examFee.
       let totalAmount = Number(b.baseFee || 0) + Number(b.examFee || 0);
-      if (i === 0) {
-        totalAmount += additionalFeesTotal;
+      
+      if (Array.isArray(b.additionalFees)) {
+        totalAmount += b.additionalFees.reduce((s: number, f: any) => s + (Number(f.amount) || 0), 0);
       }
 
       const gstEntry = addFees.find((f: any) => f.label === 'GST');
@@ -564,7 +565,7 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
   const { installmentName, amount } = req.body;
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
-    include: { program: { include: { university: true } } }
+    include: { program: { include: { university: true, programFeeStructure: true } }, enrollments: true }
   });
 
   if (!student) {
@@ -625,6 +626,68 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
         notes: isNoWallet ? `Student paid directly to the university - ${installmentName}` : `Paid in advance by study center for student ${student.name} - ${installmentName}`
       }
     });
+
+    // 4. Create StudentFeeReceipt so it reflects in the Student Payment Log
+    const enrollment = student.enrollments && student.enrollments.length > 0 ? student.enrollments[0] : null;
+    if (enrollment) {
+      await tx.studentFeeReceipt.create({
+        data: {
+          organizationId: req.user.organizationId,
+          enrollmentId: enrollment.id,
+          amount,
+          receiptDate: new Date(),
+          paymentMode: isNoWallet ? 'Direct to University' : 'Wallet',
+          remarks: `Installment Paid: ${installmentName}`,
+          recordedBy: req.user.id
+        }
+      });
+
+      // 5. Update CommissionIn if applicable
+      let commToAdd = 0;
+      if (student.program.programFeeStructure) {
+        const pfs = student.program.programFeeStructure as any[];
+        const feeStructure = pfs.find((f: any) => f.admissionSessionId === enrollment.sessionId && f.specialisation === enrollment.specialisation) ||
+               pfs.find((f: any) => !f.admissionSessionId && f.specialisation === enrollment.specialisation) ||
+               pfs.find((f: any) => f.admissionSessionId === enrollment.sessionId && !f.specialisation) ||
+               pfs.find((f: any) => !f.admissionSessionId && !f.specialisation) ||
+               pfs[0];
+
+        if (feeStructure && feeStructure.feeBreakdown) {
+          const breakdown = feeStructure.feeBreakdown;
+          const match = installmentName.match(/\d+/);
+          if (match && breakdown.length > 0) {
+            const index = parseInt(match[0], 10) - 1;
+            if (index >= 0 && index < breakdown.length) {
+              const b = breakdown[index];
+              const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
+              const bUni = Number(b.universityFee || 0);
+              if (bCommRate > 0) {
+                commToAdd = (bUni * bCommRate) / 100;
+              }
+            }
+          }
+        }
+      }
+
+      if (commToAdd > 0) {
+        // Check if this installment's commission was already generated to avoid duplicates
+        const existingComm = await tx.commissionIn.findFirst({
+          where: { enrollmentId: enrollment.id, title: installmentName }
+        });
+        
+        if (!existingComm) {
+          await tx.commissionIn.create({
+            data: {
+              organizationId: req.user.organizationId,
+              enrollmentId: enrollment.id,
+              title: installmentName,
+              expectedAmount: commToAdd,
+              status: 'pending'
+            }
+          });
+        }
+      }
+    }
 
     return invoice;
   });

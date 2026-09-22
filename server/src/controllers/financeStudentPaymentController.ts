@@ -31,7 +31,7 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
           code: true, 
           universityId: true,
           programFeeStructure: {
-            select: { billingCycle: true, admissionSessionId: true, organizationId: true, specialisation: true }
+            select: { billingCycle: true, admissionSessionId: true, organizationId: true, specialisation: true, fullProgramFee: true, feeBreakdown: true, baseFee: true }
           }
         }
       },
@@ -44,13 +44,31 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
   });
 
   const formattedLogs = enrollments.map(enr => {
+    const pfs = enr.program?.programFeeStructure || [];
+    const feeStruct = pfs.find((f: any) => f.admissionSessionId === enr.sessionId && f.specialisation === enr.specialisation) ||
+           pfs.find((f: any) => !f.admissionSessionId && f.specialisation === enr.specialisation) ||
+           pfs.find((f: any) => f.admissionSessionId === enr.sessionId && !f.specialisation) ||
+           pfs.find((f: any) => !f.admissionSessionId && !f.specialisation) ||
+           pfs[0];
+
     const extraFees = (enr.extraFees as any[]) || [];
     const totalExtraFees = extraFees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-    const totalFee = (enr.totalFee || 0) + totalExtraFees;
+    let calculatedFullFee = 0;
+    if (enr.paymentType === 'full_payment') {
+      calculatedFullFee = feeStruct?.fullProgramFee || 0;
+    } else if (feeStruct?.feeBreakdown && Array.isArray(feeStruct.feeBreakdown) && feeStruct.feeBreakdown.length > 0) {
+      calculatedFullFee = feeStruct.feeBreakdown.reduce((sum: number, b: any) => {
+        const semTotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + (Array.isArray(b.additionalFees) ? b.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0);
+        return sum + semTotal;
+      }, 0);
+    }
+    
+    const fullProgramFee = calculatedFullFee > 0 ? calculatedFullFee : (feeStruct?.baseFee || enr.totalFee || 0);
+    const totalFee = fullProgramFee + totalExtraFees;
     
     // Sum receipts + initial wallet payment
     const manualReceipts = enr.studentFeeReceipts.reduce((sum, receipt) => sum + receipt.amount, 0);
-    const walletPayment = enr.payment?.amount || 0;
+    const walletPayment = (enr.paymentType === 'direct_to_university' ? 0 : enr.totalFee) || 0;
     const totalReceived = manualReceipts + walletPayment;
     const balance = totalFee - totalReceived;
     
@@ -60,19 +78,14 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
       id: enr.id,
       studentName: enr.studentName,
       enrollmentNumber: enr.enrollmentNumber || '',
+      paymentType: enr.paymentType,
       program: {
         ...enr.program,
-        billingCycle: (() => {
-          const pfs = enr.program?.programFeeStructure || [];
-          return pfs.find(f => f.admissionSessionId === enr.sessionId && f.specialisation === enr.specialisation)?.billingCycle ||
-                 pfs.find(f => !f.admissionSessionId && f.specialisation === enr.specialisation)?.billingCycle ||
-                 pfs.find(f => f.admissionSessionId === enr.sessionId && !f.specialisation)?.billingCycle ||
-                 pfs.find(f => !f.admissionSessionId && !f.specialisation)?.billingCycle ||
-                 pfs[0]?.billingCycle;
-        })()
+        billingCycle: feeStruct?.billingCycle
       },
       totalFee,
-      baseFee: enr.totalFee || 0,
+      baseFee: fullProgramFee,
+      feeBreakdown: feeStruct?.feeBreakdown || [],
       extraFees,
       received: totalReceived,
       balance,

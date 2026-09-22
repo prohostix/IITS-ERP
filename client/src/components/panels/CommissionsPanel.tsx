@@ -87,8 +87,9 @@ export function CommissionsPanel() {
 
   const openReceive = (item: any) => {
     setReceiveItem(item);
+    const diff = item.expectedAmount - item.receivedAmount;
     setReceiveForm({
-      receivedAmount: String(item.expectedAmount),
+      receivedAmount: String(diff > 0 ? diff : item.expectedAmount),
       paymentDetails: '',
       centerPayoutAmount: '0'
     });
@@ -250,22 +251,25 @@ export function CommissionsPanel() {
                     <tbody className="divide-y">
                       {commIn.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-3 font-medium whitespace-nowrap">{item.enrollment?.studentName || '-'}</td>
+                          <td className="px-4 py-3 font-medium whitespace-nowrap">
+                            {item.enrollment?.studentName || '-'}
+                            {item.title && <span className="ml-2 text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{item.title}</span>}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap">{item.enrollment?.program?.name || '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{item.enrollment?.program?.university?.name || '-'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{item.enrollment?.studyCenter?.name || '-'}</td>
                           <td className="px-4 py-3 font-semibold whitespace-nowrap">₹{item.expectedAmount.toLocaleString('en-IN')}</td>
                           <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                            {item.status === 'received' ? `₹${item.receivedAmount.toLocaleString('en-IN')}` : '-'}
+                            {item.receivedAmount > 0 ? `₹${item.receivedAmount.toLocaleString('en-IN')}` : '-'}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <Badge variant="secondary" className={item.status === 'received' ? 'bg-green-100 text-green-800 capitalize' : 'bg-amber-100 text-amber-800 capitalize'}>
-                              {item.status}
+                            <Badge variant="secondary" className={item.status === 'received' ? 'bg-green-100 text-green-800 capitalize' : (item.receivedAmount > 0 ? 'bg-blue-100 text-blue-800 capitalize' : 'bg-amber-100 text-amber-800 capitalize')}>
+                              {item.receivedAmount > 0 && item.status === 'pending' ? 'Partial' : item.status}
                             </Badge>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{fmtDate(item.receivedAt)}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            {item.status === 'pending' && (
+                            {item.expectedAmount > item.receivedAmount && (
                               <Button size="sm" variant="default" onClick={() => openReceive(item)} className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1">
                                 Mark Received
                               </Button>

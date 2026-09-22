@@ -291,7 +291,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Invoice Status Chart */}
         <Card
-          className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
+          className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
           onClick={() => onNavigate('invoices')}
         >
           <CardHeader className="flex flex-row items-center justify-between">
@@ -350,7 +350,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Invoices */}
-        <Card className="lg:col-span-2 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('invoices')}>
+        <Card className="lg:col-span-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('invoices')}>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Recent Invoices</CardTitle>
             <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); onNavigate('invoices'); }}>

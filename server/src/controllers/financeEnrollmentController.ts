@@ -273,20 +273,24 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     }
 
     // Add one-time commission percentage of one-time university fee
-    const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
-    const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
-    if (oneTimeCommPercent > 0 && oneTimeUniFee > 0) {
-      expectedAmount += (oneTimeUniFee * oneTimeCommPercent) / 100;
+    // (Only if the student is paying in full, just like how it's forwarded to the university)
+    if (dbEnrollment.paymentMethod === 'full_payment') {
+      const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
+      const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
+      if (oneTimeCommPercent > 0 && oneTimeUniFee > 0) {
+        expectedAmount += (oneTimeUniFee * oneTimeCommPercent) / 100;
+      }
     }
 
-    const existingComm = await prisma.commissionIn.findUnique({
-      where: { enrollmentId: enrollment.id }
+    const existingComm = await prisma.commissionIn.findFirst({
+      where: { enrollmentId: enrollment.id, title: 'Initial Enrollment' }
     });
     if (!existingComm) {
       await prisma.commissionIn.create({
         data: {
           organizationId: req.user.organizationId,
           enrollmentId: enrollment.id,
+          title: 'Initial Enrollment',
           expectedAmount,
           status: 'pending'
         }

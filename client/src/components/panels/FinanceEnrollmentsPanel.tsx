@@ -20,6 +20,8 @@ interface Enrollment {
   program?: { name: string; code: string } | null;
   studyCenter?: { name: string; code: string } | null;
   status: string;
+  totalFee?: number | null;
+  paymentMethod?: string | null;
   departmentRemarks?: string;
   financeRemarks?: string;
   payment?: { amount: number; debitedAt: string; walletId?: string } | null;
@@ -242,14 +244,18 @@ export function FinanceEnrollmentsPanel() {
                     <td className="p-3 hidden md:table-cell text-muted-foreground">{getProgramName(e)}</td>
                     <td className="p-3 hidden lg:table-cell text-muted-foreground">{getCenterName(e)}</td>
                     <td className="p-3 hidden sm:table-cell">
-                      {e.payment ? (
+                      {e.totalFee ? (
+                        <div className="space-y-0.5">
+                          <span className="text-green-600 font-semibold block">₹{Number(e.totalFee).toLocaleString()}</span>
+                          <span className="text-[10px] text-muted-foreground block">
+                            {e.paymentMethod === 'full_payment' ? 'Full Payment' : '1st Installment'}
+                          </span>
+                        </div>
+                      ) : e.payment ? (
                         <div className="space-y-0.5">
                           <span className="text-green-600 font-semibold block">₹{e.payment.amount.toLocaleString()}</span>
                           <span className="text-[10px] text-muted-foreground block">
                             Paid: {new Date(e.payment.debitedAt || e.createdAt).toLocaleDateString()}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground block font-mono">
-                            Wallet: {e.payment.walletId ? e.payment.walletId.slice(0, 8) : 'N/A'}
                           </span>
                         </div>
                       ) : (

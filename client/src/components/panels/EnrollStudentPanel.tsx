@@ -241,20 +241,26 @@ export function EnrollStudentPanel() {
 
     if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
       if (method === 'full_payment') {
+        // Full payment: use fullProgramFee + ONE-TIME additional fees only
+        // Per-installment fees are NOT added here (they are part of the installment schedule)
         const fullFee = Number((fs as any).fullProgramFee || 0);
         if (fullFee > 0) {
-          // fullProgramFee already includes university fee — use as-is
-          subtotal = fullFee + additionalFeesTotal;
+          subtotal = fullFee + additionalFeesTotal; // one-time fees only
         } else {
-          // Fallback: sum all semester tuition + exam fees (university fee is internal only)
+          // fallback: sum all installment base+exam fees + one-time fees
           const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
           const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
-          subtotal = baseFees + examFees + additionalFeesTotal;
+          subtotal = baseFees + examFees + additionalFeesTotal; // one-time fees only
         }
       } else {
-        const b = breakdowns[0]; // first installment config
-        // University fee is a sub-component of tuition, not an additional charge
-        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + additionalFeesTotal;
+        // Installment: first breakdown fees + INSTALLMENT-SPECIFIC additional fees only
+        // One-time additional fees are NOT added to installments
+        const b = breakdowns[0];
+        let sem1AdditionalFees = 0;
+        if (Array.isArray(b.additionalFees)) {
+          sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        }
+        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees; // no one-time fees
       }
     } else {
       subtotal = fs.baseFee + additionalFeesTotal;

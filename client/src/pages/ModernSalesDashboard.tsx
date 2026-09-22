@@ -234,7 +234,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead Status Chart */}
         <Card
-          className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
+          className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
           onClick={() => onNavigate('leads')}
         >
           <CardHeader className="flex flex-row items-center justify-between">

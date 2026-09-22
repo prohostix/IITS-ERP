@@ -68,7 +68,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
     switch (activeTab) {
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
+          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
 </div>
       );
       case 'my_subdept': return <SubOpsPortalPanel />;
@@ -184,7 +184,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Admission Pipeline */}
-        <Card className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('students')}>
+        <Card className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('students')}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Admission Pipeline</CardTitle>

@@ -194,7 +194,7 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Live Task List */}
-            <Card className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl">
+            <Card className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Priority Tasks</CardTitle>
