@@ -89,7 +89,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'my_documents': return <MyDocumentsPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
-      default: return null;
+      default: return <div className="p-8 text-center text-red-500 font-bold">Unknown tab: {activeTab} (initialTab: {initialTab})</div>;
     }
   };
 

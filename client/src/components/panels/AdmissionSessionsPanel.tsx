@@ -24,6 +24,7 @@ export function AdmissionSessionsPanel() {
   const [formData, setFormData] = useState({
     name: '',
     subDepartmentId: '',
+    universityId: '',
     startDate: '',
     endDate: '',
     examDate: '',
@@ -73,6 +74,7 @@ export function AdmissionSessionsPanel() {
       const payload: any = {
         name: formData.name,
         subDepartmentId: formData.subDepartmentId,
+        universityId: formData.universityId || undefined,
         startDate: formData.startDate,
         endDate: formData.endDate,
         status: formData.status
@@ -101,6 +103,7 @@ export function AdmissionSessionsPanel() {
     setFormData({
       name: s.name || '',
       subDepartmentId: subDeptId?.toString() || '',
+      universityId: s.universityId?.toString() || '',
       startDate: s.startDate ? new Date(s.startDate).toISOString().split('T')[0] : '',
       endDate: s.endDate ? new Date(s.endDate).toISOString().split('T')[0] : '',
       examDate: s.examDate ? new Date(s.examDate).toISOString().split('T')[0] : '',
@@ -132,7 +135,7 @@ export function AdmissionSessionsPanel() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', subDepartmentId: '', startDate: '', endDate: '', examDate: '', reregPaymentClosingDate: '', status: 'pending' });
+    setFormData({ name: '', subDepartmentId: '', universityId: '', startDate: '', endDate: '', examDate: '', reregPaymentClosingDate: '', status: 'pending' });
   };
 
   return (
@@ -164,6 +167,19 @@ export function AdmissionSessionsPanel() {
                     {departments.filter((d: any) => d && (d.id || d.id)).map((d: any) => (
                       <SelectItem key={d.id || d.id} value={(d.id || d.id).toString()}>
                         {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>University</Label>
+                <Select value={formData.universityId} onValueChange={(v) => setFormData({ ...formData, universityId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select university" /></SelectTrigger>
+                  <SelectContent>
+                    {universities.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -242,7 +258,10 @@ export function AdmissionSessionsPanel() {
                         <Calendar className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <div className="font-medium">{s.name}</div>
+                        <div className="font-medium">
+                          {s.name}
+                          {s.university && <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">{s.university.name}</Badge>}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {subDeptName && `${subDeptName} • `}
                           {s.startDate && new Date(s.startDate).toLocaleDateString()} – {s.endDate && new Date(s.endDate).toLocaleDateString()}

@@ -210,6 +210,15 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
+  if (abcId && !/^\d{12}$/.test(abcId)) {
+    res.status(400).json({ success: false, message: 'ABC ID must be exactly 12 digits' });
+    return;
+  }
+  if (debId && !/^\d{12}$/.test(debId)) {
+    res.status(400).json({ success: false, message: 'DEB ID must be exactly 12 digits' });
+    return;
+  }
+
   // Form customisation validation
   const center = await prisma.studyCenter.findUnique({
     where: { id: studyCenterId }
@@ -225,7 +234,19 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
             const docMap: any = { doc_aadhaar: 'Aadhaar Card', doc_10th: '10th Certificate', doc_12th: '12th Certificate', doc_degree: 'Degree Certificate' };
             const reqName = docMap[field];
             const docs = req.body.documents || [];
-            if (!docs.some((d: any) => d.reqName === reqName)) {
+            
+            const isDocUploaded = (docName: string) => {
+              const target1 = docName.toLowerCase();
+              const target2 = docName.replace('Certificate', 'Marksheet').toLowerCase();
+              return docs.some((d: any) => 
+                (d.reqName && d.reqName.toLowerCase() === target1) ||
+                (d.name && d.name.toLowerCase() === target1) ||
+                (d.reqName && d.reqName.toLowerCase() === target2) ||
+                (d.name && d.name.toLowerCase() === target2)
+              );
+            };
+
+            if (!isDocUploaded(reqName)) {
               res.status(400).json({ success: false, message: `Document '${reqName}' is required by this center's configuration` });
               return;
             }
@@ -306,7 +327,6 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       });
     }
 
-    // 2. Create or find Student (set status to pending)
     let student = await tx.student.findUnique({ where: { email: studentEmail } });
     if (!student) {
       const enrollmentNo = `ENR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -336,6 +356,16 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           center: { connect: { id: studyCenterId } },
           user: { connect: { email: studentEmail } },
           program: { connect: { id: programId } }
+        }
+      });
+    } else {
+      // Update existing student with latest program and session if they are creating a new enrollment
+      student = await tx.student.update({
+        where: { id: student.id },
+        data: {
+          programId: programId,
+          sessionId: finalSessionId,
+          specialisation: specialisation || null
         }
       });
     }
@@ -380,7 +410,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       const feeStructure = await resolveProgramFeeStructure(organizationId, programId, finalSessionId, specialisation || null);
       if (!feeStructure) throw new Error('Fee structure not found for this program');
 
-      let uniFee = 0;
+      let grossFee = 0;
       let commRate = feeStructure.commissionRate ? Number(feeStructure.commissionRate) : 0;
       
       let breakdowns = feeStructure.feeBreakdown as any;
@@ -388,37 +418,47 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
         try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
       }
 
+      const addFees = Array.isArray((feeStructure as any).additionalFees) ? (feeStructure as any).additionalFees : [];
+      const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
+      const additionalFeesTotal = nonGstFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+
       if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
         if (paymentMethod === 'full_payment') {
-          uniFee = breakdowns.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
+          const fullFee = Number((feeStructure as any).fullProgramFee || 0);
+          if (fullFee > 0) {
+            grossFee = fullFee + additionalFeesTotal;
+          } else {
+            const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+            const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+            grossFee = baseFees + examFees + additionalFeesTotal;
+          }
         } else {
-          uniFee = Number(breakdowns[0].universityFee || 0);
-          if (breakdowns[0].commissionRate !== undefined && breakdowns[0].commissionRate !== null && breakdowns[0].commissionRate !== '') {
-            commRate = Number(breakdowns[0].commissionRate);
+          const b = breakdowns[0];
+          let sem1AdditionalFees = 0;
+          if (Array.isArray(b.additionalFees)) {
+            sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
+          }
+          grossFee = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees;
+          if (b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+            commRate = Number(b.commissionRate);
           }
         }
       } else {
-        uniFee = Number(feeStructure.universityFee || 0);
+        grossFee = Number(feeStructure.baseFee || 0) + additionalFeesTotal;
       }
 
-      const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
-      const oneTimeCommPercent = Number((feeStructure as any).oneTimeCommission || 0);
+      const gstEntry = addFees.find((f: any) => f.label === 'GST');
+      const gstAmount = gstEntry ? Math.round((grossFee * Number(gstEntry.amount || 0)) / 100) : 0;
+      const totalFeeCalculated = grossFee + gstAmount;
 
-      // One-time university fee is ONLY forwarded on full payment.
-      // For installment, only the per-semester university fee is forwarded at this stage.
-      const oneTimeFeeTouse = paymentMethod === 'full_payment' ? oneTimeUniFee : 0;
-      const totalUniFeeToProcess = uniFee + oneTimeFeeTouse;
-
-      if (totalUniFeeToProcess > 0) {
-        const commissionAmount = (uniFee * commRate) / 100;
-        const oneTimeCommAmount = (oneTimeFeeTouse * oneTimeCommPercent) / 100;
-        const totalCommission = commissionAmount + oneTimeCommAmount;
-        const feeAmount = Math.round(totalUniFeeToProcess - totalCommission);
+      if (totalFeeCalculated > 0) {
+        const commissionAmount = (grossFee * commRate) / 100;
+        const feeAmount = Math.round(totalFeeCalculated - commissionAmount);
         
         if (feeAmount > 0) {
           const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
           if (!wallet || wallet.balance < feeAmount) {
-            throw new Error(`Insufficient wallet balance. Required: ₹${feeAmount} for University Fee (after commission)`);
+            throw new Error(`Insufficient wallet balance. Required: ₹${feeAmount} for Enrollment Fee (after commission)`);
           }
           await tx.studyCenterWallet.update({
             where: { id: wallet.id },
@@ -536,7 +576,10 @@ export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Resp
     status: 'active'
   };
   if (req.query.universityId) {
-    where.universityId = req.query.universityId as string;
+    where.OR = [
+      { universityId: req.query.universityId as string },
+      { universityId: null }
+    ];
   }
   const sessions = await prisma.admissionSession.findMany({
     where,
@@ -574,6 +617,15 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
+  if (abcId && !/^\d{12}$/.test(abcId)) {
+    res.status(400).json({ success: false, message: 'ABC ID must be exactly 12 digits' });
+    return;
+  }
+  if (debId && !/^\d{12}$/.test(debId)) {
+    res.status(400).json({ success: false, message: 'DEB ID must be exactly 12 digits' });
+    return;
+  }
+
   // Form customisation validation
   const center = await prisma.studyCenter.findUnique({
     where: { id: studyCenterId }
@@ -589,7 +641,7 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
             const docMap: any = { doc_aadhaar: 'Aadhaar Card', doc_10th: '10th Certificate', doc_12th: '12th Certificate', doc_degree: 'Degree Certificate' };
             const reqName = docMap[field];
             const docs = req.body.documents || (enrollment as any).documents || [];
-            if (!docs.some((d: any) => d.reqName === reqName)) {
+            if (!docs.some((d: any) => d.reqName === reqName || d.name === reqName || d.name === reqName.replace('Certificate', 'Marksheet'))) {
               res.status(400).json({ success: false, message: `Document '${reqName}' is required by this center's configuration` });
               return;
             }
@@ -771,4 +823,73 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   res.json({ success: true, message: 'Payment stage completed' });
+});
+
+// --- DRAFTS ---
+
+export const saveDraft = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id, ...data } = req.body;
+  const organizationId = req.user.organizationId;
+  const studyCenterId = req.user.studyCenterId;
+
+  if (!studyCenterId) {
+    res.status(400).json({ success: false, message: 'No study center assigned' });
+    return;
+  }
+
+  if (id) {
+    // Update existing draft
+    const draft = await prisma.enrollmentDraft.updateMany({
+      where: { id, studyCenterId, organizationId },
+      data: { data },
+    });
+    if (draft.count === 0) {
+      res.status(404).json({ success: false, message: 'Draft not found' });
+      return;
+    }
+    res.json({ success: true, message: 'Draft updated successfully' });
+  } else {
+    // Create new draft
+    const draft = await prisma.enrollmentDraft.create({
+      data: {
+        organizationId,
+        studyCenterId,
+        data,
+      },
+    });
+    res.json({ success: true, message: 'Draft saved successfully', draftId: draft.id });
+  }
+});
+
+export const getDrafts = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const organizationId = req.user.organizationId;
+  const studyCenterId = req.user.studyCenterId;
+
+  if (!studyCenterId) {
+    res.status(400).json({ success: false, message: 'No study center assigned' });
+    return;
+  }
+
+  const drafts = await prisma.enrollmentDraft.findMany({
+    where: { organizationId, studyCenterId },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  res.json({ success: true, data: drafts });
+});
+
+export const deleteDraft = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  const studyCenterId = req.user.studyCenterId;
+
+  const draft = await prisma.enrollmentDraft.deleteMany({
+    where: { id, studyCenterId },
+  });
+
+  if (draft.count === 0) {
+    res.status(404).json({ success: false, message: 'Draft not found' });
+    return;
+  }
+
+  res.json({ success: true, message: 'Draft deleted' });
 });

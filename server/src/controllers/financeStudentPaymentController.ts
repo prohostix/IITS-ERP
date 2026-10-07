@@ -8,11 +8,15 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
 
   let where: any = { organizationId: req.user.organizationId };
 
+  let andConditions: any[] = [];
+
   if (search) {
-    where.OR = [
-      { studentName: { contains: search as string, mode: 'insensitive' } },
-      { enrollmentNumber: { contains: search as string, mode: 'insensitive' } },
-    ];
+    andConditions.push({
+      OR: [
+        { studentName: { contains: search as string, mode: 'insensitive' } },
+        { enrollmentNumber: { contains: search as string, mode: 'insensitive' } },
+      ]
+    });
   }
 
   if (programId && programId !== 'all') where.programId = programId as string;
@@ -23,7 +27,16 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
   }
 
   if (isNoWallet === 'true') {
-    where.paymentType = 'direct_to_university';
+    andConditions.push({
+      OR: [
+        { paymentType: 'direct_to_university' },
+        { program: { university: { category: { in: ['direct_iits', 'team_lease'] } } } }
+      ]
+    });
+  }
+
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   const enrollments = await prisma.enrollment.findMany({

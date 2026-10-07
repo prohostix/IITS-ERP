@@ -5,13 +5,13 @@ import { StudyCenterWalletPanel } from '@/components/panels/StudyCenterWalletPan
 import { EnrollStudentPanel } from '@/components/panels/EnrollStudentPanel';
 import { StudyCenterEnrollmentsPanel } from '@/components/panels/StudyCenterEnrollmentsPanel';
 import { StudentsPanel } from '@/components/panels/StudentsPanel';
-import { TasksPanel } from '@/components/panels/TasksPanel';
 import { InternalMarksPanel } from '@/components/panels/InternalMarksPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import api from '@/lib/api';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { CenterCommissionsPanel } from '@/components/panels/CenterCommissionsPanel';
+import { StudyCenterDraftsPanel } from '@/components/panels/StudyCenterDraftsPanel';
 
 export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
@@ -93,14 +93,14 @@ export function ModernStudyCenterDashboard({ initialTab, onNavigate }: { initial
       )}
 
       {activeTab === 'wallet' && <StudyCenterWalletPanel />}
-      {activeTab === 'enroll' && <EnrollStudentPanel />}
+      {activeTab === 'enroll' && <EnrollStudentPanel onNavigate={nav} />}
+      {activeTab === 'drafts' && <StudyCenterDraftsPanel onNavigate={nav} />}
       {activeTab === 'enrollments' && <StudyCenterEnrollmentsPanel />}
       {activeTab === 'students' && <StudentsPanel />}
       {activeTab === 'rereg-report' && <FinanceReregReportWrapper />}
       {activeTab === 'marks' && centerConfig?.allowInternalMarks && <InternalMarksPanel />}
       {activeTab === 'programs' && <ProgramsPanel />}
       {activeTab === 'center_commission' && <CenterCommissionsPanel />}
-      {activeTab === 'tasks' && <TasksPanel />}
       {activeTab === 'documents' && <MyDocumentsPanel />}
     </div>
   );

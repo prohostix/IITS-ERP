@@ -289,7 +289,8 @@ const fetchAllData = useCallback(async () => {
     setOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       if (form.level === 'program' && !form.programId) {
         toast.error('Please select a program');
@@ -330,10 +331,10 @@ const fetchAllData = useCallback(async () => {
 
       const payload = {
         level: form.level,
-        programId: form.level === 'program' ? form.programId : undefined,
-        universityId: form.universityId || undefined,
-        admissionSessionId: form.admissionSessionId || undefined,
-        specialisation: form.specialisation || undefined,
+        programId: form.level === 'program' ? form.programId : "",
+        universityId: form.universityId || "",
+        admissionSessionId: form.admissionSessionId || "",
+        specialisation: form.specialisation || "",
         baseFee: totalBaseFee,
         fullProgramFee: Number(form.fullProgramFee || 0),
         oneTimeUniversityFee: Number(form.oneTimeUniversityFee || 0),
@@ -341,7 +342,7 @@ const fetchAllData = useCallback(async () => {
         universityFee: totalUniversityFee,
         billingCycle: form.billingCycle,
         currency: form.currency,
-        effectiveFrom: form.effectiveFrom || undefined,
+        effectiveFrom: form.effectiveFrom || "",
         additionalFees: addFees,
         feeBreakdown: cleanBreakdown,
         commissionRate: aggregatedCommissionRate > 0 ? aggregatedCommissionRate : Number(form.commissionRate || 0),

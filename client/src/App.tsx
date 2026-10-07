@@ -83,12 +83,12 @@ const TABLE_TO_TAB: Record<string, string> = {
   // CEO
   performance: 'performance',
   center_onboarding: 'center_onboarding',
-  // Center Admin
   center_wallet: 'wallet',
   enroll_student: 'enroll',
   center_enrollments: 'enrollments',
   center_programs: 'programs',
   center_rereg_report: 'rereg-report',
+  center_drafts: 'drafts',
   // Employee
   notice_board: 'notice-board',
   ld_portal: 'ld-portal',
@@ -98,6 +98,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   escalations: 'escalations',
   audit_logs: 'overview',
   center_admissions: 'center_admissions',
+  dashboard: 'overview',
 };
 
 function App() {
@@ -169,9 +170,9 @@ function App() {
     }
   }
 
-  // When user loads/changes, go to the default route if on root
+  // When user loads/changes, go to the default route if on root or login page
   useEffect(() => {
-    if (user?.role && location === '/') {
+    if (user?.role && (location === '/' || location === '/login')) {
       setLocation(`/${getDefaultTable(user.role)}`);
       setDeptType(null);
     }
@@ -324,12 +325,12 @@ function App() {
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'center_wallet', label: 'Wallet' },
         { id: 'enroll_student', label: 'Enroll Student' },
+        { id: 'center_drafts', label: 'Drafts' },
         { id: 'center_enrollments', label: 'My Enrollments' },
         { id: 'students', label: 'Students' },
         { id: 'center_rereg_report', label: 'Re-Registration Report' },
         { id: 'center_programs', label: 'Programs & Materials' },
         { id: 'center_commission', label: 'Commission' },
-        { id: 'tasks', label: 'Tasks' },
       ];
     }
 

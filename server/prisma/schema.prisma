@@ -86,6 +86,7 @@ model Organization {
   hiringRequests        HiringRequest[]
   candidates            Candidate[]
   shifts                Shift[]
+  enrollmentDrafts      EnrollmentDraft[]
 
   @@index([status])
 }
@@ -442,6 +443,7 @@ model StudyCenter {
   assignedSubDepts       SubDepartment[]        @relation("SubDeptToCenter")
   associatedUniversities University[]           @relation("UniversityToStudyCenter")
   commissionOuts         CommissionOut[]
+  enrollmentDrafts       EnrollmentDraft[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -1912,4 +1914,18 @@ model ExamAnswer {
   marksAwarded Int?
 
   @@unique([submissionId, questionId])
+}
+
+model EnrollmentDraft {
+  id             String       @id @default(uuid())
+  organizationId String
+  studyCenterId  String
+  data           Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  studyCenter    StudyCenter  @relation(fields: [studyCenterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([studyCenterId])
 }

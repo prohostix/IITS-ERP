@@ -94,7 +94,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
       case 'polls': return <PollsPanel />;
-      default: return null;
+      default: return <div className="p-8 text-center text-red-500 font-bold">Unknown tab: {activeTab} (initialTab: {initialTab})</div>;
     }
   };
 

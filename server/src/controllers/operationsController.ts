@@ -329,7 +329,12 @@ export const getAdmissionSessions = asyncHandler(async (req: AuthRequest, res: R
   if (req.query.universityId) {
     where.universityId = req.query.universityId as string;
   }
-  const sessions = await prisma.admissionSession.findMany({ where });
+  const sessions = await prisma.admissionSession.findMany({ 
+    where,
+    include: {
+      university: { select: { id: true, name: true } }
+    }
+  });
   res.json({ success: true, count: sessions.length, data: sessions });
 });
 export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -337,11 +342,17 @@ export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Re
   res.json({ success: true, data: session });
 });
 export const createAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await prisma.admissionSession.create({ data: { ...req.body, organizationId: req.user.organizationId } });
+  const data = { ...req.body, organizationId: req.user.organizationId };
+  if (data.universityId === '') data.universityId = null;
+  if (data.programId === '') data.programId = null;
+  const session = await prisma.admissionSession.create({ data });
   res.status(201).json({ success: true, data: session });
 });
 export const updateAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data: req.body });
+  const data = { ...req.body };
+  if (data.universityId === '') data.universityId = null;
+  if (data.programId === '') data.programId = null;
+  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: session });
 });
 export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -100,18 +100,23 @@ export const createProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { level, programId, universityId, admissionSessionId, specialisation, billingCycle, baseFee, fullProgramFee, universityFee, additionalFees, commissionRate, currency, feeBreakdown } = req.body;
   const data: any = {};
+  const existingFee = await prisma.programFeeStructure.findUnique({ where: { id: req.params.id } });
+  if (!existingFee) {
+    return res.status(404).json({ success: false, message: 'Fee structure not found' });
+  }
+
+  const currentLevel = level !== undefined ? level : existingFee.level;
   if (level !== undefined) data.level = level;
   if (fullProgramFee !== undefined) data.fullProgramFee = parseFloat(fullProgramFee);
   if (req.body.oneTimeUniversityFee !== undefined) data.oneTimeUniversityFee = parseFloat(req.body.oneTimeUniversityFee);
   if (req.body.oneTimeCommission !== undefined) data.oneTimeCommission = parseFloat(req.body.oneTimeCommission);
 
-  if (programId !== undefined) {
-    const finalProgramId = (level === 'program' || data.level === 'program') ? programId : null;
-    if (finalProgramId && finalProgramId !== '__none__') {
-      data.programId = finalProgramId;
-    } else {
-      data.programId = null;
+  if (currentLevel === 'program') {
+    if (programId !== undefined) {
+      data.programId = programId === '__none__' || !programId ? null : programId;
     }
+  } else {
+    data.programId = null;
   }
   
   if (universityId !== undefined) {
@@ -132,6 +137,39 @@ export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
   if (feeBreakdown !== undefined) data.feeBreakdown = feeBreakdown;
   if (currency !== undefined) data.currency = currency;
   if (commissionRate !== undefined) data.commissionRate = parseFloat(commissionRate);
+
+  const checkLevel = currentLevel;
+  const checkProgramId = data.programId !== undefined ? data.programId : existingFee.programId;
+  const checkSession = data.admissionSessionId !== undefined ? data.admissionSessionId : existingFee.admissionSessionId;
+  const checkSpec = data.specialisation !== undefined ? data.specialisation : existingFee.specialisation;
+  const checkUni = data.universityId !== undefined ? data.universityId : existingFee.universityId;
+
+  if (checkLevel === 'program' && checkProgramId) {
+    const duplicate = await prisma.programFeeStructure.findFirst({
+      where: {
+        id: { not: req.params.id },
+        level: 'program',
+        programId: checkProgramId,
+        admissionSessionId: checkSession,
+        specialisation: checkSpec
+      }
+    });
+    if (duplicate) {
+      return res.status(400).json({ success: false, message: 'Program fee structure already exists for this program, session, and specialisation.' });
+    }
+  } else if (checkLevel === 'university' && checkUni) {
+    const duplicate = await prisma.programFeeStructure.findFirst({
+      where: {
+        id: { not: req.params.id },
+        level: 'university',
+        universityId: checkUni,
+        admissionSessionId: checkSession
+      }
+    });
+    if (duplicate) {
+      return res.status(400).json({ success: false, message: 'University fee structure already exists for this university and session.' });
+    }
+  }
 
   const fee = await prisma.programFeeStructure.update({
     where: { id: req.params.id },

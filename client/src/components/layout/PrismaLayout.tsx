@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { 
   Database, 
   ChevronRight, 
@@ -403,7 +404,9 @@ export function PrismaLayout({
 
         <section className="flex-1 overflow-auto p-4 lg:p-8 bg-background">
           <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </section>
       </main>

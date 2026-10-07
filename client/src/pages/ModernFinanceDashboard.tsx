@@ -145,7 +145,12 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'commissions': return <CommissionsPanel />;
       case 'no_wallet_report': return <FinanceNoWalletReportPanel />;
       case 'rereg_report': return <FinanceReregReportWrapper />;
-      default: return null;
+      default: return (
+        <OverviewContent
+          metrics={metrics} invoices={invoices} expenses={expenses}
+          payrollBatches={payrollBatches} loading={loading} onNavigate={setActiveTab}
+        />
+      );
     }
   };
 

@@ -15,6 +15,9 @@ import {
   getActiveSessions,
   checkEmailUniqueness,
   processPaymentStage,
+  saveDraft,
+  getDrafts,
+  deleteDraft,
 } from '../controllers/enrollmentController.js';
 import {
   getPendingReviews,
@@ -44,6 +47,11 @@ router.post('/enroll', authorize('center_admin'), createEnrollment);
 router.put('/enroll/:id', authorize('center_admin'), updateEnrollment);
 router.post('/enroll/:id/pay', authorize('center_admin'), processPaymentStage);
 router.get('/enrollments', authorize('center_admin'), getMyEnrollments);
+
+// Draft routes
+router.post('/drafts', authorize('center_admin'), saveDraft);
+router.get('/drafts', authorize('center_admin'), getDrafts);
+router.delete('/drafts/:id', authorize('center_admin'), deleteDraft);
 
 // Center onboarding status & payment (authenticated)
 router.get('/my-center-status', authorize('center_admin'), getMyCenterStatus);

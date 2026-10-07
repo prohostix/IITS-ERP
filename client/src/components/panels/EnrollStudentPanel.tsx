@@ -57,11 +57,12 @@ interface Session {
   programId?: string | null;
 }
 
-export function EnrollStudentPanel() {
+export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
@@ -136,17 +137,42 @@ export function EnrollStudentPanel() {
         api.get('/enrollment/wallet'),
         api.get('/enrollment/my-center-status').catch(() => ({ data: { data: null } }))
       ]);
-      setPrograms(progsRes.data.data || []);
+      const progs = progsRes.data.data || [];
+      setPrograms(progs);
       setWallet(walletRes.data.data);
       setCenterConfig(centerRes.data.data);
+      return progs;
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData().then((progs) => {
+      const draftData = sessionStorage.getItem('enrollment_draft_resume');
+      if (draftData && progs) {
+        try {
+          const parsed = JSON.parse(draftData);
+          setDraftId(parsed.id);
+          if (parsed.form) setForm(parsed.form);
+          if (parsed.selectedUniversityId) setSelectedUniversityId(parsed.selectedUniversityId);
+          if (parsed.selectedProgramId) {
+            const p = progs.find((x: any) => x.id === parsed.selectedProgramId);
+            if (p) setSelectedProgram(p);
+          }
+          if (parsed.selectedSessionId) setSelectedSessionId(parsed.selectedSessionId);
+          if (parsed.educationList) setEducationList(parsed.educationList);
+          if (parsed.documentList) setDocumentList(parsed.documentList);
+          if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+          if (parsed.activeStep) setActiveStep(parsed.activeStep);
+          sessionStorage.removeItem('enrollment_draft_resume');
+        } catch (e) {}
+      }
+    });
+  }, []);
 
   const fetchSessions = async (univId: string) => {
     try {
@@ -191,7 +217,7 @@ export function EnrollStudentPanel() {
   };
 
   const availableSessions = sessions.filter(
-    s => !selectedProgram || s.programId === null || s.programId === selectedProgram.id
+    s => !selectedProgram || !s.programId || s.programId === selectedProgram.id
   );
 
   const getTotalFee = (p: Program, pm?: string) => {
@@ -495,6 +521,31 @@ export function EnrollStudentPanel() {
     setConfirmOpen(true);
   };
 
+  const saveDraft = async () => {
+    try {
+      const payload = {
+        id: draftId,
+        form,
+        selectedUniversityId,
+        selectedProgramId: selectedProgram?.id,
+        selectedSessionId,
+        educationList,
+        documentList,
+        paymentMethod,
+        activeStep,
+        studentName: form.studentName,
+        programName: selectedProgram?.name
+      };
+      const res = await api.post('/enrollment/drafts', payload);
+      toast.success(res.data.message);
+      if (res.data.draftId) {
+        setDraftId(res.data.draftId);
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to save draft');
+    }
+  };
+
   const handleEnroll = async () => {
     if (!selectedProgram) return;
     if (!selectedSessionId) {
@@ -582,6 +633,15 @@ export function EnrollStudentPanel() {
           }
         }
       }
+      
+      if (form.abcId && !/^\d{12}$/.test(form.abcId)) {
+        toast.error('ABC ID must be exactly 12 digits');
+        return false;
+      }
+      if (form.debId && !/^\d{12}$/.test(form.debId)) {
+        toast.error('DEB ID must be exactly 12 digits');
+        return false;
+      }
     } else if (stepNum === 2) {
       // Validate Step 2: studentName, studentEmail, studentPhone, studentAddress
       const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
@@ -626,10 +686,21 @@ export function EnrollStudentPanel() {
       }
     } else if (stepNum === 4) {
       // Validate mandatory documents
+      const isDocUploaded = (docName: string) => {
+        const target1 = docName.toLowerCase();
+        const target2 = docName.replace('Certificate', 'Marksheet').toLowerCase();
+        return documentList.some(d => 
+          (d.reqName && d.reqName.toLowerCase() === target1) ||
+          (d.name && d.name.toLowerCase() === target1) ||
+          (d.reqName && d.reqName.toLowerCase() === target2) ||
+          (d.name && d.name.toLowerCase() === target2)
+        );
+      };
+
       if (selectedProgram?.certificateRequirements) {
         const mandatoryReqs = selectedProgram.certificateRequirements.filter((r: any) => r.isMandatory);
         for (const req of mandatoryReqs) {
-          if (!documentList.some(d => d.reqName === req.name)) {
+          if (!isDocUploaded(req.name)) {
             toast.error(`Please upload mandatory document: ${req.name}`);
             return false;
           }
@@ -648,7 +719,7 @@ export function EnrollStudentPanel() {
         
         for (const doc of branchDocs) {
           if (cConfig[doc.key] === 'required') {
-            if (!documentList.some(d => d.reqName === doc.label)) {
+            if (!isDocUploaded(doc.label)) {
               toast.error(`Please upload required branch document: ${doc.label}`);
               return false;
             }
@@ -1112,15 +1183,20 @@ export function EnrollStudentPanel() {
 
           {/* Stepper Footer Controls */}
           <div className="flex items-center justify-between border-t pt-5 mt-8 bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={activeStep === 1}
-              onClick={() => setActiveStep(activeStep - 1)}
-              className="flex items-center gap-1 text-slate-600"
-            >
-              &larr; Back
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={activeStep === 1}
+                onClick={() => setActiveStep(activeStep - 1)}
+                className="flex items-center gap-1 text-slate-600"
+              >
+                &larr; Back
+              </Button>
+              <Button type="button" variant="secondary" onClick={saveDraft}>
+                Save Draft
+              </Button>
+            </div>
             
             <span className="text-xs font-semibold text-slate-500">
               Step {activeStep} of 4
