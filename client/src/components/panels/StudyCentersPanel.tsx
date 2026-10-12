@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings, ChevronDown, ChevronRight, Building2, GitBranch } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Upload, Download, AlertTriangle, CheckCircle2, Copy, Search, Settings, ChevronDown, ChevronRight, Building2, GitBranch, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -12,7 +12,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import * as XLSX from 'xlsx';
 
-export function StudyCentersPanel() {
+export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: string) => void } = {}) {
   const { user } = useAuth();
   const canWrite = ['org_admin', 'superadmin', 'sales_admin', 'bde', 'employee'].includes(user?.role || '');
   const [centers, setCenters] = useState<any[]>([]);
@@ -641,6 +641,17 @@ export function StudyCentersPanel() {
                               </div>
                               <div className="flex items-center gap-2 flex-wrap justify-end">
                                 <Badge className="text-xs">{c.status}</Badge>
+                                {onViewLedger && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-1 text-xs border-purple-200 text-purple-700 hover:bg-purple-50"
+                                    onClick={() => onViewLedger(c.id)}
+                                    title="View Center Wallet Ledger"
+                                  >
+                                    <Wallet className="w-3.5 h-3.5" /> Ledger
+                                  </Button>
+                                )}
                                 {c.allowInternalMarks && (
                                   <Badge variant="outline" className="text-xs border-violet-400 text-violet-600 bg-violet-50">Marks ✓</Badge>
                                 )}

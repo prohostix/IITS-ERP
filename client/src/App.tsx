@@ -67,10 +67,15 @@ const TABLE_TO_TAB: Record<string, string> = {
   wallet_topups: 'wallet_topups',
   enrollments_finance: 'enrollments_finance',
   student_ledger: 'student_ledger',
+  'student-ledger': 'student_ledger',
   center_ledger: 'center_ledger',
+  'center-ledger': 'center_ledger',
   commission_university_report: 'commission_university_report',
+  'commission-university-report': 'commission_university_report',
   university_fee_report: 'university_fee_report',
+  'university-fee-report': 'university_fee_report',
   rereg_payment_report: 'rereg_payment_report',
+  'rereg-payment-report': 'rereg_payment_report',
   // Operations / shared
   students: 'students',
   universities: 'universities',
@@ -285,6 +290,12 @@ function App() {
         { id: 'invoices', label: 'Invoices' },
         { id: 'leads', label: 'Leads' },
         { id: 'center_onboarding', label: 'Centers & Enrollment' },
+        { id: '__finance_reports', label: 'Finance & Ledgers', isSection: true },
+        { id: 'student_ledger', label: 'Student Ledger' },
+        { id: 'center_ledger', label: 'Center Ledger' },
+        { id: 'commission_university_report', label: 'University Commission' },
+        { id: 'university_fee_report', label: 'University Fee Payments' },
+        { id: 'rereg_payment_report', label: 'Re-Registration Fees' },
         { id: '__reports', label: 'Reports', isSection: true },
         { id: 'activity_report', label: 'Activity Report' },
       ];
@@ -309,6 +320,11 @@ function App() {
         { id: 'study_centers', label: 'Study Centers' },
         { id: 'center_admissions', label: 'Centers Admissions' },
         { id: '__finance_management', label: 'Finance Management', isSection: true },
+        { id: 'student_ledger', label: 'Student Ledger' },
+        { id: 'center_ledger', label: 'Center Ledger' },
+        { id: 'commission_university_report', label: 'University Commission' },
+        { id: 'university_fee_report', label: 'University Fee Payments' },
+        { id: 'rereg_payment_report', label: 'Re-Registration Fees' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'payments', label: 'Payments' },
         { id: 'expenses', label: 'Expenses' },
@@ -330,15 +346,15 @@ function App() {
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
 
-    if (user.role === 'finance_admin') {
+    if (user.role === 'finance_admin' || user.role === 'finance_sub_admin') {
       return getFinanceNavItems();
     }
 
-    if (user.role === 'hr_admin') {
+    if (user.role === 'hr_admin' || user.role === 'hr_sub_admin') {
       return getHRNavItems();
     }
 
-    if (user.role === 'sales_admin') {
+    if (user.role === 'sales_admin' || user.role === 'sales_sub_admin') {
       const items = getSalesNavItems();
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }

@@ -495,7 +495,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
         }
       },
       studyCenter: { select: { id: true, name: true, code: true, branchName: true } },
-      session: { select: { id: true, name: true } }
+      session: { select: { id: true, name: true } },
+      studentFeeReceipts: true
     }
   });
 
@@ -533,13 +534,44 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       const semLabel = (feeStruct.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + semNum;
 
       // Check if already paid in completedRecords
-      const alreadyPaid = completedRecords.some(c => 
+      const alreadyPaidInInvoices = completedRecords.some(c => 
         (c.enrollmentNumber === enr.enrollmentNumber || c.studentId === enr.studentId) &&
         c.installment.toLowerCase().includes(semLabel.toLowerCase())
       );
 
-      if (!alreadyPaid) {
-        const semFee = Number(b.baseFee || b.tuitionFee || 0) + Number(b.examFee || 0);
+      const matchingReceipt = (enr.studentFeeReceipts || []).find((r: any) =>
+        (r.remarks || '').toLowerCase().includes(semLabel.toLowerCase())
+      );
+
+      const semFee = Number(b.baseFee || b.tuitionFee || 0) + Number(b.examFee || 0);
+
+      if (matchingReceipt && !alreadyPaidInInvoices) {
+        completedRecords.push({
+          id: `rcpt-${matchingReceipt.id}`,
+          invoiceId: matchingReceipt.id,
+          invoiceNo: matchingReceipt.referenceNo || `RCPT-${matchingReceipt.id.slice(0, 8)}`,
+          studentId: enr.studentId,
+          studentName: enr.studentName,
+          enrollmentNumber: enr.enrollmentNumber || 'N/A',
+          uniEnrollmentNumber: enr.uniEnrollmentNumber || 'N/A',
+          studentEmail: enr.studentEmail,
+          studentPhone: enr.studentPhone,
+          universityId: enr.program?.university?.id,
+          universityName: enr.program?.university?.name || 'Unassigned University',
+          programId: enr.programId,
+          programName: enr.program?.name || 'N/A',
+          centerId: enr.studyCenterId,
+          centerName: enr.studyCenter?.name || 'N/A',
+          branchName: enr.studyCenter?.branchName || '',
+          installment: semLabel,
+          amount: Number(matchingReceipt.amount || semFee),
+          status: 'completed',
+          paidDate: matchingReceipt.receiptDate || matchingReceipt.createdAt,
+          paymentMethod: matchingReceipt.paymentMode || 'Direct / Receipt',
+          referenceNo: matchingReceipt.referenceNo || 'Receipt'
+        });
+        totalCollected += Number(matchingReceipt.amount || semFee);
+      } else if (!alreadyPaidInInvoices) {
         totalPendingAmount += semFee;
 
         pendingRecords.push({
@@ -567,7 +599,7 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     }
   }
 
-  // Filter completed and pending by university, search, status
+  // Filter completed and pending by university, program, center, search, status
   let filteredCompleted = completedRecords;
   let filteredPending = pendingRecords;
 
@@ -576,17 +608,31 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     filteredPending = filteredPending.filter(r => r.universityId === universityId);
   }
 
+  if (programId && programId !== 'all') {
+    filteredCompleted = filteredCompleted.filter(r => r.programId === programId);
+    filteredPending = filteredPending.filter(r => r.programId === programId);
+  }
+
+  if (centerId && centerId !== 'all') {
+    filteredCompleted = filteredCompleted.filter(r => r.centerId === centerId);
+    filteredPending = filteredPending.filter(r => r.centerId === centerId);
+  }
+
   if (search) {
     const s = String(search).toLowerCase();
     const matchesSearch = (r: any) =>
-      r.studentName.toLowerCase().includes(s) ||
-      r.enrollmentNumber.toLowerCase().includes(s) ||
-      r.uniEnrollmentNumber.toLowerCase().includes(s) ||
-      r.centerName.toLowerCase().includes(s);
+      (r.studentName || '').toLowerCase().includes(s) ||
+      (r.enrollmentNumber || '').toLowerCase().includes(s) ||
+      (r.uniEnrollmentNumber || '').toLowerCase().includes(s) ||
+      (r.centerName || '').toLowerCase().includes(s);
 
     filteredCompleted = filteredCompleted.filter(matchesSearch);
     filteredPending = filteredPending.filter(matchesSearch);
   }
+
+  // Calculate filtered totals for KPI summary cards
+  const totalCollectedFiltered = filteredCompleted.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const totalPendingAmountFiltered = filteredPending.reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
   // Group by University
   const uniSummaryMap: Record<string, {
@@ -636,11 +682,11 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     success: true,
     data: {
       summary: {
-        totalCollected,
-        totalPendingAmount,
-        completedCount: completedRecords.length,
-        pendingCount: pendingRecords.length,
-        totalStudentsCount: new Set([...completedRecords.map(r => r.enrollmentNumber), ...pendingRecords.map(r => r.enrollmentNumber)]).size
+        totalCollected: totalCollectedFiltered,
+        totalPendingAmount: totalPendingAmountFiltered,
+        completedCount: filteredCompleted.length,
+        pendingCount: filteredPending.length,
+        totalStudentsCount: new Set([...filteredCompleted.map(r => r.enrollmentNumber), ...filteredPending.map(r => r.enrollmentNumber)]).size
       },
       universities,
       completedRecords: status === 'pending' ? [] : filteredCompleted,

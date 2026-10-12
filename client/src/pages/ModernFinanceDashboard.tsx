@@ -135,7 +135,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'payroll': return <PayrollPanel />;
       case 'payroll-batches': return <PayrollBatchesPanel />;
       case 'students': return <StudentsPanel />;
-      case 'centers': return <StudyCentersPanel />;
+      case 'centers': return <StudyCentersPanel onViewLedger={handleOpenCenterLedger} />;
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'admission_sessions': return <AdmissionSessionsPanel />;
       case 'auth_fees': return <FinanceAuthFeePanel />;

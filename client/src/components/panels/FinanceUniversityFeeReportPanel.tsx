@@ -123,7 +123,165 @@ export function FinanceUniversityFeeReportPanel() {
   };
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const univRowsHtml = universities.map((u: any, idx: number) => `
+      <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+        <td style="padding: 6px 8px; text-align: center; color: #64748b;">${idx + 1}</td>
+        <td style="padding: 6px 8px; font-weight: 600; color: #0f172a;">${u.universityName}</td>
+        <td style="padding: 6px 8px; text-align: center;">${u.studentsCount}</td>
+        <td style="padding: 6px 8px; text-align: right; font-family: monospace;">₹${Number(u.totalPayable).toLocaleString('en-IN')}</td>
+        <td style="padding: 6px 8px; text-align: right; font-family: monospace; color: #047857; font-weight: 600;">₹${Number(u.totalPaid).toLocaleString('en-IN')}</td>
+        <td style="padding: 6px 8px; text-align: right; font-family: monospace; color: #b45309;">₹${Number(u.pendingAmount).toLocaleString('en-IN')}</td>
+        <td style="padding: 6px 8px; text-align: center; font-weight: 700; color: ${u.paymentRate >= 75 ? '#047857' : '#b45309'};">${u.paymentRate}%</td>
+        <td style="padding: 6px 8px; text-align: center; color: #64748b;">${u.paidCount} / ${u.paidCount + u.pendingCount}</td>
+      </tr>
+    `).join('');
+
+    const paymentRowsHtml = payments.map((p: any, idx: number) => {
+      const isPaid = p.status === 'paid';
+      const statusBg = isPaid ? '#d1fae5' : '#fef3c7';
+      const statusColor = isPaid ? '#047857' : '#b45309';
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 10px;">
+          <td style="padding: 5px 6px; text-align: center; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 5px 6px; font-weight: 600; color: #0f172a;">${p.studentName}</td>
+          <td style="padding: 5px 6px; font-family: monospace; color: #475569;">${p.enrollmentNo || '-'}</td>
+          <td style="padding: 5px 6px; font-family: monospace; color: #3b82f6;">${p.uniEnrollmentNumber || '-'}</td>
+          <td style="padding: 5px 6px; color: #334155;">${p.universityName}</td>
+          <td style="padding: 5px 6px; color: #475569;">${p.programName}</td>
+          <td style="padding: 5px 6px; color: #475569;">${p.centerName}</td>
+          <td style="padding: 5px 6px; text-align: center;">${p.semesterOrYear || 'Full'}</td>
+          <td style="padding: 5px 6px; text-align: right; font-family: monospace; font-weight: 600; color: #0f172a;">₹${Number(p.amount).toLocaleString('en-IN')}</td>
+          <td style="padding: 5px 6px; text-align: center;">
+            <span style="background: ${statusBg}; color: ${statusColor}; padding: 1px 5px; border-radius: 3px; font-weight: 600; font-size: 9px; text-transform: uppercase;">${p.status}</span>
+          </td>
+          <td style="padding: 5px 6px; white-space: nowrap; color: #64748b;">${p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
+          <td style="padding: 5px 6px; font-family: monospace; color: #475569; font-size: 9px;">${p.referenceNo || '-'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>University_Fee_Payment_Report_${new Date().toISOString().split('T')[0]}</title>
+        <meta charset="utf-8" />
+        <style>
+          @page { size: A4 landscape; margin: 10mm 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 10px; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .title-area h1 { margin: 0; font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+          .title-area h2 { margin: 2px 0 0; font-size: 11px; color: #475569; font-weight: 600; }
+          .meta-area { text-align: right; font-size: 10px; color: #475569; }
+          .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+          .kpi-card { border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px 12px; text-align: center; background: #f8fafc; }
+          .kpi-label { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #64748b; }
+          .kpi-value { font-size: 16px; font-weight: 800; margin-top: 2px; font-family: monospace; }
+          .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; margin: 14px 0 6px; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+          th { background: #f1f5f9; color: #334155; font-size: 9px; text-transform: uppercase; font-weight: 700; padding: 6px; border-bottom: 1.5px solid #cbd5e1; }
+          .footer-section { margin-top: 25px; display: flex; justify-content: space-between; font-size: 10px; color: #475569; page-break-inside: avoid; }
+          .sig-box { border-top: 1px solid #64748b; width: 180px; text-align: center; padding-top: 5px; font-weight: 600; }
+          .disclaimer { font-size: 8px; color: #94a3b8; text-align: center; margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 6px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title-area">
+            <h1>OFFICIAL UNIVERSITY FEE DISBURSEMENT & AUDIT REPORT</h1>
+            <h2>Student University Fee Remittances, Direct Liabilities & Settlement Records</h2>
+          </div>
+          <div class="meta-area">
+            <div><strong>Date of Issue:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <div><strong>Filter Scope:</strong> ${selectedUniversity === 'all' ? 'All Partner Universities' : 'Filtered University'} | Status: ${selectedStatus.toUpperCase()}</div>
+          </div>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Fee Payable</div>
+            <div class="kpi-value" style="color: #4338ca;">₹${Number(summary.totalPayable || 0).toLocaleString('en-IN')}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Total Remitted (Paid)</div>
+            <div class="kpi-value" style="color: #047857;">₹${Number(summary.totalPaid || 0).toLocaleString('en-IN')}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Outstanding Pending</div>
+            <div class="kpi-value" style="color: #b45309;">₹${Number(summary.totalPending || 0).toLocaleString('en-IN')}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Disbursement Rate</div>
+            <div class="kpi-value" style="color: #1d4ed8;">${summary.completionRate || 0}% (${summary.recordsCount || 0} Records)</div>
+          </div>
+        </div>
+
+        <div class="section-title">1. University-Wise Fee Obligation Summary (${universities.length} Universities)</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 30px;">#</th>
+              <th style="text-align: left;">University</th>
+              <th style="text-align: center; width: 60px;">Students</th>
+              <th style="text-align: right;">Payable (₹)</th>
+              <th style="text-align: right;">Remitted (₹)</th>
+              <th style="text-align: right;">Pending (₹)</th>
+              <th style="text-align: center; width: 70px;">Completion</th>
+              <th style="text-align: center; width: 80px;">Paid / Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${univRowsHtml || '<tr><td colspan="8" style="text-align: center; padding: 12px; color: #94a3b8;">No university data available</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="section-title">2. Detailed Student Fee Remittance Ledger (${payments.length} Records)</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: center; width: 30px;">#</th>
+              <th style="text-align: left;">Student Name</th>
+              <th style="text-align: left;">Enrollment No</th>
+              <th style="text-align: left;">Uni Roll No</th>
+              <th style="text-align: left;">University</th>
+              <th style="text-align: left;">Program</th>
+              <th style="text-align: left;">Study Center</th>
+              <th style="text-align: center; width: 60px;">Term</th>
+              <th style="text-align: right;">Amount (₹)</th>
+              <th style="text-align: center; width: 60px;">Status</th>
+              <th style="text-align: left; width: 75px;">Paid Date</th>
+              <th style="text-align: left;">Challan / Ref</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${paymentRowsHtml || '<tr><td colspan="12" style="text-align: center; padding: 12px; color: #94a3b8;">No payment records found</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="footer-section">
+          <div class="sig-box">Prepared By (Disbursement Officer)</div>
+          <div class="sig-box">Audited By (Senior Internal Auditor)</div>
+          <div class="sig-box">Approved By (Director of Finance)</div>
+        </div>
+
+        <div class="disclaimer">
+          CONFIDENTIAL INSTITUTIONAL AUDIT DOCUMENT &bull; Generated from ERP on ${new Date().toLocaleString('en-IN')} &bull; Page 1 of 1
+        </div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
   };
 
   return (

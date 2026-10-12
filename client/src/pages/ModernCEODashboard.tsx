@@ -59,6 +59,11 @@ import { PerformancePanel } from '@/components/panels/PerformancePanel';
 import { CEOKPIReportPanel } from '@/components/panels/CEOKPIReportPanel';
 import { EmployeeActivityReportPanel } from '@/components/panels/EmployeeActivityReportPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
+import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
+import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
+import { FinanceCommissionUniversityReportPanel } from '@/components/panels/FinanceCommissionUniversityReportPanel';
+import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniversityFeeReportPanel';
+import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceReregPaymentReportPanel';
 
 const DEPT_COLORS: Record<string, string> = {
   hr: 'hsl(var(--info))', finance: 'hsl(var(--success))',
@@ -308,6 +313,11 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
         {activeTab === 'leads' && <LeadsPanel />}
         {activeTab === 'center_onboarding' && <CenterOnboardingOverviewPanel mode="ceo" />}
         {activeTab === 'activity_report' && <EmployeeActivityReportPanel />}
+        {activeTab === 'student_ledger' && <FinanceStudentLedgerPanel />}
+        {activeTab === 'center_ledger' && <FinanceCenterLedgerPanel />}
+        {activeTab === 'commission_university_report' && <FinanceCommissionUniversityReportPanel />}
+        {activeTab === 'university_fee_report' && <FinanceUniversityFeeReportPanel />}
+        {activeTab === 'rereg_payment_report' && <FinanceReregPaymentReportPanel />}
       </div>
     </div>
   );

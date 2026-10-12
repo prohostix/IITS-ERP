@@ -127,7 +127,169 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!ledgerData) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const { center, summary, ledger } = ledgerData;
+    const rowsHtml = (ledger || []).map((e: any, idx: number) => {
+      const typeLabel = e.type === 'credit' ? 'CREDIT (+)' : 'DEBIT (-)';
+      const typeColor = e.type === 'credit' ? '#047857' : '#be123c';
+      const typeBg = e.type === 'credit' ? '#d1fae5' : '#ffe4e6';
+      const debitStr = e.debit > 0 ? `₹${Number(e.debit).toLocaleString('en-IN')}` : '-';
+      const creditStr = e.credit > 0 ? `₹${Number(e.credit).toLocaleString('en-IN')}` : '-';
+      const balStr = `₹${Number(e.runningBalance).toLocaleString('en-IN')}`;
+      const dateStr = new Date(e.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+          <td style="padding: 7px 8px; text-align: center; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 7px 8px; white-space: nowrap; color: #334155;">${dateStr}</td>
+          <td style="padding: 7px 8px; text-align: center;">
+            <span style="background: ${typeBg}; color: ${typeColor}; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px;">${typeLabel}</span>
+          </td>
+          <td style="padding: 7px 8px;">
+            <div style="font-weight: 600; color: #0f172a;">${e.category}</div>
+            <div style="color: #64748b; font-size: 10px;">${e.description || ''}</div>
+          </td>
+          <td style="padding: 7px 8px; font-family: monospace; font-size: 10px; color: #334155;">
+            <div>${e.reference || '-'}</div>
+            <div style="color: #94a3b8; font-size: 9px;">${e.method || ''}</div>
+          </td>
+          <td style="padding: 7px 8px; text-align: right; color: #be123c; font-weight: 600; font-family: monospace;">${debitStr}</td>
+          <td style="padding: 7px 8px; text-align: right; color: #047857; font-weight: 600; font-family: monospace;">${creditStr}</td>
+          <td style="padding: 7px 8px; text-align: right; font-weight: 700; font-family: monospace; color: #0f172a;">${balStr}</td>
+        </tr>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Center_Statement_${center.code || 'Center'}</title>
+        <meta charset="utf-8" />
+        <style>
+          @page { size: A4 portrait; margin: 12mm 15mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 10px; }
+          .header { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .title-area h1 { margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+          .title-area h2 { margin: 3px 0 0; font-size: 13px; color: #475569; font-weight: 600; }
+          .meta-area { text-align: right; font-size: 11px; color: #475569; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+          .info-item { font-size: 11px; margin-bottom: 4px; }
+          .info-item strong { color: #475569; font-weight: 600; min-width: 110px; display: inline-block; }
+          .kpi-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+          .kpi-card { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; text-align: center; }
+          .kpi-label { font-size: 10px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.5px; }
+          .kpi-value { font-size: 17px; font-weight: 800; margin-top: 3px; font-family: monospace; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+          th { background: #f1f5f9; color: #334155; font-size: 10px; text-transform: uppercase; font-weight: 700; padding: 8px; border-bottom: 2px solid #cbd5e1; }
+          .footer-section { margin-top: 30px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; page-break-inside: avoid; }
+          .sig-box { border-top: 1px solid #64748b; width: 200px; text-align: center; padding-top: 6px; font-size: 11px; font-weight: 600; }
+          .disclaimer { font-size: 9px; color: #94a3b8; text-align: center; margin-top: 25px; border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title-area">
+            <h1>${center.name} (${center.code || 'CENTER'})</h1>
+            <h2>OFFICIAL STUDY CENTER WALLET STATEMENT OF ACCOUNT</h2>
+          </div>
+          <div class="meta-area">
+            <div><strong>Date of Issue:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <div><strong>Statement Ref:</strong> CTR-STMT-${center.code || center.id.slice(0, 8)}</div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div>
+            <div class="info-item"><strong>Center Name:</strong> <span style="font-weight: 700; color: #0f172a;">${center.name}</span></div>
+            <div class="info-item"><strong>Center Code:</strong> <span style="font-family: monospace; font-weight: 700;">${center.code}</span></div>
+            <div class="info-item"><strong>Location:</strong> ${center.city || ''} ${center.state ? `, ${center.state}` : ''}</div>
+          </div>
+          <div>
+            <div class="info-item"><strong>Coordinator:</strong> ${center.coordinatorName || 'Center Admin'}</div>
+            <div class="info-item"><strong>Contact:</strong> ${center.phone || ''} ${center.email ? `| ${center.email}` : ''}</div>
+            <div class="info-item"><strong>Branch:</strong> ${center.branchName || 'Main'}</div>
+          </div>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi-card" style="background: #ecfdf5; border-color: #a7f3d0;">
+            <div class="kpi-label" style="color: #047857;">Total Credits (Top-Ups & Comms)</div>
+            <div class="kpi-value" style="color: #047857;">₹${summary.totalCredits.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="kpi-card" style="background: #fff1f2; border-color: #fecdd3;">
+            <div class="kpi-label" style="color: #be123c;">Total Debits (Enrollments & Fees)</div>
+            <div class="kpi-value" style="color: #be123c;">₹${summary.totalDebits.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="kpi-card" style="background: #f8fafc; border-color: #cbd5e1;">
+            <div class="kpi-label" style="color: #0f172a;">Closing Wallet Balance</div>
+            <div class="kpi-value" style="color: #0f172a;">₹${center.currentWalletBalance.toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 25px; text-align: center;">#</th>
+              <th style="width: 80px; text-align: left;">Date</th>
+              <th style="width: 80px; text-align: center;">Type</th>
+              <th style="text-align: left;">Category & Description</th>
+              <th style="width: 140px; text-align: left;">Reference / Mode</th>
+              <th style="width: 90px; text-align: right;">Debit (₹)</th>
+              <th style="width: 90px; text-align: right;">Credit (₹)</th>
+              <th style="width: 105px; text-align: right;">Balance (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="background: #f8fafc; font-weight: 700; border-top: 2px solid #cbd5e1; font-size: 11px;">
+              <td colspan="5" style="padding: 9px; text-align: right;">Closing Financial Position:</td>
+              <td style="padding: 9px; text-align: right; color: #be123c; font-family: monospace;">₹${summary.totalDebits.toLocaleString('en-IN')}</td>
+              <td style="padding: 9px; text-align: right; color: #047857; font-family: monospace;">₹${summary.totalCredits.toLocaleString('en-IN')}</td>
+              <td style="padding: 9px; text-align: right; color: #0f172a; font-family: monospace;">₹${center.currentWalletBalance.toLocaleString('en-IN')}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="footer-section">
+          <div>
+            <div style="font-weight: 600; margin-bottom: 3px;">Accounts & Verification Note:</div>
+            <div style="font-size: 10px; color: #64748b; max-width: 320px;">
+              Official record of wallet top-ups, commissions, and student admission deductions processed through institutional finance.
+            </div>
+          </div>
+          <div style="display: flex; gap: 40px;">
+            <div class="sig-box">
+              Verified by Finance Officer
+            </div>
+            <div class="sig-box">
+              Authorized Signatory
+            </div>
+          </div>
+        </div>
+
+        <div class="disclaimer">
+          Generated automatically by University ERP System on ${new Date().toLocaleString('en-IN')}.
+        </div>
+
+        <script>
+          window.onload = () => {
+            window.print();
+            window.close();
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   // ══════════════════════════════════════════════════════════════════════════
