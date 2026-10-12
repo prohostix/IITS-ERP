@@ -69,14 +69,14 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.totalVacancies = await prisma.vacancy.count({ where: { organizationId: organizationId, status: 'open' as any } });
   }
 
-  if (['finance_admin', 'ceo', 'org_admin'].includes(role)) {
+  if (['finance_admin', 'finance', 'ceo', 'org_admin'].includes(role)) {
     const invoices = await prisma.invoice.findMany({ where: { organizationId: organizationId, status: 'paid' as any }, select: { total: true } });
     metrics.totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
     metrics.pendingInvoices = await prisma.invoice.count({ where: { organizationId: organizationId, status: { in: ['draft', 'sent'] } } });
     metrics.totalPayments = await prisma.paymentEntry.count({ where: { organizationId: organizationId } });
     metrics.pendingExpenses = await prisma.expenseClaim.count({ where: { organizationId: organizationId, status: 'pending' as any } });
     metrics.pendingWalletTopUps = await prisma.walletTopUp.count({ where: { organizationId: organizationId, status: 'pending' as any } });
-    metrics.pendingEnrollments = await prisma.enrollment.count({ where: { organizationId: organizationId, status: 'finance_review' as any } });
+    metrics.pendingEnrollments = await prisma.enrollment.count({ where: { organizationId: organizationId, status: { in: ['pending_doc_review', 'document_review', 'pending_finance_review', 'payment_pending'] } } });
     metrics.pendingCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'pending_payment' as any } });
   }
 

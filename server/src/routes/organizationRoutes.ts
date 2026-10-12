@@ -17,7 +17,7 @@ router.use(protect);
 
 router
   .route('/')
-  .get(authorize('superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), getOrganizations)
+  .get(authorize('superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'finance', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), getOrganizations)
   .post(authorize('superadmin'), auditLog('create', 'Organization'), createOrganization);
 
 router

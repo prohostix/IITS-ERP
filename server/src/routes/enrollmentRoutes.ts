@@ -68,7 +68,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // Global enrollment list (for admins/staff)
-router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager', 'bde', 'employee', 'staff'), getAllEnrollments);
+router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager', 'bde', 'employee', 'staff'), getAllEnrollments);
 
 // Dept/Sub-dept manager review routes
 router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), getPendingReviews);

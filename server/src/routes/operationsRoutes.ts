@@ -106,7 +106,7 @@ router.route('/sessions/:id')
   .get(getAdmissionSession)
   .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateAdmissionSession)
   .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteAdmissionSession);
-router.put('/sessions/:id/approve', authorize('finance_admin'), approveAdmissionSession);
+router.put('/sessions/:id/approve', authorize('finance_admin', 'finance'), approveAdmissionSession);
 router.post('/sessions/:id/duplicate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), duplicateSession);
 
 // Internal Marks — study centers enter marks, ops has read-only

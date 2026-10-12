@@ -48,6 +48,7 @@ interface PrismaLayoutProps {
   userRole?: string;
   userDesignation?: string;
   userId?: string;
+  userAvatar?: string;
   organizationId?: string;
   schema?: string;
 }
@@ -62,6 +63,7 @@ export function PrismaLayout({
   userRole,
   userDesignation,
   userId,
+  userAvatar,
   organizationId,
   schema = 'public'
 }: PrismaLayoutProps) {
@@ -192,7 +194,7 @@ export function PrismaLayout({
   const activeTableItem = normalizedTables.find(t => !t.isSection && t.id === activeTable) || normalizedTables.find(t => !t.isSection);
 
   return (
-    <div className="h-screen flex bg-background font-sans overflow-hidden relative">
+    <div className="h-screen flex bg-background font-sans overflow-hidden relative selection:bg-primary/30">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -203,13 +205,13 @@ export function PrismaLayout({
 
       {/* Premium Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 w-64 flex flex-col border-r shadow-xl z-50 transition-transform duration-300 lg:relative lg:translate-x-0",
-        "bg-sidebar border-sidebar-border text-sidebar-foreground",
+        "fixed inset-y-0 left-0 w-64 flex flex-col z-50 transition-transform duration-300 lg:relative lg:translate-x-0 shadow-2xl",
+        "bg-sidebar/95 backdrop-blur-xl border-r border-white/10 text-sidebar-foreground",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-16 flex items-center px-6 gap-3 border-b border-sidebar-border relative">
-          <div className="w-8 h-8 rounded-lg premium-gradient flex items-center justify-center shadow-lg">
-            <Database className="w-5 h-5 text-white" />
+        <div className="h-16 flex items-center px-6 gap-3 border-b border-white/10 relative">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src="/logo-icon.png" alt="Logo" className="w-8 h-8 object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-sm tracking-tight text-sidebar-foreground">PYPE ERP</span>
@@ -233,7 +235,7 @@ export function PrismaLayout({
               placeholder="Search features..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-9 pl-9 pr-4 bg-sidebar-accent/50 border border-transparent rounded-lg text-xs text-sidebar-foreground outline-none focus:border-sidebar-primary/30 transition-all placeholder:text-sidebar-foreground/30"
+              className="w-full h-9 pl-9 pr-4 bg-white/5 border border-transparent rounded-lg text-xs text-sidebar-foreground outline-none focus:border-sidebar-primary/50 focus:bg-white/10 transition-all placeholder:text-sidebar-foreground/40"
             />
           </div>
         </div>
@@ -284,8 +286,12 @@ export function PrismaLayout({
 
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/20">
           <div className="flex items-center gap-3 px-2 py-2 mb-4">
-            <div className="w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold shrink-0">
-              {userName?.charAt(0) || 'U'}
+            <div className="w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold shrink-0 overflow-hidden">
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                userName?.charAt(0) || 'U'
+              )}
             </div>
             <div className="flex flex-col min-w-0">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName || 'Unknown User'}</p>
@@ -311,7 +317,7 @@ export function PrismaLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 flex items-center px-2 sm:px-4 lg:px-8 gap-2 sm:gap-4 bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-20">
+        <header className="h-16 flex items-center px-2 sm:px-4 lg:px-8 gap-2 sm:gap-4 bg-background/40 backdrop-blur-2xl border-b border-white/20 dark:border-white/5 sticky top-0 z-20 shadow-sm">
           <Button 
             variant="ghost" 
             size="icon" 

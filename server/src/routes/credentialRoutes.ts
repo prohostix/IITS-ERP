@@ -26,10 +26,10 @@ router
 router
   .route('/requests/:id')
   .get(authorize('ops_admin', 'finance_admin'), getCredentialRequest)
-  .patch(authorize('finance_admin'), respondToCredentialRequest);
+  .patch(authorize('finance_admin', 'finance'), respondToCredentialRequest);
 
 router
   .route('/stats')
-  .get(authorize('finance_admin'), getCredentialStats);
+  .get(authorize('finance_admin', 'finance'), getCredentialStats);
 
 export default router;

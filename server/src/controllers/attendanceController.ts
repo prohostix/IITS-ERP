@@ -39,8 +39,17 @@ export const punchIn = asyncHandler(async (req: AuthRequest, res: Response) => {
 
   if (isHalfDay) status = 'half_day';
 
-  const attendance = await prisma.attendance.create({
-    data: { 
+  const attendance = await prisma.attendance.upsert({
+    where: { userId_date: { userId: req.user.id, date: today } },
+    update: {
+      checkIn: checkInTime, 
+      status: status as any,
+      isLate,
+      lateMinutes,
+      isWFH,
+      isHalfDay
+    },
+    create: { 
       userId: req.user.id, 
       organizationId: req.user.organizationId, 
       date: today, 
@@ -58,9 +67,24 @@ export const punchIn = asyncHandler(async (req: AuthRequest, res: Response) => {
 export const punchOut = asyncHandler(async (req: AuthRequest, res: Response) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const attendance = await prisma.attendance.updateMany({
-    where: { userId: req.user.id, date: today },
-    data: { checkOut: new Date() }
+  
+  const existing = await prisma.attendance.findFirst({
+    where: { userId: req.user.id, date: today }
+  });
+
+  if (!existing || !existing.checkIn) {
+    return res.status(400).json({ success: false, message: 'No check-in found for today' });
+  }
+
+  const checkOutTime = new Date();
+  const diffHours = (checkOutTime.getTime() - existing.checkIn.getTime()) / (1000 * 60 * 60);
+
+  const attendance = await prisma.attendance.update({
+    where: { id: existing.id },
+    data: { 
+      checkOut: checkOutTime,
+      workingHours: diffHours
+    }
   });
   res.json({ success: true, data: attendance });
 });

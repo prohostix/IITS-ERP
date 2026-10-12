@@ -92,13 +92,16 @@ export function HRPanel({ activeModule }: HRPanelProps) {
 
   const handleLeaveAction = async (id: string, action: 'approve' | 'reject') => {
     try {
-      await api.put(`/hr/leaves/${id}/hr-approve`, { action, remarks: `Action by HR` });
+      await api.patch(`/hr/leaves/${id}/hr-approve`, { action, remarks: `Action by HR` });
       toast.success(`Leave request ${action}d successfully`);
       fetchData();
     } catch (e: any) {
       toast.error(e.response?.data?.message || `Failed to ${action} leave request`);
     }
   };
+
+  const role = user?.role || '';
+  const canApproveLeaves = ['hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'].includes(role);
 
   const handleCloseVacancy = async (id: string) => {
     toast.success(`Vacancy closed successfully`);
@@ -379,10 +382,10 @@ export function HRPanel({ activeModule }: HRPanelProps) {
             columns={leaveColumns}
             title="Pending Requests"
             searchFields={['reason']}
-            actions={(row: any) => [
+            actions={canApproveLeaves ? ((row: any) => [
               { label: 'Approve', onClick: () => handleLeaveAction(row.id, 'approve') },
               { label: 'Reject', onClick: () => handleLeaveAction(row.id, 'reject'), variant: 'destructive' },
-            ]}
+            ]) : undefined}
           />
         </TabsContent>
 

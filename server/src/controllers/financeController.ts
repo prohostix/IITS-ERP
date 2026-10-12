@@ -1396,3 +1396,43 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
 
   res.json({ success: true, count: rows.length, data: rows });
 });
+
+export const getUniversityWalletLedger = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { universityId } = req.params;
+  const ledger = await prisma.universityWalletLedger.findMany({
+    where: { organizationId: req.user.organizationId, universityId },
+    orderBy: { createdAt: 'desc' }
+  });
+  res.json({ success: true, data: ledger });
+});
+
+export const addUniversityWalletTransaction = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { universityId } = req.params;
+  const { type, amount, transactionId, remarks, date } = req.body;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const lastTransaction = await tx.universityWalletLedger.findFirst({
+      where: { organizationId: req.user.organizationId, universityId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let runningBalance = lastTransaction?.runningBalance || 0;
+    if (type === 'credit') runningBalance += Number(amount);
+    else if (type === 'debit') runningBalance -= Number(amount);
+
+    return await tx.universityWalletLedger.create({
+      data: {
+        organizationId: req.user.organizationId,
+        universityId,
+        type,
+        amount: Number(amount),
+        transactionId,
+        remarks,
+        date: date ? new Date(date) : new Date(),
+        runningBalance
+      }
+    });
+  });
+
+  res.json({ success: true, data: result });
+});

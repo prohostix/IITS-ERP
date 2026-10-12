@@ -24,7 +24,7 @@ router.get('/branches/my', getMyBranch);
 router.get('/branches', getBranches);
 router.get('/branches/:id', getBranch);
 
-router.use(authorize('org_admin', 'superadmin', 'hr_admin', 'ceo', 'finance_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin'));
+router.use(authorize('org_admin', 'superadmin', 'hr_admin', 'ceo', 'finance_admin', 'finance', 'ops_admin', 'ops_sub_admin', 'sales_admin'));
 
 // CEO Panel routes
 router.route('/ceo-panels').get(getCeoPanels).post(createCeoPanel);

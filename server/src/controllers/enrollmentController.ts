@@ -573,12 +573,13 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = {
     organizationId: req.user.organizationId,
-    status: 'active'
+    status: { in: ['active', 'approved'] }
   };
   if (req.query.universityId) {
     where.OR = [
       { universityId: req.query.universityId as string },
-      { universityId: null }
+      { universityId: null },
+      { universityId: '' }
     ];
   }
   const sessions = await prisma.admissionSession.findMany({
@@ -675,37 +676,120 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
-  // Update enrollment details and change status back to document_review
-  const updatedEnrollment = await prisma.enrollment.update({
-    where: { id },
-    data: {
-      studentName: studentName !== undefined ? studentName : enrollment.studentName,
-      studentEmail: studentEmail !== undefined ? studentEmail : enrollment.studentEmail,
-      studentPhone: studentPhone !== undefined ? studentPhone : enrollment.studentPhone,
-      studentAddress: studentAddress !== undefined ? studentAddress : enrollment.studentAddress,
-      specialisation: specialisation !== undefined ? specialisation : enrollment.specialisation,
-      abcId: abcId !== undefined ? abcId : enrollment.abcId,
-      debId: debId !== undefined ? debId : enrollment.debId,
-      dob: dob !== undefined ? dob : enrollment.dob,
-      religion: religion !== undefined ? religion : enrollment.religion,
-      caste: caste !== undefined ? caste : enrollment.caste,
-      fatherName: fatherName !== undefined ? fatherName : enrollment.fatherName,
-      motherName: motherName !== undefined ? motherName : enrollment.motherName,
-      parentMobile: parentMobile !== undefined ? parentMobile : enrollment.parentMobile,
-      studentPhoto: studentPhoto !== undefined ? studentPhoto : enrollment.studentPhoto,
-      pincode: pincode !== undefined ? pincode : enrollment.pincode,
-      alternativePhone: alternativePhone !== undefined ? alternativePhone : enrollment.alternativePhone,
-      maritalStatus: maritalStatus !== undefined ? maritalStatus : enrollment.maritalStatus,
-      currentlyWorking: currentlyWorking !== undefined ? currentlyWorking : enrollment.currentlyWorking,
-      admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
-      programId: targetProgramId,
-      sessionId: finalSessionId,
-      status: 'pending_doc_review',
-      departmentRemarks: null, // Clear remarks since it is re-submitted
-      documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : enrollment.documents,
-      educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : enrollment.educationalDetails,
+  let feeAmountToDeduct = 0;
+  const prog = await prisma.program.findUnique({ where: { id: targetProgramId }, include: { university: true } });
+  if ((prog?.university as any)?.category === 'direct_iits') {
+    const paymentMethod = enrollment.paymentMethod || 'installment';
+    const spec = specialisation !== undefined ? specialisation : (enrollment.specialisation || null);
+    const feeStructure = await resolveProgramFeeStructure(organizationId, targetProgramId, finalSessionId, spec);
+    
+    if (feeStructure) {
+      let grossFee = 0;
+      let commRate = feeStructure.commissionRate ? Number(feeStructure.commissionRate) : 0;
+      
+      let breakdowns = feeStructure.feeBreakdown as any;
+      if (typeof breakdowns === 'string') {
+        try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
+      }
+
+      const addFees = Array.isArray((feeStructure as any).additionalFees) ? (feeStructure as any).additionalFees : [];
+      const nonGstFees = addFees.filter((f: any) => f.label !== 'GST');
+      const additionalFeesTotal = nonGstFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+
+      if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+        if (paymentMethod === 'full_payment') {
+          const fullFee = Number((feeStructure as any).fullProgramFee || 0);
+          if (fullFee > 0) {
+            grossFee = fullFee + additionalFeesTotal;
+          } else {
+            const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+            const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+            grossFee = baseFees + examFees + additionalFeesTotal;
+          }
+        } else {
+          const b = breakdowns[0];
+          let sem1AdditionalFees = 0;
+          if (Array.isArray(b.additionalFees)) {
+            sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
+          }
+          grossFee = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees;
+          if (b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+            commRate = Number(b.commissionRate);
+          }
+        }
+      } else {
+        grossFee = Number(feeStructure.baseFee || 0) + additionalFeesTotal;
+      }
+
+      const gstEntry = addFees.find((f: any) => f.label === 'GST');
+      const gstAmount = gstEntry ? Math.round((grossFee * Number(gstEntry.amount || 0)) / 100) : 0;
+      const totalFeeCalculated = grossFee + gstAmount;
+
+      if (totalFeeCalculated > 0) {
+        const commissionAmount = (grossFee * commRate) / 100;
+        feeAmountToDeduct = Math.round(totalFeeCalculated - commissionAmount);
+      }
     }
-  });
+  }
+
+  let updatedEnrollment;
+  try {
+    updatedEnrollment = await prisma.$transaction(async (tx) => {
+      if (feeAmountToDeduct > 0) {
+        const wallet = await tx.studyCenterWallet.findUnique({ where: { studyCenterId } });
+        if (!wallet || wallet.balance < feeAmountToDeduct) {
+          throw new Error(`Insufficient wallet balance. Required: ₹${feeAmountToDeduct}`);
+        }
+        await tx.studyCenterWallet.update({
+          where: { id: wallet.id },
+          data: { balance: { decrement: feeAmountToDeduct } }
+        });
+        await tx.enrollmentPayment.create({
+          data: {
+            enrollmentId: id,
+            studyCenterId: studyCenterId,
+            walletId: wallet.id,
+            amount: feeAmountToDeduct
+          }
+        });
+      }
+
+      return await tx.enrollment.update({
+        where: { id },
+        data: {
+          studentName: studentName !== undefined ? studentName : enrollment.studentName,
+          studentEmail: studentEmail !== undefined ? studentEmail : enrollment.studentEmail,
+          studentPhone: studentPhone !== undefined ? studentPhone : enrollment.studentPhone,
+          studentAddress: studentAddress !== undefined ? studentAddress : enrollment.studentAddress,
+          specialisation: specialisation !== undefined ? specialisation : enrollment.specialisation,
+          abcId: abcId !== undefined ? abcId : enrollment.abcId,
+          debId: debId !== undefined ? debId : enrollment.debId,
+          dob: dob !== undefined ? dob : enrollment.dob,
+          religion: religion !== undefined ? religion : enrollment.religion,
+          caste: caste !== undefined ? caste : enrollment.caste,
+          fatherName: fatherName !== undefined ? fatherName : enrollment.fatherName,
+          motherName: motherName !== undefined ? motherName : enrollment.motherName,
+          parentMobile: parentMobile !== undefined ? parentMobile : enrollment.parentMobile,
+          studentPhoto: studentPhoto !== undefined ? studentPhoto : enrollment.studentPhoto,
+          pincode: pincode !== undefined ? pincode : enrollment.pincode,
+          alternativePhone: alternativePhone !== undefined ? alternativePhone : enrollment.alternativePhone,
+          maritalStatus: maritalStatus !== undefined ? maritalStatus : enrollment.maritalStatus,
+          currentlyWorking: currentlyWorking !== undefined ? currentlyWorking : enrollment.currentlyWorking,
+          admissionDate: admissionDate !== undefined ? (admissionDate ? new Date(admissionDate) : null) : enrollment.admissionDate,
+          programId: targetProgramId,
+          sessionId: finalSessionId,
+          status: 'pending_doc_review',
+          departmentRemarks: null, // Clear remarks since it is re-submitted
+          paymentType: feeAmountToDeduct > 0 ? 'wallet' : enrollment.paymentType,
+          documents: documents ? (typeof documents === 'string' ? JSON.parse(documents) : documents) : enrollment.documents,
+          educationalDetails: educationalDetails ? (typeof educationalDetails === 'string' ? JSON.parse(educationalDetails) : educationalDetails) : enrollment.educationalDetails,
+        }
+      });
+    });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message || 'Failed to update enrollment' });
+    return;
+  }
 
   res.status(200).json({ success: true, data: updatedEnrollment });
 });

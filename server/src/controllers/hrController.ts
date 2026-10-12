@@ -22,7 +22,7 @@ const mapLeaveRequest = (leave: any) => ({
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
-  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role);
+  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role);
   const whereClause: any = { organizationId: req.user.organizationId };
 
   // Dept managers only see their own department's leaves; fallback to all if no dept

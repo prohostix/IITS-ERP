@@ -14,6 +14,8 @@ import {
   Wallet,
   FileText,
   Users,
+  BookOpen,
+  Landmark,
 } from 'lucide-react';
 import { InvoicesPanel } from '@/components/panels/InvoicesPanel';
 import { PaymentsPanel } from '@/components/panels/PaymentsPanel';
@@ -48,6 +50,11 @@ import { CommissionsPanel } from '@/components/panels/CommissionsPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 import { FinanceStudentPaymentLogsPanel } from '@/components/panels/FinanceStudentPaymentLogsPanel';
 import { FinanceNoWalletReportPanel } from '@/components/panels/FinanceNoWalletReportPanel';
+import { FinanceCommissionUniversityReportPanel } from '@/components/panels/FinanceCommissionUniversityReportPanel';
+import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniversityFeeReportPanel';
+import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceReregPaymentReportPanel';
+import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
+import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -74,11 +81,23 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
   const [payrollBatches, setPayrollBatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+  const [selectedStudentLedgerId, setSelectedStudentLedgerId] = useState<string | undefined>(undefined);
+  const [selectedCenterLedgerId, setSelectedCenterLedgerId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setActiveTab(initialTab || 'overview');
   }, [initialTab]);
   useEffect(() => { fetchAll(); }, []);
+
+  const handleOpenStudentLedger = (studentId: string) => {
+    setSelectedStudentLedgerId(studentId);
+    setActiveTab('student_ledger');
+  };
+
+  const handleOpenCenterLedger = (centerId: string) => {
+    setSelectedCenterLedgerId(centerId);
+    setActiveTab('center_ledger');
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -141,10 +160,15 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'notice-board': return <NoticeBoardPanel />;
       case 'subdepartments': return <SubDepartmentsPanel />;
       case 'total_report': return <FinanceTotalReportPanel />;
-      case 'student_payment_log': return <FinanceStudentPaymentLogsPanel />;
+      case 'student_payment_log': return <FinanceStudentPaymentLogsPanel onViewLedger={handleOpenStudentLedger} />;
       case 'commissions': return <CommissionsPanel />;
       case 'no_wallet_report': return <FinanceNoWalletReportPanel />;
       case 'rereg_report': return <FinanceReregReportWrapper />;
+      case 'student_ledger': return <FinanceStudentLedgerPanel initialStudentId={selectedStudentLedgerId} />;
+      case 'center_ledger': return <FinanceCenterLedgerPanel initialCenterId={selectedCenterLedgerId} />;
+      case 'commission_university_report': return <FinanceCommissionUniversityReportPanel />;
+      case 'university_fee_report': return <FinanceUniversityFeeReportPanel />;
+      case 'rereg_payment_report': return <FinanceReregPaymentReportPanel />;
       default: return (
         <OverviewContent
           metrics={metrics} invoices={invoices} expenses={expenses}
@@ -165,6 +189,8 @@ export function getFinanceNavItems() {
   return [
     { id: '__finance_section', label: 'Finance Management', isSection: true },
     { id: 'overview', label: 'Overview' },
+    { id: 'student_ledger', label: 'Student Ledger' },
+    { id: 'center_ledger', label: 'Center Ledger' },
     { id: 'student_payment_log', label: 'Student Payment Log' },
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
@@ -172,30 +198,37 @@ export function getFinanceNavItems() {
     { id: 'expenses', label: 'Expenses' },
     { id: 'targets', label: 'Targets' },
     { id: 'fees', label: 'Fee Structures' },
+    { id: '__payroll_section', label: 'Payroll & HR', isSection: true },
     { id: 'payroll', label: 'Payroll' },
     { id: 'payroll-batches', label: 'Payroll Batches' },
+    { id: 'salary_approvals', label: 'Salary Approvals' },
+    { id: 'leaves', label: 'Leave Requests' },
+    { id: '__academic_section', label: 'Academics & Admissions', isSection: true },
     { id: 'students', label: 'Students' },
     { id: 'centers', label: 'Study Centers' },
-    { id: 'broadcast_notifications', label: 'Send Notifications' },
     { id: 'admission_sessions', label: 'Admissions' },
+    { id: 'center_admissions', label: 'Centers Admissions' },
+    { id: 'enrollments_finance', label: 'Enrollments' },
+    { id: 'program_fees', label: 'Program Fees' },
+    { id: '__operations_section', label: 'Operations', isSection: true },
+    { id: 'wallet_topups', label: 'Wallet Top-Ups' },
     { id: 'auth_fees', label: 'Auth Fees' },
     { id: 'pending_payment', label: 'Pending Payment' },
-    { id: 'program_fees', label: 'Program Fees' },
-    { id: 'wallet_topups', label: 'Wallet Top-Ups' },
-    { id: 'enrollments_finance', label: 'Enrollments' },
     { id: 'status_requests', label: 'Status Requests' },
-    { id: 'center_admissions', label: 'Centers Admissions' },
+    { id: 'broadcast_notifications', label: 'Send Notifications' },
+    { id: 'tasks', label: 'Tasks' },
+    { id: 'escalations', label: 'Escalations' },
+    { id: '__reports_section', label: 'Reports & Analytics', isSection: true },
+    { id: 'commission_university_report', label: 'Commission Report (Univ)' },
+    { id: 'university_fee_report', label: 'University Fee Payment Report' },
+    { id: 'rereg_payment_report', label: 'Re-Registration Fee Report' },
     { id: 'income_expenditure', label: 'Income & Expenditure' },
     { id: 'profit_loss', label: 'Profit & Loss' },
-    { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'sales_targets', label: 'Sales Targets' },
     { id: 'total_report', label: 'Total Data Report' },
     { id: 'no_wallet_report', label: 'No Wallet Report' },
-    { id: 'rereg_report', label: 'Re-Registration Report' },
+    { id: 'rereg_report', label: 'Re-Registration Deadlines' },
     { id: 'commissions', label: 'Commissions' },
-    { id: 'leaves', label: 'Leave Requests' },
-    { id: 'tasks', label: 'Tasks' },
-    { id: 'escalations', label: 'Escalations' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'My Attendance' },
@@ -275,7 +308,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
         {[
           { label: 'Payroll Batches', value: pendingBatches.length, sub: 'Pending approval', icon: <Users className="w-4 h-4" />, tab: 'payroll-batches', urgent: pendingBatches.length > 0 },
           { label: 'Wallet Top-Ups', value: metrics.pendingWalletTopUps || 0, sub: 'Awaiting review', icon: <Wallet className="w-4 h-4" />, tab: 'wallet_topups', urgent: (metrics.pendingWalletTopUps || 0) > 0 },
-          { label: 'Enrollments', value: metrics.pendingEnrollments || 0, sub: 'Finance review', icon: <FileText className="w-4 h-4" />, tab: 'enrollments_finance', urgent: (metrics.pendingEnrollments || 0) > 0 },
+          { label: 'Enrollments', value: metrics.pendingEnrollments || 0, sub: 'Pending review', icon: <FileText className="w-4 h-4" />, tab: 'enrollments_finance', urgent: (metrics.pendingEnrollments || 0) > 0 },
           { label: 'Pending Centers', value: metrics.pendingCenters || 0, sub: 'Payment verification', icon: <Receipt className="w-4 h-4" />, tab: 'pending_payment', urgent: (metrics.pendingCenters || 0) > 0 },
         ].map(item => (
           <Card
@@ -290,6 +323,33 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
               <div>
                 <p className="text-xl font-bold">{item.value}</p>
                 <p className="text-xs text-muted-foreground">{item.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Financial Ledgers & Strategic Reports Hub */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {[
+          { label: 'Student Ledger', sub: 'Accounts & balances', icon: <BookOpen className="w-4 h-4 text-blue-600" />, tab: 'student_ledger' },
+          { label: 'Center Ledger', sub: 'Wallet liquidity & debits', icon: <Wallet className="w-4 h-4 text-purple-600" />, tab: 'center_ledger' },
+          { label: 'Univ Commission', sub: 'Expected vs received', icon: <Landmark className="w-4 h-4 text-emerald-600" />, tab: 'commission_university_report' },
+          { label: 'Univ Fee Payments', sub: 'University liabilities', icon: <CreditCard className="w-4 h-4 text-amber-600" />, tab: 'university_fee_report' },
+          { label: 'Re-Registration Fee', sub: 'Installment schedule', icon: <Receipt className="w-4 h-4 text-indigo-600" />, tab: 'rereg_payment_report' },
+        ].map(item => (
+          <Card
+            key={item.label}
+            className="cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-sm bg-card/70"
+            onClick={() => onNavigate(item.tab)}
+          >
+            <CardContent className="p-3.5 flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-background border border-slate-200/60 shadow-xs shrink-0">
+                {item.icon}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold truncate text-foreground">{item.label}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{item.sub}</p>
               </div>
             </CardContent>
           </Card>

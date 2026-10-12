@@ -19,11 +19,14 @@ type ViewMode = 'dashboard' | 'table';
 
 // Basic employee nav items (non-sub-dept-manager employees)
 const EMPLOYEE_NAV_ITEMS = [
+  { id: '__employee_portal', label: 'My Portal', isSection: true },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'tasks', label: 'My Tasks' },
+  { id: '__hr_attendance', label: 'Attendance & Leave', isSection: true },
   { id: 'leaves', label: 'My Leaves' },
   { id: 'attendance', label: 'Attendance' },
   { id: 'holidays', label: 'Holiday List' },
+  { id: '__company_info', label: 'Company Info', isSection: true },
   { id: 'announcements', label: 'Announcements' },
   { id: 'notice-board', label: 'Notice Board' },
   { id: 'team', label: 'My Team' },
@@ -63,6 +66,11 @@ const TABLE_TO_TAB: Record<string, string> = {
   program_fees: 'program_fees',
   wallet_topups: 'wallet_topups',
   enrollments_finance: 'enrollments_finance',
+  student_ledger: 'student_ledger',
+  center_ledger: 'center_ledger',
+  commission_university_report: 'commission_university_report',
+  university_fee_report: 'university_fee_report',
+  rereg_payment_report: 'rereg_payment_report',
   // Operations / shared
   students: 'students',
   universities: 'universities',
@@ -239,7 +247,9 @@ function App() {
     if (!user) return [];
     
     const baseTables = [
+      { id: '__sys_default', label: 'Navigation', isSection: true },
       { id: 'dashboard', label: 'Dashboard' },
+      { id: '__sys_management', label: 'Management', isSection: true },
       { id: 'users', label: 'Users' },
       { id: 'tasks', label: 'Tasks' },
       { id: 'departments', label: 'Departments' },
@@ -247,52 +257,65 @@ function App() {
 
     if (user.role === 'superadmin') {
       return [
+        { id: '__sys_admin', label: 'System Administration', isSection: true },
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'organizations', label: 'Organizations' },
         { id: 'licenses', label: 'Licenses' },
+        { id: '__sys_users', label: 'Access Control', isSection: true },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
+        { id: '__sys_logs', label: 'System Logs', isSection: true },
         { id: 'audit_logs', label: 'Audit Logs' },
       ];
     }
 
     if (user.role === 'ceo') {
       return [
+        { id: '__executive_overview', label: 'Executive Overview', isSection: true },
         { id: 'dashboard', label: 'Overview' },
         { id: 'performance', label: 'Performance' },
         { id: 'kpi-kra', label: 'KPI / KRA' },
+        { id: '__workforce', label: 'Workforce', isSection: true },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
         { id: 'tasks', label: 'Tasks' },
         { id: 'escalations', label: 'Escalations' },
+        { id: '__operations_sales', label: 'Operations & Sales', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'leads', label: 'Leads' },
         { id: 'center_onboarding', label: 'Centers & Enrollment' },
+        { id: '__reports', label: 'Reports', isSection: true },
         { id: 'activity_report', label: 'Activity Report' },
       ];
     }
 
     if (user.role === 'org_admin') {
       return [
+        { id: '__org_overview', label: 'Organization Overview', isSection: true },
         { id: 'dashboard', label: 'Overview' },
         { id: 'hierarchy', label: 'Hierarchy' },
         { id: 'branches', label: 'Branches' },
+        { id: '__hr_management', label: 'HR Management', isSection: true },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },
         { id: 'sub_departments', label: 'Sub-Departments' },
-        { id: 'tasks', label: 'Tasks' },
+        { id: 'employees', label: 'Employees' },
+        { id: 'leave_requests', label: 'Leave Requests' },
+        { id: '__academic_ops', label: 'Academic Operations', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'universities', label: 'Universities' },
         { id: 'programs', label: 'Programs' },
         { id: 'study_centers', label: 'Study Centers' },
         { id: 'center_admissions', label: 'Centers Admissions' },
+        { id: '__finance_management', label: 'Finance Management', isSection: true },
         { id: 'invoices', label: 'Invoices' },
         { id: 'payments', label: 'Payments' },
         { id: 'expenses', label: 'Expenses' },
-        { id: 'employees', label: 'Employees' },
-        { id: 'leave_requests', label: 'Leave Requests' },
+        { id: '__sales_management', label: 'Sales & CRM', isSection: true },
         { id: 'leads', label: 'Leads' },
+        { id: '__task_management', label: 'Tasks', isSection: true },
+        { id: 'tasks', label: 'Tasks' },
       ];
     }
 
@@ -322,15 +345,18 @@ function App() {
 
     if (user.role === 'center_admin') {
       return [
+        { id: '__center_overview', label: 'Center Management', isSection: true },
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'center_wallet', label: 'Wallet' },
+        { id: 'center_commission', label: 'Commission' },
+        { id: '__admissions', label: 'Admissions & Enrollment', isSection: true },
         { id: 'enroll_student', label: 'Enroll Student' },
         { id: 'center_drafts', label: 'Drafts' },
         { id: 'center_enrollments', label: 'My Enrollments' },
+        { id: '__academics', label: 'Academics', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'center_rereg_report', label: 'Re-Registration Report' },
         { id: 'center_programs', label: 'Programs & Materials' },
-        { id: 'center_commission', label: 'Commission' },
       ];
     }
 
@@ -796,6 +822,7 @@ function App() {
       userRole={user?.role}
       userDesignation={user?.designation}
       userId={user?.id?.toString()}
+      userAvatar={(user as any)?.avatar}
       organizationId={
         (() => {
           const orgId: any = (user as any)?.organizationId;

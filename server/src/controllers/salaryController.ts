@@ -48,37 +48,35 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
     });
   }
 
-  // Statutory Calculations
-  let pfDeduction = 0;
-  if (Number(basicSalary) <= 15000) {
-    // 12% of basic
-    pfDeduction = Number(basicSalary) * 0.12;
-  }
-
   const deductions = req.body.deductions || {};
-  deductions['PF'] = pfDeduction;
+  // If basic is <= 15000 and the frontend hasn't provided a pf value, apply default statutory calculation
+  if (Number(basicSalary) <= 15000 && (deductions.pf === undefined || deductions.pf === null || deductions.pf === '')) {
+    deductions.pf = Number(basicSalary) * 0.12;
+  }
 
   const config = await prisma.salaryConfig.upsert({
     where: { userId: req.params.userId },
     update: { 
       ...salaryData,
       basicSalary: Number(basicSalary),
-      allowances: allowances || [],
+      allowances: allowances || {},
       deductions,
       professionalTax: Number(professionalTax || 0),
       labourWelfareFund: Number(labourWelfareFund || 0),
       tds: Number(tds || 0),
+      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : null,
       organizationId: req.user.organizationId, 
       createdBy: req.user.id 
     },
     create: { 
       ...salaryData,
       basicSalary: Number(basicSalary),
-      allowances: allowances || [],
+      allowances: allowances || {},
       deductions,
       professionalTax: Number(professionalTax || 0),
       labourWelfareFund: Number(labourWelfareFund || 0),
       tds: Number(tds || 0),
+      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : null,
       userId: req.params.userId, 
       organizationId: req.user.organizationId, 
       createdBy: req.user.id 
@@ -121,7 +119,9 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
     let usedSick = 0, usedCasual = 0, usedEarned = 0, usedComplementary = 0;
     
     for (const lr of userLeaves) {
-      const days = Math.ceil((new Date(lr.endDate).getTime() - new Date(lr.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      let days = Math.ceil((new Date(lr.endDate).getTime() - new Date(lr.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (lr.isHalfDay) days = 0.5;
+      
       if (lr.type === 'sick') usedSick += days;
       else if (lr.type === 'casual') usedCasual += days;
       else if (lr.type === 'earned') usedEarned += days;

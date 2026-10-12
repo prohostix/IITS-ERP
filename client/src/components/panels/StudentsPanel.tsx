@@ -159,7 +159,7 @@ export function StudentsPanel() {
     if (!selectedStudent) return;
     
     const uniCategory = selectedStudent.program?.university?.category;
-    const isNoWallet = uniCategory === 'direct_iits' || uniCategory === 'team_lease';
+    const isNoWallet = uniCategory === 'team_lease';
     
     const message = isNoWallet 
       ? `Are you sure you want to mark ₹${amount.toLocaleString()} for ${installmentName} as paid directly to the university?`

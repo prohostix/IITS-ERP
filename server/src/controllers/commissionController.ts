@@ -137,7 +137,7 @@ export const getCommissionOutList = asyncHandler(async (req: AuthRequest, res: R
 
 export const payCommissionOut = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { amount, paymentDetails } = req.body;
+  const { amount, tdsPercentage, paymentDetails } = req.body;
 
   const item = await prisma.commissionOut.findUnique({
     where: { id }
@@ -148,11 +148,18 @@ export const payCommissionOut = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
 
+  const grossAmount = parseFloat(amount || item.amount.toString());
+  const tdsPercentValue = tdsPercentage ? parseFloat(tdsPercentage) : 0;
+  const tdsAmount = Math.round((grossAmount * tdsPercentValue) / 100);
+  const netAmount = grossAmount - tdsAmount;
+
   const updated = await prisma.commissionOut.update({
     where: { id },
     data: {
       status: 'paid',
-      amount: parseFloat(amount || item.amount),
+      amount: grossAmount,
+      tdsAmount: tdsAmount,
+      netAmount: netAmount,
       paidAt: new Date(),
       paymentDetails: paymentDetails || ''
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, ChevronUp, Plus, Receipt, IndianRupee } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Plus, Receipt, IndianRupee, BookOpen } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
-export function FinanceStudentPaymentLogsPanel() {
+export function FinanceStudentPaymentLogsPanel({ onViewLedger }: { onViewLedger?: (studentId: string) => void } = {}) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -198,6 +198,11 @@ export function FinanceStudentPaymentLogsPanel() {
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="font-semibold text-sm text-slate-800">Fee Breakdown & Receipts</h4>
                           <div className="flex gap-2">
+                            {onViewLedger && (
+                              <Button size="sm" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => onViewLedger(log.id)}>
+                                <BookOpen className="w-3.5 h-3.5 mr-1" /> View Ledger
+                              </Button>
+                            )}
                             <Button size="sm" variant="outline" onClick={() => setExtraFeeDialog({ open: true, enrId: log.id })}>
                               <Plus className="w-3.5 h-3.5 mr-1" /> Add Extra Fee
                             </Button>

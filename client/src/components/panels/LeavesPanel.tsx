@@ -50,7 +50,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   rejected:     { label: 'Rejected',         color: 'bg-red-500/10 text-red-600 border-red-500/20' },
 };
 
-const DEPT_MANAGER_ROLES = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'];
+const DEPT_MANAGER_ROLES = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin'];
 
 export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
@@ -85,6 +85,7 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
   const isHR = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(role) && !isPersonalView;
   const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager || isHR) && !isPersonalView;
   const isEmployee = (!isDeptManager && !isHR && !isGodMode) || isPersonalView;
+  const canApproveLeaves = ['hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'].includes(role);
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -254,8 +255,8 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 
                 const userDeptId = (user as any)?.departmentId || (user as any)?.department?.id;
                 const isSameDept = leave.departmentId?.id === userDeptId;
-                const canDeptAct = isDeptManager && leave.status === 'pending' && (isGodMode || isSameDept);
-                const canHRAct = isHR && leave.status === 'dept_approved';
+                const canDeptAct = isDeptManager && canApproveLeaves && leave.status === 'pending' && (isGodMode || isSameDept);
+                const canHRAct = isHR && canApproveLeaves && leave.status === 'dept_approved';
 
                 return (
                   <Card key={leave.id} className="hover:border-primary/30 transition-colors">

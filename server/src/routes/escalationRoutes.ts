@@ -17,8 +17,8 @@ router.use(protect);
 router.route('/').get(getEscalations).post(createEscalation);
 router.route('/:id')
   .get(getEscalation)
-  .put(authorize('ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'), updateEscalation)
+  .put(authorize('ceo', 'ops_admin', 'finance_admin', 'finance', 'hr_admin', 'sales_admin'), updateEscalation)
   .delete(authorize('ceo', 'superadmin'), deleteEscalation);
-router.put('/:id/resolve', authorize('ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin'), resolveEscalation);
+router.put('/:id/resolve', authorize('ceo', 'ops_admin', 'finance_admin', 'finance', 'hr_admin', 'sales_admin'), resolveEscalation);
 
 export default router;

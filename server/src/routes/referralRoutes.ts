@@ -21,7 +21,7 @@ router.get('/validate/:slug', validateReferralSlug);
 // All other routes require authentication
 router.use(protect);
 
-const ALL_ROLES = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'];
+const ALL_ROLES = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'finance_admin', 'finance', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'];
 
 // Generate and manage own referral links
 router

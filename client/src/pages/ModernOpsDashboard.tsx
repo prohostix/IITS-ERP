@@ -9,6 +9,7 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
+  ArrowUpRight,
   MapPin,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -110,17 +111,21 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: '__ops_section', label: 'Operations', isSection: true },
     { id: 'overview', label: 'Overview' },
     ...(isSubDeptManager ? [{ id: 'my_subdept', label: 'My Sub-Dept' }] : []),
+    { id: '__academic_management', label: 'Academics & Admissions', isSection: true },
     { id: 'students', label: 'Students' },
     { id: 'universities', label: 'Universities' },
     { id: 'programs', label: 'Programs' },
-    { id: 'centers', label: 'Study Centers' },
-    { id: 'pending_verification', label: 'Pending Verification' },
-    { id: 'program_allocations', label: 'Program Allocations' },
-    { id: 'enrollment_review', label: 'Enrollment Review' },
-    { id: 'status_requests', label: 'Status Requests' },
     { id: 'sessions', label: 'Admission Sessions' },
     { id: 'marks', label: 'Internal Marks' },
+    { id: 'program_allocations', label: 'Program Allocations' },
+    { id: '__center_management', label: 'Center Management', isSection: true },
+    { id: 'centers', label: 'Study Centers' },
     { id: 'center_admissions', label: 'Centers Admissions' },
+    { id: '__verification_review', label: 'Verification & Review', isSection: true },
+    { id: 'pending_verification', label: 'Pending Verification' },
+    { id: 'enrollment_review', label: 'Enrollment Review' },
+    { id: 'status_requests', label: 'Status Requests' },
+    { id: '__communication_tasks', label: 'Communication & Tasks', isSection: true },
     { id: 'announcements', label: 'Announcements' },
     { id: 'broadcast_notifications', label: 'Send Notifications' },
     { id: 'tasks', label: 'Tasks' },
@@ -155,30 +160,34 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         <OpsMetricCard 
           title="Total Students" 
           value={metrics.totalStudents || 0} 
-          icon={<GraduationCap className="w-5 h-5" />}
+          icon={<GraduationCap className="w-5 h-5 text-blue-500" />}
           subtext="Active in current session"
           onClick={() => onNavigate('students')}
+          colorClass="from-blue-500/20 to-blue-500/5 border-blue-500/20"
         />
         <OpsMetricCard 
           title="Study Centers" 
           value={metrics.totalCenters || 0} 
-          icon={<MapPin className="w-5 h-5" />}
+          icon={<MapPin className="w-5 h-5 text-emerald-500" />}
           subtext="Verified institutions"
           onClick={() => onNavigate('centers')}
+          colorClass="from-emerald-500/20 to-emerald-500/5 border-emerald-500/20"
         />
         <OpsMetricCard 
           title="Active Programs" 
           value={metrics.totalPrograms || 0} 
-          icon={<BookOpen className="w-5 h-5" />}
+          icon={<BookOpen className="w-5 h-5 text-purple-500" />}
           subtext="Across all departments"
           onClick={() => onNavigate('programs')}
+          colorClass="from-purple-500/20 to-purple-500/5 border-purple-500/20"
         />
         <OpsMetricCard 
           title="Affiliated Unis" 
           value={metrics.totalOrganizations || 0} 
-          icon={<Building2 className="w-5 h-5" />}
+          icon={<Building2 className="w-5 h-5 text-orange-500" />}
           subtext="Partner institutions"
           onClick={() => onNavigate('universities')}
+          colorClass="from-orange-500/20 to-orange-500/5 border-orange-500/20"
         />
       </div>
 
@@ -285,18 +294,38 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
   );
 }
 
-function OpsMetricCard({ title, value, icon, subtext, onClick }: any) {
+function OpsMetricCard({ title, value, icon, subtext, onClick, colorClass = "from-primary/20 to-primary/5 border-primary/20" }: any) {
   return (
-    <Card className="group hover:border-primary/50 transition-all duration-300 cursor-pointer" onClick={onClick}>
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-muted text-foreground group-hover:bg-primary group-hover:text-white transition-all duration-300">
-            {icon}
+    <Card 
+      className={cn(
+        "group relative overflow-hidden border shadow-lg bg-card/40 backdrop-blur-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer",
+        colorClass.split(' ').find(c => c.startsWith('border-')) || "border-border"
+      )} 
+      onClick={onClick}
+    >
+      {/* Background glowing gradient */}
+      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50 group-hover:opacity-100 transition-opacity duration-500", colorClass.replace(/border-[^\s]+/g, ''))} />
+      
+      {/* Top glowing border line */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      <CardContent className="p-6 relative z-10">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="p-3.5 rounded-2xl bg-background/80 shadow-inner ring-1 ring-white/10 group-hover:scale-110 group-hover:bg-foreground group-hover:text-background transition-all duration-500">
+              {icon}
+            </div>
+            <ArrowUpRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-foreground transition-all duration-500 transform group-hover:translate-x-1 group-hover:-translate-y-1" />
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold tracking-tight">{value.toLocaleString()}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{subtext}</p>
+            <p className="text-[13px] font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
+            <p className="text-4xl font-black tracking-tight mt-1 bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60">
+              {value.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50 animate-pulse" />
+              {subtext}
+            </p>
           </div>
         </div>
       </CardContent>
@@ -305,23 +334,34 @@ function OpsMetricCard({ title, value, icon, subtext, onClick }: any) {
 }
 
 function PipelineStep({ label, value, percentage, color, subtext }: any) {
+  // Determine badge styling based on the progress color
+  let badgeClasses = "bg-primary/10 text-primary";
+  if (color.includes('info')) badgeClasses = "bg-info/10 text-info";
+  if (color.includes('success') || color.includes('emerald')) badgeClasses = "bg-emerald-500/10 text-emerald-500";
+  if (color.includes('warning') || color.includes('orange')) badgeClasses = "bg-orange-500/10 text-orange-500";
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3 group">
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-sm font-bold text-foreground">{label}</span>
-          <p className="text-[10px] text-muted-foreground">{subtext}</p>
+          <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{label}</span>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{subtext}</p>
         </div>
-        <div className="text-right">
-          <span className="text-sm font-bold">{value}</span>
-          <span className="text-xs text-muted-foreground ml-2">({percentage}%)</span>
+        <div className="text-right flex items-center gap-3">
+          <span className="text-lg font-black">{value.toLocaleString()}</span>
+          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", badgeClasses)}>
+            {percentage}%
+          </span>
         </div>
       </div>
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+      <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden shadow-inner">
         <div 
-          className={cn("h-full rounded-full transition-all duration-1000", color)} 
-          style={{ width: `${percentage}%` }} 
-        />
+          className={cn("h-full rounded-full transition-all duration-1000 relative overflow-hidden", color)} 
+          style={{ width: `${Math.max(percentage, 2)}%` }} 
+        >
+          {/* Subtle shimmer effect inside the progress bar */}
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+        </div>
       </div>
     </div>
   );
@@ -329,33 +369,35 @@ function PipelineStep({ label, value, percentage, color, subtext }: any) {
 
 function ActionItem({ icon, title, desc, action, onClick }: any) {
   return (
-    <div className="p-4 rounded-xl border border-border bg-background/50 space-y-3">
+    <div className="group relative p-4 rounded-xl border border-border/50 bg-background/40 hover:bg-background/80 hover:border-primary/30 hover:shadow-md transition-all space-y-3 cursor-pointer overflow-hidden" onClick={onClick}>
+      <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-bl-[100px] -z-10 group-hover:bg-primary/10 transition-colors" />
       <div className="flex items-start gap-3">
-        <div className="mt-1 p-1.5 rounded-lg bg-muted">
+        <div className="mt-1 p-2 rounded-xl bg-card shadow-sm border border-border/50 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300">
           {icon}
         </div>
-        <div className="space-y-0.5">
-          <h5 className="text-sm font-bold">{title}</h5>
+        <div className="space-y-1">
+          <h5 className="text-[13px] font-bold tracking-tight">{title}</h5>
           <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
         </div>
       </div>
-      <Button variant="ghost" size="sm" className="w-full h-8 text-xs hover:bg-muted font-bold" onClick={onClick}>
+      <div className="pt-2 flex items-center text-xs font-bold text-primary opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
         {action}
-        <ArrowRight className="w-3 h-3 ml-2" />
-      </Button>
+        <ArrowRight className="w-3 h-3 ml-1.5" />
+      </div>
     </div>
   );
 }
 
 function OpsQuickLink({ title, desc, icon, onClick }: any) {
   return (
-    <button onClick={onClick} className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card/40 hover:bg-muted/50 hover:border-primary/30 hover:shadow-md transition-all text-left">
-      <div className="p-2.5 rounded-xl bg-background shadow-xs">
+    <button onClick={onClick} className="group flex items-center gap-4 p-4 rounded-2xl border border-border/50 bg-card/20 hover:bg-card/80 hover:border-primary/40 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 text-left relative overflow-hidden backdrop-blur-sm">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+      <div className="p-3 rounded-xl bg-background/80 shadow-inner ring-1 ring-white/10 group-hover:bg-primary group-hover:text-white transition-all duration-300 z-10">
         {icon}
       </div>
-      <div className="min-w-0">
-        <h5 className="text-sm font-bold truncate">{title}</h5>
-        <p className="text-[10px] text-muted-foreground truncate">{desc}</p>
+      <div className="min-w-0 z-10">
+        <h5 className="text-[13px] font-bold truncate group-hover:text-primary transition-colors">{title}</h5>
+        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{desc}</p>
       </div>
     </button>
   );

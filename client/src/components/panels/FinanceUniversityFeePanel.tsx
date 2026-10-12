@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { FinanceUniversityFeeReportPanel } from './FinanceUniversityFeeReportPanel';
 
 interface Student {
   id: string;
@@ -49,7 +50,7 @@ export function FinanceUniversityFeePanel() {
   const [search, setSearch] = useState('');
   const [programs, setPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'paid'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'paid' | 'report'>('pending');
   const [payDialog, setPayDialog] = useState<{ open: boolean; payment: UniversityFeePayment | null }>({ open: false, payment: null });
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -224,13 +225,16 @@ export function FinanceUniversityFeePanel() {
         </Select>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'paid')} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
         <TabsList>
           <TabsTrigger value="pending" className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-orange-500" /> Pending
           </TabsTrigger>
           <TabsTrigger value="paid" className="flex items-center gap-1.5">
             <CheckCircle className="w-3.5 h-3.5 text-green-500" /> Paid
+          </TabsTrigger>
+          <TabsTrigger value="report" className="flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-blue-500" /> Payment Report
           </TabsTrigger>
         </TabsList>
 
@@ -417,6 +421,10 @@ export function FinanceUniversityFeePanel() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="report" className="space-y-4 mt-2">
+          <FinanceUniversityFeeReportPanel />
         </TabsContent>
       </Tabs>
 

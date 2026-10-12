@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowDownLeft, ArrowUpRight, Landmark, Receipt } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { FinanceCommissionUniversityReportPanel } from './FinanceCommissionUniversityReportPanel';
 
 const fmtDate = (d: string | null | undefined): string => {
   if (!d) return '-';
@@ -42,6 +43,7 @@ export function CommissionsPanel() {
   const [payItem, setPayItem] = useState<any | null>(null);
   const [payForm, setPayForm] = useState({
     amount: '',
+    tdsPercentage: '0',
     paymentDetails: ''
   });
 
@@ -114,6 +116,7 @@ export function CommissionsPanel() {
     setPayItem(item);
     setPayForm({
       amount: String(item.amount),
+      tdsPercentage: '0',
       paymentDetails: ''
     });
   };
@@ -211,12 +214,15 @@ export function CommissionsPanel() {
       </div>
 
       <Tabs defaultValue="comm-in" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 max-w-xl">
           <TabsTrigger value="comm-in" className="flex items-center gap-1.5">
             <ArrowDownLeft className="w-4 h-4 text-emerald-500" /> Commission In (Earnings)
           </TabsTrigger>
           <TabsTrigger value="comm-out" className="flex items-center gap-1.5">
             <ArrowUpRight className="w-4 h-4 text-rose-500" /> Commission Out (Payouts)
+          </TabsTrigger>
+          <TabsTrigger value="comm-univ-report" className="flex items-center gap-1.5">
+            <Landmark className="w-4 h-4 text-indigo-500" /> Against University Report
           </TabsTrigger>
         </TabsList>
 
@@ -322,7 +328,15 @@ export function CommissionsPanel() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             {item.commissionIn?.enrollment?.program?.name || '-'}
                           </td>
-                          <td className="px-4 py-3 font-semibold whitespace-nowrap">₹{item.amount.toLocaleString('en-IN')}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="font-semibold text-slate-800">Gross: ₹{item.amount.toLocaleString('en-IN')}</div>
+                            {item.status === 'paid' && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                TDS: ₹{item.tdsAmount || 0} ({item.netAmount ? ((item.tdsAmount/item.amount)*100).toFixed(0) : 0}%)<br/>
+                                Net: <span className="font-medium text-slate-700">₹{item.netAmount?.toLocaleString('en-IN') || item.amount.toLocaleString('en-IN')}</span>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <Badge variant="secondary" className={item.status === 'paid' ? 'bg-green-100 text-green-800 capitalize' : 'bg-amber-100 text-amber-800 capitalize'}>
                               {item.status}
@@ -345,6 +359,10 @@ export function CommissionsPanel() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="comm-univ-report" className="pt-4">
+          <FinanceCommissionUniversityReportPanel />
         </TabsContent>
       </Tabs>
 
@@ -397,7 +415,7 @@ export function CommissionsPanel() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Payout Amount (INR)</Label>
+              <Label>Gross Payout Amount (INR)</Label>
               <Input
                 type="number"
                 value={payForm.amount}
@@ -405,6 +423,31 @@ export function CommissionsPanel() {
                 placeholder="e.g. 5000"
               />
             </div>
+            <div className="space-y-1">
+              <Label>TDS Percentage (%)</Label>
+              <Input
+                type="number"
+                value={payForm.tdsPercentage}
+                onChange={e => setPayForm(f => ({ ...f, tdsPercentage: e.target.value }))}
+                placeholder="e.g. 10"
+              />
+            </div>
+            {payForm.amount && !isNaN(Number(payForm.amount)) && (
+              <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-700 space-y-1 border border-slate-100">
+                <div className="flex justify-between">
+                  <span>Gross Amount:</span>
+                  <span className="font-medium">₹{Number(payForm.amount).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-rose-600">
+                  <span>TDS Deduction:</span>
+                  <span>-₹{((Number(payForm.amount) * Number(payForm.tdsPercentage || 0)) / 100).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold border-t border-slate-200 pt-1 mt-1">
+                  <span>Net Amount Payable:</span>
+                  <span>₹{(Number(payForm.amount) - ((Number(payForm.amount) * Number(payForm.tdsPercentage || 0)) / 100)).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Payment details / Remarks</Label>
               <Input

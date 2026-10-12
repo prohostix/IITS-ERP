@@ -354,6 +354,7 @@ model University {
   studyCenters          StudyCenter[]          @relation("UniversityToStudyCenter")
   programFeeStructures  ProgramFeeStructure[]
   universityAllocations UniversityAllocation[]
+  walletLedgers         UniversityWalletLedger[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -1768,6 +1769,8 @@ model CommissionOut {
   studyCenterId  String
   commissionInId String
   amount         Float
+  tdsAmount      Float?    @default(0)
+  netAmount      Float?
   status         String    @default("pending") // "pending", "paid"
   paidAt         DateTime?
   paymentDetails String?
@@ -1928,4 +1931,22 @@ model EnrollmentDraft {
 
   @@index([organizationId])
   @@index([studyCenterId])
+}
+
+model UniversityWalletLedger {
+  id              String       @id @default(uuid())
+  organizationId  String
+  universityId    String
+  date            DateTime     @default(now())
+  type            String       // "credit" or "debit"
+  amount          Float
+  transactionId   String?
+  remarks         String?
+  runningBalance  Float
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  university      University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, universityId])
 }

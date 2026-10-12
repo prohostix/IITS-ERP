@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +85,7 @@ export function HRUsersPanel() {
     subDepartmentId: string;
     reportingTo: string;
     permissions: string[];
+    avatar?: string;
   }>({
     name: '',
     email: '',
@@ -96,6 +97,7 @@ export function HRUsersPanel() {
     subDepartmentId: '',
     reportingTo: '',
     permissions: [],
+    avatar: '',
   });
 
   const [transferData, setTransferData] = useState({
@@ -110,6 +112,8 @@ export function HRUsersPanel() {
     reportingTo: '',
     type: 'promotion' as 'promotion' | 'demotion',
   });
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
     newPassword: '',
@@ -201,6 +205,7 @@ export function HRUsersPanel() {
           additionalDepartmentIds: additionalDepts,
           subDepartmentId: (formData.subDepartmentId && formData.subDepartmentId !== 'none') ? formData.subDepartmentId : undefined,
           reportingTo: (formData.reportingTo && formData.reportingTo !== 'none') ? formData.reportingTo : undefined,
+          avatar: formData.avatar || undefined,
         });
       } else {
         await api.post('/users', {
@@ -209,6 +214,7 @@ export function HRUsersPanel() {
           departmentId: (formData.departmentId && formData.departmentId !== 'none') ? formData.departmentId : undefined,
           subDepartmentId: (formData.subDepartmentId && formData.subDepartmentId !== 'none') ? formData.subDepartmentId : undefined,
           reportingTo: (formData.reportingTo && formData.reportingTo !== 'none') ? formData.reportingTo : undefined,
+          avatar: formData.avatar || undefined,
         });
       }
       setDialogOpen(false);
@@ -326,6 +332,7 @@ export function HRUsersPanel() {
       subDepartmentId: subDeptId?.toString() || '',
       reportingTo: reportingToId?.toString() || '',
       permissions: user.permissions || [],
+      avatar: user.avatar || '',
     });
     setDialogOpen(true);
   };
@@ -368,6 +375,8 @@ export function HRUsersPanel() {
       additionalDepartmentIds: [],
       subDepartmentId: '',
       reportingTo: '',
+      permissions: [],
+      avatar: '',
     });
     setEditingUser(null);
   };
@@ -423,14 +432,62 @@ export function HRUsersPanel() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+              <div className="flex items-center gap-6 pb-2">
+                <div className="relative w-24 h-24 rounded-full border-2 border-dashed border-border flex items-center justify-center bg-muted/30 overflow-hidden shrink-0 group">
+                  {formData.avatar ? (
+                    <img src={formData.avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground opacity-50" />
+                  )}
+                  
+                  <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                    {uploadingAvatar ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 mb-1" />
+                        <span className="text-[10px] font-medium uppercase tracking-wider">Upload</span>
+                      </>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        setUploadingAvatar(true);
+                        const formDataPayload = new FormData();
+                        formDataPayload.append('file', file);
+                        
+                        try {
+                          const res = await api.post('/enrollment/upload', formDataPayload, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                          });
+                          setFormData(prev => ({ ...prev, avatar: res.data.url }));
+                        } catch (err) {
+                          alert('Failed to upload image. Please try again.');
+                        } finally {
+                          setUploadingAvatar(false);
+                        }
+                      }}
+                      disabled={uploadingAvatar}
+                    />
+                  </label>
+                </div>
+                
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -699,9 +756,19 @@ export function HRUsersPanel() {
                   key={userId}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold">{user.name}</h3>
+                  <div className="flex-1 flex gap-4">
+                    {user.avatar ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden border border-border shrink-0 mt-1">
+                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0 mt-1">
+                        <Users className="w-6 h-6 text-muted-foreground opacity-50" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold">{user.name}</h3>
                       <Badge className={getRoleBadgeColor(user.role)}>
                         {user.role}
                       </Badge>
@@ -733,6 +800,7 @@ export function HRUsersPanel() {
                         Reports to: {user.reportingToUser.name}
                       </p>
                     )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

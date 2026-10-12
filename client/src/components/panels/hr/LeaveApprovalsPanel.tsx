@@ -7,8 +7,13 @@ import { ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 export function LeaveApprovalsPanel() {
+  const { user } = useAuth();
+  const role = user?.role || '';
+  const canApproveLeaves = ['hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'].includes(role);
+
   const [leaves, setLeaves] = useState<any[]>([]);
 
   const fetchLeaves = async () => {
@@ -129,6 +134,7 @@ export function LeaveApprovalsPanel() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }: any) => {
+        if (!canApproveLeaves) return null;
         const status = row.original.status;
         const id = row.original.id;
         if (status === 'pending') return (

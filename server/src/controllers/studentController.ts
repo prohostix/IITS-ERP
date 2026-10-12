@@ -574,7 +574,7 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
   }
 
   const category = (student.program.university as any)?.category || 'team_lease';
-  const NO_WALLET_CATEGORIES = ['direct_iits', 'team_lease'];
+  const NO_WALLET_CATEGORIES = ['team_lease'];
   const isNoWallet = NO_WALLET_CATEGORIES.includes(category);
 
   const wallet = await prisma.studyCenterWallet.findUnique({

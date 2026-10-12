@@ -86,7 +86,11 @@ export const updateSalaryDetails = asyncHandler(async (req: AuthRequest, res: Re
         basicSalary: salaryConfig.basicSalary ? Number(salaryConfig.basicSalary) : 0,
         allowances: salaryConfig.allowances || {},
         deductions: salaryConfig.deductions || {},
+        professionalTax: salaryConfig.professionalTax ? Number(salaryConfig.professionalTax) : 0,
+        labourWelfareFund: salaryConfig.labourWelfareFund ? Number(salaryConfig.labourWelfareFund) : 0,
+        tds: salaryConfig.tds ? Number(salaryConfig.tds) : 0,
         lateDeductionPerMinute: salaryConfig.lateDeductionPerMinute ? Number(salaryConfig.lateDeductionPerMinute) : 0,
+        effectiveFrom: salaryConfig.effectiveFrom ? new Date(salaryConfig.effectiveFrom) : null,
       },
       create: {
         userId,
@@ -95,7 +99,11 @@ export const updateSalaryDetails = asyncHandler(async (req: AuthRequest, res: Re
         basicSalary: salaryConfig.basicSalary ? Number(salaryConfig.basicSalary) : 0,
         allowances: salaryConfig.allowances || {},
         deductions: salaryConfig.deductions || {},
+        professionalTax: salaryConfig.professionalTax ? Number(salaryConfig.professionalTax) : 0,
+        labourWelfareFund: salaryConfig.labourWelfareFund ? Number(salaryConfig.labourWelfareFund) : 0,
+        tds: salaryConfig.tds ? Number(salaryConfig.tds) : 0,
         lateDeductionPerMinute: salaryConfig.lateDeductionPerMinute ? Number(salaryConfig.lateDeductionPerMinute) : 0,
+        effectiveFrom: salaryConfig.effectiveFrom ? new Date(salaryConfig.effectiveFrom) : null,
       }
     });
   }
