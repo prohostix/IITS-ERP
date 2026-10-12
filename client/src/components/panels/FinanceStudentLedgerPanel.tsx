@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/select';
 import {
   Search, ArrowLeft, RefreshCw, Download, Printer, Plus,
-  CreditCard, CheckCircle2, Clock, AlertCircle, User,
-  Building2, GraduationCap, Phone, Mail, FileText, ArrowDownLeft,
-  ArrowUpRight, IndianRupee, Eye, Receipt
+  CreditCard, CheckCircle2, Clock,
+  GraduationCap, Phone, Mail, FileText, ArrowDownLeft,
+  ArrowUpRight, Eye, Receipt
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -202,7 +202,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
       `"${e.remarks || ''}"`
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r: any[]) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
