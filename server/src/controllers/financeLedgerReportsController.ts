@@ -706,11 +706,21 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
     const extraFees = (enr.extraFees as any[]) || [];
     const totalExtra = extraFees.reduce((s, f) => s + Number(f.amount || 0), 0);
 
+    let breakdowns: any[] = [];
+    if (typeof feeStruct?.feeBreakdown === 'string') {
+      try { breakdowns = JSON.parse(feeStruct.feeBreakdown); } catch (e) {}
+    } else if (Array.isArray(feeStruct?.feeBreakdown)) {
+      breakdowns = feeStruct.feeBreakdown;
+    }
+
     let fullFee = 0;
     if (enr.paymentType === 'full_payment') {
       fullFee = Number(feeStruct?.fullProgramFee || 0);
-    } else if (feeStruct?.feeBreakdown && Array.isArray(feeStruct.feeBreakdown)) {
-      fullFee = feeStruct.feeBreakdown.reduce((sum: number, b: any) => sum + Number(b.baseFee || b.tuitionFee || 0) + Number(b.examFee || 0), 0);
+    } else if (breakdowns.length > 0) {
+      fullFee = breakdowns.reduce((sum: number, b: any) => {
+        const addFee = Array.isArray(b.additionalFees) ? b.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0;
+        return sum + Number(b.baseFee || b.tuitionFee || 0) + Number(b.examFee || 0) + addFee;
+      }, 0);
     }
 
     const baseProgramFee = fullFee > 0 ? fullFee : (Number(feeStruct?.baseFee || enr.totalFee || 0));
@@ -724,7 +734,8 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
 
     let paymentStatus = 'pending';
     if (totalDebited === 0) paymentStatus = 'no_fee';
-    else if (balance <= 0) paymentStatus = 'paid';
+    else if (balance < 0) paymentStatus = 'advance';
+    else if (balance === 0) paymentStatus = 'paid';
     else if (totalCredited > 0) paymentStatus = 'partial';
 
     return {
@@ -808,8 +819,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
         include: {
           invoices: {
             include: { payments: true }
-          },
-          universityFeePayments: true
+          }
         }
       },
       studentFeeReceipts: {
@@ -857,35 +867,39 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
   } else if (breakdowns.length > 0) {
     // Add Semester 1 fee assessment
     const sem1 = breakdowns[0];
-    const sem1Total = Number(sem1.baseFee || sem1.tuitionFee || 0) + Number(sem1.examFee || 0);
+    const sem1Add = Array.isArray(sem1.additionalFees) ? sem1.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0;
+    const sem1Total = Number(sem1.baseFee || sem1.tuitionFee || 0) + Number(sem1.examFee || 0) + sem1Add;
+    const sem1Label = (feeStruct?.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + '1';
     rawEntries.push({
       date: initialAdmissionDate,
       type: 'debit',
-      category: 'Semester 1 Tuition',
-      description: `Semester 1 Fee: ${enrollment.program?.name} (Base: ₹${sem1.baseFee || sem1.tuitionFee || 0}, Exam: ₹${sem1.examFee || 0})`,
-      referenceNo: enrollment.enrollmentNumber || 'SEM1',
+      category: `${sem1Label} Tuition`,
+      description: `${sem1Label} Fee Assessment: ${enrollment.program?.name || 'Program'} (Base: ₹${sem1.baseFee || sem1.tuitionFee || 0}, Exam: ₹${sem1.examFee || 0}${sem1Add > 0 ? `, Additional: ₹${sem1Add}` : ''})`,
+      referenceNo: enrollment.enrollmentNumber ? `${enrollment.enrollmentNumber}-TERM1` : 'TERM1',
       paymentMode: 'System Assessed',
       amount: sem1Total > 0 ? sem1Total : baseFee,
-      remarks: 'Initial semester fee assessment'
+      remarks: 'Initial academic fee assessment'
     });
 
-    // Add subsequent semesters if enrolled or billed
+    // Add subsequent semesters/years if enrolled
     for (let i = 1; i < breakdowns.length; i++) {
       const sem = breakdowns[i];
       const semNum = i + 1;
       const semLabel = (feeStruct?.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + semNum;
-      const semTotal = Number(sem.baseFee || sem.tuitionFee || 0) + Number(sem.examFee || 0);
+      const semAdd = Array.isArray(sem.additionalFees) ? sem.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0;
+      const semTotal = Number(sem.baseFee || sem.tuitionFee || 0) + Number(sem.examFee || 0) + semAdd;
 
       // Subsequent semester due date estimation
       const semDate = new Date(initialAdmissionDate);
-      semDate.setMonth(semDate.getMonth() + (i * 6));
+      const monthsToAdd = feeStruct?.billingCycle === 'per_year' ? i * 12 : i * 6;
+      semDate.setMonth(semDate.getMonth() + monthsToAdd);
 
       rawEntries.push({
         date: semDate,
         type: 'debit',
         category: `${semLabel} Tuition`,
-        description: `${semLabel} Fee Assessment (Base: ₹${sem.baseFee || sem.tuitionFee || 0}, Exam: ₹${sem.examFee || 0})`,
-        referenceNo: `${enrollment.enrollmentNumber || 'ENR'}-${semLabel.replace(' ', '')}`,
+        description: `${semLabel} Fee Assessment (Base: ₹${sem.baseFee || sem.tuitionFee || 0}, Exam: ₹${sem.examFee || 0}${semAdd > 0 ? `, Additional: ₹${semAdd}` : ''})`,
+        referenceNo: enrollment.enrollmentNumber ? `${enrollment.enrollmentNumber}-${semLabel.replace(/\s+/g, '')}` : `TERM${semNum}`,
         paymentMode: 'Scheduled Debit',
         amount: semTotal,
         remarks: `${semLabel} scheduled tuition fee`
@@ -925,10 +939,11 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
       date: enrollment.payment.debitedAt || enrollment.createdAt,
       type: 'credit',
       category: 'Enrollment Payment',
-      description: `Study Center Wallet Payment for Admission (${enrollment.studyCenter?.name})`,
+      description: `Study Center Wallet Payment for Admission (${enrollment.studyCenter?.name || 'Center'})`,
       referenceNo: `WALLET-PAY-${enrollment.payment.id.slice(0, 8)}`,
       paymentMode: 'Center Wallet',
       amount: Number(enrollment.payment.amount || enrollment.totalFee || 0),
+      recordedBy: enrollment.studyCenter?.name || 'Study Center',
       remarks: 'Admission fee cleared via study center wallet'
     });
   } else if (enrollment.paymentType === 'direct_to_university') {
@@ -940,7 +955,20 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
       referenceNo: 'DIRECT-UNI',
       paymentMode: 'Direct to University',
       amount: Number(enrollment.totalFee || 0),
+      recordedBy: 'Direct / Student',
       remarks: 'Direct payment to university acknowledged'
+    });
+  } else if (Number(enrollment.totalFee || 0) > 0) {
+    rawEntries.push({
+      date: enrollment.createdAt,
+      type: 'credit',
+      category: 'Admission Fee Payment',
+      description: `Admission fee payment acknowledged (${enrollment.studyCenter?.name || 'Center'})`,
+      referenceNo: enrollment.enrollmentNumber || 'ADMISSION-PAID',
+      paymentMode: 'Center Wallet / Admission',
+      amount: Number(enrollment.totalFee || 0),
+      recordedBy: enrollment.studyCenter?.name || 'Study Center',
+      remarks: 'Admission fee processed on enrollment'
     });
   }
 
@@ -972,6 +1000,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
             referenceNo: p.referenceNo || inv.invoiceNo,
             paymentMode: p.method || 'Online',
             amount: Number(p.amount || 0),
+            recordedBy: 'Finance / Accounts',
             remarks: p.notes || `Invoice ${inv.invoiceNo} payment`
           });
         });
@@ -979,25 +1008,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
     }
   }
 
-  // 6. Direct University Fee Payments (Credits)
-  if (enrollment.student?.universityFeePayments) {
-    for (const ufp of enrollment.student.universityFeePayments) {
-      if (ufp.status === 'paid') {
-        rawEntries.push({
-          date: ufp.paidAt || ufp.createdAt,
-          type: 'credit',
-          category: 'University Fee Payment',
-          description: `Direct University Fee (Sem/Year ${ufp.semesterOrYear})`,
-          referenceNo: ufp.referenceNo || `UNI-PAY-${ufp.id.slice(0, 8)}`,
-          paymentMode: 'Direct / Bank',
-          amount: Number(ufp.amount || 0),
-          remarks: 'University fee verified & cleared'
-        });
-      }
-    }
-  }
-
-  // 7. Fee Refund Adjustments (Debits)
+  // 6. Fee Refund Adjustments (Debits)
   if (enrollment.refundStatus === 'processed' && enrollment.refundAmount) {
     rawEntries.push({
       date: enrollment.updatedAt || new Date(),
@@ -1007,6 +1018,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
       referenceNo: `REFUND-${enrollment.id.slice(0, 8)}`,
       paymentMode: 'Refund Adjustment',
       amount: Number(enrollment.refundAmount),
+      recordedBy: 'Accounts',
       remarks: 'Processed enrollment fee refund'
     });
   }
@@ -1077,8 +1089,9 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
         totalDebit,
         totalCredit,
         closingBalance: runningBalance,
-        status: runningBalance <= 0 ? 'paid' : (totalCredit > 0 ? 'partial' : 'pending'),
-        feeCompletionRate: totalDebit > 0 ? Math.min(100, Math.round((totalCredit / totalDebit) * 100)) : 100
+        status: runningBalance < 0 ? 'advance' : (runningBalance === 0 ? 'paid' : (totalCredit > 0 ? 'partial' : 'pending')),
+        feeCompletionRate: totalDebit > 0 ? Math.min(100, Math.round((totalCredit / totalDebit) * 100)) : 100,
+        transactionCount: ledgerEntries.length
       },
       ledgerEntries
     }
