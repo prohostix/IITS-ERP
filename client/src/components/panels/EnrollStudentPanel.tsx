@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText, Edit, ShieldAlert, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { GraduationCap, RefreshCw, Upload, Plus, Trash2, FileText, Edit, ShieldAlert, Check, FileSignature } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,12 +38,96 @@ interface WalletData {
   balance: number;
 }
 
-interface EducationDetail {
+export interface EducationDetail {
   qualification: string;
   institution: string;
+  boardUniversity?: string;
+  subject?: string;
   passingYear: string;
+  year?: string;
   percentage: string;
 }
+
+export interface AcademicLevelInfo {
+  boardUniversity: string;
+  subject: string;
+  year: string;
+  percentage: string;
+}
+
+export interface StructuredAcademicDetails {
+  highSchool: AcademicLevelInfo;
+  intermediate: AcademicLevelInfo;
+  graduation: AcademicLevelInfo;
+}
+
+export const emptyAcademicDetails: StructuredAcademicDetails = {
+  highSchool: { boardUniversity: '', subject: '', year: '', percentage: '' },
+  intermediate: { boardUniversity: '', subject: '', year: '', percentage: '' },
+  graduation: { boardUniversity: '', subject: '', year: '', percentage: '' },
+};
+
+export const structuredToEducationList = (acad: StructuredAcademicDetails): EducationDetail[] => {
+  const list: EducationDetail[] = [];
+  const entries: { key: keyof StructuredAcademicDetails; label: string }[] = [
+    { key: 'highSchool', label: 'High School' },
+    { key: 'intermediate', label: 'Intermediate' },
+    { key: 'graduation', label: 'Graduation' },
+  ];
+  for (const item of entries) {
+    const val = acad[item.key];
+    if (val.boardUniversity.trim() || val.subject.trim() || val.year.trim() || val.percentage.trim()) {
+      list.push({
+        qualification: item.label,
+        institution: val.boardUniversity,
+        boardUniversity: val.boardUniversity,
+        subject: val.subject,
+        passingYear: val.year,
+        year: val.year,
+        percentage: val.percentage,
+      });
+    }
+  }
+  return list;
+};
+
+export const educationListToStructured = (list: any[]): StructuredAcademicDetails => {
+  const result: StructuredAcademicDetails = {
+    highSchool: { boardUniversity: '', subject: '', year: '', percentage: '' },
+    intermediate: { boardUniversity: '', subject: '', year: '', percentage: '' },
+    graduation: { boardUniversity: '', subject: '', year: '', percentage: '' },
+  };
+  if (!Array.isArray(list)) return result;
+
+  list.forEach((item: any, idx: number) => {
+    const q = (item.qualification || '').toLowerCase();
+    const bu = item.boardUniversity || item.institution || '';
+    const subj = item.subject || '';
+    const yr = item.year || item.passingYear || '';
+    const pct = item.percentage || '';
+
+    if (q.includes('high') || q.includes('10') || idx === 0) {
+      if (!result.highSchool.boardUniversity && (bu || subj || yr || pct)) {
+        result.highSchool = { boardUniversity: bu, subject: subj, year: yr, percentage: pct };
+        return;
+      }
+    }
+    if (q.includes('inter') || q.includes('12') || q.includes('plus') || idx === 1) {
+      if (!result.intermediate.boardUniversity && (bu || subj || yr || pct)) {
+        result.intermediate = { boardUniversity: bu, subject: subj, year: yr, percentage: pct };
+        return;
+      }
+    }
+    if (q.includes('grad') || q.includes('degree') || q.includes('ug') || q.includes('bachelor') || idx === 2) {
+      if (!result.graduation.boardUniversity && (bu || subj || yr || pct)) {
+        result.graduation = { boardUniversity: bu, subject: subj, year: yr, percentage: pct };
+        return;
+      }
+    }
+  });
+
+  return result;
+};
 
 interface DocumentFile {
   name: string;
@@ -63,6 +147,14 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const draftIdRef = useRef<string | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastAutoSavedTime, setLastAutoSavedTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    draftIdRef.current = draftId;
+  }, [draftId]);
+
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
@@ -100,6 +192,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     motherName: '',
     parentMobile: '',
     studentPhoto: '',
+    studentSignature: '',
     admissionDate: new Date().toISOString().substring(0, 10),
     pincode: '',
     alternativePhone: '',
@@ -111,14 +204,23 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
   const [educationList, setEducationList] = useState<EducationDetail[]>([]);
   const [documentList, setDocumentList] = useState<DocumentFile[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'installment' | 'full_payment'>('installment');
-  
-  // Single entry helper state for educational details form
-  const [tempEdu, setTempEdu] = useState<EducationDetail>({
-    qualification: '',
-    institution: '',
-    passingYear: '',
-    percentage: ''
-  });
+
+  // Fixed 3 structured levels for educational details
+  const [academicDetails, setAcademicDetails] = useState<StructuredAcademicDetails>(emptyAcademicDetails);
+
+  const updateAcademicLevel = (level: keyof StructuredAcademicDetails, field: keyof AcademicLevelInfo, val: string) => {
+    setAcademicDetails(prev => {
+      const next = {
+        ...prev,
+        [level]: {
+          ...prev[level],
+          [field]: val
+        }
+      };
+      setEducationList(structuredToEducationList(next));
+      return next;
+    });
+  };
 
   const [uploading, setUploading] = useState(false);
   
@@ -157,15 +259,31 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
         try {
           const parsed = JSON.parse(draftData);
           setDraftId(parsed.id);
+          draftIdRef.current = parsed.id;
           if (parsed.form) setForm(parsed.form);
-          if (parsed.selectedUniversityId) setSelectedUniversityId(parsed.selectedUniversityId);
+          if (parsed.selectedUniversityId) {
+            setSelectedUniversityId(parsed.selectedUniversityId);
+            fetchSessions(parsed.selectedUniversityId);
+          }
           if (parsed.selectedProgramId) {
             const p = progs.find((x: any) => x.id === parsed.selectedProgramId);
             if (p) setSelectedProgram(p);
           }
           if (parsed.selectedSessionId) setSelectedSessionId(parsed.selectedSessionId);
-          if (parsed.educationList) setEducationList(parsed.educationList);
-          if (parsed.documentList) setDocumentList(parsed.documentList);
+          if (parsed.academicDetails) {
+            setAcademicDetails(parsed.academicDetails);
+            setEducationList(structuredToEducationList(parsed.academicDetails));
+          } else if (parsed.educationList) {
+            setEducationList(parsed.educationList);
+            setAcademicDetails(educationListToStructured(parsed.educationList));
+          }
+          if (parsed.documentList) {
+            setDocumentList(parsed.documentList);
+            const sig = parsed.documentList.find((d: any) => d.name?.toLowerCase() === 'signature' || d.reqName?.toLowerCase() === 'signature');
+            if (sig && (!parsed.form || !parsed.form.studentSignature)) {
+              setForm(f => ({ ...f, studentSignature: sig.url }));
+            }
+          }
           if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
           if (parsed.activeStep) setActiveStep(parsed.activeStep);
           sessionStorage.removeItem('enrollment_draft_resume');
@@ -190,10 +308,6 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       setSessions([]);
     }
   }, [selectedUniversityId]);
-
-  useEffect(() => {
-    setSelectedSessionId('');
-  }, [selectedProgram]);
 
   useEffect(() => {
     setEmailUnique(null);
@@ -318,19 +432,6 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     return ` / ${cycle}`;
   };
 
-  const handleAddEducation = () => {
-    if (!tempEdu.qualification.trim() || !tempEdu.institution.trim() || !tempEdu.passingYear.trim()) {
-      toast.error('Please fill qualification, institution, and passing year.');
-      return;
-    }
-    setEducationList([...educationList, tempEdu]);
-    setTempEdu({ qualification: '', institution: '', passingYear: '', percentage: '' });
-  };
-
-  const handleRemoveEducation = (index: number) => {
-    setEducationList(educationList.filter((_, i) => i !== index));
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, reqName?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -355,6 +456,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       toast.error(err.response?.data?.message || 'File upload failed');
     } finally {
       setUploading(false);
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -376,7 +478,41 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       toast.error('Student photo upload failed');
     } finally {
       setUploading(false);
+      if (e.target) e.target.value = '';
     }
+  };
+
+  const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    setUploading(true);
+    try {
+      const res = await api.post('/enrollment/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success && res.data.url) {
+        const url = res.data.url;
+        setForm(prev => ({ ...prev, studentSignature: url }));
+        setDocumentList(prev => [
+          ...prev.filter(d => d.name.toLowerCase() !== 'signature' && d.reqName?.toLowerCase() !== 'signature'),
+          { name: 'Signature', url, reqName: 'Signature' }
+        ]);
+        toast.success('Signature uploaded successfully');
+      }
+    } catch (err: any) {
+      toast.error('Signature upload failed');
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveSignature = () => {
+    setForm(prev => ({ ...prev, studentSignature: '' }));
+    setDocumentList(prev => prev.filter(d => d.name.toLowerCase() !== 'signature' && d.reqName?.toLowerCase() !== 'signature'));
+    toast.info('Signature removed');
   };
 
   const isFieldMandatory = (key: string, defaultRequired: boolean = false) => {
@@ -490,6 +626,10 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       toast.error('Please select a specialisation combo');
       return;
     }
+
+    if (!validateStep(4)) {
+      return;
+    }
     
     // Validate standard base required fields
     const baseRequired = ['studentName', 'studentEmail', 'studentPhone', 'studentAddress'];
@@ -518,18 +658,67 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       toast.error(`Missing required fields: ${missing.join(', ')}`);
       return;
     }
+    const currentEduList = structuredToEducationList(academicDetails);
+    setEducationList(currentEduList);
     setConfirmOpen(true);
+  };
+
+  const autoSaveDraft = async (targetStep?: number) => {
+    // Only auto-save if at least university, program, student name, or email has some entry
+    if (!selectedUniversityId && !selectedProgram && !form.studentName && !form.studentEmail) {
+      return;
+    }
+    const stepToSave = targetStep ?? activeStep;
+    const currentEduList = structuredToEducationList(academicDetails);
+
+    const payload = {
+      id: draftIdRef.current,
+      form,
+      selectedUniversityId,
+      selectedProgramId: selectedProgram?.id,
+      selectedSessionId,
+      educationList: currentEduList,
+      academicDetails,
+      documentList,
+      paymentMethod,
+      activeStep: stepToSave,
+      studentName: form.studentName,
+      programName: selectedProgram?.name
+    };
+
+    try {
+      setIsAutoSaving(true);
+      const res = await api.post('/enrollment/drafts', payload);
+      if (res.data.draftId) {
+        draftIdRef.current = res.data.draftId;
+        setDraftId(res.data.draftId);
+      }
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastAutoSavedTime(timeStr);
+      toast.success('Section auto-saved as draft', { id: 'autosave-toast', duration: 1500 });
+    } catch (e: any) {
+      console.warn('Auto-save error:', e);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  const goToStep = (targetStep: number) => {
+    autoSaveDraft(targetStep);
+    setActiveStep(targetStep);
   };
 
   const saveDraft = async () => {
     try {
+      const currentEduList = structuredToEducationList(academicDetails);
       const payload = {
-        id: draftId,
+        id: draftIdRef.current || draftId,
         form,
         selectedUniversityId,
         selectedProgramId: selectedProgram?.id,
         selectedSessionId,
-        educationList,
+        educationList: currentEduList,
+        academicDetails,
         documentList,
         paymentMethod,
         activeStep,
@@ -537,10 +726,13 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
         programName: selectedProgram?.name
       };
       const res = await api.post('/enrollment/drafts', payload);
-      toast.success(res.data.message);
+      toast.success(res.data.message || 'Draft saved successfully');
       if (res.data.draftId) {
+        draftIdRef.current = res.data.draftId;
         setDraftId(res.data.draftId);
       }
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastAutoSavedTime(timeStr);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to save draft');
     }
@@ -559,15 +751,19 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     setConfirmOpen(false);
     setSubmitting(true);
     try {
+      const currentEduList = structuredToEducationList(academicDetails);
       await api.post('/enrollment/enroll', { 
         ...form, 
         programId: selectedProgram.id,
         sessionId: selectedSessionId,
         documents: documentList,
-        educationalDetails: educationList,
+        educationalDetails: currentEduList,
         paymentMethod: paymentMethod,
         totalFee: getTotalFee(selectedProgram)
       });
+      if (draftIdRef.current) {
+        api.delete(`/enrollment/drafts/${draftIdRef.current}`).catch(() => {});
+      }
       toast.success('Enrollment submitted successfully');
       setForm({ 
         studentName: '', 
@@ -584,16 +780,22 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
         motherName: '',
         parentMobile: '',
         studentPhoto: '',
+        studentSignature: '',
         pincode: '',
         alternativePhone: '',
+        maritalStatus: '',
+        currentlyWorking: '',
         admissionDate: new Date().toISOString().substring(0, 10)
       });
       setSelectedSessionId('');
+      setAcademicDetails(emptyAcademicDetails);
       setEducationList([]);
       setDocumentList([]);
       setSelectedProgram(null);
       setSelectedUniversityId('');
+      setLastAutoSavedTime(null);
       fetchData();
+      if (onNavigate) onNavigate('enrollments');
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Enrollment failed');
     } finally {
@@ -758,7 +960,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
             { step: 1, label: 'Admission Info', icon: GraduationCap },
             { step: 2, label: 'Personal Details', icon: Edit },
             { step: 3, label: 'Family Info', icon: Plus },
-            { step: 4, label: 'Documents', icon: FileText }
+            { step: 4, label: 'Academic & Documents', icon: FileText }
           ].map((item) => {
             const IconComp = item.icon;
             const isActive = activeStep === item.step;
@@ -769,7 +971,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                 type="button"
                 onClick={() => {
                   if (item.step < activeStep) {
-                    setActiveStep(item.step);
+                    goToStep(item.step);
                   } else if (item.step > activeStep) {
                     let canGo = true;
                     for (let s = activeStep; s < item.step; s++) {
@@ -779,7 +981,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                       }
                     }
                     if (canGo) {
-                      setActiveStep(item.step);
+                      goToStep(item.step);
                     }
                   }
                 }}
@@ -988,63 +1190,254 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
 
           {activeStep === 4 && (
             <div className="space-y-6">
-              <h3 className="font-semibold text-slate-800 text-sm border-b pb-2">Step 4: Academic Background & Uploads</h3>
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="font-semibold text-slate-800 text-sm">Step 4: Academic Background & Uploads</h3>
+                {lastAutoSavedTime && (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    <Check className="w-3 h-3 text-emerald-600" /> Auto-saved {lastAutoSavedTime}
+                  </span>
+                )}
+              </div>
               
-              {/* Qualifications */}
-              <div className="space-y-3">
-                <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">Qualifications History</Label>
-                {educationList.length > 0 && (
-                  <div className="space-y-2 border rounded-xl p-3 bg-slate-50/50">
-                    {educationList.map((edu, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border text-sm shadow-sm">
-                        <div>
-                          <p className="font-semibold text-slate-700">{edu.qualification}</p>
-                          <p className="text-xs text-muted-foreground">{edu.institution} ({edu.passingYear}) {edu.percentage ? `· ${edu.percentage}%` : ''}</p>
+              {/* Structured Academic Details & Signature Column */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Fixed Academic Details (2 Cols on lg) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">
+                      Academic Details (Structured Levels)
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">Fixed format for High School, Intermediate & Graduation</span>
+                  </div>
+
+                  {/* 1. High School */}
+                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">1</span>
+                      <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">High School</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Board / University</Label>
+                        <Input 
+                          placeholder="e.g. CBSE / State Board"
+                          value={academicDetails.highSchool.boardUniversity}
+                          onChange={e => updateAcademicLevel('highSchool', 'boardUniversity', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Subject</Label>
+                        <Input 
+                          placeholder="e.g. General / All"
+                          value={academicDetails.highSchool.subject}
+                          onChange={e => updateAcademicLevel('highSchool', 'subject', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Year</Label>
+                        <Input 
+                          placeholder="e.g. 2018"
+                          value={academicDetails.highSchool.year}
+                          onChange={e => updateAcademicLevel('highSchool', 'year', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Percentage</Label>
+                        <Input 
+                          placeholder="e.g. 85%"
+                          value={academicDetails.highSchool.percentage}
+                          onChange={e => updateAcademicLevel('highSchool', 'percentage', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Intermediate */}
+                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">2</span>
+                      <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">Intermediate</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Board / University</Label>
+                        <Input 
+                          placeholder="e.g. CBSE / State Board"
+                          value={academicDetails.intermediate.boardUniversity}
+                          onChange={e => updateAcademicLevel('intermediate', 'boardUniversity', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Subject</Label>
+                        <Input 
+                          placeholder="e.g. Science / Commerce"
+                          value={academicDetails.intermediate.subject}
+                          onChange={e => updateAcademicLevel('intermediate', 'subject', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Year</Label>
+                        <Input 
+                          placeholder="e.g. 2020"
+                          value={academicDetails.intermediate.year}
+                          onChange={e => updateAcademicLevel('intermediate', 'year', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Percentage</Label>
+                        <Input 
+                          placeholder="e.g. 82%"
+                          value={academicDetails.intermediate.percentage}
+                          onChange={e => updateAcademicLevel('intermediate', 'percentage', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Graduation */}
+                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">3</span>
+                      <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wide">Graduation</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Board / University</Label>
+                        <Input 
+                          placeholder="e.g. Delhi University / IGNOU"
+                          value={academicDetails.graduation.boardUniversity}
+                          onChange={e => updateAcademicLevel('graduation', 'boardUniversity', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Subject</Label>
+                        <Input 
+                          placeholder="e.g. BCA / B.Sc / B.Com"
+                          value={academicDetails.graduation.subject}
+                          onChange={e => updateAcademicLevel('graduation', 'subject', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Year</Label>
+                        <Input 
+                          placeholder="e.g. 2023"
+                          value={academicDetails.graduation.year}
+                          onChange={e => updateAcademicLevel('graduation', 'year', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-medium text-slate-600">Percentage</Label>
+                        <Input 
+                          placeholder="e.g. 78%"
+                          value={academicDetails.graduation.percentage}
+                          onChange={e => updateAcademicLevel('graduation', 'percentage', e.target.value)}
+                          className="bg-white text-xs h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upload Signature Column */}
+                <div className="lg:col-span-1 space-y-4">
+                  <Label className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">
+                    Upload Signature
+                  </Label>
+
+                  <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 flex flex-col justify-between h-[calc(100%-2rem)] min-h-[300px]">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-semibold text-xs text-slate-700 flex items-center gap-1.5">
+                          <FileSignature className="w-4 h-4 text-indigo-600" /> Student Signature
+                        </span>
+                        {form.studentSignature ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border-emerald-200">
+                            <Check className="w-3 h-3 mr-0.5" /> Uploaded
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-slate-400 text-[10px]">Pending</Badge>
+                        )}
+                      </div>
+
+                      {form.studentSignature ? (
+                        <div className="space-y-3">
+                          <div className="border-2 border-emerald-200 bg-white rounded-xl p-3 flex flex-col items-center justify-center shadow-xs">
+                            <img
+                              src={form.studentSignature.startsWith('/') ? form.studentSignature : `/uploads/${form.studentSignature}`}
+                              alt="Candidate Signature"
+                              className="max-h-32 max-w-full object-contain mx-auto"
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground text-center">
+                            Signature preview available above.
+                          </p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleRemoveEducation(idx)}>
-                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-700" />
+                      ) : (
+                        <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-6 hover:bg-white hover:border-primary/50 cursor-pointer transition-all flex flex-col items-center justify-center text-center bg-white/70 min-h-[160px]">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                            onChange={handleSignatureUpload} 
+                            disabled={uploading} 
+                          />
+                          <FileSignature className="w-8 h-8 text-indigo-500/70 mb-2" />
+                          <p className="text-xs font-bold text-slate-700">Click or Drag Signature</p>
+                          <p className="text-[10px] text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {form.studentSignature ? (
+                      <div className="flex items-center gap-2 pt-3 border-t mt-4">
+                        <div className="relative flex-1">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                            onChange={handleSignatureUpload} 
+                            disabled={uploading} 
+                          />
+                          <Button type="button" variant="outline" size="sm" className="w-full text-xs font-semibold">
+                            <Upload className="w-3.5 h-3.5 mr-1" /> Replace
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="text-xs"
+                          onClick={handleRemoveSignature}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
                         </Button>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="relative mt-4">
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                          onChange={handleSignatureUpload} 
+                          disabled={uploading} 
+                        />
+                        <Button type="button" variant="default" size="sm" className="w-full text-xs bg-indigo-600 hover:bg-indigo-700">
+                          <Upload className="w-3.5 h-3.5 mr-1.5" /> Upload Signature
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border">
-                  <div>
-                    <Label className="text-xs">Qualification</Label>
-                    <Input 
-                      placeholder="e.g. 10th / 12th / BCA" 
-                      value={tempEdu.qualification} 
-                      onChange={e => setTempEdu({ ...tempEdu, qualification: e.target.value })} 
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Institution</Label>
-                    <Input 
-                      placeholder="School / College Name" 
-                      value={tempEdu.institution} 
-                      onChange={e => setTempEdu({ ...tempEdu, institution: e.target.value })} 
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Passing Year</Label>
-                    <Input 
-                      placeholder="e.g. 2024" 
-                      value={tempEdu.passingYear} 
-                      onChange={e => setTempEdu({ ...tempEdu, passingYear: e.target.value })} 
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Percentage / CGPA (Optional)</Label>
-                    <Input 
-                      placeholder="e.g. 85%" 
-                      value={tempEdu.percentage} 
-                      onChange={e => setTempEdu({ ...tempEdu, percentage: e.target.value })} 
-                    />
-                  </div>
-                  <Button type="button" variant="outline" size="sm" className="md:col-span-2 w-full mt-1" onClick={handleAddEducation}>
-                    <Plus className="w-4 h-4 mr-2" /> Add Qualification
-                  </Button>
                 </div>
               </div>
 
@@ -1182,13 +1575,13 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
           )}
 
           {/* Stepper Footer Controls */}
-          <div className="flex items-center justify-between border-t pt-5 mt-8 bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t pt-5 mt-8 bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl gap-4">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <Button
                 type="button"
                 variant="outline"
                 disabled={activeStep === 1}
-                onClick={() => setActiveStep(activeStep - 1)}
+                onClick={() => goToStep(activeStep - 1)}
                 className="flex items-center gap-1 text-slate-600"
               >
                 &larr; Back
@@ -1196,6 +1589,16 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
               <Button type="button" variant="secondary" onClick={saveDraft}>
                 Save Draft
               </Button>
+              {isAutoSaving && (
+                <span className="text-xs text-primary flex items-center gap-1 font-medium animate-pulse">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Auto-saving...
+                </span>
+              )}
+              {!isAutoSaving && lastAutoSavedTime && (
+                <span className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                  <Check className="w-3.5 h-3.5" /> Auto-saved ({lastAutoSavedTime})
+                </span>
+              )}
             </div>
             
             <span className="text-xs font-semibold text-slate-500">
@@ -1207,10 +1610,10 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                 type="button"
                 onClick={() => {
                   if (validateStep(activeStep)) {
-                    setActiveStep(activeStep + 1);
+                    goToStep(activeStep + 1);
                   }
                 }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1 w-full sm:w-auto"
               >
                 Next &rarr;
               </Button>
@@ -1219,7 +1622,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                 type="button"
                 onClick={triggerConfirm}
                 disabled={!selectedProgram || submitting || (selectedProgram?.university?.category === 'direct_iits' && balance < getTotalFee(selectedProgram))}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-semibold"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 font-semibold w-full sm:w-auto"
               >
                 <GraduationCap className="w-4.5 h-4.5" />
                 {submitting ? 'Enrolling...' : 'Submit Application'}
@@ -1298,8 +1701,8 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                           <span className="font-semibold">{edu.qualification}</span>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-xs text-muted-foreground block">Institution</span>
-                          <span className="font-medium">{edu.institution}</span>
+                          <span className="text-xs text-muted-foreground block">Board / University & Subject</span>
+                          <span className="font-medium">{edu.institution} {edu.subject ? `(${edu.subject})` : ''}</span>
                         </div>
                         <div className="col-span-1 text-right">
                           <span className="text-xs text-muted-foreground block">Passing / %</span>

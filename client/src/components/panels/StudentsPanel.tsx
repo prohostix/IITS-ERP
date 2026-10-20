@@ -649,12 +649,12 @@ export function StudentsPanel() {
                                 <span className="font-semibold">{edu.qualification}</span>
                               </div>
                               <div className="col-span-2">
-                                <span className="text-xs text-muted-foreground block">Institution</span>
-                                <span className="font-medium">{edu.institution}</span>
+                                <span className="text-xs text-muted-foreground block">Board / University & Subject</span>
+                                <span className="font-medium">{edu.boardUniversity || edu.institution} {edu.subject ? `(${edu.subject})` : ''}</span>
                               </div>
                               <div className="col-span-1 text-right">
                                 <span className="text-xs text-muted-foreground block">Passing / %</span>
-                                <span className="font-medium">{edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
+                                <span className="font-medium">{edu.year || edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
                               </div>
                             </div>
                           ))}
