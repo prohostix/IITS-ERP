@@ -49,6 +49,16 @@ const TABLE_TO_TAB: Record<string, string> = {
   employees: 'employees',
   vacancies: 'vacancies',
   leave_requests: 'leaves',
+  leave_approvals: 'leave_approvals',
+  'leave-approvals': 'leave_approvals',
+  my_leaves: 'my_leaves',
+  'my-leaves': 'my_leaves',
+  my_attendance: 'my_attendance',
+  'my-attendance': 'my_attendance',
+  my_payslips: 'my_payslips',
+  my_documents: 'my_documents',
+  manager_hiring: 'manager_hiring',
+  my_subdept: 'my_subdept',
   attendance: 'attendance',
   holidays: 'holidays',
   complaints: 'complaints',
@@ -285,6 +295,7 @@ function App() {
         { id: 'departments', label: 'Departments' },
         { id: 'tasks', label: 'Tasks' },
         { id: 'escalations', label: 'Escalations' },
+        { id: 'leave_approvals', label: 'Leave Approvals' },
         { id: '__operations_sales', label: 'Operations & Sales', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'invoices', label: 'Invoices' },
@@ -313,6 +324,7 @@ function App() {
         { id: 'sub_departments', label: 'Sub-Departments' },
         { id: 'employees', label: 'Employees' },
         { id: 'leave_requests', label: 'Leave Requests' },
+        { id: 'leave_approvals', label: 'Leave Approvals' },
         { id: '__academic_ops', label: 'Academic Operations', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'universities', label: 'Universities' },
@@ -342,12 +354,12 @@ function App() {
 
     if (user.role === 'ops_admin' || user.role === 'ops_sub_admin') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
-      const items = getOpsNavItems(isSubDeptManager);
+      const items = getOpsNavItems(isSubDeptManager, true);
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
 
     if (user.role === 'finance_admin' || user.role === 'finance_sub_admin') {
-      return getFinanceNavItems();
+      return getFinanceNavItems(true);
     }
 
     if (user.role === 'hr_admin' || user.role === 'hr_sub_admin') {
@@ -355,7 +367,7 @@ function App() {
     }
 
     if (user.role === 'sales_admin' || user.role === 'sales_sub_admin') {
-      const items = getSalesNavItems();
+      const items = getSalesNavItems(true);
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
     }
 
@@ -381,19 +393,19 @@ function App() {
       if (deptType) {
         if (isSubDeptManager) {
           switch (deptType) {
-            case 'operations': return getOpsNavItems(true);
+            case 'operations': return getOpsNavItems(true, true);
             case 'hr': return getHRNavItems();
-            case 'finance': return getFinanceNavItems();
-            case 'sales': return getSalesNavItems();
+            case 'finance': return getFinanceNavItems(true);
+            case 'sales': return getSalesNavItems(true);
           }
         } else if (deptType === 'sales') {
-          return getSalesNavItems();
+          return getSalesNavItems(false);
         } else if (deptType === 'operations') {
-          return getOpsNavItems(false);
+          return getOpsNavItems(false, false);
         } else if (deptType === 'hr') {
           return getHRNavItems();
         } else if (deptType === 'finance') {
-          return getFinanceNavItems();
+          return getFinanceNavItems(false);
         }
       }
       return EMPLOYEE_NAV_ITEMS;

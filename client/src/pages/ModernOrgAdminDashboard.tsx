@@ -12,6 +12,7 @@ import { PaymentsPanel } from '@/components/panels/PaymentsPanel';
 import { ExpensesPanel } from '@/components/panels/ExpensesPanel';
 import { EmployeesPanel } from '@/components/panels/EmployeesPanel';
 import { LeavesPanel } from '@/components/panels/LeavesPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { LeadsPanel } from '@/components/panels/LeadsPanel';
 import { OrgHierarchyPanel } from '@/components/panels/OrgHierarchyPanel';
 import { BranchesPanel } from '@/components/panels/BranchesPanel';
@@ -65,6 +66,7 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
             <TabsTrigger value="expenses" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Expenses</TabsTrigger>
             <TabsTrigger value="employees" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Employees</TabsTrigger>
             <TabsTrigger value="leaves" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leave Requests</TabsTrigger>
+            <TabsTrigger value="leave_approvals" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leave Approvals</TabsTrigger>
             <TabsTrigger value="leads" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leads</TabsTrigger>
             <TabsTrigger value="center_admissions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Centers Admissions</TabsTrigger>
           </TabsList>
@@ -196,6 +198,8 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
         <TabsContent value="expenses"><ExpensesPanel /></TabsContent>
         <TabsContent value="employees"><EmployeesPanel /></TabsContent>
         <TabsContent value="leaves"><LeavesPanel /></TabsContent>
+        <TabsContent value="leave_approvals"><LeaveApprovalsPanel /></TabsContent>
+        <TabsContent value="leave-approvals"><LeaveApprovalsPanel /></TabsContent>
         <TabsContent value="leads"><LeadsPanel /></TabsContent>
         <TabsContent value="center_admissions"><CentersAdmissionsPanel /></TabsContent>
       </Tabs>

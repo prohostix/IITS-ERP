@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
 
 export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate }: { initialTab?: string; isSubDeptManager?: boolean; onNavigate?: (tab: string) => void }) {
@@ -104,6 +105,9 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
+      case 'leave_approvals':
+      case 'leave-approvals': return <LeaveApprovalsPanel />;
+      case 'leaves': return <LeavesPanel />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
       case 'my_documents': return <MyDocumentsPanel />;
@@ -128,7 +132,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
   );
 }
 
-export function getSalesNavItems() {
+export function getSalesNavItems(isManager: boolean = true) {
   return [
     { id: '__sales_section', label: 'Sales Management', isSection: true },
     { id: 'overview', label: 'Overview' },
@@ -145,6 +149,7 @@ export function getSalesNavItems() {
     { id: 'tasks', label: 'Tasks' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
+    ...(isManager ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },

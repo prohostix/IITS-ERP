@@ -72,6 +72,7 @@ import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
 
 export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
@@ -150,6 +151,8 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'salary_approvals': return <FinanceSalaryApprovalPanel />;
       case 'sales_targets': return <FinanceSalesTargetsPanel />;
       case 'leaves': return <LeavesPanel />;
+      case 'leave_approvals':
+      case 'leave-approvals': return <LeaveApprovalsPanel />;
       case 'tasks': return <TasksPanel />;
       case 'escalations': return <FinanceEscalationsPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
@@ -185,7 +188,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
   );
 }
 
-export function getFinanceNavItems() {
+export function getFinanceNavItems(isManager: boolean = true) {
   return [
     { id: '__finance_section', label: 'Finance Management', isSection: true },
     { id: 'overview', label: 'Overview' },
@@ -203,6 +206,7 @@ export function getFinanceNavItems() {
     { id: 'payroll-batches', label: 'Payroll Batches' },
     { id: 'salary_approvals', label: 'Salary Approvals' },
     { id: 'leaves', label: 'Leave Requests' },
+    ...(isManager ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: '__academic_section', label: 'Academics & Admissions', isSection: true },
     { id: 'students', label: 'Students' },
     { id: 'centers', label: 'Study Centers' },

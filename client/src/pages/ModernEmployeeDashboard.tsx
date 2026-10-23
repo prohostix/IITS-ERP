@@ -31,6 +31,7 @@ import { SubOpsPortalPanel } from '@/components/panels/SubOpsPortalPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalationsPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
 
 export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab?: string; onNavigate?: (tab: string) => void }) {
@@ -151,6 +152,7 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
           <TabsTrigger value="holidays">Holiday List</TabsTrigger>
           <TabsTrigger value="team">My Team</TabsTrigger>
           {isSubDeptManager && <TabsTrigger value="my_subdept">My Sub-Dept</TabsTrigger>}
+          {isSubDeptManager && <TabsTrigger value="leave_approvals">Leave Approvals</TabsTrigger>}
           <TabsTrigger value="ld-portal">L&amp;D Portal</TabsTrigger>
           <TabsTrigger value="escalations">Escalations</TabsTrigger>
         </TabsList>
@@ -338,6 +340,17 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
           <TabsContent value="my_subdept">
             {parentDeptType === 'sales' ? <SubSalesPortalPanel /> : <SubOpsPortalPanel />}
           </TabsContent>
+        )}
+
+        {isSubDeptManager && (
+          <>
+            <TabsContent value="leave_approvals">
+              <LeaveApprovalsPanel />
+            </TabsContent>
+            <TabsContent value="leave-approvals">
+              <LeaveApprovalsPanel />
+            </TabsContent>
+          </>
         )}
 
         <TabsContent value="payslips">

@@ -138,7 +138,9 @@ export function PrismaLayout({
       case 'branches': return <Building2 className={iconClass} />;
       case 'organizations': return <ShieldCheck className={iconClass} />;
       case 'tasks':
-      case 'my_tasks': return <CheckCircle2 className={iconClass} />;
+      case 'my_tasks':
+      case 'leave_approvals':
+      case 'leave-approvals': return <CheckCircle2 className={iconClass} />;
       case 'calendar':
       case 'sessions':
       case 'admission_sessions':

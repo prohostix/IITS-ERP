@@ -50,7 +50,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   rejected:     { label: 'Rejected',         color: 'bg-red-500/10 text-red-600 border-red-500/20' },
 };
 
-const DEPT_MANAGER_ROLES = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin'];
+const DEPT_MANAGER_ROLES = [
+  'ops_admin', 'ops_sub_admin',
+  'finance_admin', 'finance_sub_admin', 'finance',
+  'sales_admin', 'sales_sub_admin',
+  'center_admin', 'branch_manager',
+  'hr_admin', 'hr_sub_admin',
+  'org_admin', 'superadmin', 'ceo', 'general_manager'
+];
 
 export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
@@ -81,11 +88,11 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
   const role = user?.role || '';
   const userId = user?.id?.toString() || '';
   const isBranchManager = Boolean((user as any)?.branchId);
-  const isGodMode = ['org_admin', 'superadmin', 'ceo'].includes(role);
-  const isHR = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(role) && !isPersonalView;
-  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager || isHR) && !isPersonalView;
+  const isGodMode = ['org_admin', 'superadmin', 'ceo', 'general_manager'].includes(role);
+  const isHR = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(role) && !isPersonalView;
+  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager || Boolean((user as any)?.subDepartmentId) || isHR) && !isPersonalView;
   const isEmployee = (!isDeptManager && !isHR && !isGodMode) || isPersonalView;
-  const canApproveLeaves = ['hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'].includes(role);
+  const canApproveLeaves = DEPT_MANAGER_ROLES.includes(role) || isBranchManager || Boolean((user as any)?.subDepartmentId);
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -253,10 +260,12 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 const isExpanded = expanded === leave.id;
                 const isOwner = leave.employeeId?.id === userId;
                 
-                const userDeptId = (user as any)?.departmentId || (user as any)?.department?.id;
-                const isSameDept = leave.departmentId?.id === userDeptId;
-                const canDeptAct = isDeptManager && canApproveLeaves && leave.status === 'pending' && (isGodMode || isSameDept);
-                const canHRAct = isHR && canApproveLeaves && leave.status === 'dept_approved';
+                const rawUserDept = (user as any)?.departmentId || (user as any)?.department;
+                const userDeptId = typeof rawUserDept === 'object' ? rawUserDept?.id : rawUserDept;
+                const leaveDeptId = leave.departmentId?.id || leave.departmentId;
+                const isSameDept = Boolean(leaveDeptId && userDeptId && String(leaveDeptId) === String(userDeptId));
+                const canDeptAct = (!isOwner || isGodMode) && isDeptManager && canApproveLeaves && leave.status === 'pending' && (isGodMode || isBranchManager || isSameDept || !userDeptId);
+                const canHRAct = (!isOwner || isGodMode) && isHR && canApproveLeaves && leave.status === 'dept_approved';
 
                 return (
                   <Card key={leave.id} className="hover:border-primary/30 transition-colors">
@@ -353,11 +362,14 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                               </Button>
                             </>
                           )}
-                          {/* Owner can delete pending requests */}
+                          {/* Owner can withdraw pending requests */}
                           {isOwner && leave.status === 'pending' && (
-                            <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive" onClick={() => { setDeleteLeave(leave); setDeleteOpen(true); }}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] text-muted-foreground italic">(Your Request)</span>
+                              <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:bg-destructive/10" onClick={() => { setDeleteLeave(leave); setDeleteOpen(true); }} title="Withdraw leave request">
+                                <Trash2 className="w-3.5 h-3.5 mr-1" /> Withdraw
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>

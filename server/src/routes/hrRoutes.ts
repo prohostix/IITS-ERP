@@ -85,9 +85,18 @@ router.route('/leaves/:id')
   .get(getLeaveRequest)
   .put(updateLeaveRequest)
   .delete(deleteLeaveRequest);
-router.put('/leaves/:id/approve', authorize('hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'), approveLeave);
-router.patch('/leaves/:id/dept-approve', authorize('hr_admin', 'ops_admin', 'finance_admin', 'finance', 'sales_admin', 'center_admin', 'branch_manager', 'org_admin', 'superadmin', 'ceo'), deptApproveLeave);
-router.patch('/leaves/:id/hr-approve', authorize('hr_admin', 'org_admin', 'superadmin', 'ceo'), hrApproveLeave);
+const DEPT_APPROVE_ROLES = [
+  'hr_admin', 'hr_sub_admin',
+  'ops_admin', 'ops_sub_admin',
+  'finance_admin', 'finance_sub_admin', 'finance',
+  'sales_admin', 'sales_sub_admin',
+  'center_admin', 'branch_manager',
+  'org_admin', 'superadmin', 'ceo', 'general_manager',
+];
+
+router.put('/leaves/:id/approve', authorize(...DEPT_APPROVE_ROLES), approveLeave);
+router.patch('/leaves/:id/dept-approve', authorize(...DEPT_APPROVE_ROLES), deptApproveLeave);
+router.patch('/leaves/:id/hr-approve', authorize('hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'), hrApproveLeave);
 
 // Attendance
 router.get('/attendance/my', getMyAttendance);

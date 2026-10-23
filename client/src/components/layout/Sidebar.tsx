@@ -103,6 +103,7 @@ const navItems: NavItem[] = [
       { id: 'marks', label: 'Internal Marks', icon: FileText, roles: ['ops_admin', 'ceo', 'employee'] },
       { id: 'sessions', label: 'Admission Sessions', icon: Calendar, roles: ['ops_admin', 'ceo', 'employee'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['ops_admin', 'ceo'] },
     ],
   },
   {
@@ -122,6 +123,7 @@ const navItems: NavItem[] = [
       { id: 'payroll-batches', label: 'Payroll Batches', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'approvals', label: 'Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['finance_admin', 'ceo'] },
+      { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
     ],
   },
   {
@@ -157,6 +159,7 @@ const navItems: NavItem[] = [
       { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['sales_admin', 'ceo'] },
     ],
   },
   {
@@ -168,6 +171,7 @@ const navItems: NavItem[] = [
       { id: 'center-students', label: 'My Students', icon: Users, roles: ['center_admin'] },
       { id: 'center-invoices', label: 'Invoices', icon: Receipt, roles: ['center_admin'] },
       { id: 'center-marks', label: 'Enter Marks', icon: FileText, roles: ['center_admin'] },
+      { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['center_admin'] },
     ],
   },
   {
@@ -321,10 +325,26 @@ interface NavItemComponentProps {
 }
 
 function NavItemComponent({ item, isCollapsed, isActive, activeChild, onClick, level = 0 }: NavItemComponentProps) {
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = React.useState(isActive);
   const Icon = item.icon;
 
-  const hasChildren = item.children && item.children.length > 0;
+  const visibleChildren = item.children?.filter(child => {
+    if (!user) return false;
+    let hasRoleAccess = child.roles.includes(user.role as any);
+    if (!hasRoleAccess) {
+      if (user.role === 'hr_sub_admin' && child.roles.includes('hr_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'finance_sub_admin' && child.roles.includes('finance_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'sales_sub_admin' && child.roles.includes('sales_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'ops_sub_admin' && child.roles.includes('ops_admin' as any)) hasRoleAccess = true;
+      else if (user.role === 'general_manager' && child.roles.includes('ceo' as any)) hasRoleAccess = true;
+      else if (['org_admin', 'superadmin'].includes(user.role)) hasRoleAccess = true;
+      else if (child.id === 'leave-approvals' && (Boolean((user as any).subDepartmentId) || Boolean((user as any).branchId))) hasRoleAccess = true;
+    }
+    return hasRoleAccess;
+  });
+
+  const hasChildren = visibleChildren && visibleChildren.length > 0;
 
   const handleClick = () => {
     if (hasChildren) {
@@ -375,7 +395,7 @@ function NavItemComponent({ item, isCollapsed, isActive, activeChild, onClick, l
       {/* Child Items */}
       {!isCollapsed && hasChildren && isExpanded && (
         <div className="mt-1 ml-4 space-y-1 border-l border-slate-700">
-          {item.children!.map((child) => (
+          {visibleChildren!.map((child) => (
             <button
               key={child.id}
               onClick={() => handleChildClick(child.id)}

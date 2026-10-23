@@ -21,13 +21,32 @@ const mapLeaveRequest = (leave: any) => ({
 });
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo'].includes(req.user.role);
-  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role);
+  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || Boolean(req.user.subDepartmentId);
   const whereClause: any = { organizationId: req.user.organizationId };
 
-  // Dept managers only see their own department's leaves; fallback to all if no dept
-  if (!isGodMode && isDeptManager && req.user.departmentId) {
-    whereClause.departmentId = req.user.departmentId;
+  // Dept managers only see their own department's leaves
+  if (!isGodMode && isDeptManager) {
+    let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
+    if (!userDeptId) {
+      let deptType: string | null = null;
+      if (['ops_admin', 'ops_sub_admin'].includes(req.user.role)) deptType = 'operations';
+      else if (['finance_admin', 'finance_sub_admin', 'finance'].includes(req.user.role)) deptType = 'finance';
+      else if (['sales_admin', 'sales_sub_admin'].includes(req.user.role)) deptType = 'sales';
+
+      if (deptType) {
+        const dept = await prisma.department.findFirst({
+          where: { organizationId: req.user.organizationId, type: deptType }
+        });
+        if (dept) userDeptId = dept.id;
+      }
+    }
+
+    if (userDeptId) {
+      whereClause.departmentId = userDeptId;
+    } else if (req.user.branchId) {
+      whereClause.user = { branchId: req.user.branchId };
+    }
   }
 
   // Support ?status= filter (e.g. status=pending)
@@ -64,20 +83,47 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
   
   let deptId = departmentId || req.user.departmentId;
   if (!deptId) {
-    const firstDept = await prisma.department.findFirst({
-      where: { organizationId: req.user.organizationId }
-    });
-    if (firstDept) {
-      deptId = firstDept.id;
-    } else {
-      const defaultDept = await prisma.department.create({
-        data: {
-          name: 'General',
-          organizationId: req.user.organizationId,
-          status: 'active'
-        }
+    if (req.user.subDepartmentId) {
+      const subDept = await prisma.subDepartment.findUnique({
+        where: { id: req.user.subDepartmentId },
+        select: { parentDeptId: true }
       });
-      deptId = defaultDept.id;
+      if (subDept?.parentDeptId) {
+        deptId = subDept.parentDeptId;
+      }
+    }
+
+    if (!deptId) {
+      let deptType: string | null = null;
+      if (['ops_admin', 'ops_sub_admin', 'operations'].some(r => req.user.role?.includes(r))) deptType = 'operations';
+      else if (['finance_admin', 'finance_sub_admin', 'finance', 'accountant'].some(r => req.user.role?.includes(r))) deptType = 'finance';
+      else if (['sales_admin', 'sales_sub_admin', 'sales', 'bde', 'telecaller'].some(r => req.user.role?.includes(r))) deptType = 'sales';
+      else if (['hr_admin', 'hr_sub_admin', 'hr_executive', 'hr'].some(r => req.user.role?.includes(r))) deptType = 'hr';
+
+      if (deptType) {
+        const dept = await prisma.department.findFirst({
+          where: { organizationId: req.user.organizationId, type: deptType }
+        });
+        if (dept) deptId = dept.id;
+      }
+    }
+
+    if (!deptId) {
+      const firstDept = await prisma.department.findFirst({
+        where: { organizationId: req.user.organizationId }
+      });
+      if (firstDept) {
+        deptId = firstDept.id;
+      } else {
+        const defaultDept = await prisma.department.create({
+          data: {
+            name: 'General',
+            organizationId: req.user.organizationId,
+            status: 'active'
+          }
+        });
+        deptId = defaultDept.id;
+      }
     }
   }
 
@@ -207,6 +253,48 @@ export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
   const isHr = req.path.includes('hr-approve');
+
+  const existing = await prisma.leaveRequest.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ success: false, message: 'Leave request not found' });
+    return;
+  }
+
+  // Prevent self-approval: department managers cannot approve their own leaves
+  const isGodMode = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  if (!isGodMode && existing.userId === req.user.id) {
+    res.status(403).json({ 
+      success: false, 
+      message: 'You cannot approve your own leave request. It must be reviewed by another manager or HR.' 
+    });
+    return;
+  }
+
+  // Verify department manager's department
+  if (!isHr && !isGodMode) {
+    let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
+    if (!userDeptId) {
+      let deptType: string | null = null;
+      if (['ops_admin', 'ops_sub_admin'].includes(req.user.role)) deptType = 'operations';
+      else if (['finance_admin', 'finance_sub_admin', 'finance'].includes(req.user.role)) deptType = 'finance';
+      else if (['sales_admin', 'sales_sub_admin'].includes(req.user.role)) deptType = 'sales';
+
+      if (deptType) {
+        const dept = await prisma.department.findFirst({
+          where: { organizationId: req.user.organizationId, type: deptType }
+        });
+        if (dept) userDeptId = dept.id;
+      }
+    }
+
+    if (userDeptId && existing.departmentId && existing.departmentId !== userDeptId) {
+      res.status(403).json({
+        success: false,
+        message: 'You can only approve leave requests within your own department.'
+      });
+      return;
+    }
+  }
 
   const updateData: any = {};
   if (isHr) {

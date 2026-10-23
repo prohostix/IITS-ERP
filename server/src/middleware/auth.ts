@@ -101,6 +101,12 @@ export const authorize = (...roles: string[]) => {
       (req.path.startsWith('/programs') || req.path.includes('/programs/')) &&
       ['POST', 'PUT', 'DELETE'].includes(req.method);
 
+    // Allow sub-department managers or branch managers to perform department leave approvals
+    const isLeaveDeptApproval = req.baseUrl.includes('/hr') && (req.path.includes('/dept-approve') || req.path.endsWith('/approve'));
+    if (isLeaveDeptApproval && (Boolean(req.user.subDepartmentId) || Boolean(req.user.branchId))) {
+      return next();
+    }
+
     if (isProgramWrite && req.user.canAddPrograms) {
       return next();
     }

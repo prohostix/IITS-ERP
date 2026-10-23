@@ -39,6 +39,7 @@ import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
+import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 
@@ -88,6 +89,9 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
+      case 'leave_approvals':
+      case 'leave-approvals': return <LeaveApprovalsPanel />;
+      case 'leaves': return <LeavesPanel />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'my_payslips': return <PayrollPanel />;
       case 'my_documents': return <MyDocumentsPanel />;
@@ -106,7 +110,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
   );
 }
 
-export function getOpsNavItems(isSubDeptManager: boolean) {
+export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = true) {
   return [
     { id: '__ops_section', label: 'Operations', isSection: true },
     { id: 'overview', label: 'Overview' },
@@ -131,6 +135,7 @@ export function getOpsNavItems(isSubDeptManager: boolean) {
     { id: 'tasks', label: 'Tasks' },
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
+    ...((isManager || isSubDeptManager) ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: 'my_attendance', label: 'Attendance' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },

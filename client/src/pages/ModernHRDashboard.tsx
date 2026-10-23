@@ -64,6 +64,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'users': return <HRUsersPanel />;
       case 'employees': return <EmployeesPanel />;
       case 'leaves': return <LeavesPanel />;
+      case 'leave_approvals':
       case 'leave-approvals': return <LeaveApprovalsPanel />;
       case 'attendance': return <AttendancePanel />;
       case 'attendance-calendar': return <AttendanceCalendarPanel />;
@@ -112,6 +113,7 @@ export function getHRNavItems() {
     { id: '__attendance_section', label: 'Attendance & Leave', isSection: true },
     { id: 'attendance', label: 'Attendance' },
     { id: 'leaves', label: 'Leave Requests' },
+    { id: 'leave-approvals', label: 'Leave Approvals' },
     { id: 'leave-alloc', label: 'Leave Allocation' },
     { id: '__recruitment_section', label: 'Recruitment', isSection: true },
     { id: 'hiring', label: 'Hiring & Recruitment' },
