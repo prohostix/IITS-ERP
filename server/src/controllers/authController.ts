@@ -95,6 +95,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       department: true,
       subDepartment: true,
       designationRef: true,
+      managedDepartments: true,
     }
   });
 
@@ -130,6 +131,8 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     centerStatus = center?.status ?? null;
   }
 
+  const isDepartmentManager = Boolean(user.department?.managerId === user.id) || Boolean((user as any).managedDepartments?.length > 0);
+
   res.status(200).json({
     success: true,
     data: {
@@ -146,6 +149,8 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
         status: user.status,
         department: user.department,
         subDepartment: user.subDepartment,
+        managedDepartments: (user as any).managedDepartments || [],
+        isDepartmentManager,
         ...(centerStatus !== null && { centerStatus }),
       },
       token,
@@ -165,14 +170,18 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
       department: true,
       subDepartment: true,
       designationRef: true,
+      managedDepartments: true,
     }
   });
+
+  const isDepartmentManager = Boolean(user?.department?.managerId === user?.id) || Boolean((user as any)?.managedDepartments?.length > 0);
 
   res.status(200).json({
     success: true,
     data: {
       ...user,
       designation: user?.designation || (user as any)?.designationRef?.title,
+      isDepartmentManager,
     },
   });
 });

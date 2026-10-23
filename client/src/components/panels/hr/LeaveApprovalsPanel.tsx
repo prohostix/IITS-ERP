@@ -12,6 +12,10 @@ import { useAuth } from '@/hooks/useAuth';
 export function LeaveApprovalsPanel() {
   const { user } = useAuth();
   const role = user?.role || '';
+  const isAssignedDeptManager = Boolean((user as any)?.department?.managerId && (user as any).department.managerId === user?.id) ||
+    Boolean((user as any)?.managedDepartments?.length > 0) ||
+    Boolean((user as any)?.isDepartmentManager);
+
   const canApproveLeaves = [
     'hr_admin', 'hr_sub_admin',
     'ops_admin', 'ops_sub_admin',
@@ -19,7 +23,7 @@ export function LeaveApprovalsPanel() {
     'sales_admin', 'sales_sub_admin',
     'center_admin', 'branch_manager',
     'org_admin', 'superadmin', 'ceo', 'general_manager'
-  ].includes(role) || Boolean((user as any)?.subDepartmentId);
+  ].includes(role) || isAssignedDeptManager || Boolean((user as any)?.subDepartmentId);
 
   const [leaves, setLeaves] = useState<any[]>([]);
 

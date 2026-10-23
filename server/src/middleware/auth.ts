@@ -38,6 +38,7 @@ export const protect = async (
           branch: true,
           studyCenter: true,
           subDepartment: { include: { parentDept: true } },
+          managedDepartments: true,
         }
       });
 
@@ -46,6 +47,7 @@ export const protect = async (
         return;
       }
 
+      user.isDepartmentManager = Boolean(user.department?.managerId === user.id) || Boolean((user as any).managedDepartments?.length > 0);
       req.user = user;
       next();
     } catch (error) {
@@ -101,9 +103,10 @@ export const authorize = (...roles: string[]) => {
       (req.path.startsWith('/programs') || req.path.includes('/programs/')) &&
       ['POST', 'PUT', 'DELETE'].includes(req.method);
 
-    // Allow sub-department managers or branch managers to perform department leave approvals
+    // Allow department managers, sub-department managers, or branch managers to perform department leave approvals
     const isLeaveDeptApproval = req.baseUrl.includes('/hr') && (req.path.includes('/dept-approve') || req.path.endsWith('/approve'));
-    if (isLeaveDeptApproval && (Boolean(req.user.subDepartmentId) || Boolean(req.user.branchId))) {
+    const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
+    if (isLeaveDeptApproval && (isAssignedDeptManager || Boolean(req.user.subDepartmentId) || Boolean(req.user.branchId))) {
       return next();
     }
 

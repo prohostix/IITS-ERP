@@ -22,12 +22,17 @@ const mapLeaveRequest = (leave: any) => ({
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(req.user.role);
-  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || Boolean(req.user.subDepartmentId);
+  const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
+  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || isAssignedDeptManager || Boolean(req.user.subDepartmentId);
   const whereClause: any = { organizationId: req.user.organizationId };
 
   // Dept managers only see their own department's leaves
   if (!isGodMode && isDeptManager) {
     let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
+    const managedIds = ((req.user as any).managedDepartments || []).map((d: any) => d.id);
+    if (!userDeptId && managedIds.length > 0) {
+      userDeptId = managedIds[0];
+    }
     if (!userDeptId) {
       let deptType: string | null = null;
       if (['ops_admin', 'ops_sub_admin'].includes(req.user.role)) deptType = 'operations';
@@ -42,8 +47,11 @@ export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Respo
       }
     }
 
-    if (userDeptId) {
-      whereClause.departmentId = userDeptId;
+    const allDepts = Array.from(new Set([userDeptId, ...managedIds].filter(Boolean)));
+    if (allDepts.length > 1) {
+      whereClause.departmentId = { in: allDepts };
+    } else if (allDepts.length === 1) {
+      whereClause.departmentId = allDepts[0];
     } else if (req.user.branchId) {
       whereClause.user = { branchId: req.user.branchId };
     }
@@ -272,7 +280,12 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
 
   // Verify department manager's department
   if (!isHr && !isGodMode) {
+    const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
     let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
+    const managedIds = ((req.user as any).managedDepartments || []).map((d: any) => d.id);
+    if (!userDeptId && managedIds.length > 0) {
+      userDeptId = managedIds[0];
+    }
     if (!userDeptId) {
       let deptType: string | null = null;
       if (['ops_admin', 'ops_sub_admin'].includes(req.user.role)) deptType = 'operations';
@@ -287,7 +300,11 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
       }
     }
 
-    if (userDeptId && existing.departmentId && existing.departmentId !== userDeptId) {
+    const allDepts = Array.from(new Set([userDeptId, ...managedIds].filter(Boolean)));
+    const isBranchMatch = Boolean(req.user.branchId && (existing as any).user?.branchId === req.user.branchId);
+    const isDeptMatch = Boolean(existing.departmentId && allDepts.includes(existing.departmentId));
+
+    if (!isDeptMatch && !isBranchMatch && !isAssignedDeptManager) {
       res.status(403).json({
         success: false,
         message: 'You can only approve leave requests within your own department.'

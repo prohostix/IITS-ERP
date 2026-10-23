@@ -390,22 +390,17 @@ function App() {
 
     if (user.role === 'employee') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
+      const isAssignedDeptManager = Boolean((user as any)?.department?.managerId && (user as any).department.managerId === user.id) ||
+        Boolean((user as any)?.managedDepartments?.length > 0) ||
+        Boolean((user as any)?.isDepartmentManager);
+      const isManager = isSubDeptManager || isAssignedDeptManager;
+
       if (deptType) {
-        if (isSubDeptManager) {
-          switch (deptType) {
-            case 'operations': return getOpsNavItems(true, true);
-            case 'hr': return getHRNavItems();
-            case 'finance': return getFinanceNavItems(true);
-            case 'sales': return getSalesNavItems(true);
-          }
-        } else if (deptType === 'sales') {
-          return getSalesNavItems(false);
-        } else if (deptType === 'operations') {
-          return getOpsNavItems(false, false);
-        } else if (deptType === 'hr') {
-          return getHRNavItems();
-        } else if (deptType === 'finance') {
-          return getFinanceNavItems(false);
+        switch (deptType) {
+          case 'operations': return getOpsNavItems(isSubDeptManager, isManager);
+          case 'hr': return getHRNavItems();
+          case 'finance': return getFinanceNavItems(isManager);
+          case 'sales': return getSalesNavItems(isManager);
         }
       }
       return EMPLOYEE_NAV_ITEMS;

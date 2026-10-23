@@ -339,7 +339,14 @@ function NavItemComponent({ item, isCollapsed, isActive, activeChild, onClick, l
       else if (user.role === 'ops_sub_admin' && child.roles.includes('ops_admin' as any)) hasRoleAccess = true;
       else if (user.role === 'general_manager' && child.roles.includes('ceo' as any)) hasRoleAccess = true;
       else if (['org_admin', 'superadmin'].includes(user.role)) hasRoleAccess = true;
-      else if (child.id === 'leave-approvals' && (Boolean((user as any).subDepartmentId) || Boolean((user as any).branchId))) hasRoleAccess = true;
+      else if (child.id === 'leave-approvals') {
+        const isAssignedDeptManager = Boolean((user as any)?.department?.managerId && (user as any).department.managerId === user.id) ||
+          Boolean((user as any)?.managedDepartments?.length > 0) ||
+          Boolean((user as any)?.isDepartmentManager);
+        if (isAssignedDeptManager || Boolean((user as any).subDepartmentId) || Boolean((user as any).branchId)) {
+          hasRoleAccess = true;
+        }
+      }
     }
     return hasRoleAccess;
   });

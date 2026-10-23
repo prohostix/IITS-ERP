@@ -90,9 +90,12 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
   const isBranchManager = Boolean((user as any)?.branchId);
   const isGodMode = ['org_admin', 'superadmin', 'ceo', 'general_manager'].includes(role);
   const isHR = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(role) && !isPersonalView;
-  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isBranchManager || Boolean((user as any)?.subDepartmentId) || isHR) && !isPersonalView;
+  const isAssignedDeptManager = Boolean((user as any)?.department?.managerId && (user as any).department.managerId === userId) ||
+    Boolean((user as any)?.managedDepartments?.length > 0) ||
+    Boolean((user as any)?.isDepartmentManager);
+  const isDeptManager = (DEPT_MANAGER_ROLES.includes(role) || isAssignedDeptManager || isBranchManager || Boolean((user as any)?.subDepartmentId) || isHR) && !isPersonalView;
   const isEmployee = (!isDeptManager && !isHR && !isGodMode) || isPersonalView;
-  const canApproveLeaves = DEPT_MANAGER_ROLES.includes(role) || isBranchManager || Boolean((user as any)?.subDepartmentId);
+  const canApproveLeaves = DEPT_MANAGER_ROLES.includes(role) || isAssignedDeptManager || isBranchManager || Boolean((user as any)?.subDepartmentId);
 
   const fetchLeaves = async () => {
     setLoading(true);
@@ -264,7 +267,8 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 const userDeptId = typeof rawUserDept === 'object' ? rawUserDept?.id : rawUserDept;
                 const leaveDeptId = leave.departmentId?.id || leave.departmentId;
                 const isSameDept = Boolean(leaveDeptId && userDeptId && String(leaveDeptId) === String(userDeptId));
-                const canDeptAct = (!isOwner || isGodMode) && isDeptManager && canApproveLeaves && leave.status === 'pending' && (isGodMode || isBranchManager || isSameDept || !userDeptId);
+                const isManagerOfLeaveDept = Boolean(leaveDeptId && ((user as any)?.managedDepartments || []).some((d: any) => String(d.id) === String(leaveDeptId)));
+                const canDeptAct = (!isOwner || isGodMode) && isDeptManager && canApproveLeaves && leave.status === 'pending' && (isGodMode || isBranchManager || isSameDept || isManagerOfLeaveDept || !userDeptId);
                 const canHRAct = (!isOwner || isGodMode) && isHR && canApproveLeaves && leave.status === 'dept_approved';
 
                 return (
