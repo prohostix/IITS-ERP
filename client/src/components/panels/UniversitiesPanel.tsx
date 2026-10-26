@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { QuickAddProgramModal } from './QuickAddProgramModal';
 import { QuickAddSessionModal } from './QuickAddSessionModal';
+import { toast } from 'sonner';
 interface Branch { id: string; name: string; code: string; }
 interface University {
   id: string; name: string; code: string; address?: string;
@@ -98,8 +99,10 @@ export function UniversitiesPanel() {
     if (!confirm('Delete this university?')) return;
     try {
       await api.delete(`/operations/universities/${id}`);
+      toast.success('University deleted successfully');
       fetchUniversities();
-    } catch (err) {
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete university');
     }
   };
 

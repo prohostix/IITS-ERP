@@ -64,7 +64,98 @@ export const updateUniversity = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ success: true, data: { ...university, _id: university.id } });
 });
 export const deleteUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await prisma.university.delete({ where: { id: req.params.id } });
+  const university = await prisma.university.findUnique({
+    where: { id: req.params.id },
+    include: {
+      programs: {
+        select: {
+          id: true,
+          _count: { select: { enrollments: true, students: true } }
+        }
+      },
+      admissionSessions: {
+        select: {
+          id: true,
+          _count: { select: { enrollments: true } }
+        }
+      }
+    }
+  });
+
+  if (!university) {
+    res.status(404).json({ success: false, message: 'University not found' });
+    return;
+  }
+
+  // Check if any programs or sessions have active enrollments or students
+  const totalEnrollments = university.programs.reduce((acc, p) => acc + p._count.enrollments, 0)
+    + university.admissionSessions.reduce((acc, s) => acc + s._count.enrollments, 0);
+  const totalStudents = university.programs.reduce((acc, p) => acc + p._count.students, 0);
+
+  if (totalEnrollments > 0 || totalStudents > 0) {
+    res.status(400).json({
+      success: false,
+      message: `Cannot delete university with existing students or enrollments (${totalStudents} students, ${totalEnrollments} enrollments). Please mark the university as inactive instead.`
+    });
+    return;
+  }
+
+  const programIds = university.programs.map(p => p.id);
+  const sessionIds = university.admissionSessions.map(s => s.id);
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Unlink university relations & many-to-many
+    await tx.university.update({
+      where: { id: req.params.id },
+      data: {
+        allowedBranches: { set: [] },
+        studyCenters: { set: [] },
+        assignedSubDepts: { set: [] }
+      }
+    });
+
+    // 2. Unlink any users tied to this university
+    await tx.user.updateMany({
+      where: { universityId: req.params.id },
+      data: { universityId: null }
+    });
+
+    // 3. Delete fee structures referencing this university or its programs/sessions
+    await tx.programFeeStructure.deleteMany({
+      where: {
+        OR: [
+          { universityId: req.params.id },
+          ...(programIds.length > 0 ? [{ programId: { in: programIds } }] : []),
+          ...(sessionIds.length > 0 ? [{ admissionSessionId: { in: sessionIds } }] : [])
+        ]
+      }
+    });
+
+    await tx.universityAuthFee.deleteMany({ where: { universityId: req.params.id } });
+    await tx.universityAllocation.deleteMany({ where: { universityId: req.params.id } });
+    await tx.universityWalletLedger.deleteMany({ where: { universityId: req.params.id } });
+    await tx.centerUniversityAssignment.deleteMany({ where: { universityId: req.params.id } });
+    await tx.universityLedger.deleteMany({ where: { universityId: req.params.id } });
+    await tx.universityNotificationRule.deleteMany({ where: { universityId: req.params.id } });
+
+    // 4. Delete program-level dependencies for this university's programs
+    if (programIds.length > 0) {
+      await tx.programMaterial.deleteMany({ where: { programId: { in: programIds } } });
+      await tx.feeStructure.deleteMany({ where: { programId: { in: programIds } } });
+      await tx.reregRule.deleteMany({ where: { programId: { in: programIds } } });
+      await tx.centerProgramAssignment.deleteMany({ where: { programId: { in: programIds } } });
+      await tx.program.deleteMany({ where: { id: { in: programIds } } });
+    }
+
+    // 5. Delete admission sessions for this university
+    if (sessionIds.length > 0) {
+      await tx.admissionSession.deleteMany({ where: { id: { in: sessionIds } } });
+    }
+
+    // 6. Delete the university itself
+    await tx.university.delete({ where: { id: req.params.id } });
+  });
+
   res.json({ success: true, data: {} });
 });
 export const activateUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {

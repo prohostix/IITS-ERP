@@ -218,12 +218,64 @@ export const updateStudent = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 export const deleteStudent = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const studentExists = await prisma.student.findUnique({ where: { id: req.params.id } });
+  const studentExists = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      enrollments: { select: { id: true } },
+      invoices: { select: { id: true } }
+    }
+  });
+
   if (!studentExists) {
     res.status(404).json({ success: false, message: 'Student not found' });
     return;
   }
-  await prisma.student.delete({ where: { id: req.params.id } });
+
+  const enrollmentIds = studentExists.enrollments.map(e => e.id);
+  const invoiceIds = studentExists.invoices.map(i => i.id);
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Delete university fee payments
+    await tx.universityFeePayment.deleteMany({
+      where: {
+        OR: [
+          { studentId: req.params.id },
+          ...(enrollmentIds.length > 0 ? [{ enrollmentId: { in: enrollmentIds } }] : [])
+        ]
+      }
+    });
+
+    // 2. Delete student status requests & marks & exam submissions
+    await tx.studentStatusRequest.deleteMany({ where: { studentId: req.params.id } });
+    await tx.internalMark.deleteMany({ where: { studentId: req.params.id } });
+    await tx.examSubmission.deleteMany({ where: { studentId: req.params.id } });
+
+    // 3. Delete invoices and payments
+    if (invoiceIds.length > 0) {
+      await tx.paymentEntry.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      await tx.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+    }
+
+    // 4. Delete enrollments and their child records
+    if (enrollmentIds.length > 0) {
+      await tx.commissionIn.deleteMany({ where: { enrollmentId: { in: enrollmentIds } } });
+      await tx.studentFeeReceipt.deleteMany({ where: { enrollmentId: { in: enrollmentIds } } });
+      await tx.enrollmentPayment.deleteMany({ where: { enrollmentId: { in: enrollmentIds } } });
+      await tx.enrollment.deleteMany({ where: { id: { in: enrollmentIds } } });
+    }
+
+    // 5. Delete the student
+    await tx.student.delete({ where: { id: req.params.id } });
+
+    // 6. Delete user account if it is a student role
+    if (studentExists.email) {
+      const user = await tx.user.findUnique({ where: { email: studentExists.email } });
+      if (user && (user.role === 'student' || user.role === 'STUDENT')) {
+        await tx.user.delete({ where: { id: user.id } });
+      }
+    }
+  });
+
   res.status(200).json({ success: true, data: {} });
 });
 

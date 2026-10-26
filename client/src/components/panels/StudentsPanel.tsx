@@ -226,8 +226,10 @@ export function StudentsPanel() {
     if (!confirm('Are you sure you want to delete this student?')) return;
     try {
       await api.delete(`/students/${id}`);
+      toast.success('Student deleted successfully');
       fetchStudents();
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete student');
     }
   };
 
