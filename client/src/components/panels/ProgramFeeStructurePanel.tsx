@@ -329,12 +329,17 @@ const fetchAllData = useCallback(async () => {
          };
       });
 
+      const cleanSessionId = !form.admissionSessionId || form.admissionSessionId === '__none__' || form.admissionSessionId === 'none' ? null : form.admissionSessionId;
+      const cleanUniId = !form.universityId || form.universityId === '__none__' ? null : form.universityId;
+      const cleanProgId = form.level === 'program' && form.programId && form.programId !== '__none__' ? form.programId : null;
+      const cleanSpec = !form.specialisation || form.specialisation === '__none__' ? null : form.specialisation;
+
       const payload = {
         level: form.level,
-        programId: form.level === 'program' ? form.programId : "",
-        universityId: form.universityId || "",
-        admissionSessionId: form.admissionSessionId || "",
-        specialisation: form.specialisation || "",
+        programId: cleanProgId,
+        universityId: cleanUniId,
+        admissionSessionId: cleanSessionId,
+        specialisation: cleanSpec,
         baseFee: totalBaseFee,
         fullProgramFee: Number(form.fullProgramFee || 0),
         oneTimeUniversityFee: Number(form.oneTimeUniversityFee || 0),
@@ -464,7 +469,7 @@ const fetchAllData = useCallback(async () => {
                   ? (typeof fee.programId === 'object' && fee.programId ? fee.programId.name : programs.find(p => p.id === fee.programId)?.name || 'Unknown Program')
                   : 'All Programs';
                 const uniName = typeof fee.universityId === 'object' && fee.universityId ? fee.universityId.name : universities.find(u => u.id === fee.universityId)?.name || 'Unknown University';
-                const sess = typeof fee.admissionSessionId === 'object' && fee.admissionSessionId ? fee.admissionSessionId.name : sessions.find(s => s.id === fee.admissionSessionId)?.name || '';
+                const sess = (fee as any).admissionSession?.name || (typeof fee.admissionSessionId === 'object' && fee.admissionSessionId ? fee.admissionSessionId.name : sessions.find(s => s.id === fee.admissionSessionId)?.name) || '';
                 const specs = fee.level === 'program' ? (typeof fee.programId === 'object' && fee.programId?.specialisations ? fee.programId.specialisations : programs.find(p => p.id === fee.programId)?.specialisations || []) : [];
 
                 return (
@@ -737,7 +742,11 @@ const fetchAllData = useCallback(async () => {
                         <Badge variant="outline" className="bg-indigo-50 text-indigo-700">{universities.find(u => u.id === form.universityId)?.name}</Badge>
                         <Badge variant="outline" className="bg-purple-50 text-purple-700">{programs.find(p => p.id === form.programId)?.name}</Badge>
                         {form.specialisation && <Badge variant="outline" className="bg-emerald-50 text-emerald-700">{form.specialisation}</Badge>}
-                        {form.admissionSessionId !== '__none__' && <Badge variant="outline" className="bg-amber-50 text-amber-700">{sessions.find(s => s.id === form.admissionSessionId)?.name}</Badge>}
+                        {form.admissionSessionId && form.admissionSessionId !== '__none__' ? (
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700">{sessions.find(s => s.id === form.admissionSessionId)?.name}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-slate-100 text-slate-700">All Sessions</Badge>
+                        )}
                       </div>
                     </div>
                   </div>
