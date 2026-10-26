@@ -402,7 +402,59 @@ export const updateBranchSettings = asyncHandler(async (req: AuthRequest, res: R
   res.json({ success: true, message: `Updated ${count} center(s) in branch "${branchName}"`, count });
 });
 export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await prisma.studyCenter.delete({ where: { id: req.params.id } });
+  const center = await prisma.studyCenter.findUnique({
+    where: { id: req.params.id },
+    include: {
+      _count: {
+        select: {
+          students: true,
+          enrollments: true,
+          invoices: true
+        }
+      }
+    }
+  });
+
+  if (!center) {
+    res.status(404).json({ success: false, message: 'Study center not found' });
+    return;
+  }
+
+  if (center._count.students > 0 || center._count.enrollments > 0) {
+    res.status(400).json({
+      success: false,
+      message: `Cannot delete study center with existing students (${center._count.students}) or enrollments (${center._count.enrollments}). Please suspend or deactivate the center instead.`
+    });
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Unlink universities
+    await tx.studyCenter.update({
+      where: { id: req.params.id },
+      data: { universities: { set: [] } }
+    });
+
+    // 2. Unlink any users tied to this study center
+    await tx.user.updateMany({
+      where: { studyCenterId: req.params.id },
+      data: { studyCenterId: null }
+    });
+
+    // 3. Delete center assignments & commissions & wallet
+    await tx.centerUniversityAssignment.deleteMany({ where: { centerId: req.params.id } });
+    await tx.centerProgramAssignment.deleteMany({ where: { centerId: req.params.id } });
+    await tx.centerCommissionConfig.deleteMany({ where: { studyCenterId: req.params.id } });
+    await tx.walletTransaction.deleteMany({ where: { studyCenterId: req.params.id } });
+    await tx.centerWallet.deleteMany({ where: { studyCenterId: req.params.id } });
+
+    // 4. Delete invoices if any remaining with 0 students
+    await tx.invoice.deleteMany({ where: { centerId: req.params.id } });
+
+    // 5. Delete the study center
+    await tx.studyCenter.delete({ where: { id: req.params.id } });
+  });
+
   res.json({ success: true, data: {} });
 });
 export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -447,7 +499,36 @@ export const updateAdmissionSession = asyncHandler(async (req: AuthRequest, res:
   res.json({ success: true, data: session });
 });
 export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  await prisma.admissionSession.delete({ where: { id: req.params.id } });
+  const session = await prisma.admissionSession.findUnique({
+    where: { id: req.params.id },
+    include: {
+      _count: {
+        select: { enrollments: true }
+      }
+    }
+  });
+
+  if (!session) {
+    res.status(404).json({ success: false, message: 'Admission session not found' });
+    return;
+  }
+
+  const studentCount = await prisma.student.count({ where: { sessionId: req.params.id } });
+
+  if (session._count.enrollments > 0 || studentCount > 0) {
+    res.status(400).json({
+      success: false,
+      message: `Cannot delete admission session with active enrollments or students (${studentCount} students, ${session._count.enrollments} enrollments). Consider marking it as inactive.`
+    });
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Delete or unlink fee structures associated with this session
+    await tx.programFeeStructure.deleteMany({ where: { admissionSessionId: req.params.id } });
+    await tx.admissionSession.delete({ where: { id: req.params.id } });
+  });
+
   res.json({ success: true, data: {} });
 });
 export const approveAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {

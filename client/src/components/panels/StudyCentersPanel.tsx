@@ -334,8 +334,10 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
     if (!confirm('Delete this study center?')) return;
     try {
       await api.delete(`/operations/centers/${id}`);
+      toast.success('Study center deleted successfully');
       fetchCenters();
-    } catch (_err) {
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete study center');
     }
   };
 

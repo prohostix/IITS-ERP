@@ -227,8 +227,13 @@ export function ProgramsPanel() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this program?')) return;
-    try { await api.delete(`/operations/programs/${id}`); fetchPrograms(); }
-    catch (e: any) { toast.error(e.response?.data?.message || 'Failed to delete'); }
+    try {
+      await api.delete(`/operations/programs/${id}`);
+      toast.success('Program deleted successfully');
+      fetchPrograms();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to delete');
+    }
   };
 
   const resetForm = () => {

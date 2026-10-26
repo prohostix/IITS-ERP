@@ -248,6 +248,12 @@ export const updateProgramFee = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const deleteProgramFee = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const fee = await prisma.programFeeStructure.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId }
+  });
+  if (!fee) {
+    return res.status(404).json({ success: false, message: 'Fee structure not found' });
+  }
   await prisma.programFeeStructure.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });
 });

@@ -117,8 +117,10 @@ export function AdmissionSessionsPanel() {
     if (!confirm('Delete this session?')) return;
     try {
       await api.delete(`/operations/sessions/${id}`);
+      toast.success('Session deleted successfully');
       fetchSessions();
-    } catch (err) {
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete session');
     }
   };
 
