@@ -48,9 +48,9 @@ router.get('/today', protect, getTodayAttendance);
 router.get('/late-summary', protect, getMonthlyLateSummary);
 
 // HR routes - view all attendances
-router.get('/', protect, authorize('hr_admin', 'superadmin'), getAttendances);
-router.post('/', protect, authorize('hr_admin', 'superadmin'), createAttendance);
-router.put('/:id', protect, authorize('hr_admin', 'superadmin'), updateAttendance);
-router.delete('/:id', protect, authorize('hr_admin', 'superadmin'), deleteAttendance);
+router.get('/', protect, authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), getAttendances);
+router.post('/', protect, authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), createAttendance);
+router.put('/:id', protect, authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), updateAttendance);
+router.delete('/:id', protect, authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), deleteAttendance);
 
 export default router;

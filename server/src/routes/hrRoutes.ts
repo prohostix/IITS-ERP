@@ -102,11 +102,11 @@ router.patch('/leaves/:id/hr-approve', authorize('hr_admin', 'hr_sub_admin', 'or
 router.get('/attendance/my', getMyAttendance);
 router.get('/attendance/my-summary', getMyAttendanceSummary);
 router.get('/attendance/activity-report', authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), getActivityReport);
-router.route('/attendance').get(authorize('hr_admin', 'org_admin', 'ceo', 'superadmin'), getAttendance).post(authorize('hr_admin', 'superadmin'), markAttendance);
+router.route('/attendance').get(authorize('hr_admin', 'hr_sub_admin', 'org_admin', 'ceo', 'superadmin', 'general_manager'), getAttendance).post(authorize('hr_admin', 'hr_sub_admin', 'org_admin', 'ceo', 'superadmin', 'general_manager'), markAttendance);
 router.route('/attendance/:id')
   .get(getAttendanceById)
-  .put(authorize('hr_admin', 'superadmin', 'org_admin'), updateAttendance)
-  .delete(authorize('hr_admin', 'superadmin', 'org_admin'), deleteAttendance);
+  .put(authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), updateAttendance)
+  .delete(authorize('hr_admin', 'hr_sub_admin', 'superadmin', 'org_admin', 'ceo', 'general_manager'), deleteAttendance);
 
 // Vacancies
 router.route('/vacancies').get(getVacancies).post(authorize('hr_admin', 'ceo', 'org_admin', 'superadmin'), createVacancy);

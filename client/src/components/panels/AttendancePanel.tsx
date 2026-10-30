@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, CalendarIcon, LayoutList, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -19,7 +20,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
   const { user } = useAuth();
   const DEPT_MANAGER_ROLES = ['ops_admin', 'finance_admin', 'sales_admin', 'center_admin', 'ops_sub_admin'];
   const isBranchManager = Boolean((user as any)?.branchId);
-  const isHR = ['hr_admin', 'org_admin', 'superadmin', 'ceo'].includes(user?.role || '') && !isPersonalView;
+  const isHR = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(user?.role || '') && !isPersonalView;
   const isDeptManager = (DEPT_MANAGER_ROLES.includes(user?.role || '') || isBranchManager || isHR) && !isPersonalView;
   const canViewAll = isDeptManager;
   
@@ -70,14 +71,23 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.employeeId) {
+      toast.error('Please select an employee');
+      return;
+    }
+    if (!formData.date) {
+      toast.error('Please select a date');
+      return;
+    }
     try {
       const toISO = (date: string, time: string) => {
         if (!date || !time) return undefined;
         return new Date(`${date}T${time}:00`).toISOString();
       };
       const payload: any = {
+        userId: formData.employeeId,
         employeeId: formData.employeeId,
-        date: new Date(formData.date).toISOString(),
+        date: formData.date,
         status: formData.status,
         notes: formData.notes,
       };
@@ -86,20 +96,22 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
 
       if (editingId) {
         await api.put(`/hr/attendance/${editingId}`, payload);
+        toast.success('Attendance updated successfully');
       } else {
         await api.post('/hr/attendance', payload);
+        toast.success('Attendance marked successfully');
       }
       setDialogOpen(false);
       resetForm();
       fetchAttendance();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to save attendance');
+      toast.error(error.response?.data?.message || 'Failed to save attendance');
     }
   };
 
   const handleEdit = (record: any) => {
-    const recId = record.id || record.id;
-    const empId = record.employeeId?.id || record.employeeId?.id || record.employeeId || '';
+    const recId = record.id;
+    const empId = record.employeeId?.id || record.userId || record.employeeId || '';
     setEditingId(recId);
     setFormData({
       employeeId: empId?.toString() || '',
@@ -116,8 +128,10 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
     if (!confirm('Are you sure you want to delete this attendance record?')) return;
     try {
       await api.delete(`/hr/attendance/${id}`);
+      toast.success('Attendance record deleted');
       fetchAttendance();
-    } catch (error) {
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete record');
     }
   };
 
@@ -242,15 +256,15 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label>Employee</Label>
+                    <Label>Employee <span className="text-destructive">*</span></Label>
                     <Select value={formData.employeeId} onValueChange={(value) => setFormData({...formData, employeeId: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select employee" />
                       </SelectTrigger>
                       <SelectContent>
-                        {employees.filter(emp => emp && (emp.id || emp.id)).map((emp) => (
-                          <SelectItem key={emp.id || emp.id} value={(emp.id || emp.id).toString()}>
-                            {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim()}
+                        {employees.filter(emp => emp && emp.id).map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id.toString()}>
+                            {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.email}{emp.designation ? ` (${emp.designation})` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>

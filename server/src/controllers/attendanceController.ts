@@ -101,8 +101,39 @@ export const getMonthlyLateSummary = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const getAttendances = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { employeeId, userId, startDate, endDate, date } = req.query;
+  const where: any = { organizationId: req.user.organizationId };
+
+  const targetUser = userId || employeeId;
+  if (targetUser && targetUser !== 'all') {
+    where.userId = targetUser as string;
+  }
+
+  if (date) {
+    const d = new Date(date as string);
+    if (!isNaN(d.getTime())) {
+      const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+      const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+      where.date = { gte: start, lte: end };
+    }
+  } else if (startDate || endDate) {
+    where.date = {};
+    if (startDate) {
+      const sd = new Date(startDate as string);
+      if (!isNaN(sd.getTime())) {
+        where.date.gte = new Date(Date.UTC(sd.getUTCFullYear(), sd.getUTCMonth(), sd.getUTCDate(), 0, 0, 0, 0));
+      }
+    }
+    if (endDate) {
+      const ed = new Date(endDate as string);
+      if (!isNaN(ed.getTime())) {
+        where.date.lte = new Date(Date.UTC(ed.getUTCFullYear(), ed.getUTCMonth(), ed.getUTCDate(), 23, 59, 59, 999));
+      }
+    }
+  }
+
   const attendances = await prisma.attendance.findMany({ 
-    where: { organizationId: req.user.organizationId }, 
+    where, 
     include: { user: true },
     orderBy: { date: 'desc' }
   });
@@ -120,21 +151,135 @@ export const getAttendanceById = asyncHandler(async (req: AuthRequest, res: Resp
     res.status(404).json({ success: false, message: 'Attendance record not found' });
     return;
   }
-  res.json({ success: true, data: attendance });
+  const formatted = {
+    ...attendance,
+    employeeId: attendance.user ? {
+      id: attendance.user.id,
+      name: attendance.user.name,
+      email: attendance.user.email,
+      designation: attendance.user.designation
+    } : null
+  };
+  res.json({ success: true, data: formatted });
 });
 
 export const createAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const rawUserId = req.body.userId || req.body.employeeId;
+  const targetUserId = typeof rawUserId === 'object' && rawUserId !== null ? rawUserId.id : rawUserId;
+
+  if (!targetUserId || typeof targetUserId !== 'string' || !targetUserId.trim()) {
+    return res.status(400).json({ success: false, message: 'Please select an employee' });
+  }
+
+  if (!req.body.date) {
+    return res.status(400).json({ success: false, message: 'Date is required' });
+  }
+
+  let finalUserId = targetUserId.trim();
+  const orgId = req.user.organizationId;
+
+  // Verify / resolve user
+  const user = await prisma.user.findFirst({
+    where: { id: finalUserId, ...(orgId ? { organizationId: orgId } : {}) }
+  });
+  if (!user) {
+    const empProfile = await prisma.employeeProfile.findFirst({
+      where: { id: finalUserId, ...(orgId ? { organizationId: orgId } : {}) }
+    });
+    if (empProfile?.userId) {
+      finalUserId = empProfile.userId;
+    } else {
+      const anyUser = await prisma.user.findUnique({ where: { id: finalUserId } });
+      if (anyUser) {
+        finalUserId = anyUser.id;
+      } else {
+        return res.status(404).json({ success: false, message: 'Employee user not found' });
+      }
+    }
+  }
+
+  const d = new Date(req.body.date);
+  if (isNaN(d.getTime())) {
+    return res.status(400).json({ success: false, message: 'Invalid date provided' });
+  }
+  const targetDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+
+  const checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
+  const checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
+
+  let workingHours = Number(req.body.workingHours) || 0;
+  if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
+    const diffHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
+    workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));
+  }
+
+  const status = req.body.status || 'present';
+  const isLate = req.body.isLate !== undefined ? Boolean(req.body.isLate) : status === 'late';
+  const isHalfDay = req.body.isHalfDay !== undefined ? Boolean(req.body.isHalfDay) : status === 'half_day';
+  const isWFH = Boolean(req.body.isWFH);
+  const lateMinutes = Number(req.body.lateMinutes) || 0;
+  const notes = req.body.notes !== undefined ? (req.body.notes ? String(req.body.notes) : null) : null;
+
+  const resolvedOrgId = user?.organizationId || req.user.organizationId;
+
+  const data = {
+    userId: finalUserId,
+    organizationId: resolvedOrgId,
+    date: targetDate,
+    status: status as any,
+    checkIn: checkIn && !isNaN(checkIn.getTime()) ? checkIn : null,
+    checkOut: checkOut && !isNaN(checkOut.getTime()) ? checkOut : null,
+    workingHours,
+    isLate,
+    lateMinutes,
+    isHalfDay,
+    isWFH,
+    notes,
+  };
+
   const attendance = await prisma.attendance.upsert({
     where: {
       userId_date: {
-        userId: req.body.userId,
-        date: new Date(req.body.date)
+        userId: finalUserId,
+        date: targetDate
       }
     },
-    update: { ...req.body, organizationId: req.user.organizationId },
-    create: { ...req.body, organizationId: req.user.organizationId }
+    update: {
+      status: data.status,
+      checkIn: data.checkIn,
+      checkOut: data.checkOut,
+      workingHours: data.workingHours,
+      isLate: data.isLate,
+      lateMinutes: data.lateMinutes,
+      isHalfDay: data.isHalfDay,
+      isWFH: data.isWFH,
+      notes: data.notes,
+      organizationId: data.organizationId
+    },
+    create: data,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          designation: true
+        }
+      }
+    }
   });
-  res.status(201).json({ success: true, data: attendance });
+
+  const formatted = {
+    ...attendance,
+    employeeId: attendance.user ? {
+      id: attendance.user.id,
+      name: attendance.user.name,
+      email: attendance.user.email,
+      designation: attendance.user.designation
+    } : null
+  };
+
+  res.status(201).json({ success: true, data: formatted });
 });
 export const markAttendance = createAttendance;
 
@@ -144,8 +289,59 @@ export const updateAttendance = asyncHandler(async (req: AuthRequest, res: Respo
     res.status(404).json({ success: false, message: 'Attendance record not found' });
     return;
   }
-  const updatedAttendance = await prisma.attendance.update({ where: { id: req.params.id }, data: req.body });
-  res.json({ success: true, data: updatedAttendance });
+
+  const updateData: any = {};
+  if (req.body.status !== undefined) updateData.status = req.body.status;
+  if (req.body.notes !== undefined) updateData.notes = req.body.notes ? String(req.body.notes) : null;
+  if (req.body.checkIn !== undefined) updateData.checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
+  if (req.body.checkOut !== undefined) updateData.checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
+  if (req.body.isLate !== undefined) updateData.isLate = Boolean(req.body.isLate);
+  if (req.body.lateMinutes !== undefined) updateData.lateMinutes = Number(req.body.lateMinutes) || 0;
+  if (req.body.isHalfDay !== undefined) updateData.isHalfDay = Boolean(req.body.isHalfDay);
+  if (req.body.isWFH !== undefined) updateData.isWFH = Boolean(req.body.isWFH);
+
+  if (req.body.status && req.body.isLate === undefined) {
+    updateData.isLate = req.body.status === 'late';
+  }
+  if (req.body.status && req.body.isHalfDay === undefined) {
+    updateData.isHalfDay = req.body.status === 'half_day';
+  }
+
+  const finalCheckIn = updateData.checkIn !== undefined ? updateData.checkIn : attendance.checkIn;
+  const finalCheckOut = updateData.checkOut !== undefined ? updateData.checkOut : attendance.checkOut;
+  if (finalCheckIn && finalCheckOut && !isNaN(finalCheckIn.getTime()) && !isNaN(finalCheckOut.getTime())) {
+    const diffHours = (finalCheckOut.getTime() - finalCheckIn.getTime()) / (1000 * 60 * 60);
+    updateData.workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));
+  } else if (req.body.workingHours !== undefined) {
+    updateData.workingHours = Number(req.body.workingHours) || 0;
+  }
+
+  const updatedAttendance = await prisma.attendance.update({
+    where: { id: req.params.id },
+    data: updateData,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          designation: true
+        }
+      }
+    }
+  });
+
+  const formatted = {
+    ...updatedAttendance,
+    employeeId: updatedAttendance.user ? {
+      id: updatedAttendance.user.id,
+      name: updatedAttendance.user.name,
+      email: updatedAttendance.user.email,
+      designation: updatedAttendance.user.designation
+    } : null
+  };
+
+  res.json({ success: true, data: formatted });
 });
 
 export const deleteAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -155,7 +351,7 @@ export const deleteAttendance = asyncHandler(async (req: AuthRequest, res: Respo
     return;
   }
   await prisma.attendance.delete({ where: { id: req.params.id } });
-  res.json({ success: true, data: {} });
+  res.json({ success: true, message: 'Attendance deleted successfully', data: {} });
 });
 
 export const getHRSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
