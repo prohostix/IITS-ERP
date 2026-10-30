@@ -23,6 +23,10 @@ interface University {
 export function UniversitiesPanel() {
   const { user } = useAuth();
   const isOrgAdmin = ['org_admin', 'superadmin'].includes(user?.role || '');
+  const canAddPrograms = isOrgAdmin || 
+    ['ops_admin', 'ops_sub_admin'].includes(user?.role || '') || 
+    (user as any)?.canAddPrograms === true || 
+    (Array.isArray((user as any)?.permissions) && (user as any).permissions.includes('programs'));
 
   const [universities, setUniversities] = useState<University[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -373,12 +377,14 @@ export function UniversitiesPanel() {
             <div className="flex items-center gap-2 shrink-0">
               <Badge variant="outline" className="text-xs bg-slate-50 capitalize">{u.category?.replace('_', ' ') || 'Team Lease'}</Badge>
               <Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">{u.status}</Badge>
+              {(isOrgAdmin || canAddPrograms) && (
+                <div className="flex items-center border-l border-r border-slate-200 px-2 mx-1">
+                  <QuickAddProgramModal universityId={u.id} />
+                  <QuickAddSessionModal universityId={u.id} />
+                </div>
+              )}
               {isOrgAdmin && (
                 <>
-                  <div className="flex items-center border-l border-r border-slate-200 px-2 mx-1">
-                    <QuickAddProgramModal universityId={u.id} />
-                    <QuickAddSessionModal universityId={u.id} />
-                  </div>
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(u)}><Edit className="w-3.5 h-3.5" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => handleDelete(u.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </>

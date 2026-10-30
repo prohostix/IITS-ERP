@@ -121,6 +121,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   escalations: 'escalations',
   audit_logs: 'overview',
   center_admissions: 'center_admissions',
+  sales_admission_report: 'sales_admission_report',
+  'sales-admission-report': 'sales_admission_report',
   dashboard: 'overview',
 };
 
@@ -308,6 +310,7 @@ function App() {
         { id: 'university_fee_report', label: 'University Fee Payments' },
         { id: 'rereg_payment_report', label: 'Re-Registration Fees' },
         { id: '__reports', label: 'Reports', isSection: true },
+        { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
         { id: 'activity_report', label: 'Activity Report' },
       ];
     }
@@ -331,6 +334,7 @@ function App() {
         { id: 'programs', label: 'Programs' },
         { id: 'study_centers', label: 'Study Centers' },
         { id: 'center_admissions', label: 'Centers Admissions' },
+        { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
         { id: '__finance_management', label: 'Finance Management', isSection: true },
         { id: 'student_ledger', label: 'Student Ledger' },
         { id: 'center_ledger', label: 'Center Ledger' },

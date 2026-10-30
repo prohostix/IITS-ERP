@@ -30,6 +30,7 @@ export function EmployeesPanel() {
     branchId: string;
     status: string;
     permissions: string[];
+    canAddPrograms: boolean;
   }>({
     name: '',
     email: '',
@@ -41,6 +42,7 @@ export function EmployeesPanel() {
     branchId: '',
     status: 'active',
     permissions: [],
+    canAddPrograms: false,
   });
 
   useEffect(() => {
@@ -133,7 +135,8 @@ export function EmployeesPanel() {
       designation: employee.designation || '',
       branchId: typeof employee.branchId === 'object' ? (employee.branchId?.id || '') : (employee.branchId || ''),
       status: employee.status || 'active',
-      permissions: employee.permissions || []
+      permissions: employee.permissions || [],
+      canAddPrograms: employee.canAddPrograms || false,
     });
     setDialogOpen(true);
   };
@@ -163,7 +166,9 @@ export function EmployeesPanel() {
       role: 'employee',
       designation: '',
       branchId: '',
-      status: 'active'
+      status: 'active',
+      permissions: [],
+      canAddPrograms: false,
     });
   };
 
@@ -294,6 +299,20 @@ export function EmployeesPanel() {
                   </div>
                 </div>
               )}
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="empCanAddPrograms"
+                  checked={formData.canAddPrograms}
+                  onChange={(e) =>
+                    setFormData({ ...formData, canAddPrograms: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label htmlFor="empCanAddPrograms" className="text-sm font-medium cursor-pointer">
+                  Can Add Programs against Universities
+                </Label>
+              </div>
               {/* Branch assignment — makes this user the branch manager */}
               {branches.length > 0 && (
                 <div>

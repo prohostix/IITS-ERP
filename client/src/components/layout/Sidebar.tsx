@@ -74,6 +74,12 @@ const navItems: NavItem[] = [
     roles: ['superadmin', 'org_admin', 'ceo'],
   },
   {
+    id: 'sales_admission_report',
+    label: 'Sales Admissions Report',
+    icon: FileText,
+    roles: ['superadmin', 'org_admin', 'ceo'],
+  },
+  {
     id: 'departments',
     label: 'Departments',
     icon: Building,
@@ -103,6 +109,7 @@ const navItems: NavItem[] = [
       { id: 'marks', label: 'Internal Marks', icon: FileText, roles: ['ops_admin', 'ceo', 'employee'] },
       { id: 'sessions', label: 'Admission Sessions', icon: Calendar, roles: ['ops_admin', 'ceo', 'employee'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['ops_admin', 'ceo', 'employee'] },
+      { id: 'sales_admission_report', label: 'Sales Staff Admission Report', icon: FileText, roles: ['ops_admin', 'ceo', 'employee'] },
       { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['ops_admin', 'ceo'] },
     ],
   },
@@ -159,6 +166,7 @@ const navItems: NavItem[] = [
       { id: 'referrals', label: 'Referrals', icon: UserPlus, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'quotations', label: 'Quotations', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
+      { id: 'sales_admission_report', label: 'Sales Staff Admission Report', icon: FileText, roles: ['sales_admin', 'bde', 'ceo', 'employee'] },
       { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['sales_admin', 'ceo'] },
     ],
   },

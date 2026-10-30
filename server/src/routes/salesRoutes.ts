@@ -22,6 +22,7 @@ import {
   getProgramsByUniversity,
   getTeamMembers,
   reassignCenter,
+  getSalesStaffAdmissionReport,
 } from '../controllers/salesController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -56,5 +57,8 @@ router.get('/my-centers', getMyCenters);
 router.get('/my-centers/admissions', getMyCenterAdmissions);
 router.get('/my-centers/:studyCenterId', getMyCenterDetail);
 router.put('/my-centers/:studyCenterId/reassign', reassignCenter);
+
+// Sales staff admission report (monthly/yearly filters)
+router.get('/staff-admission-report', getSalesStaffAdmissionReport);
 
 export default router;

@@ -110,7 +110,7 @@ export const authorize = (...roles: string[]) => {
       return next();
     }
 
-    if (isProgramWrite && req.user.canAddPrograms) {
+    if (isProgramWrite && (req.user.canAddPrograms || req.user.role === 'ops_admin' || (req.user.role === 'ops_sub_admin' && Array.isArray(req.user.permissions) && req.user.permissions.includes('programs')))) {
       return next();
     }
 

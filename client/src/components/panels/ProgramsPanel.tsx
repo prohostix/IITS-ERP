@@ -54,7 +54,12 @@ function formatDuration(months: number) {
 
 export function ProgramsPanel() {
   const { user } = useAuth();
-  const canManagePrograms = ['org_admin', 'superadmin'].includes(user?.role || '') || (user as any)?.canAddPrograms === true;
+  const canManagePrograms = ['org_admin', 'superadmin', 'ops_admin'].includes(user?.role || '') || 
+    (user as any)?.canAddPrograms === true ||
+    (user?.role === 'ops_sub_admin' && (
+      (user as any)?.canAddPrograms === true ||
+      (Array.isArray((user as any)?.permissions) && (user as any).permissions.includes('programs'))
+    ));
   const [programs, setPrograms] = useState<Program[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([]);

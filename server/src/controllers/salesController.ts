@@ -318,3 +318,282 @@ export const getProgramsByUniversity = asyncHandler(async (req: AuthRequest, res
   res.json({ success: true, data: mapped });
 });
 
+// Sales Staff Admission Report
+export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const organizationId = req.user.organizationId;
+  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin'].includes(req.user.role);
+
+  const selectedYear = req.query.year ? (req.query.year === 'all' ? 'all' : parseInt(req.query.year as string, 10)) : new Date().getFullYear();
+  const selectedMonth = req.query.month ? (req.query.month === 'all' ? 'all' : parseInt(req.query.month as string, 10)) : 'all';
+  const staffIdFilter = req.query.staffId && req.query.staffId !== 'all' ? (req.query.staffId as string) : null;
+  const statusFilter = req.query.status && req.query.status !== 'all' ? (req.query.status as string) : null;
+  const search = req.query.search ? (req.query.search as string).trim().toLowerCase() : '';
+
+  // Determine allowed sales staff IDs
+  let staffWhere: any = {
+    organizationId,
+    status: 'active',
+    OR: [
+      { role: { in: ['sales_admin', 'sales_sub_admin', 'bde'] } },
+      { department: { type: 'sales' } }
+    ]
+  };
+
+  if (!isGlobalAuth) {
+    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const visibleUserIds = [req.user.id, ...subordinateIds];
+    staffWhere.id = { in: visibleUserIds };
+  }
+
+  if (staffIdFilter) {
+    staffWhere.id = staffIdFilter;
+  }
+
+  const salesStaff = await prisma.user.findMany({
+    where: staffWhere,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      designation: true,
+      branch: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  const staffIds = salesStaff.map(s => s.id);
+
+  // Fetch all study centers referred by these sales staff members
+  const studyCenters = await prisma.studyCenter.findMany({
+    where: {
+      organizationId,
+      referredBy: { in: staffIds }
+    },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      referredBy: true
+    }
+  });
+
+  const centerToStaffMap = new Map<string, string>();
+  const staffToCenterCountMap = new Map<string, number>();
+  for (const c of studyCenters) {
+    if (c.referredBy) {
+      centerToStaffMap.set(c.id, c.referredBy);
+      staffToCenterCountMap.set(c.referredBy, (staffToCenterCountMap.get(c.referredBy) || 0) + 1);
+    }
+  }
+
+  const allReferredCenterIds = Array.from(centerToStaffMap.keys());
+
+  // Fetch enrollments tied to sales staff (via salesUserId, studyCenter.referredBy, or student.referredBy)
+  const enrollmentWhere: any = {
+    organizationId,
+    OR: [
+      { salesUserId: { in: staffIds } },
+      ...(allReferredCenterIds.length > 0 ? [{ studyCenterId: { in: allReferredCenterIds } }] : []),
+      { student: { referredBy: { in: staffIds } } }
+    ]
+  };
+
+  if (statusFilter) {
+    enrollmentWhere.status = statusFilter;
+  }
+
+  const allEnrollments = await prisma.enrollment.findMany({
+    where: enrollmentWhere,
+    include: {
+      program: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          university: { select: { id: true, name: true, code: true } }
+        }
+      },
+      studyCenter: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          referredBy: true
+        }
+      },
+      session: { select: { id: true, name: true } },
+      salesUser: { select: { id: true, name: true, email: true } },
+      student: { select: { id: true, name: true, email: true, referredBy: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Calculate year bounds for availableYears
+  const yearsSet = new Set<number>();
+  yearsSet.add(new Date().getFullYear());
+  for (const e of allEnrollments) {
+    const d = e.admissionDate || e.enrolledAt || e.createdAt;
+    if (d) yearsSet.add(new Date(d).getFullYear());
+  }
+  const availableYears = Array.from(yearsSet).sort((a, b) => b - a);
+
+  // Group enrollments per sales staff
+  const staffMetricsMap = new Map<string, {
+    totalAdmissions: number;
+    enrolledCount: number;
+    pendingCount: number;
+    rejectedCount: number;
+    totalRevenue: number;
+    monthlyTrend: number[];
+    admissions: any[];
+  }>();
+
+  for (const s of salesStaff) {
+    staffMetricsMap.set(s.id, {
+      totalAdmissions: 0,
+      enrolledCount: 0,
+      pendingCount: 0,
+      rejectedCount: 0,
+      totalRevenue: 0,
+      monthlyTrend: Array(12).fill(0),
+      admissions: []
+    });
+  }
+
+  const filteredAdmissionsList: any[] = [];
+
+  for (const e of allEnrollments) {
+    // Determine which staff member this enrollment belongs to
+    let staffId = e.salesUserId;
+    if (!staffId && e.studyCenterId) {
+      staffId = centerToStaffMap.get(e.studyCenterId) || null;
+    }
+    if (!staffId && e.student?.referredBy) {
+      staffId = e.student.referredBy;
+    }
+
+    if (!staffId || !staffMetricsMap.has(staffId)) continue;
+
+    const dateVal = e.admissionDate || e.enrolledAt || e.createdAt;
+    const admissionDate = new Date(dateVal);
+    const admissionYear = admissionDate.getFullYear();
+    const admissionMonth = admissionDate.getMonth() + 1; // 1-12
+
+    // Apply Year and Month filters for stats aggregation and list
+    const matchesYear = selectedYear === 'all' || admissionYear === selectedYear;
+    const matchesMonth = selectedMonth === 'all' || admissionMonth === selectedMonth;
+
+    // Monthly trend is tracked for the selected year (or current year if 'all')
+    const trendYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    if (admissionYear === trendYear) {
+      const metrics = staffMetricsMap.get(staffId)!;
+      metrics.monthlyTrend[admissionMonth - 1] += 1;
+    }
+
+    if (matchesYear && matchesMonth) {
+      const metrics = staffMetricsMap.get(staffId)!;
+      metrics.totalAdmissions += 1;
+
+      if (e.status === 'enrolled') {
+        metrics.enrolledCount += 1;
+      } else if (e.status === 'rejected' || e.status === 'department_rejected') {
+        metrics.rejectedCount += 1;
+      } else {
+        metrics.pendingCount += 1;
+      }
+
+      const fee = Number(e.totalFee) || 0;
+      metrics.totalRevenue += fee;
+
+      const staffObj = salesStaff.find(s => s.id === staffId);
+      const admissionItem = {
+        id: e.id,
+        enrollmentNumber: e.enrollmentNumber || 'N/A',
+        studentName: e.studentName,
+        studentEmail: e.studentEmail,
+        studentPhone: e.studentPhone,
+        programName: e.program?.name || 'N/A',
+        programCode: e.program?.code || '',
+        universityName: e.program?.university?.name || 'N/A',
+        studyCenterName: e.studyCenter?.name || 'Direct',
+        studyCenterCode: e.studyCenter?.code || '',
+        status: e.status,
+        admissionDate: dateVal,
+        totalFee: fee,
+        salesStaff: {
+          id: staffId,
+          name: staffObj?.name || 'Unknown',
+          email: staffObj?.email || '',
+          role: staffObj?.role || ''
+        }
+      };
+
+      // Apply search filter if specified
+      if (search) {
+        const matchesSearch = 
+          admissionItem.studentName.toLowerCase().includes(search) ||
+          admissionItem.enrollmentNumber.toLowerCase().includes(search) ||
+          admissionItem.studyCenterName.toLowerCase().includes(search) ||
+          admissionItem.programName.toLowerCase().includes(search) ||
+          admissionItem.salesStaff.name.toLowerCase().includes(search);
+        if (!matchesSearch) continue;
+      }
+
+      metrics.admissions.push(admissionItem);
+      filteredAdmissionsList.push(admissionItem);
+    }
+  }
+
+  // Construct staff summary list
+  const staffSummary = salesStaff.map(s => {
+    const metrics = staffMetricsMap.get(s.id)!;
+    const conversionRate = metrics.totalAdmissions > 0 
+      ? Math.round((metrics.enrolledCount / metrics.totalAdmissions) * 100) 
+      : 0;
+    return {
+      staff: s,
+      studyCentersCount: staffToCenterCountMap.get(s.id) || 0,
+      totalAdmissions: metrics.totalAdmissions,
+      enrolledCount: metrics.enrolledCount,
+      pendingCount: metrics.pendingCount,
+      rejectedCount: metrics.rejectedCount,
+      totalRevenue: metrics.totalRevenue,
+      conversionRate,
+      monthlyTrend: metrics.monthlyTrend,
+      admissionsCount: metrics.admissions.length
+    };
+  }).sort((a, b) => b.totalAdmissions - a.totalAdmissions);
+
+  // Overall summary
+  const overallSummary = {
+    totalStaff: salesStaff.length,
+    totalAdmissions: staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0),
+    totalEnrolled: staffSummary.reduce((acc, s) => acc + s.enrolledCount, 0),
+    totalPending: staffSummary.reduce((acc, s) => acc + s.pendingCount, 0),
+    totalRejected: staffSummary.reduce((acc, s) => acc + s.rejectedCount, 0),
+    totalRevenue: staffSummary.reduce((acc, s) => acc + s.totalRevenue, 0),
+    avgConversionRate: staffSummary.length > 0 && staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0) > 0
+      ? Math.round((staffSummary.reduce((acc, s) => acc + s.enrolledCount, 0) / staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0)) * 100)
+      : 0
+  };
+
+  res.json({
+    success: true,
+    data: {
+      staffSummary,
+      overallSummary,
+      admissions: filteredAdmissionsList,
+      availableYears,
+      filters: {
+        year: selectedYear,
+        month: selectedMonth,
+        staffId: staffIdFilter,
+        status: statusFilter
+      }
+    }
+  });
+});
+

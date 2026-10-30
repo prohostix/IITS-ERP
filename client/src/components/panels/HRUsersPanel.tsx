@@ -85,6 +85,7 @@ export function HRUsersPanel() {
     subDepartmentId: string;
     reportingTo: string;
     permissions: string[];
+    canAddPrograms: boolean;
     avatar?: string;
   }>({
     name: '',
@@ -97,6 +98,7 @@ export function HRUsersPanel() {
     subDepartmentId: '',
     reportingTo: '',
     permissions: [],
+    canAddPrograms: false,
     avatar: '',
   });
 
@@ -332,6 +334,7 @@ export function HRUsersPanel() {
       subDepartmentId: subDeptId?.toString() || '',
       reportingTo: reportingToId?.toString() || '',
       permissions: user.permissions || [],
+      canAddPrograms: (user as any).canAddPrograms || false,
       avatar: user.avatar || '',
     });
     setDialogOpen(true);
@@ -376,6 +379,7 @@ export function HRUsersPanel() {
       subDepartmentId: '',
       reportingTo: '',
       permissions: [],
+      canAddPrograms: false,
       avatar: '',
     });
     setEditingUser(null);
@@ -701,6 +705,21 @@ export function HRUsersPanel() {
                   </div>
                 </div>
               )}
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="hrCanAddPrograms"
+                  checked={formData.canAddPrograms}
+                  onChange={(e) =>
+                    setFormData({ ...formData, canAddPrograms: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label htmlFor="hrCanAddPrograms" className="text-sm font-medium cursor-pointer">
+                  Can Add Programs against Universities
+                </Label>
+              </div>
 
               <div>
                 <Label htmlFor="reportingTo">Reports To</Label>

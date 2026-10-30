@@ -86,6 +86,8 @@ export interface User {
   name: string;
   role: UserRole;
   permissions?: string[];
+  canAddPrograms?: boolean;
+  accessibleModules?: string[];
   avatar?: string;
   phone?: string;
   designation?: string;

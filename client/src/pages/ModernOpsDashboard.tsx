@@ -37,6 +37,7 @@ import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { PollsPanel } from '@/components/panels/PollsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
+import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
@@ -85,6 +86,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'sessions': return <AdmissionSessionsPanel />;
       case 'marks': return <InternalMarksPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
+      case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'tasks': return <TasksPanel />;
@@ -125,6 +127,7 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
     { id: '__center_management', label: 'Center Management', isSection: true },
     { id: 'centers', label: 'Study Centers' },
     { id: 'center_admissions', label: 'Centers Admissions' },
+    { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
     { id: '__verification_review', label: 'Verification & Review', isSection: true },
     { id: 'pending_verification', label: 'Pending Verification' },
     { id: 'enrollment_review', label: 'Enrollment Review' },
