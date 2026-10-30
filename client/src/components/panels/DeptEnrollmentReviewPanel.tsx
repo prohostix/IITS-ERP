@@ -28,6 +28,7 @@ interface Enrollment {
   abcId?: string;
   debId?: string;
   dob?: string;
+  gender?: string;
   religion?: string;
   caste?: string;
   maritalStatus?: string;
@@ -399,6 +400,10 @@ export function DeptEnrollmentReviewPanel() {
                     <div>
                       <span className="text-xs text-muted-foreground block font-semibold">Caste / Category</span>
                       <span className="font-medium">{selectedEnrollment.caste || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-semibold">Gender</span>
+                      <span className="font-medium">{selectedEnrollment.gender || 'N/A'}</span>
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground block font-semibold">Marital Status</span>

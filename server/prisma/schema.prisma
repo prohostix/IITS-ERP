@@ -466,6 +466,7 @@ model Student {
   abcId               String?
   debId               String?
   dob                 String?
+  gender              String?
   religion            String?
   caste               String?
   fatherName          String?
@@ -876,6 +877,7 @@ model Enrollment {
   abcId                String?
   debId                String?
   dob                  String?
+  gender               String?
   religion             String?
   caste                String?
   fatherName           String?

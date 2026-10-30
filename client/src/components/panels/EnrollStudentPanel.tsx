@@ -186,6 +186,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     abcId: '',
     debId: '',
     dob: '',
+    gender: '',
     religion: '',
     caste: '',
     fatherName: '',
@@ -774,6 +775,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
         abcId: '',
         debId: '',
         dob: '',
+        gender: '',
         religion: '',
         caste: '',
         fatherName: '',
@@ -861,7 +863,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
       const config = centerConfig?.customEnrollmentFields;
       const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
       if (parsedConfig && typeof parsedConfig === 'object' && !Array.isArray(parsedConfig)) {
-        for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob']) {
+        for (const field of ['pincode', 'alternativePhone', 'religion', 'caste', 'dob', 'gender', 'maritalStatus', 'currentlyWorking']) {
           if (isFieldMandatory(field, false)) {
             const val = (form as any)[field];
             if (val === undefined || val === null || String(val).trim() === '') {
@@ -1162,15 +1164,16 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                   <Input type="tel" inputMode="numeric" pattern="[0-9]*" value={form.studentPhone} onChange={e => setForm(f => ({ ...f, studentPhone: e.target.value.replace(/\D/g, '') }))} placeholder="Primary phone" />
                 </div>
                 {renderField('dob', 'Date of Birth', 'date')}
+                {renderField('gender', 'Gender', 'select', ['Male', 'Female', 'Other'])}
+                {renderField('alternativePhone', 'Alternative Phone', 'tel')}
                 <div className="space-y-1 md:col-span-2">
                   <Label>Home Address {isFieldMandatory('studentAddress', true) && <span className="text-destructive">*</span>}</Label>
                   <Input value={form.studentAddress} onChange={e => setForm(f => ({ ...f, studentAddress: e.target.value }))} placeholder="Permanent address" />
                 </div>
                 {renderField('pincode', 'Pincode')}
-                {renderField('alternativePhone', 'Alternative Phone', 'tel')}
+                {renderField('maritalStatus', 'Marital Status', 'select', ['Single', 'Married', 'Divorced', 'Widowed'])}
                 {renderField('religion', 'Religion', 'select', ['Hindu', 'Muslim', 'Sikh', 'Christian', 'Jain'])}
                 {renderField('caste', 'Caste / Category', 'select', ['General', 'OEC', 'OBC', 'SC', 'ST', 'Other'])}
-                {renderField('maritalStatus', 'Marital Status', 'select', ['Single', 'Married', 'Divorced', 'Widowed'])}
                 {renderField('currentlyWorking', 'Currently Working', 'select', ['Yes', 'No'])}
               </div>
             </div>
@@ -1669,6 +1672,18 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                     <span className="text-xs text-muted-foreground block font-medium">Residential Address</span>
                     <span className="font-semibold text-foreground">{form.studentAddress}</span>
                   </div>
+                  {form.dob && (
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-medium">Date of Birth</span>
+                      <span className="font-semibold text-foreground">{form.dob}</span>
+                    </div>
+                  )}
+                  {form.gender && (
+                    <div>
+                      <span className="text-xs text-muted-foreground block font-medium">Gender</span>
+                      <span className="font-semibold text-foreground">{form.gender}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

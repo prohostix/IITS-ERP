@@ -30,6 +30,7 @@ interface Enrollment {
   status: string;
   createdAt: string;
   departmentRemarks?: string;
+  gender?: string;
   maritalStatus?: string;
   currentlyWorking?: string;
   documents?: { name: string; url: string; status?: string; remarks?: string }[] | null;
@@ -492,6 +493,15 @@ export function StudyCenterEnrollmentsPanel() {
                       <p className="font-medium">{selectedEnrollment.studentAddress}</p>
                     </div>
                   </div>
+                  {selectedEnrollment.gender && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-4 h-4" /> {/* Spacer icon */}
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold">Gender</p>
+                        <p className="font-medium">{selectedEnrollment.gender}</p>
+                      </div>
+                    </div>
+                  )}
                   {selectedEnrollment.maritalStatus && (
                     <div className="flex items-center gap-2 text-sm">
                       <div className="w-4 h-4" /> {/* Spacer icon */}

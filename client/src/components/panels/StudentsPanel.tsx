@@ -546,6 +546,24 @@ export function StudentsPanel() {
                         <p className="font-medium">{selectedStudent.phone || 'N/A'}</p>
                       </div>
                     </div>
+                    {selectedStudent.dob && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">Date of Birth</p>
+                          <p className="font-medium">{selectedStudent.dob}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedStudent.gender && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-semibold">Gender</p>
+                          <p className="font-medium">{selectedStudent.gender}</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
                       <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                       <div>

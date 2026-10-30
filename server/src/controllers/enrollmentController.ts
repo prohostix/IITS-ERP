@@ -195,7 +195,7 @@ export const checkEmailUniqueness = asyncHandler(async (req: AuthRequest, res: R
 export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
-    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
+    abcId, debId, dob, gender, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
     pincode, alternativePhone, maritalStatus, currentlyWorking, paymentMethod, totalFee
   } = req.body;
   const organizationId = req.user.organizationId;
@@ -341,6 +341,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           abcId,
           debId,
           dob,
+          gender,
           religion,
           caste,
           fatherName,
@@ -381,6 +382,7 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
         abcId,
         debId,
         dob,
+        gender,
         religion,
         caste,
         fatherName,
@@ -593,7 +595,7 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
   const { id } = req.params;
   const { 
     studentName, studentEmail, studentPhone, studentAddress, programId, documents, educationalDetails, sessionId, specialisation,
-    abcId, debId, dob, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
+    abcId, debId, dob, gender, religion, caste, fatherName, motherName, parentMobile, studentPhoto, admissionDate,
     pincode, alternativePhone, maritalStatus, currentlyWorking
   } = req.body;
   const organizationId = req.user.organizationId;
@@ -765,6 +767,7 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           abcId: abcId !== undefined ? abcId : enrollment.abcId,
           debId: debId !== undefined ? debId : enrollment.debId,
           dob: dob !== undefined ? dob : enrollment.dob,
+          gender: gender !== undefined ? gender : enrollment.gender,
           religion: religion !== undefined ? religion : enrollment.religion,
           caste: caste !== undefined ? caste : enrollment.caste,
           fatherName: fatherName !== undefined ? fatherName : enrollment.fatherName,

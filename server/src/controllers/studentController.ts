@@ -173,7 +173,7 @@ export const createStudent = asyncHandler(async (req: AuthRequest, res: Response
     if (firstProg) finalProgramId = firstProg.id;
   }
 
-  const allowedFields = ['sessionId', 'status', 'joinDate', 'enrolledAt', 'reregStatus', 'referredBy', 'phone', 'address'];
+  const allowedFields = ['sessionId', 'status', 'joinDate', 'enrolledAt', 'reregStatus', 'referredBy', 'phone', 'address', 'gender', 'dob', 'religion', 'caste', 'maritalStatus', 'currentlyWorking'];
   const dbData: any = {
     name: finalName,
     enrollmentNo: finalEnrollmentNo,
