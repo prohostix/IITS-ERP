@@ -42,6 +42,8 @@ export function FinanceCommissionUniversityReportPanel() {
   const [receiveItem, setReceiveItem] = useState<any | null>(null);
   const [receiveForm, setReceiveForm] = useState({
     receivedAmount: '',
+    tdsPercentage: '10',
+    tdsAmount: '',
     paymentDetails: '',
     centerPayoutAmount: '0'
   });
@@ -97,21 +99,39 @@ export function FinanceCommissionUniversityReportPanel() {
   const openReceive = (item: any) => {
     setReceiveItem(item);
     const diff = item.expectedAmount - item.receivedAmount;
+    const gross = diff > 0 ? diff : item.expectedAmount;
+    const defaultPct = 10;
+    const defaultTds = Math.round((gross * defaultPct) / 100);
     setReceiveForm({
-      receivedAmount: String(diff > 0 ? diff : item.expectedAmount),
+      receivedAmount: String(gross),
+      tdsPercentage: String(defaultPct),
+      tdsAmount: String(defaultTds),
       paymentDetails: '',
       centerPayoutAmount: '0'
     });
   };
 
   const handleReceiveSubmit = async () => {
-    if (!receiveForm.receivedAmount || isNaN(Number(receiveForm.receivedAmount))) {
+    const gross = Number(receiveForm.receivedAmount);
+    if (!receiveForm.receivedAmount || isNaN(gross) || gross <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
+    const tdsPct = Number(receiveForm.tdsPercentage || 0);
+    const tdsAmt = receiveForm.tdsAmount !== '' ? Number(receiveForm.tdsAmount) : Math.round((gross * tdsPct) / 100);
+    const net = gross - tdsAmt;
+
     setSubmittingReceive(true);
     try {
-      await api.post(`/commissions/in/${receiveItem.id}/receive`, receiveForm);
+      await api.post(`/commissions/in/${receiveItem.id}/receive`, {
+        receivedAmount: gross,
+        grossAmount: gross,
+        tdsPercentage: tdsPct,
+        tdsAmount: tdsAmt,
+        netAmount: net,
+        paymentDetails: receiveForm.paymentDetails,
+        centerPayoutAmount: receiveForm.centerPayoutAmount
+      });
       toast.success('University commission marked as received');
       setReceiveItem(null);
       fetchReport();
@@ -130,7 +150,7 @@ export function FinanceCommissionUniversityReportPanel() {
 
     const headers = [
       'Student Name', 'Enrollment No', 'University', 'Program', 'Study Center',
-      'Expected Commission (INR)', 'Received Commission (INR)', 'Pending Commission (INR)',
+      'Expected Commission (INR)', 'Gross Received (INR)', 'TDS Deducted (INR)', 'TDS Rate (%)', 'Net Received (INR)', 'Pending Commission (INR)',
       'Status', 'Received Date', 'Payment Details'
     ];
 
@@ -142,6 +162,9 @@ export function FinanceCommissionUniversityReportPanel() {
       `"${d.studyCenterName || ''}"`,
       d.expectedAmount || 0,
       d.receivedAmount || 0,
+      d.tdsAmount || 0,
+      `${d.tdsPercentage || 0}%`,
+      d.netAmount ?? (d.receivedAmount - (d.tdsAmount || 0)),
       d.pendingAmount || 0,
       `"${d.status || ''}"`,
       `"${d.receivedAt ? new Date(d.receivedAt).toLocaleDateString('en-IN') : '-'}"`,
@@ -378,9 +401,15 @@ export function FinanceCommissionUniversityReportPanel() {
             <div className="text-xl font-bold text-emerald-700">
               ₹{(summary.totalReceivedCommission || 0).toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-emerald-600 font-medium mt-1">
-              {summary.realizationRate || 0}% Realized
-            </p>
+            {summary.totalTdsDeducted > 0 ? (
+              <p className="text-[11px] text-amber-700 font-medium mt-1">
+                TDS: -₹{(summary.totalTdsDeducted || 0).toLocaleString('en-IN')} | Net: ₹{(summary.totalNetReceived || 0).toLocaleString('en-IN')}
+              </p>
+            ) : (
+              <p className="text-xs text-emerald-600 font-medium mt-1">
+                {summary.realizationRate || 0}% Realized
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -639,7 +668,9 @@ export function FinanceCommissionUniversityReportPanel() {
                         <th className="px-4 py-3 text-left">University & Program</th>
                         <th className="px-4 py-3 text-left">Study Center</th>
                         <th className="px-4 py-3 text-right">Expected</th>
-                        <th className="px-4 py-3 text-right">Received</th>
+                        <th className="px-4 py-3 text-right">Gross Received</th>
+                        <th className="px-4 py-3 text-right">TDS Deducted</th>
+                        <th className="px-4 py-3 text-right">Net in Bank</th>
                         <th className="px-4 py-3 text-right">Pending</th>
                         <th className="px-4 py-3 text-center">Status</th>
                         <th className="px-4 py-3 text-center">Received Date</th>
@@ -668,6 +699,12 @@ export function FinanceCommissionUniversityReportPanel() {
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-emerald-700">
                             {item.receivedAmount > 0 ? `₹${item.receivedAmount.toLocaleString('en-IN')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-right text-amber-700 font-medium text-xs">
+                            {item.tdsAmount > 0 ? `₹${item.tdsAmount.toLocaleString('en-IN')} (${item.tdsPercentage || 0}%)` : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-blue-700 text-xs">
+                            {item.receivedAmount > 0 ? `₹${(item.netAmount ?? (item.receivedAmount - (item.tdsAmount || 0))).toLocaleString('en-IN')}` : '-'}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-amber-700">
                             {item.pendingAmount > 0 ? `₹${item.pendingAmount.toLocaleString('en-IN')}` : '₹0'}
@@ -757,18 +794,23 @@ export function FinanceCommissionUniversityReportPanel() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
                   <div className="text-xs text-indigo-600 font-medium">Expected</div>
                   <div className="text-base font-bold text-indigo-900">₹{selectedRecord.expectedAmount.toLocaleString('en-IN')}</div>
                 </div>
                 <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div className="text-xs text-emerald-600 font-medium">Received</div>
+                  <div className="text-xs text-emerald-600 font-medium">Gross Received</div>
                   <div className="text-base font-bold text-emerald-900">₹{selectedRecord.receivedAmount.toLocaleString('en-IN')}</div>
                 </div>
                 <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-                  <div className="text-xs text-amber-600 font-medium">Pending</div>
-                  <div className="text-base font-bold text-amber-900">₹{selectedRecord.pendingAmount.toLocaleString('en-IN')}</div>
+                  <div className="text-xs text-amber-600 font-medium">TDS Deducted</div>
+                  <div className="text-base font-bold text-amber-900">₹{(selectedRecord.tdsAmount || 0).toLocaleString('en-IN')}</div>
+                  {selectedRecord.tdsPercentage > 0 && <span className="text-[10px] text-amber-600 font-medium">({selectedRecord.tdsPercentage}%)</span>}
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <div className="text-xs text-blue-600 font-medium">Net in Bank</div>
+                  <div className="text-base font-bold text-blue-900">₹{(selectedRecord.netAmount ?? (selectedRecord.receivedAmount - (selectedRecord.tdsAmount || 0))).toLocaleString('en-IN')}</div>
                 </div>
               </div>
 
@@ -823,15 +865,101 @@ export function FinanceCommissionUniversityReportPanel() {
               </div>
 
               <div>
-                <Label className="text-xs font-medium">Received Amount (₹)</Label>
+                <Label className="text-xs font-medium">Gross Commission Settled (₹)</Label>
                 <Input
                   type="number"
                   value={receiveForm.receivedAmount}
-                  onChange={e => setReceiveForm({ ...receiveForm, receivedAmount: e.target.value })}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const gross = Number(val) || 0;
+                    const pct = Number(receiveForm.tdsPercentage || 0);
+                    const newTds = Math.round((gross * pct) / 100);
+                    setReceiveForm(f => ({ ...f, receivedAmount: val, tdsAmount: String(newTds) }));
+                  }}
                   placeholder="Amount received from university"
                   className="mt-1"
                 />
               </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">TDS Deducted by University (%)</Label>
+                  <div className="flex gap-1">
+                    {[0, 5, 10].map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          const gross = Number(receiveForm.receivedAmount) || 0;
+                          const newTds = Math.round((gross * p) / 100);
+                          setReceiveForm(f => ({ ...f, tdsPercentage: String(p), tdsAmount: String(newTds) }));
+                        }}
+                        className={cn(
+                          "px-2 py-0.5 text-xs rounded border transition-colors",
+                          receiveForm.tdsPercentage === String(p)
+                            ? "bg-indigo-50 border-indigo-500 text-indigo-700 font-semibold"
+                            : "bg-white text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        {p}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div>
+                    <Input
+                      type="number"
+                      value={receiveForm.tdsPercentage}
+                      onChange={e => {
+                        const pct = e.target.value;
+                        const gross = Number(receiveForm.receivedAmount) || 0;
+                        const newTds = Math.round((gross * (Number(pct) || 0)) / 100);
+                        setReceiveForm(f => ({ ...f, tdsPercentage: pct, tdsAmount: String(newTds) }));
+                      }}
+                      placeholder="TDS % (e.g. 10)"
+                    />
+                    <span className="text-[10px] text-muted-foreground">TDS Rate %</span>
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      value={receiveForm.tdsAmount}
+                      onChange={e => {
+                        const tdsVal = e.target.value;
+                        const gross = Number(receiveForm.receivedAmount) || 0;
+                        const calcPct = gross > 0 ? ((Number(tdsVal) / gross) * 100).toFixed(1) : '0';
+                        setReceiveForm(f => ({ ...f, tdsAmount: tdsVal, tdsPercentage: calcPct }));
+                      }}
+                      placeholder="TDS Amount (₹)"
+                    />
+                    <span className="text-[10px] text-muted-foreground">TDS Amount (₹)</span>
+                  </div>
+                </div>
+              </div>
+
+              {receiveForm.receivedAmount && !isNaN(Number(receiveForm.receivedAmount)) && (
+                <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-700 space-y-1.5 border border-slate-200">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Gross Commission:</span>
+                    <span className="font-semibold text-slate-900">
+                      ₹{Number(receiveForm.receivedAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-amber-700">
+                    <span>TDS Deducted ({receiveForm.tdsPercentage}%):</span>
+                    <span className="font-medium">
+                      -₹{(Number(receiveForm.tdsAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold border-t border-slate-200 pt-1 mt-1 text-emerald-700">
+                    <span>Net Received in Bank:</span>
+                    <span>
+                      ₹{(Math.max(0, Number(receiveForm.receivedAmount) - (Number(receiveForm.tdsAmount) || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label className="text-xs font-medium">Payment Reference / UTR</Label>

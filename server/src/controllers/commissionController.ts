@@ -36,7 +36,15 @@ export const getCommissionInList = asyncHandler(async (req: AuthRequest, res: Re
 
 export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { receivedAmount, paymentDetails, centerPayoutAmount } = req.body;
+  const {
+    receivedAmount,
+    grossAmount,
+    tdsPercentage,
+    tdsAmount,
+    netAmount,
+    paymentDetails,
+    centerPayoutAmount
+  } = req.body;
 
   const item = await prisma.commissionIn.findUnique({
     where: { id },
@@ -48,8 +56,25 @@ export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, re
     return;
   }
 
-  const parsedReceivedAmount = parseFloat(receivedAmount || String(item.expectedAmount));
-  const newReceivedAmount = item.receivedAmount + parsedReceivedAmount;
+  const grossVal = parseFloat(grossAmount || receivedAmount || String(item.expectedAmount));
+  if (isNaN(grossVal) || grossVal <= 0) {
+    res.status(400).json({ success: false, message: 'Please enter a valid amount' });
+    return;
+  }
+
+  const tdsPercentValue = tdsPercentage !== undefined && tdsPercentage !== null && tdsPercentage !== ''
+    ? parseFloat(tdsPercentage)
+    : 0;
+
+  const finalTdsAmount = tdsAmount !== undefined && tdsAmount !== null && tdsAmount !== ''
+    ? parseFloat(tdsAmount)
+    : Math.round((grossVal * tdsPercentValue) / 100);
+
+  const finalNetAmount = netAmount !== undefined && netAmount !== null && netAmount !== ''
+    ? parseFloat(netAmount)
+    : (grossVal - finalTdsAmount);
+
+  const newReceivedAmount = (item.receivedAmount || 0) + grossVal;
   const status = newReceivedAmount >= item.expectedAmount ? 'received' : 'pending';
 
   const updated = await prisma.commissionIn.update({
@@ -57,6 +82,9 @@ export const markCommissionInReceived = asyncHandler(async (req: AuthRequest, re
     data: {
       status,
       receivedAmount: newReceivedAmount,
+      tdsPercentage: tdsPercentValue,
+      tdsAmount: (item.tdsAmount || 0) + finalTdsAmount,
+      netAmount: (item.netAmount || 0) + finalNetAmount,
       receivedAt: new Date(),
       paymentDetails: paymentDetails || '',
     }

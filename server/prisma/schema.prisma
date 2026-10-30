@@ -1752,6 +1752,9 @@ model CommissionIn {
   title          String?
   expectedAmount Float
   receivedAmount Float     @default(0)
+  tdsPercentage  Float?    @default(0)
+  tdsAmount      Float?    @default(0)
+  netAmount      Float?
   status         String    @default("pending") // "pending", "received"
   receivedAt     DateTime?
   paymentDetails String?

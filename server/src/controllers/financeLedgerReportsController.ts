@@ -72,6 +72,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
   // Aggregations
   let totalExpectedCommission = 0;
   let totalReceivedCommission = 0;
+  let totalTdsDeducted = 0;
+  let totalNetReceived = 0;
   let totalPayoutToCenters = 0;
   let totalPayoutPaid = 0;
 
@@ -82,6 +84,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
     studentsCount: number;
     expectedCommission: number;
     receivedCommission: number;
+    tdsDeducted: number;
+    netReceived: number;
     pendingCommission: number;
     centerPayoutsExpected: number;
     centerPayoutsPaid: number;
@@ -93,9 +97,13 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
     const expected = Number(c.expectedAmount || 0);
     const received = Number(c.receivedAmount || 0);
     const pending = Math.max(0, expected - received);
+    const tdsAmt = Number(c.tdsAmount || 0);
+    const netAmt = c.netAmount !== null && c.netAmount !== undefined ? Number(c.netAmount) : (received - tdsAmt);
 
     totalExpectedCommission += expected;
     totalReceivedCommission += received;
+    totalTdsDeducted += tdsAmt;
+    totalNetReceived += netAmt;
 
     const payouts = c.commissionOuts || [];
     const centerOutExpected = payouts.reduce((sum, o) => sum + Number(o.amount || 0), 0);
@@ -117,6 +125,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
         studentsCount: 0,
         expectedCommission: 0,
         receivedCommission: 0,
+        tdsDeducted: 0,
+        netReceived: 0,
         pendingCommission: 0,
         centerPayoutsExpected: 0,
         centerPayoutsPaid: 0,
@@ -128,6 +138,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
     uniMap[uId].studentsCount += 1;
     uniMap[uId].expectedCommission += expected;
     uniMap[uId].receivedCommission += received;
+    uniMap[uId].tdsDeducted += tdsAmt;
+    uniMap[uId].netReceived += netAmt;
     uniMap[uId].pendingCommission += pending;
     uniMap[uId].centerPayoutsExpected += centerOutExpected;
     uniMap[uId].centerPayoutsPaid += centerOutPaid;
@@ -146,6 +158,9 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
       studyCenterCode: c.enrollment?.studyCenter?.code || '',
       expectedAmount: expected,
       receivedAmount: received,
+      tdsPercentage: Number(c.tdsPercentage || 0),
+      tdsAmount: tdsAmt,
+      netAmount: netAmt,
       pendingAmount: pending,
       status: c.status,
       receivedAt: c.receivedAt,
@@ -181,6 +196,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
       summary: {
         totalExpectedCommission,
         totalReceivedCommission,
+        totalTdsDeducted,
+        totalNetReceived,
         totalPendingCommission,
         totalPayoutToCenters,
         totalPayoutPaid,
