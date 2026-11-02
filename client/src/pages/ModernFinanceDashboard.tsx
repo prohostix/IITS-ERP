@@ -255,7 +255,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
   const totalPaid = paidInvoices.reduce((s: number, i: any) => s + (i.total || i.amount || 0), 0);
   const totalExpenses = expenses.reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const pendingExpenses = expenses.filter((e: any) => e.status === 'pending');
-  const pendingBatches = payrollBatches.filter((b: any) => b.status === 'pending_finance');
+  const pendingBatches = payrollBatches.filter((b: any) => b.status === 'pending_finance_approval' || b.status === 'pending_finance');
 
   // Build bar chart data from invoices grouped by status
   const chartData = [

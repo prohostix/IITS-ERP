@@ -32,7 +32,7 @@ interface PayrollBatch {
 
 export function PayrollBatchesPanel() {
   const { user } = useAuth();
-  const isFinance = user?.role === 'finance_admin';
+  const isFinance = ['finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'].includes(user?.role || '');
   const [batches, setBatches] = useState<PayrollBatch[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);

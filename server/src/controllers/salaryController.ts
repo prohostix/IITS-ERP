@@ -186,9 +186,7 @@ export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, re
   res.json({ success: true, message: `Initialized for ${results.length} users` });
 });
 
-export const generateSmartPayroll = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, message: 'Smart payroll logic not implemented' });
-});
+export { generateSmartPayroll } from './payrollController.js';
 
 export const approveSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
   const config = await prisma.salaryConfig.update({

@@ -36,7 +36,11 @@ const STATUS_COLOR: Record<string, string> = {
   paid: 'bg-emerald-100 text-emerald-700',
 };
 
-export function PayrollPanel() {
+interface PayrollPanelProps {
+  isEmployeeView?: boolean;
+}
+
+export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
@@ -77,7 +81,7 @@ export function PayrollPanel() {
 
   const handleGenerate = async () => {
     try {
-      const endpoint = generateMode === 'smart' ? '/hr/payroll/generate-smart' : '/payroll/generate';
+      const endpoint = generateMode === 'smart' ? '/payroll/generate-smart' : '/payroll/generate';
       const res = await api.post(endpoint, { month: generateMonth });
       const count = res.data.data?.length || 0;
       toast.success(`Generated ${count} payroll records`);
@@ -144,7 +148,7 @@ export function PayrollPanel() {
             setDownloadingPdf(false);
           });
       }
-    }, 100);
+    }, 150);
   };
 
   const handleEditSave = async () => {
@@ -183,44 +187,54 @@ export function PayrollPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Payroll Management</h2>
-          <p className="text-muted-foreground text-sm">Generate, edit, confirm and submit payroll to Finance</p>
+          <h2 className="text-2xl font-bold">{isEmployeeView ? 'My Pay Slips' : 'Payroll Management'}</h2>
+          <p className="text-muted-foreground text-sm">
+            {isEmployeeView
+              ? 'View and download your monthly salary statements'
+              : 'Generate, edit, confirm and submit payroll to Finance'}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={fetchPayrolls}>
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
           </Button>
-          {confirmedPayrolls.length > 0 && (
+          {!isEmployeeView && confirmedPayrolls.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
               <Send className="w-4 h-4 mr-1" /> Submit to Finance ({confirmedPayrolls.length})
             </Button>
           )}
-          <Button size="sm" onClick={() => setGenerateOpen(true)}>
-            <Play className="w-4 h-4 mr-1" /> Generate Payroll
-          </Button>
+          {!isEmployeeView && (
+            <Button size="sm" onClick={() => setGenerateOpen(true)}>
+              <Play className="w-4 h-4 mr-1" /> Generate Payroll
+            </Button>
+          )}
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">All ({payrolls.length})</TabsTrigger>
-          <TabsTrigger value="draft">Draft</TabsTrigger>
-          <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
-          <TabsTrigger value="transferred_to_finance">Submitted</TabsTrigger>
+          {!isEmployeeView && <TabsTrigger value="draft">Draft</TabsTrigger>}
+          {!isEmployeeView && <TabsTrigger value="confirmed">Confirmed</TabsTrigger>}
+          <TabsTrigger value="transferred_to_finance">{isEmployeeView ? 'In Review' : 'Submitted'}</TabsTrigger>
           <TabsTrigger value="paid">Paid</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
           <Card>
-            <CardHeader><CardTitle>Payroll Records</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>{isEmployeeView ? 'Payslip History' : 'Payroll Records'}</CardTitle>
+            </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}</div>
+                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}</div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p>No payroll records</p>
-                  <p className="text-sm">Generate payroll to get started</p>
+                  <p>{isEmployeeView ? 'No payslips available yet' : 'No payroll records'}</p>
+                  <p className="text-sm">
+                    {isEmployeeView ? 'Once your payroll is generated and processed, payslips will appear here' : 'Generate payroll to get started'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -229,13 +243,13 @@ export function PayrollPanel() {
                     const isSelected = selectedIds.includes(p.id);
                     return (
                       <div key={p.id} className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
-                        {p.status === 'confirmed' && (
+                        {!isEmployeeView && p.status === 'confirmed' && (
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(p.id)} className="w-4 h-4 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-semibold">{empName}</span>
-                            <Badge variant="outline" className="text-xs">{p.month}</Badge>
+                            {!isEmployeeView && <span className="font-semibold">{empName}</span>}
+                            <Badge variant="outline" className="text-xs font-semibold">{p.month}</Badge>
                             <Badge className={`text-xs ${STATUS_COLOR[p.status] || 'bg-gray-100'}`}>
                               {p.status.replace(/_/g, ' ')}
                             </Badge>
@@ -248,19 +262,19 @@ export function PayrollPanel() {
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
-                          {(p.status === 'draft' || p.status === 'processed') && (
+                          {!isEmployeeView && (p.status === 'draft' || p.status === 'processed') && (
                             <Button size="sm" variant="outline" onClick={() => openEdit(p)}>
                               <Edit className="w-3.5 h-3.5" />
                             </Button>
                           )}
-                          {(p.status === 'draft' || p.status === 'processed') && (
+                          {!isEmployeeView && (p.status === 'draft' || p.status === 'processed') && (
                             <Button size="sm" variant="outline" className="text-green-600" onClick={() => handleConfirm(p.id)}>
                               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Confirm
                             </Button>
                           )}
-                          {(p.status === 'confirmed' || p.status === 'paid' || p.status === 'transferred_to_finance') && (
-                            <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingPdf}>
-                              <Download className="w-3.5 h-3.5" />
+                          {(p.status === 'confirmed' || p.status === 'paid' || p.status === 'transferred_to_finance' || isEmployeeView) && (
+                            <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingPdf} title="Download PDF Payslip">
+                              <Download className="w-3.5 h-3.5 mr-1" /> PDF
                             </Button>
                           )}
                         </div>
@@ -274,158 +288,168 @@ export function PayrollPanel() {
         </TabsContent>
       </Tabs>
 
-      {/* Hidden PDF Container */}
-      <div className="hidden">
-        {pdfPayroll && <PayslipDocument payroll={{...pdfPayroll, user: pdfPayroll.employeeId?.userId || pdfPayroll.employeeId}} />}
+      {/* Offscreen PDF Container for html2pdf to properly render without display: none issues */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+        {pdfPayroll && (
+          <PayslipDocument
+            payroll={{
+              ...pdfPayroll,
+              user: pdfPayroll.employeeId?.userId || pdfPayroll.employeeId,
+            }}
+          />
+        )}
       </div>
 
       {/* Generate Dialog */}
-      <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Generate Monthly Payroll</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1">
-              <Label>Month</Label>
-              <Input type="month" value={generateMonth} onChange={e => setGenerateMonth(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Generation Mode</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setGenerateMode('smart')}
-                  className={`p-3 rounded-xl border text-left text-sm transition-colors ${generateMode === 'smart' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'}`}
-                >
-                  <p className="font-semibold">Smart Generate</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Uses salary configs + auto late deductions from attendance</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGenerateMode('basic')}
-                  className={`p-3 rounded-xl border text-left text-sm transition-colors ${generateMode === 'basic' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'}`}
-                >
-                  <p className="font-semibold">Basic Generate</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Uses Employee model salary with default allowances</p>
-                </button>
+      {!isEmployeeView && (
+        <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Generate Monthly Payroll</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <Label>Payroll Month (YYYY-MM)</Label>
+                <Input type="month" value={generateMonth} onChange={e => setGenerateMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Generation Mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGenerateMode('smart')}
+                    className={`p-3 rounded-lg border text-left text-sm transition-all ${
+                      generateMode === 'smart' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    <div className="font-semibold">Smart Mode</div>
+                    <div className="text-xs opacity-80">Includes late arrival & attendance deductions</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGenerateMode('basic')}
+                    className={`p-3 rounded-lg border text-left text-sm transition-all ${
+                      generateMode === 'basic' ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    <div className="font-semibold">Standard Mode</div>
+                    <div className="text-xs opacity-80">Salary structure without attendance cuts</div>
+                  </button>
+                </div>
               </div>
             </div>
-            {generateMode === 'smart' && (
-              <p className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                Smart mode reads each employee's salary config, calculates late deductions from attendance records, and generates accurate payroll automatically.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGenerateOpen(false)}>Cancel</Button>
-            <Button onClick={handleGenerate}>Generate</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGenerateOpen(false)}>Cancel</Button>
+              <Button onClick={handleGenerate}><Play className="w-4 h-4 mr-1" /> Generate</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      {/* Edit Payroll Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Edit Payroll — {editPayroll?.employeeId?.name || 'Employee'} ({editPayroll?.month})
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-5 pt-2">
-            <div className="space-y-1">
-              <Label>Basic Salary (₹)</Label>
-              <Input type="number" min="0" value={editForm.basicSalary}
-                onChange={e => setEditForm((f: any) => ({ ...f, basicSalary: Number(e.target.value) }))} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold mb-2">Allowances</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(['hra', 'transport', 'medical', 'other'] as const).map(key => (
-                  <div key={key} className="space-y-1">
-                    <Label className="capitalize">{key} (₹)</Label>
-                    <Input type="number" min="0" value={editForm.allowances?.[key] || 0}
-                      onChange={e => setEditForm((f: any) => ({ ...f, allowances: { ...f.allowances, [key]: Number(e.target.value) } }))} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold mb-2">Deductions</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(['pf', 'tax', 'insurance', 'other'] as const).map(key => (
-                  <div key={key} className="space-y-1">
-                    <Label className="capitalize">{key} (₹)</Label>
-                    <Input type="number" min="0" value={editForm.deductions?.[key] || 0}
-                      onChange={e => setEditForm((f: any) => ({ ...f, deductions: { ...f.deductions, [key]: Number(e.target.value) } }))} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Edit Dialog */}
+      {!isEmployeeView && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Payroll — {editPayroll?.employeeId?.name || 'Employee'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
               <div className="space-y-1">
-                <Label>Bonus (₹)</Label>
-                <Input type="number" min="0" value={editForm.bonus || 0}
-                  onChange={e => setEditForm((f: any) => ({ ...f, bonus: Number(e.target.value) }))} />
+                <Label>Basic Salary (₹)</Label>
+                <Input type="number" min="0" value={editForm.basicSalary}
+                  onChange={e => setEditForm((f: any) => ({ ...f, basicSalary: Number(e.target.value) }))} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">Allowances</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(['hra', 'transport', 'medical', 'other'] as const).map(key => (
+                    <div key={key} className="space-y-1">
+                      <Label className="capitalize">{key} (₹)</Label>
+                      <Input type="number" min="0" value={editForm.allowances?.[key] || 0}
+                        onChange={e => setEditForm((f: any) => ({ ...f, allowances: { ...f.allowances, [key]: Number(e.target.value) } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold mb-2">Deductions</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(['pf', 'tax', 'insurance', 'other'] as const).map(key => (
+                    <div key={key} className="space-y-1">
+                      <Label className="capitalize">{key} (₹)</Label>
+                      <Input type="number" min="0" value={editForm.deductions?.[key] || 0}
+                        onChange={e => setEditForm((f: any) => ({ ...f, deductions: { ...f.deductions, [key]: Number(e.target.value) } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Bonus (₹)</Label>
+                  <Input type="number" min="0" value={editForm.bonus || 0}
+                    onChange={e => setEditForm((f: any) => ({ ...f, bonus: Number(e.target.value) }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Overtime (₹)</Label>
+                  <Input type="number" min="0" value={editForm.overtime || 0}
+                    onChange={e => setEditForm((f: any) => ({ ...f, overtime: Number(e.target.value) }))} />
+                </div>
               </div>
               <div className="space-y-1">
-                <Label>Overtime (₹)</Label>
-                <Input type="number" min="0" value={editForm.overtime || 0}
-                  onChange={e => setEditForm((f: any) => ({ ...f, overtime: Number(e.target.value) }))} />
+                <Label>Remarks</Label>
+                <Textarea value={editForm.remarks || ''} rows={2}
+                  onChange={e => setEditForm((f: any) => ({ ...f, remarks: e.target.value }))} />
+              </div>
+              {/* Live preview */}
+              <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Gross</p>
+                  <p className="font-bold text-blue-600">₹{calcGross(editForm).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Deductions</p>
+                  <p className="font-bold text-red-500">
+                    ₹{Object.values(((editForm.deductions || {}) as Record<string, number>)).reduce((s, v) => s + (v || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net</p>
+                  <p className="font-bold text-green-600">₹{calcNet(editForm).toLocaleString()}</p>
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Remarks</Label>
-              <Textarea value={editForm.remarks || ''} rows={2}
-                onChange={e => setEditForm((f: any) => ({ ...f, remarks: e.target.value }))} />
-            </div>
-            {/* Live preview */}
-            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Gross</p>
-                <p className="font-bold text-blue-600">₹{calcGross(editForm).toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Deductions</p>
-                <p className="font-bold text-red-500">
-                  ₹{Object.values(((editForm.deductions || {}) as Record<string, number>)).reduce((s, v) => s + (v || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Net</p>
-                <p className="font-bold text-green-600">₹{calcNet(editForm).toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}><X className="w-4 h-4 mr-1" />Cancel</Button>
-            <Button onClick={handleEditSave} disabled={editSaving}>
-              <Save className="w-4 h-4 mr-1" />{editSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}><X className="w-4 h-4 mr-1" />Cancel</Button>
+              <Button onClick={handleEditSave} disabled={editSaving}>
+                <Save className="w-4 h-4 mr-1" />{editSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Transfer to Finance Dialog */}
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Submit Payroll to Finance</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Check the boxes next to confirmed payrolls, then submit them to Finance for approval and salary disbursement.
-            </p>
-            <div className="space-y-1">
-              <Label>Remarks (optional)</Label>
-              <Input value={transferRemarks} onChange={e => setTransferRemarks(e.target.value)} placeholder="e.g., March 2026 payroll batch" />
+      {!isEmployeeView && (
+        <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Submit Payroll to Finance</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-muted-foreground">
+                Check the boxes next to confirmed payrolls, then submit them to Finance for approval and salary disbursement.
+              </p>
+              <div className="space-y-1">
+                <Label>Remarks (optional)</Label>
+                <Input value={transferRemarks} onChange={e => setTransferRemarks(e.target.value)} placeholder="e.g., March 2026 payroll batch" />
+              </div>
+              <p className="text-sm font-medium">{selectedIds.length} payroll(s) selected</p>
             </div>
-            <p className="text-sm font-medium">{selectedIds.length} payroll(s) selected</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button>
-            <Button onClick={handleTransfer} disabled={!selectedIds.length}>
-              <Send className="w-4 h-4 mr-1" /> Submit to Finance
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button>
+              <Button onClick={handleTransfer} disabled={!selectedIds.length}>
+                <Send className="w-4 h-4 mr-1" /> Submit to Finance
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
