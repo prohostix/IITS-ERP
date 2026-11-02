@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function FinanceCommissionUniversityReportPanel() {
   const [loading, setLoading] = useState(false);

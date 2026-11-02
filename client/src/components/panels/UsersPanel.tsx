@@ -222,6 +222,7 @@ export function UsersPanel() {
       organizationId: currentUser?.role === 'superadmin' ? '' : (currentUser?.organizationId || ''),
       departmentId: '',
       canAddPrograms: false,
+      permissions: [],
     });
     setIsDialogOpen(true);
   };

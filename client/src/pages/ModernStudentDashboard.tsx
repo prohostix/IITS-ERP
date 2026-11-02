@@ -136,7 +136,7 @@ export function ModernStudentDashboard() {
   };
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: any;
     if (examStatus === 'in_progress' && timeRemaining !== null && timeRemaining > 0) {
       timer = setInterval(() => {
         setTimeRemaining((prev) => {

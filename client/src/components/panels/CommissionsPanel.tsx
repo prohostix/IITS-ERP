@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowDownLeft, ArrowUpRight, Landmark, Receipt } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { FinanceCommissionUniversityReportPanel } from './FinanceCommissionUniversityReportPanel';
 
 const fmtDate = (d: string | null | undefined): string => {
