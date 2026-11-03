@@ -72,12 +72,12 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     e.preventDefault();
     const payload: any = {
       target: Number(formData.target),
-      achieved: Number(formData.achieved),
+      achieved: Number(formData.achieved || 0),
       period: formData.period,
-      type: formData.type
+      type: formData.type,
+      employeeId: formData.employeeId && formData.employeeId !== 'none' ? formData.employeeId : null,
+      departmentId: formData.departmentId && formData.departmentId !== 'none' ? formData.departmentId : null
     };
-    if (formData.employeeId && formData.employeeId !== 'none') payload.employeeId = formData.employeeId;
-    if (formData.departmentId && formData.departmentId !== 'none') payload.departmentId = formData.departmentId;
 
     try {
       if (editingId) {
@@ -94,9 +94,9 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   };
 
   const handleEdit = (t: any) => {
-    const empId = typeof t.employeeId === 'object' ? (t.employeeId?.id || t.employeeId?.id) : t.employeeId;
-    const deptId = typeof t.departmentId === 'object' ? (t.departmentId?.id || t.departmentId?.id) : t.departmentId;
-    setEditingId(t.id || t.id);
+    const empId = typeof t.employeeId === 'object' ? (t.employeeId?.id || t.employeeId?._id) : (t.employee?.id || t.employeeId);
+    const deptId = typeof t.departmentId === 'object' ? (t.departmentId?.id || t.departmentId?._id) : (t.department?.id || t.departmentId);
+    setEditingId(t.id || t._id);
     setFormData({
       employeeId: empId?.toString() || '',
       departmentId: deptId?.toString() || '',
@@ -224,11 +224,11 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
             <div className="text-center py-8 text-muted-foreground">No targets found</div>
           ) : (
             <div className="space-y-4">
-              {targets.filter(t => t && (t.id || t.id)).map((t) => {
-                const tid = t.id || t.id;
+              {targets.filter(t => t && (t.id || t._id)).map((t) => {
+                const tid = t.id || t._id;
                 const pct = t.target ? Math.min(100, ((t.achieved || 0) / t.target) * 100) : 0;
-                const empName = typeof t.employeeId === 'object' ? t.employeeId?.name : '';
-                const deptName = typeof t.departmentId === 'object' ? t.departmentId?.name : '';
+                const empName = typeof t.employeeId === 'object' ? t.employeeId?.name : (t.employee?.name || '');
+                const deptName = typeof t.departmentId === 'object' ? t.departmentId?.name : (t.department?.name || '');
                 return (
                   <div key={tid} className="p-4 border rounded-lg hover:bg-muted/50">
                     <div className="flex items-center justify-between mb-3">

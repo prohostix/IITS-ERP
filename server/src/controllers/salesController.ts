@@ -52,22 +52,258 @@ export const convertLead = asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Targets
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const targets = await prisma.target.findMany({ where: { organizationId: req.user.organizationId }, include: { employee: true } });
-  res.json({ success: true, count: targets.length, data: targets });
+  const targets = await prisma.target.findMany({
+    where: { organizationId: req.user.organizationId },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true
+        }
+      },
+      department: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      center: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const mapped = targets.map(t => ({
+    ...t,
+    employeeId: t.employee || t.employeeId,
+    departmentId: t.department || t.departmentId
+  }));
+
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
+
 export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const target = await prisma.target.findUnique({ where: { id: req.params.id } });
-  res.json({ success: true, data: target });
+  const target = await prisma.target.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true
+        }
+      },
+      department: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      center: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      }
+    }
+  });
+
+  if (!target) {
+    res.status(404).json({ success: false, message: 'Target not found' });
+    return;
+  }
+
+  const mapped = {
+    ...target,
+    employeeId: target.employee || target.employeeId,
+    departmentId: target.department || target.departmentId
+  };
+
+  res.json({ success: true, data: mapped });
 });
+
 export const createTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const target = await prisma.target.create({ data: { ...req.body, organizationId: req.user.organizationId } });
-  res.status(201).json({ success: true, data: target });
+  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline } = req.body;
+
+  if (!type || target === undefined || target === null || target === '') {
+    res.status(400).json({ success: false, message: 'Target type and target value are required' });
+    return;
+  }
+
+  const cleanTarget = parseFloat(target);
+  if (isNaN(cleanTarget) || cleanTarget < 0) {
+    res.status(400).json({ success: false, message: 'Target must be a valid non-negative number' });
+    return;
+  }
+
+  const cleanAchieved = (achieved !== undefined && achieved !== '' && !isNaN(parseFloat(achieved)))
+    ? parseFloat(achieved)
+    : 0;
+
+  const cleanIncentive = (incentive !== undefined && incentive !== '' && !isNaN(parseFloat(incentive)))
+    ? parseFloat(incentive)
+    : null;
+
+  const cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  const cleanDeptId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
+  const cleanCenterId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
+
+  const newTarget = await prisma.target.create({
+    data: {
+      organizationId: req.user.organizationId,
+      employeeId: cleanEmpId,
+      departmentId: cleanDeptId,
+      centerId: cleanCenterId,
+      type,
+      period: period || 'monthly',
+      target: cleanTarget,
+      achieved: cleanAchieved,
+      incentive: cleanIncentive,
+      deadline: deadline ? new Date(deadline) : null,
+      status: cleanAchieved >= cleanTarget && cleanTarget > 0 ? 'completed' : 'pending'
+    },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true
+        }
+      },
+      department: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      center: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      }
+    }
+  });
+
+  const mapped = {
+    ...newTarget,
+    employeeId: newTarget.employee || newTarget.employeeId,
+    departmentId: newTarget.department || newTarget.departmentId
+  };
+
+  res.status(201).json({ success: true, data: mapped });
 });
+
 export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const target = await prisma.target.update({ where: { id: req.params.id }, data: req.body });
-  res.json({ success: true, data: target });
+  const exists = await prisma.target.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId }
+  });
+
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'Target not found' });
+    return;
+  }
+
+  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline, status } = req.body;
+  const data: any = {};
+
+  if (employeeId !== undefined) {
+    data.employeeId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  }
+  if (departmentId !== undefined) {
+    data.departmentId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
+  }
+  if (centerId !== undefined) {
+    data.centerId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
+  }
+  if (type !== undefined) data.type = type;
+  if (period !== undefined) data.period = period;
+  if (target !== undefined) {
+    const t = parseFloat(target);
+    if (!isNaN(t)) data.target = t;
+  }
+  if (achieved !== undefined) {
+    const a = parseFloat(achieved);
+    if (!isNaN(a)) data.achieved = a;
+  }
+  if (incentive !== undefined) {
+    data.incentive = (incentive !== '' && incentive !== null && !isNaN(parseFloat(incentive)))
+      ? parseFloat(incentive)
+      : null;
+  }
+  if (deadline !== undefined) {
+    data.deadline = deadline ? new Date(deadline) : null;
+  }
+  if (status !== undefined) {
+    data.status = status;
+  } else if (data.target !== undefined || data.achieved !== undefined) {
+    const finalTarget = data.target !== undefined ? data.target : exists.target;
+    const finalAchieved = data.achieved !== undefined ? data.achieved : exists.achieved;
+    data.status = finalAchieved >= finalTarget && finalTarget > 0 ? 'completed' : 'pending';
+  }
+
+  const updated = await prisma.target.update({
+    where: { id: req.params.id },
+    data,
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true
+        }
+      },
+      department: {
+        select: {
+          id: true,
+          name: true
+        }
+      },
+      center: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      }
+    }
+  });
+
+  const mapped = {
+    ...updated,
+    employeeId: updated.employee || updated.employeeId,
+    departmentId: updated.department || updated.departmentId
+  };
+
+  res.json({ success: true, data: mapped });
 });
+
 export const deleteTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const exists = await prisma.target.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId }
+  });
+
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'Target not found' });
+    return;
+  }
+
   await prisma.target.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });
 });

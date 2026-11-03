@@ -251,9 +251,9 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
           <CardContent className="space-y-3">
             {activeTargets.slice(0, 3).map((t: any) => {
               const pct = t.target > 0 ? Math.min(100, Math.round((t.achieved / t.target) * 100)) : 0;
-              const label = typeof t.employeeId === 'object' ? t.employeeId?.name
-                : typeof t.departmentId === 'object' ? t.departmentId?.name
-                : t.type || 'Target';
+              const label = (typeof t.employeeId === 'object' ? t.employeeId?.name : t.employee?.name)
+                || (typeof t.departmentId === 'object' ? t.departmentId?.name : t.department?.name)
+                || t.type || 'Target';
               return (
                 <div key={t.id} className="space-y-1">
                   <div className="flex justify-between text-xs">

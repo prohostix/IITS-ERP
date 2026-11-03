@@ -289,16 +289,22 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
 });
 export const createTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { employeeId, type, period, target, achieved, incentive, deadline } = req.body;
+  const cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  const cleanTarget = parseFloat(target) || 0;
+  const cleanAchieved = (achieved !== undefined && achieved !== '' && !isNaN(parseFloat(achieved))) ? parseFloat(achieved) : 0;
+  const cleanIncentive = (incentive !== undefined && incentive !== '' && !isNaN(parseFloat(incentive))) ? parseFloat(incentive) : null;
+
   const newTarget = await prisma.target.create({
     data: {
       organizationId: req.user.organizationId,
-      employeeId,
+      employeeId: cleanEmpId,
       type,
-      period,
-      target: parseFloat(target),
-      achieved: achieved !== undefined ? parseFloat(achieved) : 0,
-      incentive: incentive !== undefined && incentive !== '' ? parseFloat(incentive) : null,
-      deadline: deadline ? new Date(deadline) : null
+      period: period || 'monthly',
+      target: cleanTarget,
+      achieved: cleanAchieved,
+      incentive: cleanIncentive,
+      deadline: deadline ? new Date(deadline) : null,
+      status: cleanAchieved >= cleanTarget && cleanTarget > 0 ? 'completed' : 'pending'
     },
     include: {
       employee: {
@@ -318,21 +324,37 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
   res.status(201).json({ success: true, data: mapped });
 });
 export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const exists = await prisma.target.findUnique({ where: { id: req.params.id } });
+  const exists = await prisma.target.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId }
+  });
   if (!exists) {
     res.status(404).json({ success: false, message: 'Target not found' });
     return;
   }
   const { employeeId, type, period, target, achieved, incentive, deadline, status } = req.body;
   const data: any = {};
-  if (employeeId !== undefined) data.employeeId = employeeId;
+  if (employeeId !== undefined) {
+    data.employeeId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  }
   if (type !== undefined) data.type = type;
   if (period !== undefined) data.period = period;
-  if (target !== undefined) data.target = parseFloat(target);
-  if (achieved !== undefined) data.achieved = parseFloat(achieved);
+  if (target !== undefined) {
+    const t = parseFloat(target);
+    if (!isNaN(t)) data.target = t;
+  }
+  if (achieved !== undefined) {
+    const a = parseFloat(achieved);
+    if (!isNaN(a)) data.achieved = a;
+  }
   if (incentive !== undefined) data.incentive = incentive !== '' && incentive !== null ? parseFloat(incentive) : null;
   if (deadline !== undefined) data.deadline = deadline ? new Date(deadline) : null;
-  if (status !== undefined) data.status = status;
+  if (status !== undefined) {
+    data.status = status;
+  } else if (data.target !== undefined || data.achieved !== undefined) {
+    const finalTarget = data.target !== undefined ? data.target : exists.target;
+    const finalAchieved = data.achieved !== undefined ? data.achieved : exists.achieved;
+    data.status = finalAchieved >= finalTarget && finalTarget > 0 ? 'completed' : 'pending';
+  }
 
   const updated = await prisma.target.update({
     where: { id: req.params.id },
@@ -1906,21 +1928,25 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     const studentsTargetObj = userTargets.find((t: any) => t.type === 'students');
     const centersTargetObj = userTargets.find((t: any) => t.type === 'centers');
 
+    const revTargetVal = revenueTargetObj ? Number(revenueTargetObj.target ?? revenueTargetObj.targetAmount ?? 0) : 0;
+    const stuTargetVal = studentsTargetObj ? Number(studentsTargetObj.target ?? studentsTargetObj.targetAmount ?? 0) : 0;
+    const cenTargetVal = centersTargetObj ? Number(centersTargetObj.target ?? centersTargetObj.targetAmount ?? 0) : 0;
+
     const targetStats = {
-      revenueTarget: revenueTargetObj ? Number(revenueTargetObj.targetAmount || 0) : 0,
+      revenueTarget: revTargetVal,
       revenueAchieved: totalRevenue,
-      revenueProgress: revenueTargetObj && revenueTargetObj.targetAmount > 0
-        ? Number(((totalRevenue / revenueTargetObj.targetAmount) * 100).toFixed(1))
+      revenueProgress: revTargetVal > 0
+        ? Number(((totalRevenue / revTargetVal) * 100).toFixed(1))
         : 0,
-      studentsTarget: studentsTargetObj ? Number(studentsTargetObj.targetAmount || 0) : 0,
+      studentsTarget: stuTargetVal,
       studentsAchieved: totalAdmissions,
-      studentsProgress: studentsTargetObj && studentsTargetObj.targetAmount > 0
-        ? Number(((totalAdmissions / studentsTargetObj.targetAmount) * 100).toFixed(1))
+      studentsProgress: stuTargetVal > 0
+        ? Number(((totalAdmissions / stuTargetVal) * 100).toFixed(1))
         : 0,
-      centersTarget: centersTargetObj ? Number(centersTargetObj.targetAmount || 0) : 0,
+      centersTarget: cenTargetVal,
       centersAchieved: userCenters.length,
-      centersProgress: centersTargetObj && centersTargetObj.targetAmount > 0
-        ? Number(((userCenters.length / centersTargetObj.targetAmount) * 100).toFixed(1))
+      centersProgress: cenTargetVal > 0
+        ? Number(((userCenters.length / cenTargetVal) * 100).toFixed(1))
         : 0
     };
 
