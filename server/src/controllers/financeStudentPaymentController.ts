@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../lib/prisma.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 
 export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { search, universityId, programId, branchId, isNoWallet } = req.query;
@@ -70,11 +71,18 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
 
     const extraFees = (enr.extraFees as any[]) || [];
     const totalExtraFees = extraFees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
+
+    const isFullPay = enr.paymentType === 'full_payment' || enr.paymentMethod === 'full_payment';
+    const rawBreakdown: any[] = Array.isArray(feeStruct?.feeBreakdown)
+      ? (feeStruct!.feeBreakdown as any[])
+      : (typeof feeStruct?.feeBreakdown === 'string' ? (() => { try { return JSON.parse(feeStruct!.feeBreakdown as any); } catch { return []; } })() : []);
+    const targetBreakdowns: any[] = filterBreakdownsForMethod(rawBreakdown, enr.paymentMethod, feeStruct?.billingCycle).blocks;
+
     let calculatedFullFee = 0;
-    if (enr.paymentType === 'full_payment') {
-      calculatedFullFee = feeStruct?.fullProgramFee || 0;
-    } else if (feeStruct?.feeBreakdown && Array.isArray(feeStruct.feeBreakdown) && feeStruct.feeBreakdown.length > 0) {
-      calculatedFullFee = feeStruct.feeBreakdown.reduce((sum: number, b: any) => {
+    if (isFullPay && feeStruct?.fullProgramFee) {
+      calculatedFullFee = Number(feeStruct.fullProgramFee || 0);
+    } else if (targetBreakdowns.length > 0) {
+      calculatedFullFee = targetBreakdowns.reduce((sum: number, b: any) => {
         const semTotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + (Array.isArray(b.additionalFees) ? b.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0);
         return sum + semTotal;
       }, 0);
@@ -96,13 +104,14 @@ export const getStudentPaymentLogs = asyncHandler(async (req: AuthRequest, res: 
       studentName: enr.studentName,
       enrollmentNumber: enr.enrollmentNumber || '',
       paymentType: enr.paymentType,
+      paymentMethod: enr.paymentMethod,
       program: {
         ...enr.program,
         billingCycle: feeStruct?.billingCycle
       },
       totalFee,
       baseFee: fullProgramFee,
-      feeBreakdown: feeStruct?.feeBreakdown || [],
+      feeBreakdown: targetBreakdowns.length > 0 ? targetBreakdowns : (feeStruct?.feeBreakdown || []),
       extraFees,
       received: totalReceived,
       balance,

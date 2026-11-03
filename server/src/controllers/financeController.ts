@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
 
 // Invoices
@@ -1007,6 +1008,8 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
             breakdownsArray = feeStructure.feeBreakdown as any[];
           }
 
+          breakdownsArray = filterBreakdownsForMethod(breakdownsArray, (enrollment as any).paymentMethod, feeStructure.billingCycle).blocks;
+
           // nextNum is 1-indexed; breakdown array is 0-indexed
           const nextBreakdown = breakdownsArray[nextNum - 1];
           if (nextBreakdown) {
@@ -1329,12 +1332,13 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
       }
     }
 
+    if ((e as any).paymentMethod === 'full_payment' || (e as any).paymentType === 'full_payment') continue;
+
+    const filtered = filterBreakdownsForMethod(breakdownArray, (e as any).paymentMethod, feeStructure.billingCycle);
+    breakdownArray = filtered.blocks;
     if (breakdownArray.length === 0) continue;
 
-    const billingCycle = feeStructure.billingCycle;
-    let cycleLabel = 'Installment';
-    if (billingCycle === 'per_semester') cycleLabel = 'Semester';
-    else if (billingCycle === 'per_year' || billingCycle === 'yearly') cycleLabel = 'Year';
+    const cycleLabel = filtered.label;
 
     const invoices = e.student.invoices || [];
 

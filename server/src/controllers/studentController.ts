@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import bcrypt from 'bcryptjs';
 import { createNotification, broadcastNotification } from './notificationController.js';
 
@@ -721,7 +722,13 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
                pfs[0];
 
         if (feeStructure && feeStructure.feeBreakdown) {
-          const breakdown = feeStructure.feeBreakdown;
+          const rawBreakdown = typeof feeStructure.feeBreakdown === 'string'
+            ? (() => { try { return JSON.parse(feeStructure.feeBreakdown); } catch { return []; } })()
+            : (feeStructure.feeBreakdown as any[]);
+          const invoiceMethod = /semester|sem\b/i.test(installmentName)
+            ? 'semester'
+            : (/year/i.test(installmentName) ? 'yearly' : enrollment.paymentMethod);
+          const breakdown = filterBreakdownsForMethod(rawBreakdown, invoiceMethod, feeStructure.billingCycle).blocks;
           const match = installmentName.match(/\d+/);
           if (match && breakdown.length > 0) {
             const index = parseInt(match[0], 10) - 1;

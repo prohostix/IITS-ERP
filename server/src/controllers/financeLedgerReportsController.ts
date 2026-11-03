@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 1. COMMISSION REPORT AGAINST UNIVERSITY
@@ -544,11 +545,18 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       breakdowns = feeStruct.feeBreakdown;
     }
 
+    // Full payment students have no subsequent installments
+    const enrPayMethod = (enr as any).paymentMethod;
+    if ((enr as any).paymentType === 'full_payment' || enrPayMethod === 'full_payment') continue;
+
+    const { blocks: filteredBlocks, label: cycleLabelPrefix } = filterBreakdownsForMethod(breakdowns, enrPayMethod, feeStruct.billingCycle);
+    breakdowns = filteredBlocks;
+
     // Subsequent semesters / years
     for (let i = 1; i < breakdowns.length; i++) {
       const b = breakdowns[i];
       const semNum = i + 1;
-      const semLabel = (feeStruct.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + semNum;
+      const semLabel = `${cycleLabelPrefix} ${semNum}`;
 
       // Check if already paid in completedRecords
       const alreadyPaidInInvoices = completedRecords.some(c => 
@@ -775,9 +783,10 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
     } else if (Array.isArray(feeStruct?.feeBreakdown)) {
       breakdowns = feeStruct.feeBreakdown;
     }
+    breakdowns = filterBreakdownsForMethod(breakdowns, (enr as any).paymentMethod, feeStruct?.billingCycle).blocks;
 
     let fullFee = 0;
-    if (enr.paymentType === 'full_payment') {
+    if (enr.paymentType === 'full_payment' || (enr as any).paymentMethod === 'full_payment') {
       fullFee = Number(feeStruct?.fullProgramFee || 0);
     } else if (breakdowns.length > 0) {
       fullFee = breakdowns.reduce((sum: number, b: any) => {
@@ -915,8 +924,11 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
   } else if (Array.isArray(feeStruct?.feeBreakdown)) {
     breakdowns = feeStruct.feeBreakdown;
   }
+  const { blocks: methodBlocks, label: ledgerCycleLabel } = filterBreakdownsForMethod(breakdowns, (enrollment as any).paymentMethod, feeStruct?.billingCycle);
+  breakdowns = methodBlocks;
+  const isYearCycle = ledgerCycleLabel === 'Year';
 
-  if (enrollment.paymentType === 'full_payment' && feeStruct?.fullProgramFee) {
+  if ((enrollment.paymentType === 'full_payment' || (enrollment as any).paymentMethod === 'full_payment') && feeStruct?.fullProgramFee) {
     rawEntries.push({
       date: initialAdmissionDate,
       type: 'debit',
@@ -932,7 +944,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
     const sem1 = breakdowns[0];
     const sem1Add = Array.isArray(sem1.additionalFees) ? sem1.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0;
     const sem1Total = Number(sem1.baseFee || sem1.tuitionFee || 0) + Number(sem1.examFee || 0) + sem1Add;
-    const sem1Label = (feeStruct?.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + '1';
+    const sem1Label = `${ledgerCycleLabel} 1`;
     rawEntries.push({
       date: initialAdmissionDate,
       type: 'debit',
@@ -948,13 +960,13 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
     for (let i = 1; i < breakdowns.length; i++) {
       const sem = breakdowns[i];
       const semNum = i + 1;
-      const semLabel = (feeStruct?.billingCycle === 'per_year' ? 'Year ' : 'Semester ') + semNum;
+      const semLabel = `${ledgerCycleLabel} ${semNum}`;
       const semAdd = Array.isArray(sem.additionalFees) ? sem.additionalFees.reduce((s: number, f: any) => s + Number(f.amount || 0), 0) : 0;
       const semTotal = Number(sem.baseFee || sem.tuitionFee || 0) + Number(sem.examFee || 0) + semAdd;
 
       // Subsequent semester due date estimation
       const semDate = new Date(initialAdmissionDate);
-      const monthsToAdd = feeStruct?.billingCycle === 'per_year' ? i * 12 : i * 6;
+      const monthsToAdd = isYearCycle ? i * 12 : i * 6;
       semDate.setMonth(semDate.getMonth() + monthsToAdd);
 
       rawEntries.push({

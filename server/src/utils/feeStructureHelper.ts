@@ -67,3 +67,33 @@ export async function resolveProgramFeeStructure(
     }
   });
 }
+
+/**
+ * Filters a fee breakdown array down to the blocks relevant for an enrollment's
+ * payment method. Fee structures may contain both Year and Semester blocks
+ * (billingCycle 'both'); without filtering, totals and schedules get doubled.
+ * Legacy (untagged) breakdowns fall back to the structure's billingCycle.
+ */
+export function filterBreakdownsForMethod(
+  breakdowns: any[],
+  paymentMethod: string | null | undefined,
+  billingCycle?: string | null
+): { blocks: any[]; label: 'Year' | 'Semester' } {
+  const list = Array.isArray(breakdowns) ? breakdowns : [];
+  const hasTagged = list.some(b => b?.installmentType === 'year' || b?.installmentType === 'semester');
+
+  if (!hasTagged) {
+    return { blocks: list, label: billingCycle === 'per_semester' ? 'Semester' : 'Year' };
+  }
+
+  const yearBlocks = list.filter(b => b?.installmentType === 'year');
+  const semBlocks = list.filter(b => b?.installmentType === 'semester');
+
+  if (paymentMethod === 'semester') {
+    if (semBlocks.length > 0) return { blocks: semBlocks, label: 'Semester' };
+    return { blocks: yearBlocks, label: 'Year' };
+  }
+  // 'yearly', 'installment', 'full_payment' or unknown -> prefer year blocks
+  if (yearBlocks.length > 0) return { blocks: yearBlocks, label: 'Year' };
+  return { blocks: semBlocks, label: 'Semester' };
+}

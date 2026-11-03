@@ -362,6 +362,29 @@ export function ProgramFeeStructurePanel() {
     const hasYearly = fee.billingCycle === 'both' || fee.billingCycle === 'per_year' || fee.billingCycle === 'yearly' || yearly.length > 0;
     const hasSemester = fee.billingCycle === 'both' || fee.billingCycle === 'per_semester' || semester.length > 0;
 
+    // Pre-fill empty blocks for any mode not yet configured so toggling it on shows editable rows
+    const editProg = programs.find(p => p.id === progId);
+    const editDur = (editProg as any)?.duration || 36;
+    const makeBlock = (type: 'year' | 'semester', n: number) => ({
+      installmentType: type,
+      year: n,
+      semester: n,
+      baseFee: '0',
+      universityFee: '0',
+      examFee: '0',
+      commissionRate: '0',
+      dueDate: '',
+      additionalFees: [] as { id: string; label: string; amount: string }[]
+    });
+    if (yearly.length === 0) {
+      const n = Math.max(1, Math.floor(editDur / 12));
+      yearly = Array.from({ length: n }, (_, i) => makeBlock('year', i + 1));
+    }
+    if (semester.length === 0) {
+      const n = Math.max(1, Math.floor(editDur / 6));
+      semester = Array.from({ length: n }, (_, i) => makeBlock('semester', i + 1));
+    }
+
     setForm({
       level: fee.level || 'program',
       programId: progId || '',
