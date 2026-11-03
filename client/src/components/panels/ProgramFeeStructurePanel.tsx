@@ -74,11 +74,15 @@ export function ProgramFeeStructurePanel() {
     universityId: '',
     admissionSessionId: '',
     specialisation: '',
-    billingCycle: 'per_year', 
+    billingCycle: 'both', 
     currency: 'INR', 
     effectiveFrom: '', 
     additionalFees: [] as { id: string; label: string; amount: string }[],
-    feeBreakdown: [] as any[],
+    enableOneTime: true,
+    enableYearly: true,
+    enableSemester: true,
+    yearlyBreakdown: [] as any[],
+    semesterBreakdown: [] as any[],
     baseFee: '0',
     universityFee: '0',
     fullProgramFee: '0',
@@ -87,7 +91,6 @@ export function ProgramFeeStructurePanel() {
     oneTimeCommission: '0',
   });
 
-  
   useEffect(() => {
     let dur = 36; // Default to 3 years
     
@@ -97,15 +100,16 @@ export function ProgramFeeStructurePanel() {
        if (prog) dur = prog.duration || 36;
     }
 
-    let numBlocks = 1;
-    if (form.billingCycle === 'per_year') numBlocks = Math.max(1, Math.floor(dur / 12));
-    else if (form.billingCycle === 'per_semester') numBlocks = Math.max(1, Math.floor(dur / 6));
+    const numYears = Math.max(1, Math.floor(dur / 12));
+    const numSemesters = Math.max(1, Math.floor(dur / 6));
     
     setForm(prev => {
-       const newBreakdown = [...prev.feeBreakdown];
-       while (newBreakdown.length < numBlocks) {
-         newBreakdown.push({
-           year: newBreakdown.length + 1,
+       let updated = false;
+       const newYearly = [...prev.yearlyBreakdown];
+       while (newYearly.length < numYears) {
+         newYearly.push({
+           installmentType: 'year',
+           year: newYearly.length + 1,
            baseFee: '0',
            universityFee: '0',
            examFee: '0',
@@ -113,16 +117,43 @@ export function ProgramFeeStructurePanel() {
            dueDate: '',
            additionalFees: [] as { id: string; label: string; amount: string }[]
          });
+         updated = true;
        }
-       if (newBreakdown.length > numBlocks) {
-         newBreakdown.length = numBlocks;
+       if (newYearly.length > numYears) {
+         newYearly.length = numYears;
+         updated = true;
        }
-       if (newBreakdown.length !== prev.feeBreakdown.length) {
-           return { ...prev, feeBreakdown: newBreakdown };
+
+       const newSemester = [...prev.semesterBreakdown];
+       while (newSemester.length < numSemesters) {
+         newSemester.push({
+           installmentType: 'semester',
+           year: newSemester.length + 1,
+           semester: newSemester.length + 1,
+           baseFee: '0',
+           universityFee: '0',
+           examFee: '0',
+           commissionRate: '0',
+           dueDate: '',
+           additionalFees: [] as { id: string; label: string; amount: string }[]
+         });
+         updated = true;
+       }
+       if (newSemester.length > numSemesters) {
+         newSemester.length = numSemesters;
+         updated = true;
+       }
+
+       if (updated) {
+         return {
+           ...prev,
+           yearlyBreakdown: newYearly,
+           semesterBreakdown: newSemester
+         };
        }
        return prev;
     });
-  }, [form.programId, form.billingCycle, programs, form.level]);
+  }, [form.programId, programs, form.level]);
 
   const addAdditionalFee = () => {
     setForm(prev => ({
@@ -147,45 +178,85 @@ export function ProgramFeeStructurePanel() {
     });
   };
 
-  const addBreakdownAdditionalFee = (bIdx: number) => {
+  // Yearly installment handlers
+  const handleYearlyBreakdownChange = (idx: number, field: string, value: string) => {
     setForm(prev => {
-      const newBreakdown = [...prev.feeBreakdown];
+      const newBreakdown = [...prev.yearlyBreakdown];
+      newBreakdown[idx] = { ...newBreakdown[idx], [field]: value };
+      return { ...prev, yearlyBreakdown: newBreakdown };
+    });
+  };
+
+  const addYearlyBreakdownAdditionalFee = (bIdx: number) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.yearlyBreakdown];
       const fees = Array.isArray(newBreakdown[bIdx].additionalFees) ? [...newBreakdown[bIdx].additionalFees] : [];
       fees.push({ id: Date.now().toString(), label: '', amount: '' });
       newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
-      return { ...prev, feeBreakdown: newBreakdown };
+      return { ...prev, yearlyBreakdown: newBreakdown };
     });
   };
 
-  const removeBreakdownAdditionalFee = (bIdx: number, fIdx: number) => {
+  const removeYearlyBreakdownAdditionalFee = (bIdx: number, fIdx: number) => {
     setForm(prev => {
-      const newBreakdown = [...prev.feeBreakdown];
+      const newBreakdown = [...prev.yearlyBreakdown];
       const fees = [...newBreakdown[bIdx].additionalFees];
       fees.splice(fIdx, 1);
       newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
-      return { ...prev, feeBreakdown: newBreakdown };
+      return { ...prev, yearlyBreakdown: newBreakdown };
     });
   };
 
-  const handleBreakdownAdditionalFeeChange = (bIdx: number, fIdx: number, field: string, value: string) => {
+  const handleYearlyBreakdownAdditionalFeeChange = (bIdx: number, fIdx: number, field: string, value: string) => {
     setForm(prev => {
-      const newBreakdown = [...prev.feeBreakdown];
+      const newBreakdown = [...prev.yearlyBreakdown];
       const fees = [...newBreakdown[bIdx].additionalFees];
       fees[fIdx] = { ...fees[fIdx], [field]: value };
       newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
-      return { ...prev, feeBreakdown: newBreakdown };
+      return { ...prev, yearlyBreakdown: newBreakdown };
     });
   };
 
-  const handleBreakdownChange = (idx: number, field: string, value: string) => {
+  // Semester installment handlers
+  const handleSemesterBreakdownChange = (idx: number, field: string, value: string) => {
     setForm(prev => {
-      const newBreakdown = [...prev.feeBreakdown];
+      const newBreakdown = [...prev.semesterBreakdown];
       newBreakdown[idx] = { ...newBreakdown[idx], [field]: value };
-      return { ...prev, feeBreakdown: newBreakdown };
+      return { ...prev, semesterBreakdown: newBreakdown };
     });
   };
 
-const fetchAllData = useCallback(async () => {
+  const addSemesterBreakdownAdditionalFee = (bIdx: number) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.semesterBreakdown];
+      const fees = Array.isArray(newBreakdown[bIdx].additionalFees) ? [...newBreakdown[bIdx].additionalFees] : [];
+      fees.push({ id: Date.now().toString(), label: '', amount: '' });
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, semesterBreakdown: newBreakdown };
+    });
+  };
+
+  const removeSemesterBreakdownAdditionalFee = (bIdx: number, fIdx: number) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.semesterBreakdown];
+      const fees = [...newBreakdown[bIdx].additionalFees];
+      fees.splice(fIdx, 1);
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, semesterBreakdown: newBreakdown };
+    });
+  };
+
+  const handleSemesterBreakdownAdditionalFeeChange = (bIdx: number, fIdx: number, field: string, value: string) => {
+    setForm(prev => {
+      const newBreakdown = [...prev.semesterBreakdown];
+      const fees = [...newBreakdown[bIdx].additionalFees];
+      fees[fIdx] = { ...fees[fIdx], [field]: value };
+      newBreakdown[bIdx] = { ...newBreakdown[bIdx], additionalFees: fees };
+      return { ...prev, semesterBreakdown: newBreakdown };
+    });
+  };
+
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [feesRes, progsRes, unisRes, sessionsRes] = await Promise.all([
@@ -222,16 +293,21 @@ const fetchAllData = useCallback(async () => {
       universityId: selectedUniversityId,
       admissionSessionId: '',
       specialisation: '',
-      billingCycle: 'per_year', 
+      billingCycle: 'both', 
       currency: 'INR', 
       effectiveFrom: '', 
       additionalFees: [] as { id: string; label: string; amount: string }[],
-      feeBreakdown: [],
-      baseFee: 0,
-      fullProgramFee: 0,
-      oneTimeFee: 0,
-      oneTimeUniversityFee: 0,
-      oneTimeCommission: 0,
+      enableOneTime: true,
+      enableYearly: true,
+      enableSemester: true,
+      yearlyBreakdown: [],
+      semesterBreakdown: [],
+      baseFee: '0',
+      universityFee: '0',
+      fullProgramFee: '0',
+      oneTimeFee: '0',
+      oneTimeUniversityFee: '0',
+      oneTimeCommission: '0',
     });
     setWizardStep(1);
   };
@@ -241,10 +317,6 @@ const fetchAllData = useCallback(async () => {
     setViewMode('wizard');
     setWizardStep(4);
     
-    const otherFees = fee.additionalFees?.filter(
-      f => !['registration fee', 'exam fee', 'gst'].includes(f.label.toLowerCase())
-    ) || [];
-
     const progId = typeof fee.programId === 'object' ? fee.programId?.id : fee.programId;
     const uniId = typeof fee.universityId === 'object' ? fee.universityId?.id : fee.universityId;
     const sessId = typeof fee.admissionSessionId === 'object' ? fee.admissionSessionId?.id : fee.admissionSessionId;
@@ -253,20 +325,42 @@ const fetchAllData = useCallback(async () => {
     if (typeof parsedBreakdown === 'string') {
       try { parsedBreakdown = JSON.parse(parsedBreakdown); } catch (e) { parsedBreakdown = []; }
     }
+
+    let yearly: any[] = [];
+    let semester: any[] = [];
+
     if (Array.isArray(parsedBreakdown) && parsedBreakdown.length > 0) {
-       parsedBreakdown = parsedBreakdown.map((b: any) => ({
-         year: b.year,
-         baseFee: String(b.baseFee || '0'),
-         universityFee: String(b.universityFee || '0'),
-         examFee: String(b.examFee || '0'),
-         commissionRate: String(b.commissionRate || '0'),
-         dueDate: b.dueDate || '',
-         additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.map((f: any, i: number) => ({ id: Date.now().toString() + i, label: f.label, amount: String(f.amount) })) : []
-       }));
+      const normalized = parsedBreakdown.map((b: any) => ({
+        installmentType: b.installmentType,
+        year: b.year || b.semester || 1,
+        semester: b.semester || b.year || 1,
+        baseFee: String(b.baseFee || '0'),
+        universityFee: String(b.universityFee || '0'),
+        examFee: String(b.examFee || '0'),
+        commissionRate: String(b.commissionRate || '0'),
+        dueDate: b.dueDate || '',
+        additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.map((f: any, i: number) => ({ id: Date.now().toString() + i, label: f.label, amount: String(f.amount) })) : []
+      }));
+
+      const hasTagged = normalized.some(b => b.installmentType === 'year' || b.installmentType === 'semester');
+      if (hasTagged) {
+        yearly = normalized.filter(b => b.installmentType === 'year');
+        semester = normalized.filter(b => b.installmentType === 'semester');
+      } else {
+        if (fee.billingCycle === 'per_semester') {
+          semester = normalized.map(b => ({ ...b, installmentType: 'semester' }));
+        } else {
+          yearly = normalized.map(b => ({ ...b, installmentType: 'year' }));
+        }
+      }
     }
 
     const oneTimeFeeObj = fee.additionalFees?.find(f => f.label.toLowerCase() === 'one time payment' || f.label.toLowerCase() === 'registration fee' || f.label.toLowerCase() === 'admission fee');
     const filteredOtherFees = fee.additionalFees?.filter(f => f !== oneTimeFeeObj) || [];
+
+    const hasOneTime = Number(fee.fullProgramFee || 0) > 0 || fee.billingCycle === 'one_time' || Number(fee.oneTimeUniversityFee || 0) > 0;
+    const hasYearly = fee.billingCycle === 'both' || fee.billingCycle === 'per_year' || fee.billingCycle === 'yearly' || yearly.length > 0;
+    const hasSemester = fee.billingCycle === 'both' || fee.billingCycle === 'per_semester' || semester.length > 0;
 
     setForm({
       level: fee.level || 'program',
@@ -274,17 +368,20 @@ const fetchAllData = useCallback(async () => {
       universityId: uniId || '',
       admissionSessionId: sessId || '',
       specialisation: fee.specialisation || '',
-      billingCycle: fee.billingCycle || 'per_year',
+      billingCycle: fee.billingCycle || 'both',
       currency: fee.currency || 'INR',
       effectiveFrom: fee.effectiveFrom ? fee.effectiveFrom.slice(0, 10) : '',
-      baseFee: fee.baseFee || 0,
-      fullProgramFee: fee.fullProgramFee || 0,
-      oneTimeFee: oneTimeFeeObj ? oneTimeFeeObj.amount : 0,
-      oneTimeUniversityFee: fee.oneTimeUniversityFee || 0,
-      oneTimeCommission: fee.oneTimeCommission || 0,
-      commissionRate: fee.commissionRate !== undefined ? String(fee.commissionRate) : '0',
+      enableOneTime: hasOneTime || (!hasYearly && !hasSemester),
+      enableYearly: hasYearly,
+      enableSemester: hasSemester,
+      yearlyBreakdown: yearly,
+      semesterBreakdown: semester,
+      baseFee: String(fee.baseFee || '0'),
+      fullProgramFee: String(fee.fullProgramFee || '0'),
+      oneTimeFee: String(oneTimeFeeObj ? oneTimeFeeObj.amount : '0'),
+      oneTimeUniversityFee: String(fee.oneTimeUniversityFee || '0'),
+      oneTimeCommission: String(fee.oneTimeCommission || '0'),
       additionalFees: filteredOtherFees.map((f: any, i: number) => ({ id: Date.now().toString() + i, label: f.label, amount: String(f.amount) })),
-      feeBreakdown: parsedBreakdown
     });
     setOpen(true);
   };
@@ -301,8 +398,18 @@ const fetchAllData = useCallback(async () => {
         return;
       }
 
+      if (!form.enableOneTime && !form.enableYearly && !form.enableSemester) {
+        toast.error('Please enable at least one payment mode (One-Time, Yearly, or Semester)');
+        return;
+      }
+
+      if (form.enableOneTime && Number(form.fullProgramFee || 0) <= 0) {
+        toast.error('Please specify a valid full program payment amount for One-Time payment');
+        return;
+      }
+
       const addFees = [];
-      if (Number(form.oneTimeFee) > 0) {
+      if (form.enableOneTime && Number(form.oneTimeFee) > 0) {
         addFees.push({ label: 'One Time Payment', amount: Number(form.oneTimeFee) });
       }
       if (form.additionalFees && form.additionalFees.length > 0) {
@@ -310,24 +417,57 @@ const fetchAllData = useCallback(async () => {
         addFees.push(...custom);
       }
       
+      const cleanBreakdown: any[] = [];
       let totalBaseFee = 0;
       let totalUniversityFee = 0;
       let aggregatedCommissionRate = 0;
-      
-      const cleanBreakdown = form.feeBreakdown.map(b => {
-         totalBaseFee += Number(b.baseFee || 0);
-         totalUniversityFee += Number(b.universityFee || 0);
-         if (Number(b.commissionRate || 0) > 0) aggregatedCommissionRate = Number(b.commissionRate);
-         return {
-           year: b.year,
-           baseFee: Number(b.baseFee || 0),
-           universityFee: Number(b.universityFee || 0),
-           examFee: Number(b.examFee || 0),
-           commissionRate: Number(b.commissionRate || 0),
-           dueDate: b.dueDate,
-           additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.filter((f: any) => f.label.trim() && !isNaN(Number(f.amount))).map((f: any) => ({ label: f.label.trim(), amount: Number(f.amount) })) : []
-         };
-      });
+
+      if (form.enableYearly) {
+        form.yearlyBreakdown.forEach((b, idx) => {
+          totalBaseFee += Number(b.baseFee || 0);
+          totalUniversityFee += Number(b.universityFee || 0);
+          if (Number(b.commissionRate || 0) > 0 && aggregatedCommissionRate === 0) aggregatedCommissionRate = Number(b.commissionRate);
+          cleanBreakdown.push({
+            installmentType: 'year',
+            year: idx + 1,
+            baseFee: Number(b.baseFee || 0),
+            universityFee: Number(b.universityFee || 0),
+            examFee: Number(b.examFee || 0),
+            commissionRate: Number(b.commissionRate || 0),
+            dueDate: b.dueDate || '',
+            additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.filter((f: any) => f.label.trim() && !isNaN(Number(f.amount))).map((f: any) => ({ label: f.label.trim(), amount: Number(f.amount) })) : []
+          });
+        });
+      }
+
+      if (form.enableSemester) {
+        form.semesterBreakdown.forEach((b, idx) => {
+          if (!form.enableYearly) {
+            totalBaseFee += Number(b.baseFee || 0);
+            totalUniversityFee += Number(b.universityFee || 0);
+          }
+          if (Number(b.commissionRate || 0) > 0 && aggregatedCommissionRate === 0) aggregatedCommissionRate = Number(b.commissionRate);
+          cleanBreakdown.push({
+            installmentType: 'semester',
+            year: idx + 1,
+            semester: idx + 1,
+            baseFee: Number(b.baseFee || 0),
+            universityFee: Number(b.universityFee || 0),
+            examFee: Number(b.examFee || 0),
+            commissionRate: Number(b.commissionRate || 0),
+            dueDate: b.dueDate || '',
+            additionalFees: Array.isArray(b.additionalFees) ? b.additionalFees.filter((f: any) => f.label.trim() && !isNaN(Number(f.amount))).map((f: any) => ({ label: f.label.trim(), amount: Number(f.amount) })) : []
+          });
+        });
+      }
+
+      const cycle = form.enableYearly && form.enableSemester
+        ? 'both'
+        : form.enableYearly
+        ? 'per_year'
+        : form.enableSemester
+        ? 'per_semester'
+        : 'one_time';
 
       const cleanSessionId = !form.admissionSessionId || form.admissionSessionId === '__none__' || form.admissionSessionId === 'none' ? null : form.admissionSessionId;
       const cleanUniId = !form.universityId || form.universityId === '__none__' ? null : form.universityId;
@@ -340,17 +480,17 @@ const fetchAllData = useCallback(async () => {
         universityId: cleanUniId,
         admissionSessionId: cleanSessionId,
         specialisation: cleanSpec,
-        baseFee: totalBaseFee,
-        fullProgramFee: Number(form.fullProgramFee || 0),
-        oneTimeUniversityFee: Number(form.oneTimeUniversityFee || 0),
-        oneTimeCommission: Number(form.oneTimeCommission || 0),
-        universityFee: totalUniversityFee,
-        billingCycle: form.billingCycle,
+        baseFee: totalBaseFee > 0 ? totalBaseFee : Number(form.fullProgramFee || 0),
+        fullProgramFee: form.enableOneTime ? Number(form.fullProgramFee || 0) : 0,
+        oneTimeUniversityFee: form.enableOneTime ? Number(form.oneTimeUniversityFee || 0) : 0,
+        oneTimeCommission: form.enableOneTime ? Number(form.oneTimeCommission || 0) : 0,
+        universityFee: totalUniversityFee > 0 ? totalUniversityFee : (form.enableOneTime ? Number(form.oneTimeUniversityFee || 0) : 0),
+        billingCycle: cycle,
         currency: form.currency,
         effectiveFrom: form.effectiveFrom || "",
         additionalFees: addFees,
         feeBreakdown: cleanBreakdown,
-        commissionRate: aggregatedCommissionRate > 0 ? aggregatedCommissionRate : Number(form.commissionRate || 0),
+        commissionRate: aggregatedCommissionRate,
       };
 
       if (editing) {
@@ -494,7 +634,17 @@ const fetchAllData = useCallback(async () => {
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className="text-xs bg-indigo-50">{fee.level.toUpperCase()}</Badge>
-                            <Badge variant="outline" className="text-xs">{fee.billingCycle?.replace('_', ' ')}</Badge>
+                            {fee.billingCycle === 'both' ? (
+                              <>
+                                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200 font-medium">Yearly</Badge>
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 font-medium">Semester</Badge>
+                              </>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">{fee.billingCycle?.replace('_', ' ')}</Badge>
+                            )}
+                            {Number(fee.fullProgramFee || 0) > 0 && (
+                              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">One-Time</Badge>
+                            )}
                             {sess && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-none text-xs">{sess}</Badge>}
                             {fee.specialisation && <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border-none text-xs">{fee.specialisation}</Badge>}
                           </div>
@@ -538,9 +688,15 @@ const fetchAllData = useCallback(async () => {
                           
                           {fee.feeBreakdown && fee.feeBreakdown.length > 0 && (
                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {fee.feeBreakdown.map((b: any, idx: number) => (
-                                <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
-                                  <div className="font-semibold mb-1">{fee.billingCycle === 'per_semester' ? 'Sem' : 'Year'} {b.year}</div>
+                              {fee.feeBreakdown.map((b: any, idx: number) => {
+                                const isSem = b.installmentType === 'semester' || (fee.billingCycle === 'per_semester' && !b.installmentType);
+                                return (
+                                  <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
+                                    <div className="font-semibold mb-1 flex items-center justify-between">
+                                      <span className={isSem ? 'text-blue-700 font-medium' : 'text-purple-700 font-medium'}>
+                                        {isSem ? `Semester ${b.year || b.semester || idx + 1}` : `Year ${b.year || idx + 1}`}
+                                      </span>
+                                    </div>
                                   <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
                                     <span>Tui: {b.baseFee}</span>
                                     <span>Uni: {b.universityFee}</span>
@@ -554,9 +710,10 @@ const fetchAllData = useCallback(async () => {
                                         ))}
                                       </div>
                                     )}
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -753,115 +910,266 @@ const fetchAllData = useCallback(async () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label>Level <span className="text-destructive">*</span></Label>
-                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} disabled>
-                        <option value="program">Program</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label>Billing Cycle (Installment Type) <span className="text-destructive">*</span></Label>
-                      <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={form.billingCycle} onChange={(e) => setForm({...form, billingCycle: e.target.value})}>
-                        <option value="per_year">Per Year</option>
-                        <option value="per_semester">Per Semester</option>
-                      </select>
-                    </div>
+                  <div className="space-y-1">
+                    <Label>Level <span className="text-destructive">*</span></Label>
+                    <select className="w-full border rounded-md px-3 py-2 text-sm bg-background max-w-xs" value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} disabled>
+                      <option value="program">Program</option>
+                    </select>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-1">
-                      <Label>Full Payment Amount (One-Time) <span className="text-destructive">*</span></Label>
-                      <p className="text-xs text-muted-foreground">Amount if student pays entire program upfront</p>
-                      <Input type="number" min="0" required value={form.fullProgramFee} onChange={(e) => setForm({...form, fullProgramFee: e.target.value})} />
+                  {/* Payment Mode Selection Cards */}
+                  <div className="space-y-2 border-t pt-4">
+                    <div>
+                      <Label className="text-base font-semibold text-slate-900">Allowed Payment Modes <span className="text-destructive">*</span></Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Select all payment options permitted for this program. You can enable One-Time, Yearly, and Semester all together, or exclude any mode.
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label>One Time University Fee <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                      <Input type="number" min="0" value={(form as any).oneTimeUniversityFee} onChange={(e) => setForm({...form, oneTimeUniversityFee: e.target.value} as any)} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>One Time Commission <span className="text-muted-foreground text-xs">(optional, %)</span></Label>
-                      <Input type="number" min="0" max="100" value={(form as any).oneTimeCommission} onChange={(e) => setForm({...form, oneTimeCommission: e.target.value} as any)} />
-                    </div>
-                  </div>
-
-                  {/* One-Time Additional Fees */}
-                  <div className="col-span-full bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <Label className="text-sm font-semibold mb-3 block text-slate-800 dark:text-slate-200">Additional One-Time Fees <span className="text-xs font-normal text-muted-foreground">(optional — charged once at enrollment)</span></Label>
-                    {Array.isArray(form.additionalFees) && form.additionalFees.map((fee, idx) => (
-                      <div key={fee.id} className="flex gap-4 mb-3 items-center">
-                        <Input placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleAdditionalFeeChange(idx, 'label', e.target.value)} className="flex-1 bg-white" />
-                        <Input type="number" placeholder="Amount" value={fee.amount} onChange={e => handleAdditionalFeeChange(idx, 'amount', e.target.value)} className="w-32 bg-white" />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeAdditionalFee(idx)} className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                      {/* One-Time Card */}
+                      <div 
+                        onClick={() => setForm(f => ({ ...f, enableOneTime: !f.enableOneTime }))}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all flex flex-col justify-between ${form.enableOneTime ? 'border-emerald-500 bg-emerald-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 opacity-60'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              checked={form.enableOneTime} 
+                              onChange={(e) => setForm(f => ({ ...f, enableOneTime: e.target.checked }))} 
+                              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                              onClick={(e) => e.stopPropagation()} 
+                            />
+                            One-Time Payment
+                          </span>
+                          <Badge variant={form.enableOneTime ? "default" : "outline"} className={form.enableOneTime ? "bg-emerald-600 text-white" : ""}>
+                            {form.enableOneTime ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Complete program payment upfront.</p>
                       </div>
-                    ))}
-                    <Button type="button" variant="outline" size="sm" onClick={addAdditionalFee} className="mt-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50 bg-white">
-                      <Plus className="w-4 h-4 mr-2" /> Add One-Time Fee
-                    </Button>
-                  </div>
 
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <Label className="text-base font-semibold">Installment Breakdown ({form.billingCycle === 'per_semester' ? 'Semester-wise' : 'Year-wise'})</Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">Configure per-installment fees. Auto-generated based on program duration.</p>
+                      {/* Yearly Card */}
+                      <div 
+                        onClick={() => setForm(f => ({ ...f, enableYearly: !f.enableYearly }))}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all flex flex-col justify-between ${form.enableYearly ? 'border-purple-500 bg-purple-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 opacity-60'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              checked={form.enableYearly} 
+                              onChange={(e) => setForm(f => ({ ...f, enableYearly: e.target.checked }))} 
+                              className="w-4 h-4 accent-purple-600 rounded cursor-pointer"
+                              onClick={(e) => e.stopPropagation()} 
+                            />
+                            Yearly Installment
+                          </span>
+                          <Badge variant={form.enableYearly ? "default" : "outline"} className={form.enableYearly ? "bg-purple-600 text-white" : ""}>
+                            {form.enableYearly ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Per-year payment schedule.</p>
+                      </div>
+
+                      {/* Semester Card */}
+                      <div 
+                        onClick={() => setForm(f => ({ ...f, enableSemester: !f.enableSemester }))}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all flex flex-col justify-between ${form.enableSemester ? 'border-blue-500 bg-blue-50/40 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 opacity-60'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              checked={form.enableSemester} 
+                              onChange={(e) => setForm(f => ({ ...f, enableSemester: e.target.checked }))} 
+                              className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                              onClick={(e) => e.stopPropagation()} 
+                            />
+                            Semester Installment
+                          </span>
+                          <Badge variant={form.enableSemester ? "default" : "outline"} className={form.enableSemester ? "bg-blue-600 text-white" : ""}>
+                            {form.enableSemester ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Per-semester payment schedule.</p>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      {form.feeBreakdown.map((b, idx) => (
-                        <div key={idx} className="p-3 border rounded-md bg-slate-50 relative group">
-                          <div className="w-full font-medium text-sm text-indigo-900 border-b pb-1 mb-3">{form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year}</div>
-                          <div className="flex flex-wrap items-end gap-2">
-                            <div className="flex-1 min-w-[120px] space-y-1">
-                              <Label className="text-xs">Tuition Fee</Label>
-                              <Input type="number" value={b.baseFee} onChange={(e) => handleBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
-                            </div>
-                            <div className="flex-1 min-w-[120px] space-y-1">
-                              <Label className="text-xs">University Fee</Label>
-                              <Input type="number" value={b.universityFee} onChange={(e) => handleBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
-                            </div>
-                            <div className="flex-1 min-w-[120px] space-y-1">
-                              <Label className="text-xs">Exam Fee</Label>
-                              <Input type="number" value={b.examFee} onChange={(e) => handleBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
-                            </div>
-                            <div className="flex-1 min-w-[120px] space-y-1">
-                              <Label className="text-xs">Commission Rate (%)</Label>
-                              <Input type="number" value={b.commissionRate} onChange={(e) => handleBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
-                            </div>
-                            <div className="flex-1 min-w-[130px] space-y-1">
-                              <Label className="text-xs">Due Date</Label>
-                              <Input type="date" value={b.dueDate ? String(b.dueDate).slice(0,10) : ''} onChange={(e) => handleBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
-                            </div>
-                          </div>
+                  </div>
 
-                          {/* Per-installment additional fees */}
-                          <div className="mt-3 bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 block">
-                              Additional Fees for {form.billingCycle === 'per_semester' ? 'Semester' : 'Year'} {b.year} <span className="font-normal text-muted-foreground">(optional)</span>
-                            </Label>
-                            {Array.isArray(b.additionalFees) && b.additionalFees.map((fee: any, fIdx: number) => (
-                              <div key={fee.id} className="flex gap-3 mb-2 items-center">
-                                <Input className="h-8 text-sm flex-1" placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleBreakdownAdditionalFeeChange(idx, fIdx, 'label', e.target.value)} />
-                                <Input className="h-8 text-sm w-32" type="number" placeholder="Amount" value={fee.amount} onChange={e => handleBreakdownAdditionalFeeChange(idx, fIdx, 'amount', e.target.value)} />
-                                <Button type="button" variant="ghost" size="sm" onClick={() => removeBreakdownAdditionalFee(idx, fIdx)} className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button type="button" variant="ghost" size="sm" onClick={() => addBreakdownAdditionalFee(idx)} className="h-8 text-xs text-indigo-600 hover:bg-indigo-50 mt-1">
-                              <Plus className="w-3 h-3 mr-1" /> Add Installment Fee
+                  {/* ONE-TIME CONFIGURATION SECTION */}
+                  {form.enableOneTime && (
+                    <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-4">
+                      <div className="flex items-center gap-2 border-b border-emerald-200/60 pb-2">
+                        <Badge className="bg-emerald-600 text-white">One-Time (Full Program) Details</Badge>
+                        <span className="text-xs text-emerald-800 font-medium">Configure upfront fee and one-time components</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label>Full Payment Amount (One-Time) <span className="text-destructive">*</span></Label>
+                          <p className="text-xs text-muted-foreground">Amount if student pays entire program upfront</p>
+                          <Input type="number" min="0" required={form.enableOneTime} value={form.fullProgramFee} onChange={(e) => setForm({...form, fullProgramFee: e.target.value})} className="bg-white" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>One Time University Fee <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                          <p className="text-xs text-muted-foreground">University share for full payment</p>
+                          <Input type="number" min="0" value={form.oneTimeUniversityFee} onChange={(e) => setForm({...form, oneTimeUniversityFee: e.target.value})} className="bg-white" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>One Time Commission (%) <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                          <p className="text-xs text-muted-foreground">Center commission on full payment</p>
+                          <Input type="number" min="0" max="100" value={form.oneTimeCommission} onChange={(e) => setForm({...form, oneTimeCommission: e.target.value})} className="bg-white" />
+                        </div>
+                      </div>
+
+                      {/* One-Time Additional Fees */}
+                      <div className="bg-white p-3.5 rounded-lg border border-emerald-200/60">
+                        <Label className="text-xs font-semibold mb-2 block text-slate-800">Additional One-Time Fees <span className="text-xs font-normal text-muted-foreground">(optional — charged once at enrollment)</span></Label>
+                        {Array.isArray(form.additionalFees) && form.additionalFees.map((fee, idx) => (
+                          <div key={fee.id} className="flex gap-3 mb-2 items-center">
+                            <Input placeholder="Fee Name (e.g. Admission / Lab Fee)" value={fee.label} onChange={e => handleAdditionalFeeChange(idx, 'label', e.target.value)} className="flex-1 bg-white h-8 text-sm" />
+                            <Input type="number" placeholder="Amount" value={fee.amount} onChange={e => handleAdditionalFeeChange(idx, 'amount', e.target.value)} className="w-32 bg-white h-8 text-sm" />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeAdditionalFee(idx)} className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0 h-8 w-8">
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={addAdditionalFee} className="mt-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 bg-white h-8 text-xs">
+                          <Plus className="w-3.5 h-3.5 mr-1" /> Add One-Time Fee
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* YEAR-WISE INSTALLMENT SCHEDULE SECTION */}
+                  {form.enableYearly && (
+                    <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/20 space-y-4">
+                      <div className="flex items-center justify-between border-b border-purple-200/60 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-600 text-white">Year-Wise Installment Schedule</Badge>
+                          <span className="text-xs text-purple-800 font-medium">({form.yearlyBreakdown.length} Annual Installments)</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {form.yearlyBreakdown.map((b, idx) => (
+                          <div key={idx} className="p-3.5 border rounded-lg bg-white relative shadow-sm">
+                            <div className="w-full font-semibold text-sm text-purple-900 border-b pb-1.5 mb-3 flex items-center justify-between">
+                              <span>Year {b.year}</span>
+                              <span className="text-xs text-muted-foreground font-normal">Annual Installment #{idx + 1}</span>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-2.5">
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Tuition Fee</Label>
+                                <Input type="number" value={b.baseFee} onChange={(e) => handleYearlyBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">University Fee</Label>
+                                <Input type="number" value={b.universityFee} onChange={(e) => handleYearlyBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Exam Fee</Label>
+                                <Input type="number" value={b.examFee} onChange={(e) => handleYearlyBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Commission Rate (%)</Label>
+                                <Input type="number" value={b.commissionRate} onChange={(e) => handleYearlyBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[130px] space-y-1">
+                                <Label className="text-xs">Due Date</Label>
+                                <Input type="date" value={b.dueDate ? String(b.dueDate).slice(0,10) : ''} onChange={(e) => handleYearlyBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                            </div>
+
+                            {/* Per-installment additional fees */}
+                            <div className="mt-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                              <Label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                Additional Fees for Year {b.year} <span className="font-normal text-muted-foreground">(optional)</span>
+                              </Label>
+                              {Array.isArray(b.additionalFees) && b.additionalFees.map((fee: any, fIdx: number) => (
+                                <div key={fee.id} className="flex gap-2.5 mb-1.5 items-center">
+                                  <Input className="h-7 text-xs flex-1 bg-white" placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleYearlyBreakdownAdditionalFeeChange(idx, fIdx, 'label', e.target.value)} />
+                                  <Input className="h-7 text-xs w-28 bg-white" type="number" placeholder="Amount" value={fee.amount} onChange={e => handleYearlyBreakdownAdditionalFeeChange(idx, fIdx, 'amount', e.target.value)} />
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeYearlyBreakdownAdditionalFee(idx, fIdx)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button type="button" variant="ghost" size="sm" onClick={() => addYearlyBreakdownAdditionalFee(idx)} className="h-7 text-xs text-purple-600 hover:bg-purple-50 mt-0.5">
+                                <Plus className="w-3 h-3 mr-1" /> Add Installment Fee
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SEMESTER-WISE INSTALLMENT SCHEDULE SECTION */}
+                  {form.enableSemester && (
+                    <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/20 space-y-4">
+                      <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-blue-600 text-white">Semester-Wise Installment Schedule</Badge>
+                          <span className="text-xs text-blue-800 font-medium">({form.semesterBreakdown.length} Semester Installments)</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {form.semesterBreakdown.map((b, idx) => (
+                          <div key={idx} className="p-3.5 border rounded-lg bg-white relative shadow-sm">
+                            <div className="w-full font-semibold text-sm text-blue-900 border-b pb-1.5 mb-3 flex items-center justify-between">
+                              <span>Semester {b.year}</span>
+                              <span className="text-xs text-muted-foreground font-normal">Semester Installment #{idx + 1}</span>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-2.5">
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Tuition Fee</Label>
+                                <Input type="number" value={b.baseFee} onChange={(e) => handleSemesterBreakdownChange(idx, 'baseFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">University Fee</Label>
+                                <Input type="number" value={b.universityFee} onChange={(e) => handleSemesterBreakdownChange(idx, 'universityFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Exam Fee</Label>
+                                <Input type="number" value={b.examFee} onChange={(e) => handleSemesterBreakdownChange(idx, 'examFee', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[120px] space-y-1">
+                                <Label className="text-xs">Commission Rate (%)</Label>
+                                <Input type="number" value={b.commissionRate} onChange={(e) => handleSemesterBreakdownChange(idx, 'commissionRate', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                              <div className="flex-1 min-w-[130px] space-y-1">
+                                <Label className="text-xs">Due Date</Label>
+                                <Input type="date" value={b.dueDate ? String(b.dueDate).slice(0,10) : ''} onChange={(e) => handleSemesterBreakdownChange(idx, 'dueDate', e.target.value)} className="h-8 text-sm" />
+                              </div>
+                            </div>
+
+                            {/* Per-installment additional fees */}
+                            <div className="mt-3 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                              <Label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+                                Additional Fees for Semester {b.year} <span className="font-normal text-muted-foreground">(optional)</span>
+                              </Label>
+                              {Array.isArray(b.additionalFees) && b.additionalFees.map((fee: any, fIdx: number) => (
+                                <div key={fee.id} className="flex gap-2.5 mb-1.5 items-center">
+                                  <Input className="h-7 text-xs flex-1 bg-white" placeholder="Fee Name (e.g. Lab Fee)" value={fee.label} onChange={e => handleSemesterBreakdownAdditionalFeeChange(idx, fIdx, 'label', e.target.value)} />
+                                  <Input className="h-7 text-xs w-28 bg-white" type="number" placeholder="Amount" value={fee.amount} onChange={e => handleSemesterBreakdownAdditionalFeeChange(idx, fIdx, 'amount', e.target.value)} />
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeSemesterBreakdownAdditionalFee(idx, fIdx)} className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button type="button" variant="ghost" size="sm" onClick={() => addSemesterBreakdownAdditionalFee(idx)} className="h-7 text-xs text-blue-600 hover:bg-blue-50 mt-0.5">
+                                <Plus className="w-3 h-3 mr-1" /> Add Installment Fee
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={() => { setViewMode('list'); resetForm(); }}>Cancel</Button>

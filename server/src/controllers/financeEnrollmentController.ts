@@ -248,8 +248,10 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
   if (commRateForCheck > 0 || hasBreakdownCommRate || isDirectToUni) {
     let expectedAmount = 0;
     
-    if (dbEnrollment.paymentMethod === 'installment' && breakdownsArray.length > 0) {
-      const b = breakdownsArray[0];
+    const isInstallment = ['yearly', 'semester', 'installment'].includes(dbEnrollment.paymentMethod);
+    if (isInstallment && breakdownsArray.length > 0) {
+      const targetType = dbEnrollment.paymentMethod === 'semester' ? 'semester' : 'year';
+      const b = breakdownsArray.find((item: any) => item.installmentType === targetType) || breakdownsArray[0];
       const bCommRate = Number(b.commissionRate || feeStructure.commissionRate || 0);
       const bUni = Number(b.universityFee || 0);
       
@@ -257,10 +259,12 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
         expectedAmount = (bUni * bCommRate) / 100;
       }
     } else if (dbEnrollment.paymentMethod === 'full_payment' && breakdownsArray.length > 0) {
-      let totalUniFee = breakdownsArray.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
+      const yearBreakdowns = breakdownsArray.filter((b: any) => b.installmentType === 'year');
+      const blocks = yearBreakdowns.length > 0 ? yearBreakdowns : breakdownsArray;
+      let totalUniFee = blocks.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
       let commRate = Number(feeStructure.commissionRate || 0);
-      if (commRate === 0 && breakdownsArray[0].commissionRate) {
-        commRate = Number(breakdownsArray[0].commissionRate);
+      if (commRate === 0 && blocks[0]?.commissionRate) {
+        commRate = Number(blocks[0].commissionRate);
       }
       if (commRate > 0) {
         expectedAmount = (totalUniFee * commRate) / 100;
@@ -308,18 +312,23 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
 
       if (existing.length === 0) {
         const breakdown = (feeStructure.feeBreakdown as any[]) || [];
-        const isSemester = feeStructure.billingCycle === 'per_semester';
         const oneTimeUniFee = Number((feeStructure as any).oneTimeUniversityFee || 0);
-        const isInstallment = dbEnrollment.paymentMethod === 'installment';
+        const isInstallment = ['yearly', 'semester', 'installment'].includes(dbEnrollment.paymentMethod);
 
         if (isInstallment) {
           // INSTALLMENT: Create ALL semester/year rows, but lock subsequent ones
-          if (breakdown.length > 0) {
-            const paymentsToCreate = breakdown.map((cycle: any, index: number) => ({
+          const targetType = dbEnrollment.paymentMethod === 'semester' ? 'semester' : 'year';
+          let filteredBreakdown = breakdown.filter((b: any) => b.installmentType === targetType);
+          if (filteredBreakdown.length === 0) filteredBreakdown = breakdown; // fallback if untagged
+
+          const isSemester = dbEnrollment.paymentMethod === 'semester' || feeStructure.billingCycle === 'per_semester';
+
+          if (filteredBreakdown.length > 0) {
+            const paymentsToCreate = filteredBreakdown.map((cycle: any, index: number) => ({
               organizationId: req.user.organizationId,
               studentId: enrollment.studentId!,
               enrollmentId: enrollment.id,
-              semesterOrYear: isSemester ? `Semester ${index + 1}` : `Year ${index + 1}`,
+              semesterOrYear: isSemester ? `Semester ${cycle.year || cycle.semester || index + 1}` : `Year ${cycle.year || index + 1}`,
               amount: Number(cycle.universityFee || 0),
               status: index === 0 ? 'pending' : 'locked'
             }));

@@ -481,6 +481,22 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
     }
   }
 
+  const enrollmentMethod = enrollment?.paymentMethod || 'installment';
+  if (enrollmentMethod === 'semester') {
+    const semBlocks = breakdownArray.filter(b => b.installmentType === 'semester');
+    if (semBlocks.length > 0) breakdownArray = semBlocks;
+    cycleLabel = 'Semester';
+  } else {
+    // 'yearly' or 'installment'
+    const yearBlocks = breakdownArray.filter(b => b.installmentType === 'year');
+    if (yearBlocks.length > 0) breakdownArray = yearBlocks;
+    if (billingCycle === 'per_semester' && yearBlocks.length === 0) {
+      cycleLabel = 'Semester';
+    } else {
+      cycleLabel = 'Year';
+    }
+  }
+
   // If breakdown is properly configured, use it
   if (breakdownArray.length > 0) {
     totalCycles = breakdownArray.length;

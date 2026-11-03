@@ -430,18 +430,33 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           if (fullFee > 0) {
             grossFee = fullFee + additionalFeesTotal;
           } else {
-            const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
-            const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+            const yearBreakdowns = breakdowns.filter((b: any) => b.installmentType === 'year');
+            const blocks = yearBreakdowns.length > 0 ? yearBreakdowns : breakdowns;
+            const examFees = blocks.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+            const baseFees = blocks.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
             grossFee = baseFees + examFees + additionalFeesTotal;
           }
-        } else {
-          const b = breakdowns[0];
+          const oneTimeComm = Number((feeStructure as any).oneTimeCommission || 0);
+          if (oneTimeComm > 0) commRate = oneTimeComm;
+        } else if (paymentMethod === 'semester') {
+          const b = breakdowns.find((item: any) => item.installmentType === 'semester') || breakdowns[0];
           let sem1AdditionalFees = 0;
-          if (Array.isArray(b.additionalFees)) {
+          if (Array.isArray(b?.additionalFees)) {
             sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
           }
-          grossFee = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees;
-          if (b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+          grossFee = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + sem1AdditionalFees;
+          if (b && b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+            commRate = Number(b.commissionRate);
+          }
+        } else {
+          // 'yearly' or legacy 'installment'
+          const b = breakdowns.find((item: any) => item.installmentType === 'year') || breakdowns[0];
+          let year1AdditionalFees = 0;
+          if (Array.isArray(b?.additionalFees)) {
+            year1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
+          }
+          grossFee = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + year1AdditionalFees;
+          if (b && b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
             commRate = Number(b.commissionRate);
           }
         }
@@ -704,18 +719,33 @@ export const updateEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
           if (fullFee > 0) {
             grossFee = fullFee + additionalFeesTotal;
           } else {
-            const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
-            const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+            const yearBreakdowns = breakdowns.filter((b: any) => b.installmentType === 'year');
+            const blocks = yearBreakdowns.length > 0 ? yearBreakdowns : breakdowns;
+            const examFees = blocks.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+            const baseFees = blocks.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
             grossFee = baseFees + examFees + additionalFeesTotal;
           }
-        } else {
-          const b = breakdowns[0];
+          const oneTimeComm = Number((feeStructure as any).oneTimeCommission || 0);
+          if (oneTimeComm > 0) commRate = oneTimeComm;
+        } else if (paymentMethod === 'semester') {
+          const b = breakdowns.find((item: any) => item.installmentType === 'semester') || breakdowns[0];
           let sem1AdditionalFees = 0;
-          if (Array.isArray(b.additionalFees)) {
+          if (Array.isArray(b?.additionalFees)) {
             sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
           }
-          grossFee = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees;
-          if (b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+          grossFee = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + sem1AdditionalFees;
+          if (b && b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
+            commRate = Number(b.commissionRate);
+          }
+        } else {
+          // 'yearly' or legacy 'installment'
+          const b = breakdowns.find((item: any) => item.installmentType === 'year') || breakdowns[0];
+          let year1AdditionalFees = 0;
+          if (Array.isArray(b?.additionalFees)) {
+            year1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
+          }
+          grossFee = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + year1AdditionalFees;
+          if (b && b.commissionRate !== undefined && b.commissionRate !== null && b.commissionRate !== '') {
             commRate = Number(b.commissionRate);
           }
         }

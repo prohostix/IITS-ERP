@@ -204,7 +204,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
   // Dynamic lists for documents and education details
   const [educationList, setEducationList] = useState<EducationDetail[]>([]);
   const [documentList, setDocumentList] = useState<DocumentFile[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'installment' | 'full_payment'>('installment');
+  const [paymentMethod, setPaymentMethod] = useState<'installment' | 'full_payment' | 'yearly' | 'semester'>('installment');
 
   // Fixed 3 structured levels for educational details
   const [academicDetails, setAcademicDetails] = useState<StructuredAcademicDetails>(emptyAcademicDetails);
@@ -373,38 +373,43 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     if (typeof breakdowns === 'string') {
       try { breakdowns = JSON.parse(breakdowns); } catch (e) { breakdowns = []; }
     }
+    if (!Array.isArray(breakdowns)) breakdowns = [];
     
+    const yearBreakdowns = breakdowns.filter((b: any) => b.installmentType === 'year' || (!b.installmentType && fs?.billingCycle !== 'per_semester'));
+    const semBreakdowns = breakdowns.filter((b: any) => b.installmentType === 'semester' || (!b.installmentType && fs?.billingCycle === 'per_semester'));
+
     const addFees = Array.isArray(fs.additionalFees) ? fs.additionalFees : [];
     const nonGstFees = addFees.filter(f => f.label !== 'GST');
     const additionalFeesTotal = nonGstFees.reduce((s, f) => s + f.amount, 0);
 
     const method = pm || paymentMethod;
 
-    if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
-      if (method === 'full_payment') {
-        // Full payment: use fullProgramFee + ONE-TIME additional fees only
-        // Per-installment fees are NOT added here (they are part of the installment schedule)
-        const fullFee = Number((fs as any).fullProgramFee || 0);
-        if (fullFee > 0) {
-          subtotal = fullFee + additionalFeesTotal; // one-time fees only
-        } else {
-          // fallback: sum all installment base+exam fees + one-time fees
-          const examFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
-          const baseFees = breakdowns.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
-          subtotal = baseFees + examFees + additionalFeesTotal; // one-time fees only
-        }
+    if (method === 'full_payment') {
+      // Full payment: use fullProgramFee + ONE-TIME additional fees only
+      const fullFee = Number((fs as any).fullProgramFee || 0);
+      if (fullFee > 0) {
+        subtotal = fullFee + additionalFeesTotal;
       } else {
-        // Installment: first breakdown fees + INSTALLMENT-SPECIFIC additional fees only
-        // One-time additional fees are NOT added to installments
-        const b = breakdowns[0];
-        let sem1AdditionalFees = 0;
-        if (Array.isArray(b.additionalFees)) {
-          sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
-        }
-        subtotal = Number(b.baseFee || 0) + Number(b.examFee || 0) + sem1AdditionalFees; // no one-time fees
+        const blocks = yearBreakdowns.length > 0 ? yearBreakdowns : semBreakdowns.length > 0 ? semBreakdowns : breakdowns;
+        const examFees = blocks.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+        const baseFees = blocks.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+        subtotal = baseFees + examFees + additionalFeesTotal;
       }
+    } else if (method === 'semester') {
+      const b = semBreakdowns[0] || breakdowns.find((b: any) => b.installmentType === 'semester') || breakdowns[0];
+      let sem1AdditionalFees = 0;
+      if (b && Array.isArray(b.additionalFees)) {
+        sem1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+      }
+      subtotal = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + sem1AdditionalFees;
     } else {
-      subtotal = fs.baseFee + additionalFeesTotal;
+      // 'yearly' or legacy 'installment'
+      const b = yearBreakdowns[0] || breakdowns.find((b: any) => b.installmentType === 'year') || breakdowns[0];
+      let year1AdditionalFees = 0;
+      if (b && Array.isArray(b.additionalFees)) {
+        year1AdditionalFees = b.additionalFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+      }
+      subtotal = Number(b?.baseFee || 0) + Number(b?.examFee || 0) + year1AdditionalFees;
     }
 
     const gstEntry = addFees.find(f => f.label === 'GST');
@@ -412,7 +417,6 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     
     return subtotal + gstAmount;
   };
-
 
   const getBillingCycleText = (p: Program) => {
     if (!p.programFeeStructure || p.programFeeStructure.length === 0) return '';
@@ -427,9 +431,10 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
     
     if (!fs) return '';
     const cycle = fs.billingCycle;
+    if (cycle === 'both') return ' / installment';
     if (cycle === 'per_year') return ' / year';
     if (cycle === 'per_semester') return ' / sem';
-    if (cycle === 'full_program') return ' / program';
+    if (cycle === 'one_time') return ' / program';
     return ` / ${cycle}`;
   };
 
@@ -1093,54 +1098,110 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
               </div>
               
               {/* Fee Summary Panel */}
-              {selectedProgram && selectedSessionId && (
-                <div className="mt-6 flex flex-col gap-4">
-                  <div className="p-4 border rounded-xl shadow-sm bg-slate-50 dark:bg-slate-900/50">
-                    <h4 className="text-sm font-semibold mb-3">Select Payment Method</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div 
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'full_payment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}
-                        onClick={() => setPaymentMethod('full_payment')}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <input type="radio" checked={paymentMethod === 'full_payment'} onChange={() => setPaymentMethod('full_payment')} className="accent-primary" />
-                          <span className="font-semibold text-sm">Full Payment (One-Time)</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-5">Pay entire program fee upfront.</p>
-                        <p className="text-sm font-bold text-emerald-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'full_payment').toLocaleString()}</p>
-                      </div>
-                      <div 
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'installment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700'}`}
-                        onClick={() => setPaymentMethod('installment')}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <input type="radio" checked={paymentMethod === 'installment'} onChange={() => setPaymentMethod('installment')} className="accent-primary" />
-                          <span className="font-semibold text-sm">Installment ({getBillingCycleText(selectedProgram).replace('/', '').trim()})</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground ml-5">Pay first installment now, rest later.</p>
-                        <p className="text-sm font-bold text-blue-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'installment').toLocaleString()} <span className="font-normal text-xs text-muted-foreground">first installment</span></p>
-                      </div>
-                    </div>
-                  </div>
+              {selectedProgram && selectedSessionId && (() => {
+                const fs = selectedProgram.programFeeStructure?.find(
+                  f => f.level === 'program' && f.admissionSessionId === selectedSessionId && f.specialisation === form.specialisation
+                ) || selectedProgram.programFeeStructure?.find(
+                  f => f.level === 'program' && f.specialisation === form.specialisation
+                ) || selectedProgram.programFeeStructure?.find(
+                  f => f.level === 'program' && f.admissionSessionId === selectedSessionId && !f.specialisation
+                ) || selectedProgram.programFeeStructure?.find(
+                  f => f.level === 'program' && !f.specialisation
+                ) || selectedProgram.programFeeStructure?.[0];
 
-                  <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
-                    <div>
-                      <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
-                        {paymentMethod === 'full_payment' ? 'Full Payment Due' : 'First Installment Due'}
-                      </h4>
-                      <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
-                        {paymentMethod === 'full_payment' ? 'Complete program fee paid upfront.' : 'Amount due now. Remaining installments billed per schedule.'}
-                      </p>
+                let rawBreakdowns = (fs as any)?.feeBreakdown;
+                if (typeof rawBreakdowns === 'string') {
+                  try { rawBreakdowns = JSON.parse(rawBreakdowns); } catch (e) { rawBreakdowns = []; }
+                }
+                if (!Array.isArray(rawBreakdowns)) rawBreakdowns = [];
+
+                const yearBreakdowns = rawBreakdowns.filter((b: any) => b.installmentType === 'year' || (!b.installmentType && fs?.billingCycle !== 'per_semester'));
+                const semBreakdowns = rawBreakdowns.filter((b: any) => b.installmentType === 'semester' || (!b.installmentType && fs?.billingCycle === 'per_semester'));
+
+                const hasOneTime = Number(fs?.fullProgramFee || 0) > 0 || fs?.billingCycle === 'one_time';
+                const hasYearly = (fs?.billingCycle === 'both' || fs?.billingCycle === 'per_year' || fs?.billingCycle === 'yearly' || (!fs?.billingCycle && yearBreakdowns.length > 0)) && yearBreakdowns.length > 0;
+                const hasSemester = (fs?.billingCycle === 'both' || fs?.billingCycle === 'per_semester') && semBreakdowns.length > 0;
+
+                // Auto-adjust payment method if current is not available
+                const isCurrentAllowed = 
+                  (paymentMethod === 'full_payment' && hasOneTime) ||
+                  ((paymentMethod === 'yearly' || paymentMethod === 'installment') && hasYearly) ||
+                  (paymentMethod === 'semester' && hasSemester);
+
+                if (!isCurrentAllowed) {
+                  if (hasYearly) setTimeout(() => setPaymentMethod('yearly'), 0);
+                  else if (hasSemester) setTimeout(() => setPaymentMethod('semester'), 0);
+                  else if (hasOneTime) setTimeout(() => setPaymentMethod('full_payment'), 0);
+                }
+
+                return (
+                  <div className="mt-6 flex flex-col gap-4">
+                    <div className="p-4 border rounded-xl shadow-sm bg-slate-50 dark:bg-slate-900/50">
+                      <h4 className="text-sm font-semibold mb-3">Select Payment Method</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {hasOneTime && (
+                          <div 
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'full_payment' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700 bg-white'}`}
+                            onClick={() => setPaymentMethod('full_payment')}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <input type="radio" checked={paymentMethod === 'full_payment'} onChange={() => setPaymentMethod('full_payment')} className="accent-primary" />
+                              <span className="font-semibold text-sm">Full Payment (One-Time)</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-5">Pay entire program fee upfront.</p>
+                            <p className="text-sm font-bold text-emerald-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'full_payment').toLocaleString()}</p>
+                          </div>
+                        )}
+
+                        {hasYearly && (
+                          <div 
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'yearly' || (paymentMethod === 'installment' && !hasSemester) ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700 bg-white'}`}
+                            onClick={() => setPaymentMethod('yearly')}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <input type="radio" checked={paymentMethod === 'yearly' || (paymentMethod === 'installment' && !hasSemester)} onChange={() => setPaymentMethod('yearly')} className="accent-primary" />
+                              <span className="font-semibold text-sm">Yearly Installment</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-5">Pay Year 1 installment now, rest later.</p>
+                            <p className="text-sm font-bold text-purple-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'yearly').toLocaleString()} <span className="font-normal text-xs text-muted-foreground">Year 1</span></p>
+                          </div>
+                        )}
+
+                        {hasSemester && (
+                          <div 
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'semester' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-slate-300 dark:hover:border-slate-700 bg-white'}`}
+                            onClick={() => setPaymentMethod('semester')}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <input type="radio" checked={paymentMethod === 'semester'} onChange={() => setPaymentMethod('semester')} className="accent-primary" />
+                              <span className="font-semibold text-sm">Semester Installment</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-5">Pay Semester 1 installment now, rest later.</p>
+                            <p className="text-sm font-bold text-blue-700 ml-5 mt-1">₹{getTotalFee(selectedProgram, 'semester').toLocaleString()} <span className="font-normal text-xs text-muted-foreground">Semester 1</span></p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
-                      <div className="text-2xl font-black text-indigo-700">
-                        ₹{getTotalFee(selectedProgram, paymentMethod).toLocaleString()}
+
+                    <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between shadow-sm">
+                      <div>
+                        <h4 className="text-sm font-semibold text-indigo-900 flex items-center gap-1.5">
+                          {paymentMethod === 'full_payment' ? 'Full Payment Due' : paymentMethod === 'semester' ? 'Semester 1 Installment Due' : 'Year 1 Installment Due'}
+                        </h4>
+                        <p className="text-xs text-indigo-700/80 mt-0.5 max-w-md">
+                          {paymentMethod === 'full_payment' ? 'Complete program fee paid upfront.' : 'Amount due now. Remaining installments billed per schedule.'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-indigo-700/70 font-semibold uppercase tracking-wider mb-0.5">Amount to Pay</p>
+                        <div className="text-2xl font-black text-indigo-700">
+                          ₹{getTotalFee(selectedProgram, paymentMethod).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 

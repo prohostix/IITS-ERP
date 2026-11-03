@@ -244,7 +244,7 @@ export function FinanceStudentPaymentLogsPanel({ onViewLedger }: { onViewLedger?
                                   <div key={idx} className={`bg-white border rounded-xl p-4 shadow-sm ${isLocked ? 'opacity-70' : ''}`}>
                                     <div className="flex justify-between items-start mb-3">
                                       <Badge variant="secondary" className="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">
-                                        {log.program?.billingCycle === 'per_semester' ? `Semester ${b.year || idx + 1}` : `Year ${b.year || idx + 1}`}
+                                        {b.installmentType === 'semester' || log.program?.billingCycle === 'per_semester' ? `Semester ${b.year || idx + 1}` : `Year ${b.year || idx + 1}`}
                                       </Badge>
                                       {isLocked ? (
                                         <Badge variant="outline" className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-slate-200">Locked</Badge>
