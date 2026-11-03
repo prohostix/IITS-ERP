@@ -80,6 +80,12 @@ const navItems: NavItem[] = [
     roles: ['superadmin', 'org_admin', 'ceo'],
   },
   {
+    id: 'sales_users_report',
+    label: 'Sales User Report',
+    icon: TrendingUp,
+    roles: ['superadmin', 'org_admin', 'ceo'],
+  },
+  {
     id: 'departments',
     label: 'Departments',
     icon: Building,
@@ -130,6 +136,7 @@ const navItems: NavItem[] = [
       { id: 'payroll-batches', label: 'Payroll Batches', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'approvals', label: 'Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
       { id: 'center_admissions', label: 'Center Admissions', icon: GraduationCap, roles: ['finance_admin', 'ceo'] },
+      { id: 'sales_users_report', label: 'Sales User Report', icon: TrendingUp, roles: ['finance_admin', 'ceo'] },
       { id: 'leave-approvals', label: 'Leave Approvals', icon: CheckSquare, roles: ['finance_admin', 'ceo'] },
     ],
   },

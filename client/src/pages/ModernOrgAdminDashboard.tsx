@@ -19,6 +19,7 @@ import { BranchesPanel } from '@/components/panels/BranchesPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
+import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api';
@@ -71,6 +72,7 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
             <TabsTrigger value="leads" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leads</TabsTrigger>
             <TabsTrigger value="center_admissions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Centers Admissions</TabsTrigger>
             <TabsTrigger value="sales_admission_report" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Sales Admissions Report</TabsTrigger>
+            <TabsTrigger value="sales_users_report" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Sales Users Report</TabsTrigger>
           </TabsList>
         </div>
 
@@ -205,6 +207,7 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
         <TabsContent value="leads"><LeadsPanel /></TabsContent>
         <TabsContent value="center_admissions"><CentersAdmissionsPanel /></TabsContent>
         <TabsContent value="sales_admission_report"><SalesStaffAdmissionReportPanel /></TabsContent>
+        <TabsContent value="sales_users_report"><FinanceSalesUsersReportPanel /></TabsContent>
       </Tabs>
     </div>
   );

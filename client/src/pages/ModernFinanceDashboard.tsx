@@ -55,6 +55,7 @@ import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniv
 import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceReregPaymentReportPanel';
 import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
 import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
+import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -172,6 +173,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'commission_university_report': return <FinanceCommissionUniversityReportPanel />;
       case 'university_fee_report': return <FinanceUniversityFeeReportPanel />;
       case 'rereg_payment_report': return <FinanceReregPaymentReportPanel />;
+      case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
       default: return (
         <OverviewContent
           metrics={metrics} invoices={invoices} expenses={expenses}
@@ -223,6 +225,7 @@ export function getFinanceNavItems(isManager: boolean = true) {
     { id: 'tasks', label: 'Tasks' },
     { id: 'escalations', label: 'Escalations' },
     { id: '__reports_section', label: 'Reports & Analytics', isSection: true },
+    { id: 'sales_users_report', label: 'Sales User Report' },
     { id: 'commission_university_report', label: 'Commission Report (Univ)' },
     { id: 'university_fee_report', label: 'University Fee Payment Report' },
     { id: 'rereg_payment_report', label: 'Re-Registration Fee Report' },
@@ -334,8 +337,9 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
       </div>
 
       {/* Financial Ledgers & Strategic Reports Hub */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {[
+          { label: 'Sales User Report', sub: 'Staff revenue & margin', icon: <TrendingUp className="w-4 h-4 text-rose-600" />, tab: 'sales_users_report' },
           { label: 'Student Ledger', sub: 'Accounts & balances', icon: <BookOpen className="w-4 h-4 text-blue-600" />, tab: 'student_ledger' },
           { label: 'Center Ledger', sub: 'Wallet liquidity & debits', icon: <Wallet className="w-4 h-4 text-purple-600" />, tab: 'center_ledger' },
           { label: 'Univ Commission', sub: 'Expected vs received', icon: <Landmark className="w-4 h-4 text-emerald-600" />, tab: 'commission_university_report' },

@@ -1436,3 +1436,498 @@ export const addUniversityWalletTransaction = asyncHandler(async (req: AuthReque
 
   res.json({ success: true, data: result });
 });
+
+// ─── Sales Users Financial Performance Report (individual sales user breakdown) ───
+export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orgId = req.user.organizationId;
+  const { year, month, staffId, search, status, dateFrom, dateTo } = req.query as Record<string, string>;
+
+  // 1. Fetch sales staff
+  const salesUsers = await prisma.user.findMany({
+    where: {
+      organizationId: orgId,
+      status: { not: 'deleted' },
+      OR: [
+        { role: { in: ['sales_admin', 'bde', 'counselor', 'sales_sub_admin', 'sales_manager', 'sales'] } },
+        { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
+        { department: { name: { contains: 'Business', mode: 'insensitive' } } },
+      ],
+      ...(staffId && staffId !== 'all' ? { id: staffId } : {})
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      designation: true,
+      status: true,
+      createdAt: true,
+      branch: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  // Fallback: If filtered by specific staffId and not found by standard sales role/dept, look up directly
+  if (staffId && staffId !== 'all' && salesUsers.length === 0) {
+    const singleUser = await prisma.user.findFirst({
+      where: {
+        id: staffId,
+        organizationId: orgId,
+        status: { not: 'deleted' }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        designation: true,
+        status: true,
+        createdAt: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } }
+      }
+    });
+    if (singleUser) {
+      salesUsers.push(singleUser);
+    }
+  }
+
+  // If not filtered to single staff, check for any other referrers with centers or enrollments
+  if (!staffId || staffId === 'all') {
+    const [centerReferrers, enrollmentSalesUsers] = await Promise.all([
+      prisma.studyCenter.findMany({
+        where: { organizationId: orgId, referredBy: { not: null } },
+        select: { referredBy: true },
+        distinct: ['referredBy']
+      }),
+      prisma.enrollment.findMany({
+        where: { organizationId: orgId, salesUserId: { not: null } },
+        select: { salesUserId: true },
+        distinct: ['salesUserId']
+      })
+    ]);
+
+    const existingIds = new Set(salesUsers.map(u => u.id));
+    const extraUserIds = [
+      ...centerReferrers.map(c => c.referredBy).filter(Boolean),
+      ...enrollmentSalesUsers.map(e => e.salesUserId).filter(Boolean)
+    ].filter(id => !existingIds.has(id as string)) as string[];
+
+    if (extraUserIds.length > 0) {
+      const extraUsers = await prisma.user.findMany({
+        where: {
+          id: { in: extraUserIds },
+          organizationId: orgId,
+          status: { not: 'deleted' }
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          designation: true,
+          status: true,
+          createdAt: true,
+          branch: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } }
+        }
+      });
+      salesUsers.push(...extraUsers);
+    }
+  }
+
+  const allSalesUserIds = salesUsers.map(u => u.id);
+
+  // 2. Fetch all study centers referred by these sales users
+  const allCenters = await prisma.studyCenter.findMany({
+    where: {
+      organizationId: orgId,
+      referredBy: { in: allSalesUserIds }
+    },
+    include: {
+      wallet: { select: { balance: true } },
+      _count: { select: { enrollments: true, students: true } }
+    }
+  });
+
+  const centersByUserId: Record<string, any[]> = {};
+  for (const c of allCenters) {
+    if (c.referredBy) {
+      if (!centersByUserId[c.referredBy]) centersByUserId[c.referredBy] = [];
+      centersByUserId[c.referredBy].push({
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        city: c.city,
+        state: c.state,
+        status: c.status,
+        coordinatorName: c.coordinatorName,
+        contact: c.contact,
+        walletBalance: c.wallet?.balance || 0,
+        enrollmentCount: c._count?.enrollments || 0,
+        studentCount: c._count?.students || 0,
+        createdAt: c.createdAt
+      });
+    }
+  }
+
+  // 3. Build date filter
+  let dateFilter: any = null;
+  if (dateFrom || dateTo) {
+    dateFilter = {};
+    if (dateFrom && !isNaN(new Date(dateFrom).getTime())) {
+      dateFilter.gte = new Date(dateFrom);
+    }
+    if (dateTo && !isNaN(new Date(dateTo + 'T23:59:59.999Z').getTime())) {
+      dateFilter.lte = new Date(dateTo + 'T23:59:59.999Z');
+    }
+  } else if (year && year !== 'all') {
+    const yr = parseInt(year);
+    if (!isNaN(yr)) {
+      if (month && month !== 'all') {
+        const mo = parseInt(month) - 1;
+        const start = new Date(yr, mo, 1, 0, 0, 0);
+        const end = new Date(yr, mo + 1, 0, 23, 59, 59, 999);
+        dateFilter = { gte: start, lte: end };
+      } else {
+        const start = new Date(yr, 0, 1, 0, 0, 0);
+        const end = new Date(yr, 11, 31, 23, 59, 59, 999);
+        dateFilter = { gte: start, lte: end };
+      }
+    }
+  }
+
+  // 4. Fetch Enrollments
+  const allCenterIds = allCenters.map(c => c.id);
+  const enrollmentWhere: any = {
+    organizationId: orgId,
+    OR: [
+      { salesUserId: { in: allSalesUserIds } },
+      ...(allCenterIds.length > 0 ? [{ studyCenterId: { in: allCenterIds } }] : []),
+      { student: { referredBy: { in: allSalesUserIds } } }
+    ]
+  };
+
+  if (dateFilter) {
+    enrollmentWhere.AND = [
+      {
+        OR: [
+          { admissionDate: dateFilter },
+          { admissionDate: null, createdAt: dateFilter }
+        ]
+      }
+    ];
+  }
+
+  if (status && status !== 'all') {
+    if (status === 'enrolled') {
+      enrollmentWhere.status = 'enrolled';
+    } else if (status === 'pending') {
+      enrollmentWhere.status = { contains: 'pending' };
+    } else if (status === 'rejected') {
+      enrollmentWhere.status = 'rejected';
+    }
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: enrollmentWhere,
+    include: {
+      program: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          university: { select: { id: true, name: true } }
+        }
+      },
+      session: { select: { id: true, name: true } },
+      studyCenter: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          city: true,
+          referredBy: true
+        }
+      },
+      student: {
+        select: {
+          id: true,
+          name: true,
+          enrollmentNo: true,
+          referredBy: true
+        }
+      },
+      salesUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      },
+      payment: true,
+      studentFeeReceipts: true,
+      commissionIn: {
+        include: {
+          commissionOuts: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // 5. Fetch targets
+  const targets = await prisma.target.findMany({
+    where: {
+      organizationId: orgId,
+      employeeId: { in: allSalesUserIds }
+    }
+  });
+
+  const targetsByUserId: Record<string, any[]> = {};
+  for (const t of targets) {
+    if (t.employeeId) {
+      if (!targetsByUserId[t.employeeId]) targetsByUserId[t.employeeId] = [];
+      targetsByUserId[t.employeeId].push(t);
+    }
+  }
+
+  // Map enrollments to sales users
+  const enrollmentsByUserId: Record<string, any[]> = {};
+  for (const e of enrollments) {
+    const repId = e.salesUserId || e.studyCenter?.referredBy || e.student?.referredBy;
+    if (repId) {
+      if (!enrollmentsByUserId[repId]) enrollmentsByUserId[repId] = [];
+      enrollmentsByUserId[repId].push(e);
+    }
+  }
+
+  // 6. Aggregate data for each sales user
+  const salesUsersData = salesUsers.map(user => {
+    const userCenters = centersByUserId[user.id] || [];
+    const userEnrollments = enrollmentsByUserId[user.id] || [];
+    const userTargets = targetsByUserId[user.id] || [];
+
+    const totalAdmissions = userEnrollments.length;
+    const enrolledCount = userEnrollments.filter(e => e.status === 'enrolled').length;
+    const pendingCount = userEnrollments.filter(e => typeof e.status === 'string' && e.status.includes('pending')).length;
+    const rejectedCount = userEnrollments.filter(e => e.status === 'rejected').length;
+    const conversionRate = totalAdmissions > 0 ? Number(((enrolledCount / totalAdmissions) * 100).toFixed(1)) : 0;
+
+    let totalRevenue = 0;
+    let totalCollected = 0;
+    let totalCommissionInExpected = 0;
+    let totalCommissionInReceived = 0;
+    let totalCommissionOut = 0;
+
+    const formattedAdmissions = userEnrollments.map(e => {
+      const fee = Number(e.totalFee || 0);
+      const debited = Number(e.payment?.amount || 0);
+      const receiptsTotal = (e.studentFeeReceipts || []).reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+      const collected = debited > 0 ? debited : receiptsTotal > 0 ? receiptsTotal : (e.status === 'enrolled' ? fee : 0);
+      const pending = Math.max(0, fee - collected);
+
+      totalRevenue += fee;
+      totalCollected += collected;
+
+      let admCommExpected = 0;
+      let admCommReceived = 0;
+      const cinList = Array.isArray(e.commissionIn) ? e.commissionIn : (e.commissionIn ? [e.commissionIn] : []);
+      for (const cin of cinList) {
+        const exp = Number(cin.expectedAmount || 0);
+        const rec = Number(cin.receivedAmount || 0);
+        admCommExpected += exp;
+        admCommReceived += rec;
+        totalCommissionInExpected += exp;
+        totalCommissionInReceived += rec;
+        if (Array.isArray(cin.commissionOuts)) {
+          for (const cout of cin.commissionOuts) {
+            totalCommissionOut += Number(cout.amount || 0);
+          }
+        }
+      }
+
+      return {
+        id: e.id,
+        enrollmentNumber: e.enrollmentNumber || e.student?.enrollmentNo || '-',
+        studentName: e.studentName || e.student?.name || '-',
+        studentEmail: e.studentEmail || '-',
+        studentPhone: e.studentPhone || '-',
+        programName: e.program?.name || '-',
+        programCode: e.program?.code || '-',
+        universityName: e.program?.university?.name || '-',
+        sessionName: e.session?.name || '-',
+        studyCenterName: e.studyCenter?.name || '-',
+        studyCenterCode: e.studyCenter?.code || '-',
+        studyCenterCity: e.studyCenter?.city || '-',
+        admissionDate: e.admissionDate || e.createdAt,
+        status: e.status,
+        totalFee: fee,
+        collectedAmount: collected,
+        pendingAmount: pending,
+        paymentStatus: collected >= fee && fee > 0 ? 'paid' : collected > 0 ? 'partial' : 'pending',
+        paymentMethod: e.paymentMethod,
+        paymentType: e.paymentType,
+        commissionExpected: admCommExpected,
+        commissionReceived: admCommReceived
+      };
+    });
+
+    const totalPendingFee = Math.max(0, totalRevenue - totalCollected);
+    const netMargin = Math.max(0, totalCollected - totalCommissionOut);
+    const totalCentersWalletBalance = userCenters.reduce((sum: number, c: any) => sum + Number(c.walletBalance || 0), 0);
+
+    // Calculate 12-month trend scoped to selected or current year
+    const targetTrendYear = (year && year !== 'all' && !isNaN(parseInt(year)))
+      ? parseInt(year)
+      : new Date().getFullYear();
+
+    const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+      const monthNum = i + 1;
+      const monthAdmissions = userEnrollments.filter(e => {
+        const d = e.admissionDate ? new Date(e.admissionDate) : new Date(e.createdAt);
+        return !isNaN(d.getTime()) && d.getFullYear() === targetTrendYear && d.getMonth() === i;
+      });
+      const monthRevenue = monthAdmissions.reduce((sum: number, e: any) => sum + Number(e.totalFee || 0), 0);
+      const monthCollected = monthAdmissions.reduce((sum: number, e: any) => {
+        const fee = Number(e.totalFee || 0);
+        const debited = Number(e.payment?.amount || 0);
+        const receipts = (e.studentFeeReceipts || []).reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+        return sum + (debited > 0 ? debited : receipts > 0 ? receipts : (e.status === 'enrolled' ? fee : 0));
+      }, 0);
+
+      return {
+        month: monthNum,
+        admissions: monthAdmissions.length,
+        enrolled: monthAdmissions.filter(e => e.status === 'enrolled').length,
+        revenue: monthRevenue,
+        collected: monthCollected
+      };
+    });
+
+    // Targets breakdown
+    const revenueTargetObj = userTargets.find((t: any) => t.type === 'revenue');
+    const studentsTargetObj = userTargets.find((t: any) => t.type === 'students');
+    const centersTargetObj = userTargets.find((t: any) => t.type === 'centers');
+
+    const targetStats = {
+      revenueTarget: revenueTargetObj ? Number(revenueTargetObj.targetAmount || 0) : 0,
+      revenueAchieved: totalRevenue,
+      revenueProgress: revenueTargetObj && revenueTargetObj.targetAmount > 0
+        ? Number(((totalRevenue / revenueTargetObj.targetAmount) * 100).toFixed(1))
+        : 0,
+      studentsTarget: studentsTargetObj ? Number(studentsTargetObj.targetAmount || 0) : 0,
+      studentsAchieved: totalAdmissions,
+      studentsProgress: studentsTargetObj && studentsTargetObj.targetAmount > 0
+        ? Number(((totalAdmissions / studentsTargetObj.targetAmount) * 100).toFixed(1))
+        : 0,
+      centersTarget: centersTargetObj ? Number(centersTargetObj.targetAmount || 0) : 0,
+      centersAchieved: userCenters.length,
+      centersProgress: centersTargetObj && centersTargetObj.targetAmount > 0
+        ? Number(((userCenters.length / centersTargetObj.targetAmount) * 100).toFixed(1))
+        : 0
+    };
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        designation: user.designation,
+        status: user.status,
+        branchName: user.branch?.name || '-',
+        departmentName: user.department?.name || '-',
+        createdAt: user.createdAt
+      },
+      stats: {
+        totalAdmissions,
+        enrolledCount,
+        pendingCount,
+        rejectedCount,
+        conversionRate,
+        studyCentersCount: userCenters.length,
+        totalCentersWalletBalance,
+        totalRevenue,
+        totalCollected,
+        totalPendingFee,
+        totalCommissionInExpected,
+        totalCommissionInReceived,
+        totalCommissionOut,
+        netMargin
+      },
+      targetStats,
+      monthlyTrend,
+      centers: userCenters,
+      admissions: formattedAdmissions
+    };
+  });
+
+  // Filter by search query if present
+  let filteredUsers = salesUsersData;
+  if (search && search.trim() !== '') {
+    const q = search.toLowerCase();
+    filteredUsers = salesUsersData.filter(item => {
+      const uMatch = item.user.name?.toLowerCase().includes(q) || item.user.email?.toLowerCase().includes(q);
+      const cMatch = item.centers.some((c: any) => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q));
+      const aMatch = item.admissions.some((a: any) => a.studentName?.toLowerCase().includes(q) || a.enrollmentNumber?.toLowerCase().includes(q));
+      return uMatch || cMatch || aMatch;
+    });
+  }
+
+  // 7. Overall Summary
+  const summary = {
+    totalSalesUsers: filteredUsers.length,
+    totalCentersOnboarded: filteredUsers.reduce((s, u) => s + u.stats.studyCentersCount, 0),
+    totalAdmissions: filteredUsers.reduce((s, u) => s + u.stats.totalAdmissions, 0),
+    totalEnrolled: filteredUsers.reduce((s, u) => s + u.stats.enrolledCount, 0),
+    totalPending: filteredUsers.reduce((s, u) => s + u.stats.pendingCount, 0),
+    totalRejected: filteredUsers.reduce((s, u) => s + u.stats.rejectedCount, 0),
+    totalRevenue: filteredUsers.reduce((s, u) => s + u.stats.totalRevenue, 0),
+    totalCollected: filteredUsers.reduce((s, u) => s + u.stats.totalCollected, 0),
+    totalPendingFee: filteredUsers.reduce((s, u) => s + u.stats.totalPendingFee, 0),
+    totalCommissionInExpected: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionInExpected, 0),
+    totalCommissionInReceived: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionInReceived, 0),
+    totalCommissionOut: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionOut, 0),
+    totalNetMargin: filteredUsers.reduce((s, u) => s + u.stats.netMargin, 0),
+    avgConversionRate: filteredUsers.length > 0
+      ? Number((filteredUsers.reduce((s, u) => s + u.stats.conversionRate, 0) / filteredUsers.length).toFixed(1))
+      : 0
+  };
+
+  // Calculate available years from enrollments
+  const currentYear = new Date().getFullYear();
+  const yearSet = new Set<number>([currentYear, currentYear - 1, currentYear - 2]);
+  for (const e of enrollments) {
+    const d = e.admissionDate ? new Date(e.admissionDate) : new Date(e.createdAt);
+    if (!isNaN(d.getFullYear())) yearSet.add(d.getFullYear());
+  }
+  const availableYears = Array.from(yearSet).sort((a, b) => b - a);
+
+  const allSalesStaff = salesUsers.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    designation: u.designation,
+    departmentName: u.department?.name || '-'
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      summary,
+      salesUsers: filteredUsers,
+      allSalesStaff,
+      availableYears,
+      filters: { year, month, staffId, status, search, dateFrom, dateTo }
+    }
+  });
+});
+

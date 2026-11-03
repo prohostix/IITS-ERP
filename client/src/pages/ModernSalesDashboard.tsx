@@ -23,6 +23,7 @@ import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
+import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { 
@@ -104,6 +105,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'study_centers': return <StudyCentersPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
+      case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
       case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
@@ -147,6 +149,7 @@ export function getSalesNavItems(isManager: boolean = true) {
     { id: 'study_centers', label: 'Manual Center Creation' },
     { id: 'center_admissions', label: 'Centers Admissions' },
     { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
+    { id: 'sales_users_report', label: 'Sales Financial Report' },
     { id: '__team_management', label: 'Team & Tasks', isSection: true },
     { id: 'my_team', label: 'My Team' },
     { id: 'tasks', label: 'Tasks' },
@@ -572,6 +575,7 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
           case 'center_admissions': return <CentersAdmissionsPanel />;
           case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
+          case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
           case 'my_attendance': return <AttendancePanel isPersonalView />;
           case 'my_leaves': return <LeavesPanel isPersonalView />;
           case 'my_payslips': return <PayrollPanel />;

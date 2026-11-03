@@ -42,7 +42,8 @@ import {
   getReregPendingReport,
   getReregCompletedReport,
   getUniversityWalletLedger,
-  addUniversityWalletTransaction
+  addUniversityWalletTransaction,
+  getFinanceSalesUsersReport
 } from '../controllers/financeController.js';
 import { upload } from '../middleware/upload.js';
 import {
@@ -217,5 +218,9 @@ router.get('/student-ledger/:id', authorize('finance_admin', 'finance_sub_admin'
 // ─── Center Ledger (Study Center Ledger) ──────────────────────────────────────
 router.get('/center-ledger', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getCenterLedgerList);
 router.get('/center-ledger/:centerId', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo'), getCenterLedgerDetails);
+
+// ─── Sales Users Financial Performance Report ─────────────────────────────────
+router.get('/reports/sales-users', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceSalesUsersReport);
+router.get('/sales-users-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceSalesUsersReport);
 
 export default router;

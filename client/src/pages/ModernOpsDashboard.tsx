@@ -38,6 +38,7 @@ import { PollsPanel } from '@/components/panels/PollsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
+import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { StatusRequestsPanel } from '@/components/panels/StatusRequestsPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
@@ -87,6 +88,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'marks': return <InternalMarksPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
+      case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'tasks': return <TasksPanel />;

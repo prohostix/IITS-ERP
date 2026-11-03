@@ -33,6 +33,8 @@ import { DepartmentsPanel } from '@/components/panels/DepartmentsPanel';
 import { LicensesPanel } from '@/components/panels/LicensesPanel';
 import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
+import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
+import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 
 const globalActivity = [
@@ -97,6 +99,8 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
           <TabsTrigger value="subdepartments">Sub-Departments</TabsTrigger>
           <TabsTrigger value="licenses">Licenses</TabsTrigger>
           <TabsTrigger value="center_admissions">Admissions</TabsTrigger>
+          <TabsTrigger value="sales_admission_report">Sales Admissions Report</TabsTrigger>
+          <TabsTrigger value="sales_users_report">Sales Users Report</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -127,6 +131,12 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
         </TabsContent>
         <TabsContent value="center_admissions">
           <CentersAdmissionsPanel />
+        </TabsContent>
+        <TabsContent value="sales_admission_report">
+          <SalesStaffAdmissionReportPanel />
+        </TabsContent>
+        <TabsContent value="sales_users_report">
+          <FinanceSalesUsersReportPanel />
         </TabsContent>
       </Tabs>
     </div>

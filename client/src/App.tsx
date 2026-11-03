@@ -123,6 +123,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   center_admissions: 'center_admissions',
   sales_admission_report: 'sales_admission_report',
   'sales-admission-report': 'sales_admission_report',
+  sales_users_report: 'sales_users_report',
+  'sales-users-report': 'sales_users_report',
   dashboard: 'overview',
 };
 

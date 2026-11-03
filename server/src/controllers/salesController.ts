@@ -74,17 +74,50 @@ export const deleteTarget = asyncHandler(async (req: AuthRequest, res: Response)
 
 // Invites
 export const listMyInvites = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const invites = await prisma.studyCenterInvite.findMany({ where: { referredBy: req.user.id } });
+  const invites = await prisma.studyCenterInvite.findMany({
+    where: { referredBy: req.user.id },
+    orderBy: { createdAt: 'desc' }
+  });
   res.json({ success: true, count: invites.length, data: invites });
 });
 export const generateInvite = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { universityIds, programIds, branchId, expiresAt } = req.body;
+  const expiryDate = expiresAt 
+    ? new Date(expiresAt) 
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days expiry
+
+  const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+
   const invite = await prisma.studyCenterInvite.create({
-    data: { ...req.body, organizationId: req.user.organizationId, referredBy: req.user.id, token: Math.random().toString(36).substring(7).toUpperCase() }
+    data: {
+      organizationId: req.user.organizationId,
+      referredBy: req.user.id,
+      universityIds: Array.isArray(universityIds) ? universityIds : [],
+      programIds: Array.isArray(programIds) ? programIds : [],
+      branchId: branchId || req.user.branchId || null,
+      token,
+      expiresAt: expiryDate,
+      status: 'pending'
+    }
   });
   res.status(201).json({ success: true, data: invite });
 });
 export const regenerateInvite = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const invite = await prisma.studyCenterInvite.update({ where: { id: req.params.id }, data: { token: Math.random().toString(36).substring(7).toUpperCase() } });
+  const expiryDate = req.body?.expiresAt 
+    ? new Date(req.body.expiresAt) 
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  const invite = await prisma.studyCenterInvite.update({
+    where: { id: req.params.id },
+    data: {
+      token,
+      status: 'pending',
+      expiresAt: expiryDate,
+      usedAt: null
+    }
+  });
   res.json({ success: true, data: invite });
 });
 

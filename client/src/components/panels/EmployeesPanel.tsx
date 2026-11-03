@@ -276,6 +276,9 @@ export function EmployeesPanel() {
                       { id: 'programs', label: 'Programs' },
                       { id: 'payments', label: 'Payments' },
                       { id: 'fees', label: 'Fee Structures' },
+                      { id: 'center_admissions', label: 'Center Admissions' },
+                      { id: 'sales_admission_report', label: 'Sales Admissions Report' },
+                      { id: 'sales_users_report', label: 'Sales Users Report' },
                     ].map(perm => (
                       <div key={perm.id} className="flex items-center space-x-2">
                         <input
