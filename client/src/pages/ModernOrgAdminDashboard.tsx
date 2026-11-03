@@ -21,6 +21,8 @@ import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPan
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
+import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
+import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
@@ -208,6 +210,8 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
         <TabsContent value="center_admissions"><CentersAdmissionsPanel /></TabsContent>
         <TabsContent value="sales_admission_report"><SalesStaffAdmissionReportPanel /></TabsContent>
         <TabsContent value="sales_users_report"><FinanceSalesUsersReportPanel /></TabsContent>
+        <TabsContent value="pending_verification"><OpsCenterVerificationPanel /></TabsContent>
+        <TabsContent value="pending_payment"><FinanceCenterVerificationPanel /></TabsContent>
       </Tabs>
     </div>
   );

@@ -26,7 +26,7 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
     address: '',
     contact: '',
     email: '',
-    status: 'pending',
+    status: 'active',
     referredById: '',
     branchName: '',
     coordinatorName: ''
@@ -344,9 +344,20 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
     }
   };
 
+  const handleApproveCenter = async (center: any) => {
+    if (!confirm(`Approve and activate "${center.name}"?`)) return;
+    try {
+      await api.put(`/operations/centers/${center.id}/approve`);
+      toast.success(`Study Center "${center.name}" approved and activated!`);
+      fetchCenters();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve center');
+    }
+  };
+
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'pending', referredById: '', branchName: '', coordinatorName: '' });
+    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'active', referredById: '', branchName: '', coordinatorName: '' });
   };
 
   // Helper to get center's effective branch name
@@ -422,8 +433,12 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
                   <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
                 </div>
                 <div>
-                  <Label>Center Code</Label>
-                  <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} required />
+                  <Label>Center Code <span className="text-xs text-muted-foreground font-normal">(optional — auto-generated if left blank)</span></Label>
+                  <Input
+                    placeholder="e.g. SC1001"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  />
                 </div>
               </div>
               <div>
@@ -645,7 +660,18 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 flex-wrap justify-end">
-                                <Badge className="text-xs">{c.status}</Badge>
+                                <Badge className="text-xs capitalize">{c.status?.replace(/_/g, ' ')}</Badge>
+                                {c.status !== 'active' && canWrite && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                                    onClick={() => handleApproveCenter(c)}
+                                    title="Approve and activate this center"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Approve Center
+                                  </Button>
+                                )}
                                 {onViewLedger && (
                                   <Button
                                     variant="outline"

@@ -309,6 +309,34 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
     return;
   }
 
+  // 1. Validate / generate unique center code
+  let centerCode = (req.body.code || '').trim().toUpperCase();
+  if (!centerCode) {
+    let attempts = 0;
+    while (attempts < 10) {
+      const candidate = `SC${Math.floor(1000 + Math.random() * 9000)}`;
+      const exists = await prisma.studyCenter.findFirst({
+        where: { organizationId: req.user.organizationId, code: candidate }
+      });
+      if (!exists) {
+        centerCode = candidate;
+        break;
+      }
+      attempts++;
+    }
+  } else {
+    const existingCode = await prisma.studyCenter.findFirst({
+      where: { organizationId: req.user.organizationId, code: centerCode }
+    });
+    if (existingCode) {
+      res.status(400).json({
+        success: false,
+        message: `A study center with code "${centerCode}" already exists. Please choose a unique code.`
+      });
+      return;
+    }
+  }
+
   // Check if user email already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -316,41 +344,63 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
     return;
   }
 
-  // 1. Generate credentials
+  // 2. Generate credentials
   const rawPassword = `Center@${Math.floor(1000 + Math.random() * 9000)}`;
   const hashedPassword = await hashPassword(rawPassword);
   const userId = await generateUserId();
 
-  // 2. Create in transaction
+  // 3. Create in transaction
   const centerWithCreds = await prisma.$transaction(async (tx) => {
-    const allowedFields = ['name', 'code', 'address', 'city', 'state', 'status', 'universityIds', 'programIds'];
+    const allowedFields = [
+      'name', 'code', 'address', 'city', 'state', 'status',
+      'universityIds', 'programIds', 'coordinatorName', 'branchName',
+      'allowInternalMarks', 'customEnrollmentFields'
+    ];
+    const initialStatus = isSales ? 'pending_verification' : (req.body.status || 'active');
     const dbData: any = {
       organizationId: req.user.organizationId,
-      status: isSales ? 'pending' : (req.body.status || 'pending'),
-      referredBy: isSales ? req.user.id : (referredById === 'null' || !referredById ? null : referredById),
+      name: name || 'Study Center',
+      code: centerCode,
+      status: initialStatus,
+      referredBy: isSales ? req.user.id : (referredById === 'null' || referredById === '__none__' || !referredById ? null : referredById),
       credentials: { userId, password: rawPassword },
       email,
+      coordinatorName: req.body.coordinatorName || null,
+      branchName: req.body.branchName || null,
       contact: req.body.contact || req.body.contactPhone || req.body.contactPerson || 'Not Provided'
     };
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) dbData[field] = req.body[field];
     }
+    dbData.code = centerCode; // guarantee validated unique code
 
     const center = await tx.studyCenter.create({ 
       data: dbData
     });
 
-    // 3. Create center admin user
+    // Provision wallet if active
+    if (initialStatus === 'active') {
+      await tx.studyCenterWallet.create({
+        data: {
+          centerId: center.id,
+          balance: 0,
+          status: 'active'
+        }
+      });
+    }
+
+    // Create center admin user
     await tx.user.create({
       data: {
         userId,
         email,
         password: hashedPassword,
-        name: `${name} Admin`,
+        name: `${name || 'Center'} Admin`,
         role: 'center_admin',
         organizationId: req.user.organizationId,
         studyCenterId: center.id,
+        phone: dbData.contact,
         status: 'active' as any
       }
     });
@@ -361,11 +411,31 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   res.status(201).json({ success: true, data: centerWithCreds });
 });
 export const updateStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { referredById, ...rest } = req.body;
-  const data = {
+  const { referredById, id, _id, code, ...rest } = req.body;
+  const data: any = {
     ...rest,
     referredBy: referredById === '__none__' || !referredById ? null : referredById
   };
+
+  if (code) {
+    const cleanCode = code.trim().toUpperCase();
+    const existingCode = await prisma.studyCenter.findFirst({
+      where: {
+        organizationId: req.user.organizationId,
+        code: cleanCode,
+        NOT: { id: req.params.id }
+      }
+    });
+    if (existingCode) {
+      res.status(400).json({
+        success: false,
+        message: `A study center with code "${cleanCode}" already exists. Please choose a unique code.`
+      });
+      return;
+    }
+    data.code = cleanCode;
+  }
+
   const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data });
   res.json({ success: true, data: { ...center, _id: center.id } });
 });
@@ -458,7 +528,37 @@ export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   res.json({ success: true, data: {} });
 });
 export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'active' as any } });
+  const { remarks } = req.body || {};
+  const center = await prisma.$transaction(async (tx) => {
+    const sc = await tx.studyCenter.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'active' as any,
+        verifiedBy: req.user.id,
+        verifiedAt: new Date(),
+        financeApprovedBy: req.user.id,
+        financeApprovedAt: new Date(),
+        opsRemarks: remarks || undefined
+      }
+    });
+
+    // Ensure wallet exists
+    const existingWallet = await tx.studyCenterWallet.findUnique({
+      where: { centerId: sc.id }
+    });
+    if (!existingWallet) {
+      await tx.studyCenterWallet.create({
+        data: {
+          centerId: sc.id,
+          balance: 0,
+          status: 'active'
+        }
+      });
+    }
+
+    return sc;
+  });
+
   res.json({ success: true, data: { ...center, _id: center.id } });
 });
 export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -630,11 +730,32 @@ export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Res
 
 // Onboarding
 export const getPendingVerificationCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const centers = await prisma.studyCenter.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_verification' as any } });
+  const centers = await prisma.studyCenter.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: { in: ['pending_verification', 'pending'] } as any
+    },
+    include: {
+      referrer: { select: { id: true, name: true, email: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
   res.json({ success: true, data: centers });
 });
 export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const center = await prisma.studyCenter.update({ where: { id: req.params.id }, data: { status: 'verified' as any } });
+  const { action, remarks } = req.body;
+  const isApproved = action !== 'reject';
+  const newStatus = isApproved ? 'pending_payment' : 'rejected';
+
+  const center = await prisma.studyCenter.update({
+    where: { id: req.params.id },
+    data: {
+      status: newStatus as any,
+      verifiedBy: req.user.id,
+      verifiedAt: new Date(),
+      opsRemarks: remarks || null
+    }
+  });
   res.json({ success: true, data: center });
 });
 

@@ -67,6 +67,9 @@ import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniv
 import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceReregPaymentReportPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
+import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
+import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
 
 const DEPT_COLORS: Record<string, string> = {
   hr: 'hsl(var(--info))', finance: 'hsl(var(--success))',
@@ -322,6 +325,9 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
         {activeTab === 'university_fee_report' && <FinanceUniversityFeeReportPanel />}
         {activeTab === 'rereg_payment_report' && <FinanceReregPaymentReportPanel />}
         {activeTab === 'sales_users_report' && <FinanceSalesUsersReportPanel />}
+        {activeTab === 'centers' && <StudyCentersPanel />}
+        {activeTab === 'pending_verification' && <OpsCenterVerificationPanel />}
+        {activeTab === 'pending_payment' && <FinanceCenterVerificationPanel />}
         {(activeTab === 'leave_approvals' || activeTab === 'leave-approvals') && <LeaveApprovalsPanel />}
       </div>
     </div>

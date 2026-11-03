@@ -80,8 +80,8 @@ router.route('/programs/:id')
 router.put('/programs/:id/activate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), activateProgram);
 
 // Onboarding — document verification (must be before /centers/:id to avoid route conflict)
-router.get('/centers/pending-verification', authorize('ops_admin', 'ops_sub_admin', 'employee'), getPendingVerificationCenters);
-router.put('/centers/:id/verify', authorize('ops_admin', 'ops_sub_admin', 'employee'), verifyCenter);
+router.get('/centers/pending-verification', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'employee'), getPendingVerificationCenters);
+router.put('/centers/:id/verify', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'employee'), verifyCenter);
 
 // Study Centers Bulk Import
 router.post('/centers/bulk-import', authorize('org_admin', 'superadmin', 'ops_admin'), bulkImportStudyCenters);
@@ -92,13 +92,13 @@ router.put('/centers/branch-settings', authorize('org_admin', 'superadmin'), upd
 // Study Centers
 router.route('/centers')
   .get(getStudyCenters)
-  .post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
+  .post(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
 router.route('/centers/:id')
   .get(getStudyCenter)
-  .put(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), updateStudyCenter)
-  .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteStudyCenter);
-router.put('/centers/:id/approve', authorize('ops_admin', 'finance_admin'), approveStudyCenter);
-router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), suspendStudyCenter);
+  .put(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), updateStudyCenter)
+  .delete(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), deleteStudyCenter);
+router.put('/centers/:id/approve', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'finance_admin'), approveStudyCenter);
+router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), suspendStudyCenter);
 
 // Admission Sessions
 router.route('/sessions').get(getAdmissionSessions).post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), createAdmissionSession);

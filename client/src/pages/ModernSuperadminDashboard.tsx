@@ -35,6 +35,8 @@ import { SubDepartmentsPanel } from '@/components/panels/SubDepartmentsPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
+import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
+import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 
 const globalActivity = [
@@ -137,6 +139,12 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
         </TabsContent>
         <TabsContent value="sales_users_report">
           <FinanceSalesUsersReportPanel />
+        </TabsContent>
+        <TabsContent value="pending_verification">
+          <OpsCenterVerificationPanel />
+        </TabsContent>
+        <TabsContent value="pending_payment">
+          <FinanceCenterVerificationPanel />
         </TabsContent>
       </Tabs>
     </div>
