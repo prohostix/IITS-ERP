@@ -30,7 +30,13 @@ export const getSalaryConfig = asyncHandler(async (req: AuthRequest, res: Respon
 });
 
 export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
-  let { effectiveFrom, basicSalary, allowances, professionalTax, labourWelfareFund, tds, ...salaryData } = req.body;
+  let { effectiveFrom, basicSalary, allowances, professionalTax, labourWelfareFund, tds } = req.body;
+  // Whitelist remaining fields so unexpected keys from the client never reach Prisma
+  const salaryData: Record<string, any> = {};
+  if (req.body.lateDeductionPerMinute !== undefined) {
+    salaryData.lateDeductionPerMinute = Number(req.body.lateDeductionPerMinute) || 0;
+  }
+  const parsedEffectiveFrom = effectiveFrom && !isNaN(new Date(effectiveFrom).getTime()) ? new Date(effectiveFrom) : null;
   
   // Calculate total allowances
   let totalAllowances = 0;
@@ -64,7 +70,7 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
       professionalTax: Number(professionalTax || 0),
       labourWelfareFund: Number(labourWelfareFund || 0),
       tds: Number(tds || 0),
-      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : null,
+      effectiveFrom: parsedEffectiveFrom,
       organizationId: req.user.organizationId, 
       createdBy: req.user.id 
     },
@@ -76,7 +82,7 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
       professionalTax: Number(professionalTax || 0),
       labourWelfareFund: Number(labourWelfareFund || 0),
       tds: Number(tds || 0),
-      effectiveFrom: effectiveFrom ? new Date(effectiveFrom) : null,
+      effectiveFrom: parsedEffectiveFrom,
       userId: req.params.userId, 
       organizationId: req.user.organizationId, 
       createdBy: req.user.id 

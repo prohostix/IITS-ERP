@@ -682,6 +682,7 @@ model SalaryConfig {
   allowances             Json?          @default("{}")
   deductions             Json?          @default("{}")
   lateDeductionPerMinute Float?         @default(0)
+  effectiveFrom          DateTime?
   approvalStatus         ApprovalStatus @default(pending_approval)
   approvedBy             String?
   approvedAt             DateTime?
