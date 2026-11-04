@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
 import { getBranchScope } from '../utils/branchScope.js';
+import { calculateAndSyncTargets } from '../utils/targetHelper.js';
 
 // Leads
 export const getLeads = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -107,7 +108,9 @@ export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) =
     orderBy: { createdAt: 'desc' }
   });
 
-  const mapped = targets.map(t => ({
+  const syncedTargets = await calculateAndSyncTargets(targets, req.user.organizationId);
+
+  const mapped = syncedTargets.map(t => ({
     ...t,
     employeeId: t.employee || t.employeeId,
     departmentId: t.department || t.departmentId
@@ -150,10 +153,12 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
     return;
   }
 
+  const [synced] = await calculateAndSyncTargets([target], req.user.organizationId);
+
   const mapped = {
-    ...target,
-    employeeId: target.employee || target.employeeId,
-    departmentId: target.department || target.departmentId
+    ...synced,
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId
   };
 
   res.json({ success: true, data: mapped });

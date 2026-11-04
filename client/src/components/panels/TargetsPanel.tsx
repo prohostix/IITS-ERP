@@ -226,36 +226,74 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
             <div className="space-y-4">
               {targets.filter(t => t && (t.id || t._id)).map((t) => {
                 const tid = t.id || t._id;
-                const pct = t.target ? Math.min(100, ((t.achieved || 0) / t.target) * 100) : 0;
+                const isRevenue = /revenue|fee|amount|sales/i.test(t.type || '');
+                const rawPct = t.target > 0 ? Math.round(((Number(t.achieved) || 0) / Number(t.target)) * 100) : 0;
+                const pct = Math.min(100, rawPct);
+                const isCompleted = rawPct >= 100;
+
+                const formatVal = (val: number) => {
+                  if (isRevenue) {
+                    return new Intl.NumberFormat('en-IN', {
+                      style: 'currency',
+                      currency: 'INR',
+                      maximumFractionDigits: 0
+                    }).format(val || 0);
+                  }
+                  return val || 0;
+                };
+
                 const empName = typeof t.employeeId === 'object' ? t.employeeId?.name : (t.employee?.name || '');
                 const deptName = typeof t.departmentId === 'object' ? t.departmentId?.name : (t.department?.name || '');
+                const targetTitle = empName || deptName || t.center?.name || 'General Target';
+
                 return (
-                  <div key={tid} className="p-4 border rounded-lg hover:bg-muted/50">
+                  <div key={tid} className="p-4 border border-border/70 rounded-xl hover:bg-muted/30 transition-all bg-card shadow-xs">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Target className="w-5 h-5 text-primary" />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isCompleted ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
+                          <Target className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-medium">{empName || deptName || 'General Target'}</div>
-                          <div className="text-sm text-muted-foreground">{t.type} • {t.period}</div>
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            <span>{targetTitle}</span>
+                            {isCompleted && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                Achieved
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <span className="capitalize font-medium text-foreground/80">{t.type}</span>
+                            <span>•</span>
+                            <span className="font-mono">{t.period}</span>
+                            {t.incentive ? (
+                              <>
+                                <span>•</span>
+                                <span className="text-amber-600 dark:text-amber-400 font-medium">Incentive: ₹{t.incentive}</span>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {canManage && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(t)}><Edit className="w-4 h-4" /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(tid)}><Trash2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(tid)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
                           </>
                         )}
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{t.achieved || 0} / {t.target}</span>
-                        <span className="font-bold">{pct.toFixed(1)}%</span>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm items-baseline">
+                        <span className="font-semibold text-foreground">
+                          {formatVal(Number(t.achieved) || 0)} <span className="font-normal text-muted-foreground text-xs">/ {formatVal(Number(t.target))} {isRevenue ? '' : 'admissions'}</span>
+                        </span>
+                        <span className={`font-bold text-sm ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                          {rawPct}%
+                        </span>
                       </div>
-                      <Progress value={pct} />
+                      <Progress value={pct} className={`h-2.5 ${isCompleted ? '[&>div]:bg-emerald-500' : ''}`} />
                     </div>
                   </div>
                 );

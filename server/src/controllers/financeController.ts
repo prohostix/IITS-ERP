@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
+import { calculateAndSyncTargets } from '../utils/targetHelper.js';
 
 // Invoices
 export const getInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -258,7 +259,8 @@ export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) =
       }
     }
   });
-  const mapped = targets.map(t => ({
+  const syncedTargets = await calculateAndSyncTargets(targets, req.user.organizationId);
+  const mapped = syncedTargets.map(t => ({
     ...t,
     employeeId: t.employee || t.employeeId
   }));
@@ -282,9 +284,10 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
     res.status(404).json({ success: false, message: 'Target not found' });
     return;
   }
+  const [synced] = await calculateAndSyncTargets([target], req.user.organizationId);
   const mapped = {
-    ...target,
-    employeeId: target.employee || target.employeeId
+    ...synced,
+    employeeId: synced.employee || synced.employeeId
   };
   res.json({ success: true, data: mapped });
 });

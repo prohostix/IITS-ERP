@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import prisma from '../lib/prisma.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { getBranchScope } from '../utils/branchScope.js';
+import { calculateAndSyncTargets } from '../utils/targetHelper.js';
 
 const GLOBAL_AUTH_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin'];
 
@@ -739,70 +740,14 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
   });
 
   // Calculate real-time achievements from enrollments within the period
-  const enrollmentsInPeriod = await prisma.enrollment.findMany({
-    where: {
-      organizationId,
-      status: { notIn: ['rejected', 'department_rejected'] },
-      OR: [
-        { admissionDate: { gte: dateFrom, lte: dateTo } },
-        { enrolledAt: { gte: dateFrom, lte: dateTo } },
-        { createdAt: { gte: dateFrom, lte: dateTo } }
-      ]
-    },
-    select: {
-      id: true,
-      salesUserId: true,
-      studyCenterId: true,
-      status: true,
-      totalFee: true,
-      studyCenter: { select: { referredBy: true } }
-    }
-  });
-
-  // Aggregate achievements by staff & center
-  const staffAdmissionsCount = new Map<string, number>();
-  const staffRevenueSum = new Map<string, number>();
-  const centerAdmissionsCount = new Map<string, number>();
-  const centerRevenueSum = new Map<string, number>();
-
-  for (const e of enrollmentsInPeriod) {
-    const fee = Number(e.totalFee) || 0;
-    const isEnrolled = e.status === 'enrolled';
-
-    // Credit sales user or study center referrer
-    const staffCredited = e.salesUserId || e.studyCenter?.referredBy;
-    if (staffCredited) {
-      if (isEnrolled) {
-        staffAdmissionsCount.set(staffCredited, (staffAdmissionsCount.get(staffCredited) || 0) + 1);
-      }
-      staffRevenueSum.set(staffCredited, (staffRevenueSum.get(staffCredited) || 0) + fee);
-    }
-
-    if (e.studyCenterId) {
-      if (isEnrolled) {
-        centerAdmissionsCount.set(e.studyCenterId, (centerAdmissionsCount.get(e.studyCenterId) || 0) + 1);
-      }
-      centerRevenueSum.set(e.studyCenterId, (centerRevenueSum.get(e.studyCenterId) || 0) + fee);
-    }
-  }
+  const syncedTargets = await calculateAndSyncTargets(targets, organizationId);
 
   // Compile target items
-  const compiledTargets = targets.map(t => {
-    const isAdmission = t.type.toLowerCase().includes('admission');
-    let realAchieved = 0;
+  const compiledTargets = syncedTargets.map(t => {
+    const isAdmission = /student|admission/i.test(t.type || '');
+    const isRevenue = /revenue|fee|amount|sales/i.test(t.type || '');
 
-    if (t.employeeId) {
-      realAchieved = isAdmission
-        ? (staffAdmissionsCount.get(t.employeeId) || 0)
-        : (staffRevenueSum.get(t.employeeId) || 0);
-    } else if (t.centerId) {
-      realAchieved = isAdmission
-        ? (centerAdmissionsCount.get(t.centerId) || 0)
-        : (centerRevenueSum.get(t.centerId) || 0);
-    }
-
-    // Take max of real-time computed or explicitly recorded achieved
-    const achievedValue = Math.max(realAchieved, Number(t.achieved) || 0);
+    const achievedValue = Number(t.achieved) || 0;
     const targetValue = Number(t.target) || 0;
     const variance = achievedValue - targetValue;
     const percentage = targetValue > 0 ? Math.round((achievedValue / targetValue) * 100) : 0;
