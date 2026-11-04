@@ -120,7 +120,7 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
   }
 
   if (branchId && branchId !== 'all') {
-    centerWhere.branchId = branchId;
+    centerWhere.branchName = branchId;
   }
 
   const centers = await prisma.studyCenter.findMany({
@@ -130,7 +130,6 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
       name: true,
       code: true,
       branchName: true,
-      branchId: true,
       status: true,
       referredBy: true,
       createdAt: true
@@ -604,8 +603,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
       name: true,
       startDate: true,
       endDate: true,
-      status: true,
-      isCurrent: true
+      status: true
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -615,7 +613,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
   if (sessionId && sessionId !== 'all') {
     activeSession = availableSessions.find(s => s.id === sessionId) || null;
   } else {
-    activeSession = availableSessions.find(s => s.isCurrent || s.status === 'active') || availableSessions[0] || null;
+    activeSession = availableSessions.find(s => s.status === 'active') || availableSessions[0] || null;
   }
 
   if (!activeSession) {
