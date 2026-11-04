@@ -11,9 +11,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Landmark, RefreshCw, Download, Printer, Search, CheckCircle2, Clock,
-  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink, Calendar
+  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink, Calendar, RotateCcw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -30,15 +32,17 @@ export function FinanceUniversityFeeReportPanel() {
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [allSessions, setAllSessions] = useState<any[]>([]);
 
-  // Active filters
-  const [selectedSession, setSelectedSession] = useState('all');
-  const [selectedUniversity, setSelectedUniversity] = useState('all');
-  const [selectedCenter, setSelectedCenter] = useState('all');
-  const [selectedProgram, setSelectedProgram] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [search, setSearch] = useState('');
+  // Active persistent filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('univ_fee_report_panel', {
+    sessions: [] as string[],
+    universities: [] as string[],
+    centers: [] as string[],
+    programs: [] as string[],
+    statuses: [] as string[],
+    dateFrom: '',
+    dateTo: '',
+    search: '',
+  });
 
   // Screenshot / detail modal
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
@@ -49,7 +53,7 @@ export function FinanceUniversityFeeReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [selectedSession, selectedUniversity, selectedCenter, selectedProgram, selectedStatus, dateFrom, dateTo]);
+  }, [filters.sessions, filters.universities, filters.centers, filters.programs, filters.statuses, filters.dateFrom, filters.dateTo]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -70,14 +74,14 @@ export function FinanceUniversityFeeReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
-      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
-      if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
-      if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
-      if (selectedProgram && selectedProgram !== 'all') q.append('programId', selectedProgram);
-      if (selectedStatus && selectedStatus !== 'all') q.append('status', selectedStatus);
-      if (dateFrom) q.append('dateFrom', dateFrom);
-      if (dateTo) q.append('dateTo', dateTo);
-      if (search) q.append('search', search);
+      if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
+      if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
+      if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
+      if (filters.programs.length > 0) q.append('programId', filters.programs.join(','));
+      if (filters.statuses.length > 0) q.append('status', filters.statuses.join(','));
+      if (filters.dateFrom) q.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) q.append('dateTo', filters.dateTo);
+      if (filters.search) q.append('search', filters.search);
 
       const res = await api.get(`/finance/reports/university-fee-payments?${q.toString()}`);
       if (res.data.success) {
@@ -383,100 +387,86 @@ export function FinanceUniversityFeeReportPanel() {
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[180px]">
-              <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Sessions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sessions</SelectItem>
-                  {allSessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Sessions"
+              selected={filters.sessions}
+              onChange={(s) => setField('sessions', s)}
+              options={allSessions.map(s => ({ label: s.name, value: s.id }))}
+              placeholder="All Sessions"
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Universities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Universities</SelectItem>
-                  {allUniversities.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Universities"
+              selected={filters.universities}
+              onChange={(u) => setField('universities', u)}
+              options={allUniversities.map(u => ({ label: u.name, value: u.id }))}
+              placeholder="All Universities"
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Centers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Centers</SelectItem>
-                  {allCenters.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Centers"
+              selected={filters.centers}
+              onChange={(c) => setField('centers', c)}
+              options={allCenters.map(c => ({ label: c.name, value: c.id }))}
+              placeholder="All Centers"
+            />
 
-            <div className="w-[160px]">
-              <Select value={selectedProgram} onValueChange={setSelectedProgram}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Programs" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Programs</SelectItem>
-                  {allPrograms.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Programs"
+              selected={filters.programs}
+              onChange={(p) => setField('programs', p)}
+              options={allPrograms.map(p => ({ label: p.name, value: p.id }))}
+              placeholder="All Programs"
+            />
 
-            <div className="w-[140px]">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="locked">Locked</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Statuses"
+              selected={filters.statuses}
+              onChange={(st) => setField('statuses', st)}
+              options={[
+                { label: 'Paid', value: 'paid' },
+                { label: 'Pending', value: 'pending' },
+                { label: 'Locked', value: 'locked' }
+              ]}
+              placeholder="All Statuses"
+            />
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">From:</span>
               <Input
                 type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
+                value={filters.dateFrom}
+                onChange={e => setField('dateFrom', e.target.value)}
                 className="w-[130px] text-xs h-9"
               />
               <span className="text-xs text-slate-500">To:</span>
               <Input
                 type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
+                value={filters.dateTo}
+                onChange={e => setField('dateTo', e.target.value)}
                 className="w-[130px] text-xs h-9"
               />
             </div>
+
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
 
           <div className="relative w-full sm:w-[240px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search student, enrollment..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={e => setField('search', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchReport()}
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />

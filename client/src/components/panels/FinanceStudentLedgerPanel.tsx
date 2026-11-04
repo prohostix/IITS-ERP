@@ -12,10 +12,12 @@ import {
   Search, ArrowLeft, RefreshCw, Download, Printer, Plus,
   CreditCard, CheckCircle2, Clock,
   GraduationCap, Phone, Mail, FileText, ArrowDownLeft,
-  ArrowUpRight, Eye, Receipt
+  ArrowUpRight, Eye, Receipt, RotateCcw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -35,11 +37,15 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   // Student directory
   const [students, setStudents] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({});
-  const [search, setSearch] = useState('');
-  const [selectedSession, setSelectedSession] = useState('all');
-  const [selectedCenter, setSelectedCenter] = useState('all');
-  const [selectedUniversity, setSelectedUniversity] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+
+  // Active persistent filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('student_ledger_panel', {
+    sessions: [] as string[],
+    centers: [] as string[],
+    universities: [] as string[],
+    statuses: [] as string[],
+    search: '',
+  });
 
   // Filter options
   const [centers, setCenters] = useState<any[]>([]);
@@ -75,7 +81,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   useEffect(() => {
     fetchStudentList();
-  }, [selectedSession, selectedCenter, selectedUniversity, selectedStatus]);
+  }, [filters.sessions, filters.centers, filters.universities, filters.statuses]);
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -100,11 +106,11 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     setLoading(true);
     try {
       const q = new URLSearchParams();
-      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
-      if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
-      if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
-      if (selectedStatus && selectedStatus !== 'all') q.append('status', selectedStatus);
-      if (search) q.append('search', search);
+      if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
+      if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
+      if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
+      if (filters.statuses.length > 0) q.append('status', filters.statuses.join(','));
+      if (filters.search) q.append('search', filters.search);
 
       const res = await api.get(`/finance/student-ledger?${q.toString()}`);
       if (res.data.success) {
@@ -996,69 +1002,62 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[180px]">
-              <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Sessions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sessions</SelectItem>
-                  {sessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Sessions"
+              selected={filters.sessions}
+              onChange={(s) => setField('sessions', s)}
+              options={sessions.map(s => ({ label: s.name, value: s.id }))}
+              placeholder="All Sessions"
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Universities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Universities</SelectItem>
-                  {universities.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Universities"
+              selected={filters.universities}
+              onChange={(u) => setField('universities', u)}
+              options={universities.map(u => ({ label: u.name, value: u.id }))}
+              placeholder="All Universities"
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Centers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Centers</SelectItem>
-                  {centers.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Centers"
+              selected={filters.centers}
+              onChange={(c) => setField('centers', c)}
+              options={centers.map(c => ({ label: c.name, value: c.id }))}
+              placeholder="All Centers"
+            />
 
-            <div className="w-[150px]">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="paid">Paid in Full</SelectItem>
-                  <SelectItem value="partial">Partially Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Statuses"
+              selected={filters.statuses}
+              onChange={(st) => setField('statuses', st)}
+              options={[
+                { label: 'Paid in Full', value: 'paid' },
+                { label: 'Partially Paid', value: 'partial' },
+                { label: 'Pending', value: 'pending' },
+                { label: 'Advance Paid', value: 'advance' }
+              ]}
+              placeholder="All Statuses"
+            />
+
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
 
           <div className="relative w-full sm:w-[280px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search student, enrollment, phone..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={e => setField('search', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchStudentList()}
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />

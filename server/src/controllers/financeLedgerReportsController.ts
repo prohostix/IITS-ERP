@@ -16,7 +16,8 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
   // Build where conditions
   const where: any = { organizationId: orgId };
   if (status && status !== 'all') {
-    where.status = status;
+    const statuses = String(status).split(',').map(s => s.trim()).filter(Boolean);
+    where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
   }
 
   if (dateFrom || dateTo) {
@@ -27,11 +28,13 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
 
   const enrollmentConditions: any = {};
   if (universityId && universityId !== 'all') {
-    enrollmentConditions.program = { universityId: universityId as string };
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    enrollmentConditions.program = { universityId: uids.length === 1 ? uids[0] : { in: uids } };
   }
   const { centerId } = req.query;
   if (centerId && centerId !== 'all') {
-    enrollmentConditions.studyCenterId = centerId as string;
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    enrollmentConditions.studyCenterId = cids.length === 1 ? cids[0] : { in: cids };
   }
 
   if (search) {
@@ -225,7 +228,8 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
   const whereClause: any = { organizationId: orgId };
 
   if (status && status !== 'all') {
-    whereClause.status = status;
+    const statuses = String(status).split(',').map(s => s.trim()).filter(Boolean);
+    whereClause.status = statuses.length === 1 ? statuses[0] : { in: statuses };
   }
 
   if (dateFrom || dateTo) {
@@ -237,18 +241,22 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
   const studentConditions: any = {};
 
   if (universityId && universityId !== 'all') {
-    studentConditions.program = { universityId: universityId as string };
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    studentConditions.program = { universityId: uids.length === 1 ? uids[0] : { in: uids } };
   }
   if (centerId && centerId !== 'all') {
-    studentConditions.centerId = centerId as string;
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    studentConditions.centerId = cids.length === 1 ? cids[0] : { in: cids };
   }
   if (programId && programId !== 'all') {
-    studentConditions.programId = programId as string;
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    studentConditions.programId = pids.length === 1 ? pids[0] : { in: pids };
   }
   if (sessionId && sessionId !== 'all') {
+    const sids = String(sessionId).split(',').map(s => s.trim()).filter(Boolean);
     studentConditions.OR = [
-      { sessionId: sessionId as string },
-      { enrollments: { some: { sessionId: sessionId as string } } }
+      { sessionId: sids.length === 1 ? sids[0] : { in: sids } },
+      { enrollments: { some: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } }
     ];
   }
   if (search) {
@@ -481,7 +489,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
   };
 
   if (centerId && centerId !== 'all') {
-    invoiceWhere.centerId = centerId as string;
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    invoiceWhere.centerId = cids.length === 1 ? cids[0] : { in: cids };
   }
 
   if (dateFrom || dateTo) {
@@ -490,14 +499,24 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     if (dateTo) invoiceWhere.createdAt.lte = new Date((dateTo as string) + 'T23:59:59.999Z');
   }
 
+  const invoiceStudentWhere: any = {};
   if (sessionId && sessionId !== 'all') {
-    invoiceWhere.student = {
-      ...(invoiceWhere.student || {}),
-      OR: [
-        { sessionId: sessionId as string },
-        { enrollments: { some: { sessionId: sessionId as string } } }
-      ]
-    };
+    const sids = String(sessionId).split(',').map(s => s.trim()).filter(Boolean);
+    invoiceStudentWhere.OR = [
+      { sessionId: sids.length === 1 ? sids[0] : { in: sids } },
+      { enrollments: { some: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } }
+    ];
+  }
+  if (universityId && universityId !== 'all') {
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    invoiceStudentWhere.program = { universityId: uids.length === 1 ? uids[0] : { in: uids } };
+  }
+  if (programId && programId !== 'all') {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    invoiceStudentWhere.programId = pids.length === 1 ? pids[0] : { in: pids };
+  }
+  if (Object.keys(invoiceStudentWhere).length > 0) {
+    invoiceWhere.student = invoiceStudentWhere;
   }
 
   const invoices = await prisma.invoice.findMany({
@@ -593,10 +612,18 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     where: {
       organizationId: orgId,
       status: { in: ['enrolled', 'approved'] },
-      ...(sessionId && sessionId !== 'all' ? { sessionId: sessionId as string } : {}),
-      ...(universityId && universityId !== 'all' ? { program: { universityId: universityId as string } } : {}),
-      ...(centerId && centerId !== 'all' ? { studyCenterId: centerId as string } : {}),
-      ...(programId && programId !== 'all' ? { programId: programId as string } : {})
+      ...(sessionId && sessionId !== 'all' ? {
+        sessionId: String(sessionId).includes(',') ? { in: String(sessionId).split(',').filter(Boolean) } : (sessionId as string)
+      } : {}),
+      ...(universityId && universityId !== 'all' ? {
+        program: { universityId: String(universityId).includes(',') ? { in: String(universityId).split(',').filter(Boolean) } : (universityId as string) }
+      } : {}),
+      ...(centerId && centerId !== 'all' ? {
+        studyCenterId: String(centerId).includes(',') ? { in: String(centerId).split(',').filter(Boolean) } : (centerId as string)
+      } : {}),
+      ...(programId && programId !== 'all' ? {
+        programId: String(programId).includes(',') ? { in: String(programId).split(',').filter(Boolean) } : (programId as string)
+      } : {})
     },
     include: {
       program: {
@@ -876,8 +903,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       },
       universities,
       sessions,
-      completedRecords: status === 'pending' ? [] : filteredCompleted,
-      pendingRecords: status === 'completed' ? [] : filteredPending
+      completedRecords: (status && status !== 'all' && !String(status).split(',').map(s => s.trim().toLowerCase()).includes('completed')) ? [] : filteredCompleted,
+      pendingRecords: (status && status !== 'all' && !String(status).split(',').map(s => s.trim().toLowerCase()).includes('pending')) ? [] : filteredPending
     }
   });
 });
@@ -893,18 +920,22 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
   const where: any = { organizationId: orgId };
 
   if (sessionId && sessionId !== 'all') {
-    where.sessionId = sessionId as string;
+    const sids = String(sessionId).split(',').map(s => s.trim()).filter(Boolean);
+    where.sessionId = sids.length === 1 ? sids[0] : { in: sids };
   }
   if (req.user.role === 'center_admin' && req.user.studyCenterId) {
     where.studyCenterId = req.user.studyCenterId;
   } else if (centerId && centerId !== 'all') {
-    where.studyCenterId = centerId as string;
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    where.studyCenterId = cids.length === 1 ? cids[0] : { in: cids };
   }
   if (programId && programId !== 'all') {
-    where.programId = programId as string;
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    where.programId = pids.length === 1 ? pids[0] : { in: pids };
   }
   if (universityId && universityId !== 'all') {
-    where.program = { universityId: universityId as string };
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    where.program = { universityId: uids.length === 1 ? uids[0] : { in: uids } };
   }
   if (search) {
     const s = String(search).trim();
@@ -1003,7 +1034,8 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
   // Filter by status if specified
   let filtered = studentsList;
   if (status && status !== 'all') {
-    filtered = filtered.filter(s => s.status === status);
+    const statuses = String(status).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    filtered = filtered.filter(s => statuses.includes(String(s.status).toLowerCase()));
   }
 
   const totalAssessed = filtered.reduce((s, x) => s + x.totalFee, 0);
@@ -1360,12 +1392,13 @@ export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Re
     ];
   }
 
-  const enrollmentPaymentsWhere = sessionId && sessionId !== 'all'
-    ? { where: { enrollment: { sessionId: sessionId as string } } }
+  const sids = sessionId && sessionId !== 'all' ? String(sessionId).split(',').map(s => s.trim()).filter(Boolean) : [];
+  const enrollmentPaymentsWhere = sids.length > 0
+    ? { where: { enrollment: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } }
     : true;
 
-  const commissionOutsWhere = sessionId && sessionId !== 'all'
-    ? { where: { status: 'paid', commissionIn: { enrollment: { sessionId: sessionId as string } } } }
+  const commissionOutsWhere = sids.length > 0
+    ? { where: { status: 'paid', commissionIn: { enrollment: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } } }
     : { where: { status: 'paid' } };
 
   const centers = await prisma.studyCenter.findMany({
@@ -1456,11 +1489,12 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
     orderBy: { verifiedAt: 'asc' }
   });
 
+  const sids = sessionId && sessionId !== 'all' ? String(sessionId).split(',').map(s => s.trim()).filter(Boolean) : [];
   // 2. Enrollment Debits
   const debits = await prisma.enrollmentPayment.findMany({
     where: {
       studyCenterId: centerId,
-      ...(sessionId && sessionId !== 'all' ? { enrollment: { sessionId: sessionId as string } } : {})
+      ...(sids.length > 0 ? { enrollment: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } : {})
     },
     include: {
       enrollment: {
@@ -1480,7 +1514,10 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
       centerId: centerId,
       status: 'paid',
       studentId: { not: null },
-      ...(sessionId && sessionId !== 'all' ? { student: { OR: [{ sessionId: sessionId as string }, { enrollments: { some: { sessionId: sessionId as string } } }] } } : {})
+      ...(sids.length > 0 ? { student: { OR: [
+        { sessionId: sids.length === 1 ? sids[0] : { in: sids } },
+        { enrollments: { some: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } }
+      ] } } : {})
     },
     include: {
       student: {
@@ -1496,7 +1533,7 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
       organizationId: orgId,
       studyCenterId: centerId,
       status: 'paid',
-      ...(sessionId && sessionId !== 'all' ? { commissionIn: { enrollment: { sessionId: sessionId as string } } } : {})
+      ...(sids.length > 0 ? { commissionIn: { enrollment: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } } : {})
     },
     include: {
       commissionIn: {

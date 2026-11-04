@@ -32,26 +32,55 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     });
   }
   
-  if (req.query.status) {
-    where.status = req.query.status as string;
+  if (req.query.status && req.query.status !== 'all') {
+    const statuses = String(req.query.status).split(',').map(s => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      where.status = statuses[0];
+    } else if (statuses.length > 1) {
+      where.status = { in: statuses };
+    }
   }
-  if (req.query.centerId && req.user.role !== 'center_admin') {
-    const cid = req.query.centerId as string;
-    andConditions.push({
-      OR: [
-        { centerId: cid },
-        { enrollments: { some: { studyCenterId: cid } } }
-      ]
-    });
+  if (req.query.centerId && req.query.centerId !== 'all' && req.user.role !== 'center_admin') {
+    const cids = String(req.query.centerId).split(',').map(c => c.trim()).filter(Boolean);
+    if (cids.length === 1) {
+      andConditions.push({
+        OR: [
+          { centerId: cids[0] },
+          { enrollments: { some: { studyCenterId: cids[0] } } }
+        ]
+      });
+    } else if (cids.length > 1) {
+      andConditions.push({
+        OR: [
+          { centerId: { in: cids } },
+          { enrollments: { some: { studyCenterId: { in: cids } } } }
+        ]
+      });
+    }
   }
-  if (req.query.universityId) {
-    where.program = { ...where.program, universityId: req.query.universityId as string };
+  if (req.query.universityId && req.query.universityId !== 'all') {
+    const uids = String(req.query.universityId).split(',').map(u => u.trim()).filter(Boolean);
+    if (uids.length === 1) {
+      where.program = { ...where.program, universityId: uids[0] };
+    } else if (uids.length > 1) {
+      where.program = { ...where.program, universityId: { in: uids } };
+    }
   }
-  if (req.query.programId) {
-    where.programId = req.query.programId as string;
+  if (req.query.programId && req.query.programId !== 'all') {
+    const pids = String(req.query.programId).split(',').map(p => p.trim()).filter(Boolean);
+    if (pids.length === 1) {
+      where.programId = pids[0];
+    } else if (pids.length > 1) {
+      where.programId = { in: pids };
+    }
   }
-  if (req.query.sessionId) {
-    where.enrollments = { some: { ...where.enrollments?.some, sessionId: req.query.sessionId as string } };
+  if (req.query.sessionId && req.query.sessionId !== 'all') {
+    const sids = String(req.query.sessionId).split(',').map(s => s.trim()).filter(Boolean);
+    if (sids.length === 1) {
+      where.enrollments = { some: { ...where.enrollments?.some, sessionId: sids[0] } };
+    } else if (sids.length > 1) {
+      where.enrollments = { some: { ...where.enrollments?.some, sessionId: { in: sids } } };
+    }
   }
   if (req.query.search) {
     const search = req.query.search as string;

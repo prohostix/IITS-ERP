@@ -12,6 +12,9 @@ import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
+import { RotateCcw } from 'lucide-react';
 
 export const getStudentPhotoUrl = (student: any): string | null => {
   if (!student) return null;
@@ -106,23 +109,25 @@ export function StudentsPanel() {
     }
   };
 
-  const [statusFilter, setStatusFilter] = useState('');
-  const [universityFilter, setUniversityFilter] = useState('');
-  const [centerFilter, setCenterFilter] = useState('');
-  const [programFilter, setProgramFilter] = useState('');
-  const [sessionFilter, setSessionFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('students_panel', {
+    status: '',
+    sessions: [] as string[],
+    universities: [] as string[],
+    programs: [] as string[],
+    centers: [] as string[],
+    search: '',
+  });
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
-      if (statusFilter && statusFilter !== 'all') query.append('status', statusFilter);
-      if (universityFilter && universityFilter !== 'all') query.append('universityId', universityFilter);
-      if (centerFilter && centerFilter !== 'all') query.append('centerId', centerFilter);
-      if (programFilter && programFilter !== 'all') query.append('programId', programFilter);
-      if (sessionFilter && sessionFilter !== 'all') query.append('sessionId', sessionFilter);
-      if (searchQuery) query.append('search', searchQuery);
+      if (filters.status && filters.status !== 'all') query.append('status', filters.status);
+      if (filters.universities && filters.universities.length > 0) query.append('universityId', filters.universities.join(','));
+      if (filters.centers && filters.centers.length > 0) query.append('centerId', filters.centers.join(','));
+      if (filters.programs && filters.programs.length > 0) query.append('programId', filters.programs.join(','));
+      if (filters.sessions && filters.sessions.length > 0) query.append('sessionId', filters.sessions.join(','));
+      if (filters.search) query.append('search', filters.search);
       
       const response = await api.get(`/students?${query.toString()}`);
       setStudents(response.data.data || []);
@@ -130,7 +135,7 @@ export function StudentsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, universityFilter, centerFilter, programFilter, sessionFilter, searchQuery]);
+  }, [filters]);
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -394,84 +399,85 @@ export function StudentsPanel() {
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap mb-4 items-center">
-        {[
-          { key: '', label: 'All', count: students.length },
-          { key: 'active', label: 'Active', count: students.filter(s => s.status === 'active').length },
-          { key: 'hold', label: 'Hold', count: students.filter(s => s.status === 'hold').length },
-          { key: 'dropout', label: 'Dropout', count: students.filter(s => s.status === 'dropout').length }
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5',
-              statusFilter === tab.key
-                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                : 'bg-muted/60 text-muted-foreground border-border hover:border-primary/40'
-            )}
-          >
-            <span>{tab.label}</span>
-            <span className={cn(
-              'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
-              statusFilter === tab.key ? 'bg-primary-foreground/20 text-white' : 'bg-background text-muted-foreground border'
-            )}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+      <div className="flex gap-2 flex-wrap mb-4 items-center justify-between">
+        <div className="flex gap-2 flex-wrap items-center">
+          {[
+            { key: '', label: 'All', count: students.length },
+            { key: 'active', label: 'Active', count: students.filter(s => s.status === 'active').length },
+            { key: 'hold', label: 'Hold', count: students.filter(s => s.status === 'hold').length },
+            { key: 'dropout', label: 'Dropout', count: students.filter(s => s.status === 'dropout').length }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setField('status', tab.key)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5',
+                filters.status === tab.key
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-muted/60 text-muted-foreground border-border hover:border-primary/40'
+              )}
+            >
+              <span>{tab.label}</span>
+              <span className={cn(
+                'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+                filters.status === tab.key ? 'bg-primary-foreground/20 text-white' : 'bg-background text-muted-foreground border'
+              )}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
 
-        <div className="ml-auto flex gap-2">
-          <Select value={sessionFilter} onValueChange={setSessionFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All Sessions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sessions</SelectItem>
-              {sessions.map(s => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2 flex-wrap items-center ml-auto">
+          {/* Sessions Multi-Select */}
+          <MultiSelectFilter
+            title="Sessions"
+            placeholder="All Sessions"
+            options={sessions.map(s => ({ label: s.name, value: s.id }))}
+            selectedValues={filters.sessions}
+            onChange={(values) => setField('sessions', values)}
+          />
 
-          <Select value={universityFilter} onValueChange={setUniversityFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Universities" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Universities</SelectItem>
-              {universities.map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Universities Multi-Select */}
+          <MultiSelectFilter
+            title="Universities"
+            placeholder="All Universities"
+            options={universities.map(u => ({ label: u.name, value: u.id, code: u.code }))}
+            selectedValues={filters.universities}
+            onChange={(values) => setField('universities', values)}
+          />
 
-          <Select value={programFilter} onValueChange={setProgramFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Programs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Programs</SelectItem>
-              {programs.filter(p => p && (p.id || p.id)).map((prog) => (
-                <SelectItem key={prog.id || prog.id} value={(prog.id || prog.id).toString()}>
-                  {prog.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Programs Multi-Select */}
+          <MultiSelectFilter
+            title="Programs"
+            placeholder="All Programs"
+            options={programs.filter(p => p && p.id).map(prog => ({ label: prog.name, value: prog.id.toString() }))}
+            selectedValues={filters.programs}
+            onChange={(values) => setField('programs', values)}
+          />
 
+          {/* Study Centers Multi-Select */}
           {user?.role !== 'center_admin' && (
-            <Select value={centerFilter} onValueChange={setCenterFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Centers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Centers</SelectItem>
-                {centers.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelectFilter
+              title="Centers"
+              placeholder="All Centers"
+              options={centers.map(c => ({ label: c.name, value: c.id, code: c.code }))}
+              selectedValues={filters.centers}
+              onChange={(values) => setField('centers', values)}
+            />
+          )}
+
+          {/* Clear Filters Button */}
+          {isFiltered && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearFilters}
+              className="h-9 px-2.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 font-semibold gap-1.5 shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Clear Filters
+            </Button>
           )}
         </div>
       </div>
@@ -479,9 +485,9 @@ export function StudentsPanel() {
       <div className="flex gap-2 mb-4">
         <Input 
           placeholder="Search by name, email, or admission no..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-md"
+          value={filters.search}
+          onChange={(e) => setField('search', e.target.value)}
+          className="max-w-md h-9 text-xs"
         />
       </div>
 

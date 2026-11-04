@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -71,13 +73,15 @@ export function FinanceSalesTargetsPanel() {
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<SalesTarget | null>(null);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'failed'>('all');
-  const [sessionFilter, setSessionFilter] = useState<string>('all');
-  const [yearFilter, setYearFilter] = useState<string>('all');
-  const [monthFilter, setMonthFilter] = useState<string>('all');
-  const [userFilter, setUserFilter] = useState<string>('all');
-  const [universityFilter, setUniversityFilter] = useState<string>('all');
+  // Persistent Filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('sales_targets_panel', {
+    status: 'all' as 'all' | 'active' | 'completed' | 'failed',
+    sessions: [] as string[],
+    years: [] as string[],
+    months: [] as string[],
+    users: [] as string[],
+    universities: [] as string[],
+  });
 
   const [form, setForm] = useState({
     employeeId: '',
@@ -171,48 +175,49 @@ export function FinanceSalesTargetsPanel() {
 
       // Status
       const status = getTargetStatus(t);
-      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      if (filters.status !== 'all' && status !== filters.status) return false;
 
       // User
-      if (userFilter !== 'all') {
+      if (filters.users.length > 0) {
         const empId = t.employeeId?.id;
-        if (empId !== userFilter) return false;
+        if (!empId || !filters.users.includes(empId)) return false;
       }
 
       // University
-      if (universityFilter !== 'all') {
+      if (filters.universities.length > 0) {
         const uId = t.university?.id || t.universityId;
-        if (uId !== universityFilter) return false;
+        if (!uId || !filters.universities.includes(uId)) return false;
       }
 
       // Session
-      if (sessionFilter !== 'all') {
+      if (filters.sessions.length > 0) {
         const sId = t.session?.id || t.sessionId;
-        if (sId !== sessionFilter) return false;
+        if (!sId || !filters.sessions.includes(sId)) return false;
       }
 
-      // Year & Month
+      // Year
       const periodStr = String(t.period || '').trim();
-      if (yearFilter !== 'all') {
+      if (filters.years.length > 0) {
         const targetYear = periodStr.slice(0, 4);
         const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
-        if (targetYear !== yearFilter && createdYear !== yearFilter) return false;
+        if (!filters.years.includes(targetYear) && !filters.years.includes(createdYear)) return false;
       }
 
-      if (monthFilter !== 'all') {
-        const paddedMonth = monthFilter.padStart(2, '0');
+      // Month
+      if (filters.months.length > 0) {
+        const paddedMonths = filters.months.map(m => m.padStart(2, '0'));
         let targetMonth = '';
         if (/^\d{4}-\d{2}/.test(periodStr)) {
           targetMonth = periodStr.slice(5, 7);
         } else if (t.createdAt) {
           targetMonth = String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0');
         }
-        if (targetMonth && targetMonth !== paddedMonth) return false;
+        if (!targetMonth || !paddedMonths.includes(targetMonth)) return false;
       }
 
       return true;
     });
-  }, [targets, statusFilter, userFilter, universityFilter, sessionFilter, yearFilter, monthFilter]);
+  }, [targets, filters.status, filters.users, filters.universities, filters.sessions, filters.years, filters.months]);
 
   const availableYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -224,17 +229,6 @@ export function FinanceSalesTargetsPanel() {
     });
     return Array.from(years).sort().reverse();
   }, [targets]);
-
-  const resetFilters = () => {
-    setStatusFilter('all');
-    setSessionFilter('all');
-    setYearFilter('all');
-    setMonthFilter('all');
-    setUserFilter('all');
-    setUniversityFilter('all');
-  };
-
-  const hasActiveFilters = sessionFilter !== 'all' || yearFilter !== 'all' || monthFilter !== 'all' || userFilter !== 'all' || universityFilter !== 'all';
 
   const openCreate = () => {
     setEditTarget(null);
@@ -498,7 +492,7 @@ export function FinanceSalesTargetsPanel() {
 
       {/* Status Tabs & Filters */}
       <div className="flex flex-col gap-4">
-        <Tabs value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+        <Tabs value={filters.status} onValueChange={(v: any) => setField('status', v)}>
           <TabsList className="grid grid-cols-4 w-full max-w-xl h-11 p-1 bg-muted/60">
             <TabsTrigger value="all" className="flex items-center gap-1.5 text-xs font-medium">
               <span>All Targets</span>
@@ -524,80 +518,55 @@ export function FinanceSalesTargetsPanel() {
 
         {/* Filter controls: Session, Year, Month, User, University */}
         <div className="p-3.5 rounded-xl border border-border/80 bg-card/60 shadow-2xs backdrop-blur-xs flex flex-wrap items-center gap-3">
-          {/* Session filter */}
-          <div className="w-40 sm:w-44">
-            <select
-              className="w-full border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background h-9"
-              value={sessionFilter}
-              onChange={e => setSessionFilter(e.target.value)}
-            >
-              <option value="all">All Sessions</option>
-              {sessions.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            title="Sessions"
+            selected={filters.sessions}
+            onChange={(s) => setField('sessions', s)}
+            options={sessions.map(s => ({ label: s.name, value: s.id }))}
+            placeholder="All Sessions"
+          />
 
-          {/* Year filter */}
-          <div className="w-28">
-            <select
-              className="w-full border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background h-9"
-              value={yearFilter}
-              onChange={e => setYearFilter(e.target.value)}
-            >
-              <option value="all">All Years</option>
-              {availableYears.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            title="Years"
+            selected={filters.years}
+            onChange={(y) => setField('years', y)}
+            options={availableYears.map(y => ({ label: y, value: y }))}
+            placeholder="All Years"
+          />
 
-          {/* Month filter */}
-          <div className="w-32">
-            <select
-              className="w-full border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background h-9"
-              value={monthFilter}
-              onChange={e => setMonthFilter(e.target.value)}
-            >
-              <option value="all">All Months</option>
-              {MONTHS.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            title="Months"
+            selected={filters.months}
+            onChange={(m) => setField('months', m)}
+            options={MONTHS.map(m => ({ label: m.label, value: m.value }))}
+            placeholder="All Months"
+          />
 
-          {/* User filter */}
-          <div className="w-44 sm:w-48">
-            <select
-              className="w-full border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background h-9"
-              value={userFilter}
-              onChange={e => setUserFilter(e.target.value)}
-            >
-              <option value="all">All Sales Staff</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            title="Sales Staff"
+            selected={filters.users}
+            onChange={(u) => setField('users', u)}
+            options={users.map(u => ({ label: `${u.name} (${u.role})`, value: u.id }))}
+            placeholder="All Sales Staff"
+          />
 
-          {/* University filter */}
-          <div className="w-44 sm:w-52">
-            <select
-              className="w-full border border-border rounded-lg px-2.5 py-1.5 text-xs bg-background h-9"
-              value={universityFilter}
-              onChange={e => setUniversityFilter(e.target.value)}
-            >
-              <option value="all">All Universities</option>
-              {universities.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
-          </div>
+          <MultiSelectFilter
+            title="Universities"
+            selected={filters.universities}
+            onChange={(u) => setField('universities', u)}
+            options={universities.map(u => ({ label: u.name, value: u.id }))}
+            placeholder="All Universities"
+          />
 
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground">
-              <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              Reset Filters
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-9 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Clear Filters
             </Button>
           )}
         </div>

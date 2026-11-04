@@ -12,10 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Landmark, ArrowDownLeft, ArrowUpRight, RefreshCw, Download, Printer,
   Search, CheckCircle2, Clock, AlertCircle, IndianRupee, Eye, Building2,
-  Calendar, Layers, Filter
+  Calendar, Layers, Filter, RotateCcw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -28,13 +30,15 @@ export function FinanceCommissionUniversityReportPanel() {
   const [allUniversitiesList, setAllUniversitiesList] = useState<any[]>([]);
   const [allCentersList, setAllCentersList] = useState<any[]>([]);
 
-  // Filters
-  const [selectedUniversity, setSelectedUniversity] = useState('all');
-  const [selectedCenter, setSelectedCenter] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [search, setSearch] = useState('');
+  // Persistent Filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('comm_univ_report_panel', {
+    universities: [] as string[],
+    centers: [] as string[],
+    statuses: [] as string[],
+    dateFrom: '',
+    dateTo: '',
+    search: '',
+  });
 
   // Drilldown dialog
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
@@ -57,7 +61,7 @@ export function FinanceCommissionUniversityReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [selectedUniversity, selectedCenter, selectedStatus, dateFrom, dateTo]);
+  }, [filters.universities, filters.centers, filters.statuses, filters.dateFrom, filters.dateTo]);
 
   const fetchUniversitiesList = async () => {
     try {
@@ -77,12 +81,12 @@ export function FinanceCommissionUniversityReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
-      if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
-      if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
-      if (selectedStatus && selectedStatus !== 'all') q.append('status', selectedStatus);
-      if (dateFrom) q.append('dateFrom', dateFrom);
-      if (dateTo) q.append('dateTo', dateTo);
-      if (search) q.append('search', search);
+      if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
+      if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
+      if (filters.statuses.length > 0) q.append('status', filters.statuses.join(','));
+      if (filters.dateFrom) q.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) q.append('dateTo', filters.dateTo);
+      if (filters.search) q.append('search', filters.search);
 
       const res = await api.get(`/finance/reports/commission-against-university?${q.toString()}`);
       if (res.data.success) {
@@ -460,71 +464,69 @@ export function FinanceCommissionUniversityReportPanel() {
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[200px]">
-              <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Universities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Universities</SelectItem>
-                  {allUniversitiesList.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Universities"
+              selected={filters.universities}
+              onChange={(u) => setField('universities', u)}
+              options={allUniversitiesList.map(u => ({ label: u.name, value: u.id }))}
+              placeholder="All Universities"
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Study Centers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Study Centers</SelectItem>
-                  {allCentersList.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Centers"
+              selected={filters.centers}
+              onChange={(c) => setField('centers', c)}
+              options={allCentersList.map(c => ({ label: c.name, value: c.id }))}
+              placeholder="All Study Centers"
+            />
 
-            <div className="w-[160px]">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="received">Received</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Statuses"
+              selected={filters.statuses}
+              onChange={(st) => setField('statuses', st)}
+              options={[
+                { label: 'Pending', value: 'pending' },
+                { label: 'Received', value: 'received' }
+              ]}
+              placeholder="All Statuses"
+            />
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">From:</span>
               <Input
                 type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
+                value={filters.dateFrom}
+                onChange={e => setField('dateFrom', e.target.value)}
                 className="w-[140px] text-xs h-9"
               />
               <span className="text-xs text-slate-500">To:</span>
               <Input
                 type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
+                value={filters.dateTo}
+                onChange={e => setField('dateTo', e.target.value)}
                 className="w-[140px] text-xs h-9"
               />
             </div>
+
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
 
           <div className="relative w-full sm:w-[260px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search student, enrollment..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={e => setField('search', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchReport()}
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />

@@ -1120,8 +1120,12 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
   });
 
   let programIdsForUniversity: string[] | undefined;
-  if (universityId) {
-    const progs = await prisma.program.findMany({ where: { universityId }, select: { id: true } });
+  if (universityId && universityId !== '__all__') {
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    const progs = await prisma.program.findMany({
+      where: { universityId: uids.length === 1 ? uids[0] : { in: uids } },
+      select: { id: true }
+    });
     programIdsForUniversity = progs.map(p => p.id);
     if (programIdsForUniversity.length === 0) {
       res.json({ success: true, count: 0, data: [] });
@@ -1129,27 +1133,33 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
     }
   }
 
-  // Build final programId filter: if both universityId AND programId filters active,
-  // use the intersection; otherwise use whichever is set
-  let programIdFilter: { programId: string } | { programId: { in: string[] } } | undefined;
-  if (programId && programIdsForUniversity) {
-    // Both filters — intersection
-    if (!programIdsForUniversity.includes(programId)) {
+  let programIdFilter: any = undefined;
+  if (programId && programId !== '__all__' && programIdsForUniversity) {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    const intersected = pids.filter(p => programIdsForUniversity!.includes(p));
+    if (intersected.length === 0) {
       res.json({ success: true, count: 0, data: [] });
       return;
     }
-    programIdFilter = { programId };
-  } else if (programId) {
-    programIdFilter = { programId };
+    programIdFilter = { programId: intersected.length === 1 ? intersected[0] : { in: intersected } };
+  } else if (programId && programId !== '__all__') {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    programIdFilter = { programId: pids.length === 1 ? pids[0] : { in: pids } };
   } else if (programIdsForUniversity) {
     programIdFilter = { programId: { in: programIdsForUniversity } };
   }
+
+  const sessionCondition = (() => {
+    if (!sessionId || sessionId === '__all__') return {};
+    const sids = String(sessionId).split(',').map(s => s.trim()).filter(Boolean);
+    return { sessionId: sids.length === 1 ? sids[0] : { in: sids } };
+  })();
 
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: req.user.organizationId,
       ...programIdFilter,
-      ...(sessionId && { sessionId }),
+      ...sessionCondition,
       ...( (() => {
         const dateFilter: any = {};
         if (dateFrom && !isNaN(new Date(dateFrom).getTime())) {
@@ -1317,28 +1327,42 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
   const { centerId, universityId, programId, search, dueDate } = req.query as any;
   const orgId = req.user.organizationId;
   
-  let actualCenterId = centerId;
+  let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
-    actualCenterId = (req.user as any).studyCenterId || (req.user as any).centerId;
+    const cid = (req.user as any).studyCenterId || (req.user as any).centerId;
+    centerCondition = { studyCenterId: cid };
+  } else if (centerId && centerId !== '__all__') {
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    centerCondition = { studyCenterId: cids.length === 1 ? cids[0] : { in: cids } };
   }
 
   // Build program filter
   let programFilter: any = {};
-  if (programId) programFilter.programId = programId;
-  if (universityId) {
-    // Filter via program's university
-    const progIds = (await prisma.program.findMany({
-      where: { organizationId: orgId, universityId },
+  let progIdsFromUni: string[] | undefined;
+  if (universityId && universityId !== '__all__') {
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    progIdsFromUni = (await prisma.program.findMany({
+      where: { organizationId: orgId, universityId: uids.length === 1 ? uids[0] : { in: uids } },
       select: { id: true },
     })).map(p => p.id);
-    programFilter.programId = programId ? (progIds.includes(programId) ? programId : '__none__') : { in: progIds };
+  }
+
+  if (programId && programId !== '__all__' && progIdsFromUni) {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    const intersected = pids.filter(p => progIdsFromUni!.includes(p));
+    programFilter.programId = { in: intersected };
+  } else if (programId && programId !== '__all__') {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    programFilter.programId = pids.length === 1 ? pids[0] : { in: pids };
+  } else if (progIdsFromUni) {
+    programFilter.programId = { in: progIdsFromUni };
   }
 
   // Find all enrollments matching filters
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: orgId,
-      ...(actualCenterId && { studyCenterId: actualCenterId }),
+      ...centerCondition,
       ...programFilter,
       ...(search && {
         OR: [
@@ -1482,27 +1506,42 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
   const { centerId, universityId, programId, search } = req.query as any;
   const orgId = req.user.organizationId;
   
-  let actualCenterId = centerId;
+  let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
-    actualCenterId = (req.user as any).studyCenterId || (req.user as any).centerId;
+    const cid = (req.user as any).studyCenterId || (req.user as any).centerId;
+    centerCondition = { studyCenterId: cid };
+  } else if (centerId && centerId !== '__all__') {
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    centerCondition = { studyCenterId: cids.length === 1 ? cids[0] : { in: cids } };
   }
 
   // Build program filter
   let programFilter: any = {};
-  if (programId) programFilter.programId = programId;
-  if (universityId) {
-    const progIds = (await prisma.program.findMany({
-      where: { organizationId: orgId, universityId },
+  let progIdsFromUni: string[] | undefined;
+  if (universityId && universityId !== '__all__') {
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    progIdsFromUni = (await prisma.program.findMany({
+      where: { organizationId: orgId, universityId: uids.length === 1 ? uids[0] : { in: uids } },
       select: { id: true },
     })).map(p => p.id);
-    programFilter.programId = programId ? (progIds.includes(programId) ? programId : '__none__') : { in: progIds };
+  }
+
+  if (programId && programId !== '__all__' && progIdsFromUni) {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    const intersected = pids.filter(p => progIdsFromUni!.includes(p));
+    programFilter.programId = { in: intersected };
+  } else if (programId && programId !== '__all__') {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    programFilter.programId = pids.length === 1 ? pids[0] : { in: pids };
+  } else if (progIdsFromUni) {
+    programFilter.programId = { in: progIdsFromUni };
   }
 
   // Find all enrollments matching filters
   const enrollments = await prisma.enrollment.findMany({
     where: {
       organizationId: orgId,
-      ...(actualCenterId && { studyCenterId: actualCenterId }),
+      ...centerCondition,
       ...programFilter,
       ...(search && {
         OR: [

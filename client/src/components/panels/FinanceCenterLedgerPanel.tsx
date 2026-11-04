@@ -11,8 +11,10 @@ import {
 import {
   Wallet, RefreshCw, Download, Printer, Search, ArrowLeft,
   ArrowDownLeft, ArrowUpRight, Building2, Phone, Mail, MapPin,
-  CheckCircle2, Clock, AlertCircle, Eye, Filter, Landmark
+  CheckCircle2, Clock, AlertCircle, Eye, Filter, Landmark, RotateCcw
 } from 'lucide-react';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -32,9 +34,13 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
   // Centers list mode
   const [centers, setCenters] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [selectedSession, setSelectedSession] = useState('all');
   const [summary, setSummary] = useState<any>({});
-  const [search, setSearch] = useState('');
+
+  // Active persistent filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('center_ledger_panel', {
+    sessions: [] as string[],
+    search: '',
+  });
 
   // Detailed Ledger state
   const [ledgerData, setLedgerData] = useState<any | null>(null);
@@ -51,13 +57,13 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
   useEffect(() => {
     fetchCenterList();
-  }, [selectedSession]);
+  }, [filters.sessions]);
 
   useEffect(() => {
     if (selectedCenterId) {
       fetchCenterLedgerDetails(selectedCenterId);
     }
-  }, [selectedCenterId, selectedSession, typeFilter, dateFrom, dateTo]);
+  }, [selectedCenterId, filters.sessions, typeFilter, dateFrom, dateTo]);
 
   const fetchSessions = async () => {
     try {
@@ -70,8 +76,8 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     setLoading(true);
     try {
       const q = new URLSearchParams();
-      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
-      if (search) q.append('search', search);
+      if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
+      if (filters.search) q.append('search', filters.search);
 
       const res = await api.get(`/finance/center-ledger?${q.toString()}`);
       if (res.data.success) {
@@ -89,7 +95,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     setLoadingDetails(true);
     try {
       const q = new URLSearchParams();
-      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
+      if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (typeFilter && typeFilter !== 'all') q.append('type', typeFilter);
       if (dateFrom) q.append('dateFrom', dateFrom);
       if (dateTo) q.append('dateTo', dateTo);
@@ -660,30 +666,35 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
       {/* Filter / Search Bar */}
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="text-sm font-semibold text-slate-700">
               Study Centers Directory ({centers.length})
             </div>
-            <div className="w-[180px]">
-              <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="All Sessions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sessions</SelectItem>
-                  {sessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <MultiSelectFilter
+              title="Sessions"
+              selected={filters.sessions}
+              onChange={(s) => setField('sessions', s)}
+              options={sessions.map(s => ({ label: s.name, value: s.id }))}
+              placeholder="All Sessions"
+            />
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
           <div className="relative w-full sm:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search center name, code, city..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={e => setField('search', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchCenterList()}
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />

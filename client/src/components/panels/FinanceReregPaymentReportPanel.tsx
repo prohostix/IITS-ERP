@@ -11,10 +11,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RefreshCw, Download, Printer, Search, CheckCircle2, Clock,
-  Building2, Layers, AlertCircle, FileText, ChevronRight, Calendar
+  Building2, Layers, AlertCircle, FileText, ChevronRight, Calendar, RotateCcw
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 
 export function FinanceReregPaymentReportPanel() {
   const [loading, setLoading] = useState(false);
@@ -30,14 +32,16 @@ export function FinanceReregPaymentReportPanel() {
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [allSessions, setAllSessions] = useState<any[]>([]);
 
-  // Active filters
-  const [selectedSession, setSelectedSession] = useState('all');
-  const [selectedUniversity, setSelectedUniversity] = useState('all');
-  const [selectedCenter, setSelectedCenter] = useState('all');
-  const [selectedProgram, setSelectedProgram] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [search, setSearch] = useState('');
+  // Persistent multi-select filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('rereg_report_panel', {
+    sessions: [] as string[],
+    universities: [] as string[],
+    centers: [] as string[],
+    programs: [] as string[],
+    dateFrom: '',
+    dateTo: '',
+    search: ''
+  });
 
   useEffect(() => {
     fetchFilterOptions();
@@ -45,7 +49,7 @@ export function FinanceReregPaymentReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [selectedSession, selectedUniversity, selectedCenter, selectedProgram, dateFrom, dateTo]);
+  }, [filters]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -66,13 +70,13 @@ export function FinanceReregPaymentReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
-      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
-      if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
-      if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
-      if (selectedProgram && selectedProgram !== 'all') q.append('programId', selectedProgram);
-      if (dateFrom) q.append('dateFrom', dateFrom);
-      if (dateTo) q.append('dateTo', dateTo);
-      if (search) q.append('search', search);
+      if (filters.sessions && filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
+      if (filters.universities && filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
+      if (filters.centers && filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
+      if (filters.programs && filters.programs.length > 0) q.append('programId', filters.programs.join(','));
+      if (filters.dateFrom) q.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) q.append('dateTo', filters.dateTo);
+      if (filters.search) q.append('search', filters.search);
 
       const res = await api.get(`/finance/reports/rereg-payments?${q.toString()}`);
       if (res.data.success) {
@@ -419,88 +423,80 @@ export function FinanceReregPaymentReportPanel() {
       {/* Filter Bar */}
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[180px]">
-              <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Sessions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sessions</SelectItem>
-                  {allSessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Sessions */}
+            <MultiSelectFilter
+              title="Sessions"
+              placeholder="All Sessions"
+              options={allSessions.map(s => ({ label: s.name, value: s.id }))}
+              selectedValues={filters.sessions}
+              onChange={vals => setField('sessions', vals)}
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Universities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Universities</SelectItem>
-                  {allUniversities.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Universities */}
+            <MultiSelectFilter
+              title="Universities"
+              placeholder="All Universities"
+              options={allUniversities.map(u => ({ label: u.name, value: u.id, code: u.code }))}
+              selectedValues={filters.universities}
+              onChange={vals => setField('universities', vals)}
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Centers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Centers</SelectItem>
-                  {allCenters.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Centers */}
+            <MultiSelectFilter
+              title="Centers"
+              placeholder="All Centers"
+              options={allCenters.map(c => ({ label: c.name, value: c.id, code: c.code }))}
+              selectedValues={filters.centers}
+              onChange={vals => setField('centers', vals)}
+            />
 
-            <div className="w-[180px]">
-              <Select value={selectedProgram} onValueChange={setSelectedProgram}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Programs" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Programs</SelectItem>
-                  {allPrograms.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Programs */}
+            <MultiSelectFilter
+              title="Programs"
+              placeholder="All Programs"
+              options={allPrograms.map(p => ({ label: p.name, value: p.id }))}
+              selectedValues={filters.programs}
+              onChange={vals => setField('programs', vals)}
+            />
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">From:</span>
+            <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border text-xs">
+              <span className="text-slate-500">From:</span>
               <Input
                 type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="w-[130px] text-xs h-9"
+                value={filters.dateFrom}
+                onChange={e => setField('dateFrom', e.target.value)}
+                className="w-[125px] text-xs h-7 px-1.5 bg-background"
               />
-              <span className="text-xs text-slate-500">To:</span>
+              <span className="text-slate-500">To:</span>
               <Input
                 type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="w-[130px] text-xs h-9"
+                value={filters.dateTo}
+                onChange={e => setField('dateTo', e.target.value)}
+                className="w-[125px] text-xs h-7 px-1.5 bg-background"
               />
             </div>
+
+            {/* Clear Filters Button */}
+            {isFiltered && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 px-2.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 font-semibold gap-1.5 shadow-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
 
-          <div className="relative w-full sm:w-[240px]">
+          <div className="relative w-full sm:w-[220px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search student, enrollment..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchReport()}
+              value={filters.search}
+              onChange={e => setField('search', e.target.value)}
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />
           </div>

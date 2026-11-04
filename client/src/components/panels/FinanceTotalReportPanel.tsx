@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Search, Filter, RefreshCw, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -27,53 +28,44 @@ const fmtDate = (d: string | null | undefined): string => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-interface FilterState {
-  universityId: string;
-  programId: string;
-  sessionId: string;
-  search: string;
-  dateFrom: string;
-  dateTo: string;
-}
-
-const EMPTY_FILTERS: FilterState = {
-  universityId: '__all__',
-  programId: '__all__',
-  sessionId: '__all__',
-  search: '',
-  dateFrom: '',
-  dateTo: '',
-};
-
 export function FinanceTotalReportPanel() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // UI filter state (what the user sees in the dropdowns)
-  const [uiFilters, setUiFilters] = useState<FilterState>(EMPTY_FILTERS);
-  // Applied filter state (what is actually sent to the server)
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
+  // Persistent filters
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('total_report_panel', {
+    universities: [] as string[],
+    programs: [] as string[],
+    sessions: [] as string[],
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+  });
 
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
 
-  // Fetch report whenever appliedFilters changes — no stale closure issues
-  useEffect(() => {
+  const fetchReport = () => {
     const params = new URLSearchParams();
-    if (appliedFilters.universityId !== '__all__') params.set('universityId', appliedFilters.universityId);
-    if (appliedFilters.programId !== '__all__') params.set('programId', appliedFilters.programId);
-    if (appliedFilters.sessionId !== '__all__') params.set('sessionId', appliedFilters.sessionId);
-    if (appliedFilters.search) params.set('search', appliedFilters.search);
-    if (appliedFilters.dateFrom) params.set('dateFrom', appliedFilters.dateFrom);
-    if (appliedFilters.dateTo) params.set('dateTo', appliedFilters.dateTo);
+    if (filters.universities.length > 0) params.set('universityId', filters.universities.join(','));
+    if (filters.programs.length > 0) params.set('programId', filters.programs.join(','));
+    if (filters.sessions.length > 0) params.set('sessionId', filters.sessions.join(','));
+    if (filters.search) params.set('search', filters.search);
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
 
     setLoading(true);
     api.get(`/finance/total-report?${params.toString()}`)
       .then(res => setRows(res.data.data || []))
       .catch(() => toast.error('Failed to load report'))
       .finally(() => setLoading(false));
-  }, [appliedFilters]);
+  };
+
+  // Fetch report whenever filters change
+  useEffect(() => {
+    fetchReport();
+  }, [filters.universities, filters.programs, filters.sessions, filters.dateFrom, filters.dateTo]);
 
   // Load filter options on mount
   useEffect(() => {
@@ -87,13 +79,6 @@ export function FinanceTotalReportPanel() {
       setSessions(sRes.data.data || []);
     });
   }, []);
-
-  const handleApply = () => setAppliedFilters({ ...uiFilters });
-
-  const handleReset = () => {
-    setUiFilters(EMPTY_FILTERS);
-    setAppliedFilters(EMPTY_FILTERS);
-  };
 
   const exportExcel = () => {
     const data = rows.map((r, i) => ({
@@ -185,9 +170,9 @@ export function FinanceTotalReportPanel() {
                   <Input
                     placeholder="Search student or center..."
                     className="pl-9 w-full"
-                    value={uiFilters.search}
-                    onChange={e => setUiFilters(f => ({ ...f, search: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleApply()}
+                    value={filters.search}
+                    onChange={e => setField('search', e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && fetchReport()}
                   />
                 </div>
               </div>
@@ -196,8 +181,8 @@ export function FinanceTotalReportPanel() {
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">From Date</label>
                 <Input
                   type="date"
-                  value={uiFilters.dateFrom}
-                  onChange={e => setUiFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                  value={filters.dateFrom}
+                  onChange={e => setField('dateFrom', e.target.value)}
                 />
               </div>
 
@@ -205,55 +190,55 @@ export function FinanceTotalReportPanel() {
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">To Date</label>
                 <Input
                   type="date"
-                  value={uiFilters.dateTo}
-                  onChange={e => setUiFilters(f => ({ ...f, dateTo: e.target.value }))}
+                  value={filters.dateTo}
+                  onChange={e => setField('dateTo', e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Row 2: Select Dropdowns & Buttons */}
+            {/* Row 2: Multi-Select Filters & Buttons */}
             <div className="flex flex-wrap gap-4 items-center justify-between pt-2 border-t border-muted/50">
               <div className="flex flex-wrap gap-3 items-center flex-1">
-                <div className="w-[200px]">
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">University</label>
-                  <Select value={uiFilters.universityId} onValueChange={v => setUiFilters(f => ({ ...f, universityId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="All Universities" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All Universities</SelectItem>
-                      {universities.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <MultiSelectFilter
+                  title="Universities"
+                  selected={filters.universities}
+                  onChange={(u) => setField('universities', u)}
+                  options={universities.map((u: any) => ({ label: u.name, value: u.id }))}
+                  placeholder="All Universities"
+                />
 
-                <div className="w-[200px]">
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Program</label>
-                  <Select value={uiFilters.programId} onValueChange={v => setUiFilters(f => ({ ...f, programId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="All Programs" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All Programs</SelectItem>
-                      {programs.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <MultiSelectFilter
+                  title="Programs"
+                  selected={filters.programs}
+                  onChange={(p) => setField('programs', p)}
+                  options={programs.map((p: any) => ({ label: p.name, value: p.id }))}
+                  placeholder="All Programs"
+                />
 
-                <div className="w-[200px]">
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Session</label>
-                  <Select value={uiFilters.sessionId} onValueChange={v => setUiFilters(f => ({ ...f, sessionId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="All Sessions" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All Sessions</SelectItem>
-                      {sessions.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <MultiSelectFilter
+                  title="Sessions"
+                  selected={filters.sessions}
+                  onChange={(s) => setField('sessions', s)}
+                  options={sessions.map((s: any) => ({ label: s.name, value: s.id }))}
+                  placeholder="All Sessions"
+                />
               </div>
 
               <div className="flex gap-2 self-end mt-4 sm:mt-0">
-                <Button onClick={handleApply} disabled={loading}>
+                <Button onClick={fetchReport} disabled={loading}>
                   {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
-                  Apply Filters
+                  Refresh
                 </Button>
-                <Button variant="outline" onClick={handleReset}>Reset</Button>
+                {isFiltered && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearFilters}
+                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             </div>
           </div>
