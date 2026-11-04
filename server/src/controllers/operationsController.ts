@@ -595,34 +595,90 @@ export const suspendStudyCenter = asyncHandler(async (req: AuthRequest, res: Res
 // Admission Sessions
 export const getAdmissionSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
-  if (req.query.universityId) {
+  if (req.query.universityId && req.query.universityId !== 'all') {
     where.universityId = req.query.universityId as string;
+  }
+  if (req.query.status && req.query.status !== 'all') {
+    where.status = req.query.status as string;
   }
   const sessions = await prisma.admissionSession.findMany({ 
     where,
     include: {
-      university: { select: { id: true, name: true } }
-    }
+      university: { select: { id: true, name: true, code: true } },
+      program: { select: { id: true, name: true, code: true } }
+    },
+    orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, count: sessions.length, data: sessions });
 });
+
 export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const session = await prisma.admissionSession.findUnique({ where: { id: req.params.id } });
+  const session = await prisma.admissionSession.findUnique({
+    where: { id: req.params.id },
+    include: {
+      university: { select: { id: true, name: true, code: true } },
+      program: { select: { id: true, name: true, code: true } }
+    }
+  });
   res.json({ success: true, data: session });
 });
+
 export const createAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = { ...req.body, organizationId: req.user.organizationId };
-  if (data.universityId === '') data.universityId = null;
-  if (data.programId === '') data.programId = null;
-  const session = await prisma.admissionSession.create({ data });
+  if (!data.universityId || data.universityId === 'none' || data.universityId.trim() === '') {
+    res.status(400).json({ success: false, message: 'University is required. Sessions must be added against a university.' });
+    return;
+  }
+  if (data.programId === '' || data.programId === 'none') data.programId = null;
+  const session = await prisma.admissionSession.create({
+    data,
+    include: {
+      university: { select: { id: true, name: true, code: true } },
+      program: { select: { id: true, name: true, code: true } }
+    }
+  });
   res.status(201).json({ success: true, data: session });
 });
+
 export const updateAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = { ...req.body };
-  if (data.universityId === '') data.universityId = null;
-  if (data.programId === '') data.programId = null;
-  const session = await prisma.admissionSession.update({ where: { id: req.params.id }, data });
+  if (data.universityId === 'none' || data.universityId === '') {
+    delete data.universityId; // Prevent unsetting university
+  }
+  if (data.programId === '' || data.programId === 'none') data.programId = null;
+  const session = await prisma.admissionSession.update({
+    where: { id: req.params.id },
+    data,
+    include: {
+      university: { select: { id: true, name: true, code: true } },
+      program: { select: { id: true, name: true, code: true } }
+    }
+  });
   res.json({ success: true, data: session });
+});
+
+export const toggleAdmissionSessionStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const session = await prisma.admissionSession.findUnique({
+    where: { id: req.params.id }
+  });
+  if (!session || session.organizationId !== req.user.organizationId) {
+    res.status(404).json({ success: false, message: 'Admission session not found' });
+    return;
+  }
+  const newStatus = session.status === 'active' ? 'inactive' : 'active';
+  const updated = await prisma.admissionSession.update({
+    where: { id: req.params.id },
+    data: { status: newStatus },
+    include: {
+      university: { select: { id: true, name: true, code: true } },
+      program: { select: { id: true, name: true, code: true } }
+    }
+  });
+  res.json({
+    success: true,
+    data: updated,
+    message: `Session ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`
+  });
 });
 export const deleteAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {
   const session = await prisma.admissionSession.findUnique({

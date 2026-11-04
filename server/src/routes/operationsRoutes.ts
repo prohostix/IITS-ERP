@@ -27,6 +27,7 @@ import {
   deleteAdmissionSession,
   approveAdmissionSession,
   duplicateSession,
+  toggleAdmissionSessionStatus,
   getInternalMarks,
   createInternalMark,
   updateInternalMark,
@@ -109,6 +110,8 @@ router.route('/sessions/:id')
   .delete(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), deleteAdmissionSession);
 router.put('/sessions/:id/approve', authorize('finance_admin', 'finance'), approveAdmissionSession);
 router.post('/sessions/:id/duplicate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), duplicateSession);
+router.patch('/sessions/:id/toggle-status', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), toggleAdmissionSessionStatus);
+router.put('/sessions/:id/toggle-status', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), toggleAdmissionSessionStatus);
 
 // Internal Marks — study centers enter marks, ops has read-only
 router.route('/marks').get(getInternalMarks).post(authorize('center_admin', 'ops_admin', 'org_admin', 'superadmin'), createInternalMark);

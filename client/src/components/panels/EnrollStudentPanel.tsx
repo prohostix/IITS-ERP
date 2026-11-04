@@ -332,7 +332,9 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
   };
 
   const availableSessions = sessions.filter(
-    s => !selectedProgram || !s.programId || s.programId === '' || s.programId === selectedProgram.id
+    s => (s.status === 'active' || !s.status) &&
+         (!s.universityId || !selectedUniversityId || s.universityId === selectedUniversityId) &&
+         (!selectedProgram || !s.programId || s.programId === '' || s.programId === selectedProgram.id)
   );
 
   const getTotalFee = (p: Program, pm?: string) => {

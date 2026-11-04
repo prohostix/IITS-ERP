@@ -263,6 +263,12 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     }
   }
 
+  const prog = await prisma.program.findUnique({ where: { id: programId } });
+  if (!prog) {
+    res.status(404).json({ success: false, message: 'Program not found' });
+    return;
+  }
+
   let finalSessionId = sessionId;
 
   if (finalSessionId) {
@@ -277,12 +283,17 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
       res.status(400).json({ success: false, message: 'Selected admission session is invalid or inactive' });
       return;
     }
+    if (prog.universityId && chosenSession.universityId && chosenSession.universityId !== prog.universityId) {
+      res.status(400).json({ success: false, message: 'Selected admission session does not belong to the selected university' });
+      return;
+    }
   } else {
-    // Auto-find the active admission session for this program/org
+    // Auto-find the active admission session for this program/org and university
     const session = await prisma.admissionSession.findFirst({
       where: {
         organizationId,
         status: 'active',
+        ...(prog.universityId ? { universityId: prog.universityId } : {}),
         OR: [
           { programId },
           { programId: null }
@@ -592,19 +603,19 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { universityId } = req.query;
   const where: any = {
     organizationId: req.user.organizationId,
-    status: { in: ['active', 'approved'] }
+    status: 'active'
   };
-  if (req.query.universityId) {
-    where.OR = [
-      { universityId: req.query.universityId as string },
-      { universityId: null },
-      { universityId: '' }
-    ];
+  if (universityId && universityId !== 'all') {
+    where.universityId = universityId as string;
   }
   const sessions = await prisma.admissionSession.findMany({
     where,
+    include: {
+      university: { select: { id: true, name: true, code: true } }
+    },
     orderBy: { name: 'asc' }
   });
   res.json({ success: true, count: sessions.length, data: sessions });

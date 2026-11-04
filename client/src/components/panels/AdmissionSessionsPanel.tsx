@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Copy, PowerOff, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -70,11 +70,15 @@ export function AdmissionSessionsPanel() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.universityId) {
+      toast.error('Please select a university. Sessions must be added against a university.');
+      return;
+    }
     try {
       const payload: any = {
         name: formData.name,
         subDepartmentId: formData.subDepartmentId,
-        universityId: formData.universityId || undefined,
+        universityId: formData.universityId,
         startDate: formData.startDate,
         endDate: formData.endDate,
         status: formData.status
@@ -84,14 +88,31 @@ export function AdmissionSessionsPanel() {
 
       if (editingId) {
         await api.put(`/operations/sessions/${editingId}`, payload);
+        toast.success('Session updated successfully');
       } else {
         await api.post('/operations/sessions', payload);
+        toast.success('Session created successfully');
       }
       setDialogOpen(false);
       resetForm();
       fetchSessions();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save session');
+      toast.error(err.response?.data?.message || 'Failed to save session');
+    }
+  };
+
+  const handleToggleStatus = async (s: any) => {
+    const sid = s.id || s._id;
+    const currentStatus = s.status || 'inactive';
+    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    setSessions(prev => prev.map(item => ((item.id || item._id) === sid ? { ...item, status: nextStatus } : item)));
+    try {
+      const res = await api.patch(`/operations/sessions/${sid}/toggle-status`);
+      toast.success(res.data?.message || `Session ${nextStatus === 'active' ? 'activated' : 'deactivated'}`);
+      fetchSessions();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update session status');
+      fetchSessions();
     }
   };
 
@@ -175,9 +196,9 @@ export function AdmissionSessionsPanel() {
                 </Select>
               </div>
               <div>
-                <Label>University</Label>
-                <Select value={formData.universityId} onValueChange={(v) => setFormData({ ...formData, universityId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select university" /></SelectTrigger>
+                <Label>University <span className="text-red-500">*</span></Label>
+                <Select value={formData.universityId} onValueChange={(v) => setFormData({ ...formData, universityId: v })} required>
+                  <SelectTrigger><SelectValue placeholder="Select university (Required)" /></SelectTrigger>
                   <SelectContent>
                     {universities.map((u: any) => (
                       <SelectItem key={u.id} value={u.id.toString()}>
@@ -186,6 +207,7 @@ export function AdmissionSessionsPanel() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">Sessions must be assigned to a specific university</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -274,9 +296,40 @@ export function AdmissionSessionsPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge>{s.status}</Badge>
+                      {s.status === 'active' ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 px-2 py-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Active
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground border-dashed">
+                          {s.status === 'inactive' ? 'Inactive' : s.status}
+                        </Badge>
+                      )}
                       {canWrite && (
                         <>
+                          {s.status === 'active' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleToggleStatus(s)}
+                              className="border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400 text-xs h-8 px-2.5 gap-1"
+                              title="Deactivate this session (hide from centers)"
+                            >
+                              <PowerOff className="w-3.5 h-3.5" />
+                              Deactivate
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleToggleStatus(s)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-2.5 gap-1"
+                              title="Activate this session (show to centers)"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Activate
+                            </Button>
+                          )}
                           <Button title="Duplicate" variant="ghost" size="sm" onClick={() => handleDuplicate(sid)}><Copy className="w-4 h-4" /></Button>
                           <Button title="Edit" variant="ghost" size="sm" onClick={() => handleEdit(s)}><Edit className="w-4 h-4" /></Button>
                           <Button title="Delete" variant="ghost" size="sm" onClick={() => handleDelete(sid)}><Trash2 className="w-4 h-4" /></Button>
