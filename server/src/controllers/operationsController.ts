@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
 import { mapFrontendToPrismaCourseType, mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
+import { getBranchScope, resetBranchScope } from '../utils/branchScope.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -246,6 +247,10 @@ export const activateProgram = asyncHandler(async (req: AuthRequest, res: Respon
 // Study Centers
 export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.id = { in: scope.centerIds };
+  }
   if (req.query.universityId) {
     where.universityIds = { has: req.query.universityId as string };
   }
@@ -275,6 +280,13 @@ export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Respon
   res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    if (!scope.centerIds.includes(req.params.id)) {
+      res.status(403).json({ success: false, message: 'This study center is not in your branch' });
+      return;
+    }
+  }
   const center = await prisma.studyCenter.findUnique({
     where: { id: req.params.id },
     include: {
@@ -300,6 +312,11 @@ export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Respons
   res.json({ success: true, data: center });
 });
 export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const isBranchMgr = req.user.role === 'branch_manager';
+  let branchScopeData = null;
+  if (isBranchMgr) {
+    branchScopeData = await getBranchScope(req.user);
+  }
   const isSales = req.user.role === 'sales_admin' || req.user.role === 'sales_sub_admin' || req.user.role === 'bde' || req.user.role === 'employee';
   const { name, referredById, ...restBody } = req.body;
   const email = req.body.email || req.body.contactEmail;
@@ -357,16 +374,21 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       'allowInternalMarks', 'customEnrollmentFields'
     ];
     const initialStatus = isSales ? 'pending_verification' : (req.body.status || 'active');
+    const assignedReferrer = isBranchMgr
+      ? (referredById && referredById !== '__none__' && referredById !== 'null' ? referredById : req.user.id)
+      : (isSales ? req.user.id : (referredById === 'null' || referredById === '__none__' || !referredById ? null : referredById));
+    const assignedBranchName = req.body.branchName || branchScopeData?.branchName || null;
+
     const dbData: any = {
       organizationId: req.user.organizationId,
       name: name || 'Study Center',
       code: centerCode,
       status: initialStatus,
-      referredBy: isSales ? req.user.id : (referredById === 'null' || referredById === '__none__' || !referredById ? null : referredById),
+      referredBy: assignedReferrer,
       credentials: { userId, password: rawPassword },
       email,
       coordinatorName: req.body.coordinatorName || null,
-      branchName: req.body.branchName || null,
+      branchName: assignedBranchName,
       contact: req.body.contact || req.body.contactPhone || req.body.contactPerson || 'Not Provided'
     };
 
@@ -407,6 +429,10 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
 
     return { ...center, _id: center.id, credentials: { userId, password: rawPassword } };
   });
+
+  if (isBranchMgr) {
+    resetBranchScope(req.user);
+  }
 
   res.status(201).json({ success: true, data: centerWithCreds });
 });
@@ -730,11 +756,15 @@ export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Res
 
 // Onboarding
 export const getPendingVerificationCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const where: any = {
+    organizationId: req.user.organizationId,
+    status: { in: ['pending_verification', 'pending'] } as any
+  };
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.id = { in: scope.centerIds };
+  }
   const centers = await prisma.studyCenter.findMany({
-    where: {
-      organizationId: req.user.organizationId,
-      status: { in: ['pending_verification', 'pending'] } as any
-    },
     include: {
       referrer: { select: { id: true, name: true, email: true } }
     },

@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
+import { applyBranchManagerRole } from '../utils/branchScope.js';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -39,6 +40,7 @@ export const protect = async (
           studyCenter: true,
           subDepartment: { include: { parentDept: true } },
           managedDepartments: true,
+          managedBranch: { select: { id: true, name: true, code: true } },
         }
       });
 
@@ -48,6 +50,7 @@ export const protect = async (
       }
 
       user.isDepartmentManager = Boolean(user.department?.managerId === user.id) || Boolean((user as any).managedDepartments?.length > 0);
+      applyBranchManagerRole(user);
       req.user = user;
       next();
     } catch (error) {

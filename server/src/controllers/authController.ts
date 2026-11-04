@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { generateToken, generateRefreshToken } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { hashPassword, comparePassword, generateUserId } from '../utils/authUtils.js';
+import { applyBranchManagerRole } from '../utils/branchScope.js';
 
 // @desc    Register user
 // @route   POST /api/v1/auth/register
@@ -96,8 +97,10 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
       subDepartment: true,
       designationRef: true,
       managedDepartments: true,
+      managedBranch: { select: { id: true, name: true, code: true } },
     }
   });
+  applyBranchManagerRole(user);
 
   if (!user) {
     res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -145,6 +148,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
         departmentId: user.departmentId,
         subDepartmentId: user.subDepartmentId,
         studyCenterId: user.studyCenterId,
+        branchId: (user as any).branchId || null,
         designation: user.designation || (user as any).designationRef?.title,
         status: user.status,
         canAddPrograms: user.canAddPrograms || false,
@@ -174,8 +178,10 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
       subDepartment: true,
       designationRef: true,
       managedDepartments: true,
+      managedBranch: { select: { id: true, name: true, code: true } },
     }
   });
+  applyBranchManagerRole(user);
 
   const isDepartmentManager = Boolean(user?.department?.managerId === user?.id) || Boolean((user as any)?.managedDepartments?.length > 0);
 

@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
+import { getBranchScope } from '../utils/branchScope.js';
 import bcrypt from 'bcryptjs';
 import { createNotification, broadcastNotification } from './notificationController.js';
 
@@ -19,6 +20,14 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
       OR: [
         { centerId: cid },
         { enrollments: { some: { studyCenterId: cid } } }
+      ]
+    });
+  } else if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    andConditions.push({
+      OR: [
+        { centerId: { in: scope.centerIds } },
+        { enrollments: { some: { studyCenterId: { in: scope.centerIds } } } }
       ]
     });
   }
@@ -115,6 +124,16 @@ export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) =
     return;
   }
 
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    const inBranch = scope.centerIds.includes(student.centerId) ||
+      student.enrollments?.some((e: any) => scope.centerIds.includes(e.studyCenterId));
+    if (!inBranch) {
+      res.status(403).json({ success: false, message: 'Access denied: student not in your branch' });
+      return;
+    }
+  }
+
   const mappedStudent = {
     ...student,
     centerId: student.center,
@@ -202,6 +221,14 @@ export const updateStudent = asyncHandler(async (req: AuthRequest, res: Response
   if (!studentExists) {
     res.status(404).json({ success: false, message: 'Student not found' });
     return;
+  }
+
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    if (!scope.centerIds.includes(studentExists.centerId)) {
+      res.status(403).json({ success: false, message: 'Access denied: student not in your branch' });
+      return;
+    }
   }
   const student = await prisma.student.update({
     where: { id: req.params.id },

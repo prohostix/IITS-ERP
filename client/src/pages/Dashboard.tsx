@@ -23,7 +23,7 @@ interface DashboardProps {
 export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTable }: DashboardProps) {
   const { user } = useAuth();
   const [departmentType, setDepartmentType] = useState<string | null>(null);
-  const isBranchManager = Boolean((user as any)?.branchId);
+  const isBranchManager = user?.role === 'branch_manager' || Boolean((user as any)?.managedBranch);
   const [deptLoading, setDeptLoading] = useState(Boolean(useDepartmentDashboard) && !isBranchManager);
 
   const subDeptId = (user as any)?.subDepartmentId;
@@ -173,7 +173,11 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
   }
 
 
-  if (user?.role === 'employee' || user?.role === 'branch_manager') {
+  if (user?.role === 'branch_manager' || isBranchManager) {
+    return <ModernBranchManagerDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
+  }
+
+  if (user?.role === 'employee') {
     return <ModernEmployeeDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 

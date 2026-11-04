@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getBranchScope } from '../utils/branchScope.js';
 import bcrypt from 'bcryptjs';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -572,6 +573,9 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
   // Scoping for Sales users: only show admissions from centers they manually added/referred
   if (['sales_admin', 'sales_sub_admin', 'bde'].includes(req.user.role)) {
     where.studyCenter = { referredBy: req.user.id };
+  } else if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.studyCenterId = { in: scope.centerIds };
   }
 
   const enrollments = await prisma.enrollment.findMany({

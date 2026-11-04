@@ -58,6 +58,7 @@ import {
 import { protect, authorize } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { getExamSubmissions, gradeSubjectiveExam } from '../controllers/examController.js';
+import { requireCenterInBranch } from '../utils/branchScope.js';
 
 const router = express.Router();
 
@@ -80,8 +81,8 @@ router.route('/programs/:id')
 router.put('/programs/:id/activate', authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), activateProgram);
 
 // Onboarding — document verification (must be before /centers/:id to avoid route conflict)
-router.get('/centers/pending-verification', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'employee'), getPendingVerificationCenters);
-router.put('/centers/:id/verify', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'employee'), verifyCenter);
+router.get('/centers/pending-verification', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), getPendingVerificationCenters);
+router.put('/centers/:id/verify', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), verifyCenter);
 
 // Study Centers Bulk Import
 router.post('/centers/bulk-import', authorize('org_admin', 'superadmin', 'ops_admin'), bulkImportStudyCenters);
@@ -92,13 +93,13 @@ router.put('/centers/branch-settings', authorize('org_admin', 'superadmin'), upd
 // Study Centers
 router.route('/centers')
   .get(getStudyCenters)
-  .post(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'employee'), createStudyCenter);
+  .post(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'bde', 'branch_manager', 'employee'), createStudyCenter);
 router.route('/centers/:id')
   .get(getStudyCenter)
-  .put(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), updateStudyCenter)
+  .put(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'branch_manager'), requireCenterInBranch('id'), updateStudyCenter)
   .delete(authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), deleteStudyCenter);
-router.put('/centers/:id/approve', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'finance_admin'), approveStudyCenter);
-router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin'), suspendStudyCenter);
+router.put('/centers/:id/approve', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'finance_admin', 'branch_manager'), requireCenterInBranch('id'), approveStudyCenter);
+router.put('/centers/:id/suspend', authorize('org_admin', 'superadmin', 'ceo', 'ops_admin', 'ops_sub_admin', 'branch_manager'), requireCenterInBranch('id'), suspendStudyCenter);
 
 // Admission Sessions
 router.route('/sessions').get(getAdmissionSessions).post(authorize('org_admin', 'superadmin', 'ops_admin', 'ops_sub_admin'), createAdmissionSession);
@@ -122,15 +123,15 @@ router.route('/announcements/:id')
 
 // Onboarding — program allocation
 router.route('/centers/:id/allocations')
-  .get(authorize('ops_admin', 'ops_sub_admin', 'employee'), getProgramAllocations)
-  .post(authorize('ops_admin', 'ops_sub_admin', 'employee'), allocateProgram);
-router.delete('/centers/:id/allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'employee'), removeAllocation);
+  .get(authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), getProgramAllocations)
+  .post(authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), allocateProgram);
+router.delete('/centers/:id/allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), removeAllocation);
 
 // Onboarding — university allocation
 router.route('/centers/:id/uni-allocations')
-  .get(authorize('ops_admin', 'ops_sub_admin', 'employee'), getUniversityAllocations)
-  .post(authorize('ops_admin', 'ops_sub_admin', 'employee'), allocateUniversity);
-router.delete('/centers/:id/uni-allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'employee'), removeUniversityAllocation);
+  .get(authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), getUniversityAllocations)
+  .post(authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), allocateUniversity);
+router.delete('/centers/:id/uni-allocations/:allocId', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), requireCenterInBranch('id'), removeUniversityAllocation);
 
 // Program detail & materials
 router.get('/programs/:programId/detail', getProgramDetail);

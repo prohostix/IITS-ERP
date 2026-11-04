@@ -4,10 +4,26 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
+import { getBranchScope } from '../utils/branchScope.js';
 
 // Leads
 export const getLeads = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const leads = await prisma.lead.findMany({ where: { organizationId: req.user.organizationId }, orderBy: { createdAt: 'desc' } });
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.OR = [
+      { referredBy: { in: scope.staffIds } },
+      ...(scope.centerIds.length > 0 ? [{
+        centerName: {
+          in: (await prisma.studyCenter.findMany({
+            where: { id: { in: scope.centerIds } },
+            select: { name: true }
+          })).map(c => c.name)
+        }
+      }] : [])
+    ];
+  }
+  const leads = await prisma.lead.findMany({ where, orderBy: { createdAt: 'desc' } });
   res.json({ success: true, count: leads.length, data: leads });
 });
 export const getLead = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -25,6 +41,7 @@ export const createLead = asyncHandler(async (req: AuthRequest, res: Response) =
     contactName: finalContactName,
     centerName: finalCenterName,
     address: finalAddress,
+    referredBy: req.user.role === 'branch_manager' ? req.user.id : undefined,
     organizationId: req.user.organizationId
   };
 
@@ -52,8 +69,17 @@ export const convertLead = asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Targets
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.OR = [
+      { employeeId: { in: scope.staffIds } },
+      ...(scope.centerIds.length > 0 ? [{ centerId: { in: scope.centerIds } }] : []),
+      ...(scope.deptIds.length > 0 ? [{ departmentId: { in: scope.deptIds } }] : [])
+    ];
+  }
   const targets = await prisma.target.findMany({
-    where: { organizationId: req.user.organizationId },
+    where,
     include: {
       employee: {
         select: {
@@ -380,7 +406,10 @@ export const getMyCenters = asyncHandler(async (req: AuthRequest, res: Response)
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let whereClause: any = { organizationId: req.user.organizationId };
   
-  if (!isAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    whereClause.id = { in: scope.centerIds };
+  } else if (!isAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     const visibleUserIds = [req.user.id, ...subordinateIds];
     whereClause.referredBy = { in: visibleUserIds };
@@ -401,7 +430,10 @@ export const getMyCenterAdmissions = asyncHandler(async (req: AuthRequest, res: 
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let whereCenterClause: any = { organizationId: req.user.organizationId };
   
-  if (!isAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    whereCenterClause.id = { in: scope.centerIds };
+  } else if (!isAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     const visibleUserIds = [req.user.id, ...subordinateIds];
     whereCenterClause.referredBy = { in: visibleUserIds };
@@ -442,7 +474,13 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
   }
 
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
-  if (!isAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    if (!scope.centerIds.includes(center.id)) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+  } else if (!isAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     const visibleUserIds = [req.user.id, ...subordinateIds];
     if (!center.referredBy || !visibleUserIds.includes(center.referredBy)) {
@@ -501,7 +539,21 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
 export const getTeamMembers = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let users;
-  if (isAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    users = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        id: { in: scope.staffIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      }
+    });
+  } else if (isAuth) {
     users = await prisma.user.findMany({
       where: {
         organizationId: req.user.organizationId,
@@ -550,7 +602,17 @@ export const reassignCenter = asyncHandler(async (req: AuthRequest, res: Respons
   }
 
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
-  if (!isAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    if (!scope.centerIds.includes(studyCenterId)) {
+      res.status(403).json({ success: false, message: 'This center is not in your branch' });
+      return;
+    }
+    if (!scope.staffIds.includes(newSalesUserId)) {
+      res.status(403).json({ success: false, message: 'Target user is not in your branch' });
+      return;
+    }
+  } else if (!isAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     if (!subordinateIds.includes(newSalesUserId)) {
       res.status(403).json({ success: false, message: 'You can only reassign to sales users on your team' });
@@ -608,7 +670,10 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     ]
   };
 
-  if (!isGlobalAuth) {
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    staffWhere.id = { in: scope.staffIds };
+  } else if (!isGlobalAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     const visibleUserIds = [req.user.id, ...subordinateIds];
     staffWhere.id = { in: visibleUserIds };

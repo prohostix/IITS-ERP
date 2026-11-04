@@ -70,10 +70,12 @@ router.post('/upload', upload.single('file'), (req, res) => {
 // Global enrollment list (for admins/staff)
 router.get('/all', authorize('superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager', 'bde', 'employee', 'staff'), getAllEnrollments);
 
-// Dept/Sub-dept manager review routes
-router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), getPendingReviews);
-router.put('/review/:id/approve', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), approveDeptEnrollment);
-router.put('/review/:id/reject', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), rejectDeptEnrollment);
-router.put('/review/:id/document', authorize('ops_admin', 'ops_sub_admin', 'employee', 'superadmin', 'org_admin'), updateDocumentStatus);
+import { requireEnrollmentInBranch } from '../utils/branchScope.js';
+
+// Dept/Sub-dept/Branch manager review routes
+router.get('/review', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee', 'superadmin', 'org_admin'), getPendingReviews);
+router.put('/review/:id/approve', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee', 'superadmin', 'org_admin'), requireEnrollmentInBranch('id'), approveDeptEnrollment);
+router.put('/review/:id/reject', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee', 'superadmin', 'org_admin'), requireEnrollmentInBranch('id'), rejectDeptEnrollment);
+router.put('/review/:id/document', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee', 'superadmin', 'org_admin'), requireEnrollmentInBranch('id'), updateDocumentStatus);
 
 export default router;

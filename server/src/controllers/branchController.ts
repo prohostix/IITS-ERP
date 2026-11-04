@@ -86,8 +86,23 @@ export const createBranch = asyncHandler(async (req: AuthRequest, res: Response)
       salesDeptId: sales.id,
       operationsDeptId: ops.id
     },
-    include: { salesDept: true, operationsDept: true }
+    include: { salesDept: true, operationsDept: true, branchManager: true }
   });
+
+  if (branchManagerId) {
+    const mgrUser = await prisma.user.findUnique({ where: { id: branchManagerId } });
+    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(mgrUser.role)) {
+      await prisma.user.update({
+        where: { id: branchManagerId },
+        data: { role: 'branch_manager', branchId: branch.id }
+      });
+    } else if (mgrUser) {
+      await prisma.user.update({
+        where: { id: branchManagerId },
+        data: { branchId: branch.id }
+      });
+    }
+  }
 
   res.status(201).json({ success: true, data: updated });
 });
@@ -107,6 +122,8 @@ export const deleteBranch = asyncHandler(async (req: AuthRequest, res: Response)
 
 export const assignBranchManager = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId, additionalDeptIds } = req.body;
+  const currentBranch = await prisma.branch.findUnique({ where: { id: req.params.id } });
+
   const branch: any = await prisma.branch.update({
     where: { id: req.params.id },
     data: {
@@ -115,8 +132,38 @@ export const assignBranchManager = asyncHandler(async (req: AuthRequest, res: Re
         set: (additionalDeptIds || []).map((id: string) => ({ id }))
       }
     },
-    include: { additionalDepts: true }
+    include: { additionalDepts: true, branchManager: true }
   });
+
+  if (userId) {
+    const mgrUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(mgrUser.role)) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { role: 'branch_manager', branchId: branch.id }
+      });
+    } else if (mgrUser) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { branchId: branch.id }
+      });
+    }
+  }
+
+  // If replacing old manager who was a branch_manager, reset their role if they don't manage another branch
+  if (currentBranch?.branchManagerId && currentBranch.branchManagerId !== userId) {
+    const oldManager = await prisma.user.findUnique({
+      where: { id: currentBranch.branchManagerId },
+      include: { managedBranch: true }
+    });
+    if (oldManager && oldManager.role === 'branch_manager' && !oldManager.managedBranch) {
+      await prisma.user.update({
+        where: { id: oldManager.id },
+        data: { role: 'employee' }
+      });
+    }
+  }
+
   res.json({ success: true, data: { ...branch, additionalDeptIds: branch.additionalDepts, branchManagerId: branch.branchManager } });
 });
 

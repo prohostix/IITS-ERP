@@ -3,12 +3,18 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getBranchScope } from '../utils/branchScope.js';
 
 export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isHistory = req.query.history === 'true';
   const where: any = {
     organizationId: req.user.organizationId
   };
+
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.studyCenterId = { in: scope.centerIds };
+  }
 
   if (isHistory) {
     where.status = { in: ['pending_finance_review', 'payment_pending', 'enrolled', 'rejected'] } as any;
@@ -24,7 +30,12 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const enrollments = await prisma.enrollment.findMany({ where: { organizationId: req.user.organizationId, status: 'pending_doc_review' }, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
+  const where: any = { organizationId: req.user.organizationId, status: 'pending_doc_review' };
+  if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.studyCenterId = { in: scope.centerIds };
+  }
+  const enrollments = await prisma.enrollment.findMany({ where, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
   res.json({ success: true, count: enrollments.length, data: enrollments });
 });
 

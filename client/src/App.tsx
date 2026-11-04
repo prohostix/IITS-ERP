@@ -181,7 +181,7 @@ function App() {
       const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'];
       const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
       const isEmployeeRole = user?.role === 'employee';
-      const isBranchManager = Boolean((user as any)?.branchId);
+      const isBranchManager = user?.role === 'branch_manager' || Boolean((user as any)?.managedBranch);
       
       if (user && (roleDashboardRoles.includes(user.role) || isEmployeeSubDeptManager || isEmployeeRole || isBranchManager)) {
         viewMode = 'dashboard';
@@ -356,7 +356,7 @@ function App() {
     }
 
     // Branch manager — takes priority over role-specific nav
-    if ((user as any)?.branchId) {
+    if (user.role === 'branch_manager' || Boolean((user as any)?.managedBranch)) {
       return getBranchManagerNavItems();
     }
 
@@ -417,7 +417,7 @@ function App() {
     return baseTables;
   };
 
-  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, deptType]);
+  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, (user as any)?.managedBranch, deptType]);
 
   // Fetch data for active table — only when in table view mode
   useEffect(() => {

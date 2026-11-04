@@ -36,8 +36,8 @@ router.route('/leads/:id').get(getLead).put(updateLead).delete(deleteLead);
 router.put('/leads/:id/convert', convertLead);
 
 // Target routes
-router.route('/targets').get(getTargets).post(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin'), createTarget);
-router.route('/targets/:id').get(getTarget).put(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin'), updateTarget).delete(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin'), deleteTarget);
+router.route('/targets').get(getTargets).post(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), createTarget);
+router.route('/targets/:id').get(getTarget).put(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), updateTarget).delete(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), deleteTarget);
 
 // Invite routes — available to all sales department employees
 router.route('/invites').get(listMyInvites).post(generateInvite);
