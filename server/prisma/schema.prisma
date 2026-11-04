@@ -355,6 +355,7 @@ model University {
   programFeeStructures  ProgramFeeStructure[]
   universityAllocations UniversityAllocation[]
   walletLedgers         UniversityWalletLedger[]
+  targets               Target[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -863,6 +864,7 @@ model AdmissionSession {
   university              University?           @relation(fields: [universityId], references: [id])
   enrollments             Enrollment[]
   programFeeStructures    ProgramFeeStructure[]
+  targets                 Target[]
 
   @@index([organizationId])
 }
@@ -1366,27 +1368,33 @@ model StudyCenterInvite {
 }
 
 model Target {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String
   employeeId     String?
   departmentId   String?
   centerId       String?
+  universityId   String?
+  sessionId      String?
   type           String
   period         String
   target         Float
-  achieved       Float        @default(0)
+  achieved       Float             @default(0)
   incentive      Float?
   deadline       DateTime?
-  status         String       @default("pending")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  center         StudyCenter? @relation(fields: [centerId], references: [id])
-  department     Department?  @relation(fields: [departmentId], references: [id])
-  employee       User?        @relation("TargetEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  status         String            @default("pending")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  center         StudyCenter?      @relation(fields: [centerId], references: [id])
+  department     Department?       @relation(fields: [departmentId], references: [id])
+  employee       User?             @relation("TargetEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  university     University?       @relation(fields: [universityId], references: [id])
+  session        AdmissionSession? @relation(fields: [sessionId], references: [id])
 
   @@index([organizationId, period])
   @@index([employeeId])
+  @@index([universityId])
+  @@index([sessionId])
 }
 
 model UniversityAuthFee {

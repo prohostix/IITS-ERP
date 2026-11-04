@@ -5,7 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
 import { getBranchScope } from '../utils/branchScope.js';
-import { calculateAndSyncTargets } from '../utils/targetHelper.js';
+import { calculateAndSyncTargets, filterTargets } from '../utils/targetHelper.js';
 
 // Leads
 export const getLeads = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -70,6 +70,8 @@ export const convertLead = asyncHandler(async (req: AuthRequest, res: Response) 
 
 // Targets
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status, sessionId, year, month, userId, universityId } = req.query as any;
+
   const where: any = { organizationId: req.user.organizationId };
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
@@ -103,14 +105,28 @@ export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) =
           name: true,
           code: true
         }
+      },
+      university: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      },
+      session: {
+        select: {
+          id: true,
+          name: true
+        }
       }
     },
     orderBy: { createdAt: 'desc' }
   });
 
   const syncedTargets = await calculateAndSyncTargets(targets, req.user.organizationId);
+  const filtered = filterTargets(syncedTargets, { status, sessionId, year, month, userId, universityId });
 
-  const mapped = syncedTargets.map(t => ({
+  const mapped = filtered.map(t => ({
     ...t,
     employeeId: t.employee || t.employeeId,
     departmentId: t.department || t.departmentId
@@ -144,6 +160,19 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
           name: true,
           code: true
         }
+      },
+      university: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      },
+      session: {
+        select: {
+          id: true,
+          name: true
+        }
       }
     }
   });
@@ -165,7 +194,7 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
 });
 
 export const createTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline } = req.body;
+  const { employeeId, departmentId, centerId, universityId, sessionId, type, period, target, achieved, incentive, deadline } = req.body;
 
   if (!type || target === undefined || target === null || target === '') {
     res.status(400).json({ success: false, message: 'Target type and target value are required' });
@@ -189,6 +218,8 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
   const cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
   const cleanDeptId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
   const cleanCenterId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
+  const cleanUniId = (universityId && universityId !== 'none' && universityId !== 'null' && universityId !== 'all') ? universityId : null;
+  const cleanSessionId = (sessionId && sessionId !== 'none' && sessionId !== 'null' && sessionId !== 'all') ? sessionId : null;
 
   const newTarget = await prisma.target.create({
     data: {
@@ -196,6 +227,8 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
       employeeId: cleanEmpId,
       departmentId: cleanDeptId,
       centerId: cleanCenterId,
+      universityId: cleanUniId,
+      sessionId: cleanSessionId,
       type,
       period: period || 'monthly',
       target: cleanTarget,
@@ -226,14 +259,29 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
           name: true,
           code: true
         }
+      },
+      university: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      },
+      session: {
+        select: {
+          id: true,
+          name: true
+        }
       }
     }
   });
 
+  const [synced] = await calculateAndSyncTargets([newTarget], req.user.organizationId);
+
   const mapped = {
-    ...newTarget,
-    employeeId: newTarget.employee || newTarget.employeeId,
-    departmentId: newTarget.department || newTarget.departmentId
+    ...synced,
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId
   };
 
   res.status(201).json({ success: true, data: mapped });
@@ -249,7 +297,7 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
     return;
   }
 
-  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline, status } = req.body;
+  const { employeeId, departmentId, centerId, universityId, sessionId, type, period, target, achieved, incentive, deadline, status } = req.body;
   const data: any = {};
 
   if (employeeId !== undefined) {
@@ -260,6 +308,12 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
   }
   if (centerId !== undefined) {
     data.centerId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
+  }
+  if (universityId !== undefined) {
+    data.universityId = (universityId && universityId !== 'none' && universityId !== 'null' && universityId !== 'all') ? universityId : null;
+  }
+  if (sessionId !== undefined) {
+    data.sessionId = (sessionId && sessionId !== 'none' && sessionId !== 'null' && sessionId !== 'all') ? sessionId : null;
   }
   if (type !== undefined) data.type = type;
   if (period !== undefined) data.period = period;
@@ -312,14 +366,29 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
           name: true,
           code: true
         }
+      },
+      university: {
+        select: {
+          id: true,
+          name: true,
+          code: true
+        }
+      },
+      session: {
+        select: {
+          id: true,
+          name: true
+        }
       }
     }
   });
 
+  const [synced] = await calculateAndSyncTargets([updated], req.user.organizationId);
+
   const mapped = {
-    ...updated,
-    employeeId: updated.employee || updated.employeeId,
-    departmentId: updated.department || updated.departmentId
+    ...synced,
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId
   };
 
   res.json({ success: true, data: mapped });

@@ -734,7 +734,9 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
         }
       },
       department: { select: { id: true, name: true } },
-      center: { select: { id: true, name: true, code: true } }
+      center: { select: { id: true, name: true, code: true } },
+      university: { select: { id: true, name: true, code: true } },
+      session: { select: { id: true, name: true } }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -767,7 +769,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
       targetValue,
       achievedValue,
       recordedAchieved: Number(t.achieved) || 0,
-      realtimeAchieved: realAchieved,
+      realtimeAchieved: t.realtimeAchieved ?? achievedValue,
       variance,
       percentage,
       performanceStatus,
@@ -785,7 +787,9 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
       reportingTL: hierarchy[0] || null,
       reportingManager: hierarchy[1] || hierarchy[0] || null,
       department: t.department ? { id: t.department.id, name: t.department.name } : null,
-      center: t.center ? { id: t.center.id, name: t.center.name, code: t.center.code } : null
+      center: t.center ? { id: t.center.id, name: t.center.name, code: t.center.code } : null,
+      university: t.university ? { id: t.university.id, name: t.university.name, code: t.university.code } : null,
+      session: t.session ? { id: t.session.id, name: t.session.name } : null
     };
   });
 

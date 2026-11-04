@@ -144,7 +144,7 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
     }
   }
 
-  // Pre-fetch all enrolled enrollments in organization (with dates)
+  // Pre-fetch all enrolled enrollments in organization (with dates, session, program university)
   const allCompletedEnrollments = await prisma.enrollment.findMany({
     where: {
       organizationId,
@@ -154,15 +154,22 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
       id: true,
       salesUserId: true,
       studyCenterId: true,
+      sessionId: true,
       totalFee: true,
       admissionDate: true,
       enrolledAt: true,
-      createdAt: true
+      createdAt: true,
+      program: {
+        select: {
+          id: true,
+          universityId: true
+        }
+      }
     }
   });
 
   // Calculate live achievements for each target
-  const updatesToPersist: Array<{ id: string; achieved: number }> = [];
+  const updatesToPersist: Array<{ id: string; achieved: number; status: string }> = [];
 
   const syncedTargets = targets.map(t => {
     const { dateFrom, dateTo } = parseTargetPeriod(t.period, t.createdAt);
@@ -183,8 +190,14 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
 
     const staffSet = new Set(creditedStaff);
 
-    // Filter enrollments matching date and attribution
+    // Filter enrollments matching date, attribution, university, and session
     const matchingEnrollments = allCompletedEnrollments.filter(e => {
+      // University specific target check
+      if (t.universityId && e.program?.universityId !== t.universityId) return false;
+
+      // Session specific target check
+      if (t.sessionId && e.sessionId !== t.sessionId) return false;
+
       const d = e.admissionDate || e.enrolledAt || e.createdAt;
       if (!d) return false;
       const tTime = new Date(d).getTime();
@@ -211,29 +224,106 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
     // Never decrease recorded manual value if explicitly set higher
     const finalAchieved = Math.max(realAchieved, Number(t.achieved) || 0);
 
+    // Compute status: 'completed' (achieved >= target), 'failed' (past deadline/period and not achieved), or 'active'
+    const now = new Date();
+    const isCompleted = Number(finalAchieved) >= Number(t.target) && Number(t.target) > 0;
+    const isPastDeadline = t.deadline ? now.getTime() > new Date(t.deadline).getTime() : now.getTime() > toTime;
+
+    let computedStatus = 'active';
+    if (isCompleted) {
+      computedStatus = 'completed';
+    } else if (isPastDeadline) {
+      computedStatus = 'failed';
+    } else {
+      computedStatus = 'active';
+    }
+
     // Check if DB needs to be updated
-    if (t.id && finalAchieved !== Number(t.achieved)) {
-      updatesToPersist.push({ id: t.id, achieved: finalAchieved });
+    if (t.id && (finalAchieved !== Number(t.achieved) || computedStatus !== t.status)) {
+      updatesToPersist.push({ id: t.id, achieved: finalAchieved, status: computedStatus });
     }
 
     return {
       ...t,
       achieved: finalAchieved,
-      realtimeAchieved: realAchieved
+      realtimeAchieved: realAchieved,
+      status: computedStatus,
+      computedStatus
     };
   });
 
-  // Asynchronously persist any updated achieved values in DB without blocking
+  // Asynchronously persist any updated achieved & status values in DB without blocking
   if (updatesToPersist.length > 0) {
     Promise.allSettled(
       updatesToPersist.map(u =>
         prisma.target.update({
           where: { id: u.id },
-          data: { achieved: u.achieved }
+          data: { achieved: u.achieved, status: u.status }
         })
       )
     ).catch(err => console.error('[calculateAndSyncTargets] Error syncing targets to DB:', err));
   }
 
   return syncedTargets;
+}
+
+export interface TargetFilterOptions {
+  status?: string; // 'all' | 'active' | 'completed' | 'failed'
+  sessionId?: string;
+  year?: string;
+  month?: string;
+  userId?: string;
+  universityId?: string;
+}
+
+export function filterTargets(targets: any[], filters?: TargetFilterOptions): any[] {
+  if (!filters) return targets;
+  return targets.filter(t => {
+    // 1. Status filter
+    if (filters.status && filters.status !== 'all') {
+      const s = (t.status || t.computedStatus || '').toLowerCase();
+      if (filters.status === 'completed' && s !== 'completed' && s !== 'achieved') return false;
+      if (filters.status === 'failed' && s !== 'failed') return false;
+      if (filters.status === 'active' && s !== 'active' && s !== 'pending') return false;
+    }
+
+    // 2. User / Employee filter
+    if (filters.userId && filters.userId !== 'all') {
+      const empId = typeof t.employeeId === 'object' ? (t.employeeId?.id || t.employeeId?._id) : (t.employee?.id || t.employeeId);
+      if (empId !== filters.userId) return false;
+    }
+
+    // 3. University filter
+    if (filters.universityId && filters.universityId !== 'all') {
+      const uId = typeof t.universityId === 'object' ? (t.universityId?.id || t.universityId?._id) : (t.university?.id || t.universityId);
+      if (uId !== filters.universityId) return false;
+    }
+
+    // 4. Session filter
+    if (filters.sessionId && filters.sessionId !== 'all') {
+      const sId = typeof t.sessionId === 'object' ? (t.sessionId?.id || t.sessionId?._id) : (t.session?.id || t.sessionId);
+      if (sId !== filters.sessionId) return false;
+    }
+
+    // 5. Year and Month filter on period
+    const periodStr = String(t.period || '').trim();
+    if (filters.year && filters.year !== 'all') {
+      const targetYear = periodStr.slice(0, 4);
+      const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
+      if (targetYear !== filters.year && createdYear !== filters.year) return false;
+    }
+
+    if (filters.month && filters.month !== 'all') {
+      const paddedMonth = filters.month.padStart(2, '0');
+      let targetMonth = '';
+      if (/^\d{4}-\d{2}/.test(periodStr)) {
+        targetMonth = periodStr.slice(5, 7);
+      } else if (t.createdAt) {
+        targetMonth = String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0');
+      }
+      if (targetMonth && targetMonth !== paddedMonth) return false;
+    }
+
+    return true;
+  });
 }
