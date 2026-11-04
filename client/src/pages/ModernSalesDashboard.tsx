@@ -24,6 +24,9 @@ import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboard
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
+import { AdmissionHierarchyReportPanel } from '@/components/panels/AdmissionHierarchyReportPanel';
+import { TargetVsAchievementReportPanel } from '@/components/panels/TargetVsAchievementReportPanel';
+import { SessionReportPanel } from '@/components/panels/SessionReportPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { 
@@ -106,6 +109,9 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
       case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
+      case 'admission_report': return <AdmissionHierarchyReportPanel />;
+      case 'target_achievement_report': return <TargetVsAchievementReportPanel />;
+      case 'session_report': return <SessionReportPanel />;
       case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
       case 'tasks': return <TasksPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
@@ -148,6 +154,10 @@ export function getSalesNavItems(isManager: boolean = true) {
     { id: 'center_onboarding', label: 'Center Onboarding Status' },
     { id: 'study_centers', label: 'Manual Center Creation' },
     { id: 'center_admissions', label: 'Centers Admissions' },
+    { id: '__reports_section', label: 'Reports', isSection: true },
+    { id: 'admission_report', label: 'Admission Report (Hierarchy)' },
+    { id: 'target_achievement_report', label: 'Target vs. Achievement' },
+    { id: 'session_report', label: 'Session Report' },
     { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
     { id: 'sales_users_report', label: 'Sales Financial Report' },
     { id: '__team_management', label: 'Team & Tasks', isSection: true },
@@ -576,6 +586,9 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'center_admissions': return <CentersAdmissionsPanel />;
           case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
           case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
+          case 'admission_report': return <AdmissionHierarchyReportPanel />;
+          case 'target_achievement_report': return <TargetVsAchievementReportPanel />;
+          case 'session_report': return <SessionReportPanel />;
           case 'my_attendance': return <AttendancePanel isPersonalView />;
           case 'my_leaves': return <LeavesPanel isPersonalView />;
           case 'my_payslips': return <PayrollPanel />;

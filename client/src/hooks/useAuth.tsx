@@ -82,18 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       finance_sub_admin: ['finance', 'invoices', 'payments', 'expenses'],
       hr_admin: ['hr', 'employees', 'attendance', 'leave', 'recruitment', 'complaints'],
       hr_sub_admin: ['hr', 'employees', 'attendance', 'leave'],
-      sales_admin: ['sales', 'leads', 'deals', 'referrals', 'targets'],
-      sales_sub_admin: ['sales', 'leads', 'deals', 'referrals'],
+      sales_admin: ['sales', 'leads', 'deals', 'referrals', 'targets', 'reports'],
+      sales_sub_admin: ['sales', 'leads', 'deals', 'referrals', 'reports'],
       center_admin: ['center', 'students', 'invoices', 'marks'],
       branch_manager: [
         'sales', 'leads', 'deals', 'referrals', 'targets',
         'operations', 'universities', 'courses', 'centers', 'center',
         'students', 'marks', 'invoices', 'enrollments', 'employees',
-        'attendance', 'leave', 'tasks', 'profile'
+        'attendance', 'leave', 'tasks', 'profile', 'reports'
       ],
-      employee: ['tasks', 'attendance', 'leave', 'profile'],
+      employee: ['tasks', 'attendance', 'leave', 'profile', 'sales', 'reports'],
       staff: ['tasks', 'attendance', 'leave', 'profile'],
-      bde: ['sales', 'leads', 'deals', 'tasks', 'attendance', 'leave', 'profile'],
+      bde: ['sales', 'leads', 'deals', 'tasks', 'attendance', 'leave', 'profile', 'reports'],
     };
 
     const userPermissions = rolePermissions[user.role] || [];

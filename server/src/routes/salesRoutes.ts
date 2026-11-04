@@ -24,6 +24,11 @@ import {
   reassignCenter,
   getSalesStaffAdmissionReport,
 } from '../controllers/salesController.js';
+import {
+  getAdmissionHierarchyReport,
+  getTargetVsAchievementReport,
+  getSessionReport,
+} from '../controllers/salesReportController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -60,5 +65,10 @@ router.put('/my-centers/:studyCenterId/reassign', reassignCenter);
 
 // Sales staff admission report (monthly/yearly filters)
 router.get('/staff-admission-report', getSalesStaffAdmissionReport);
+
+// Advanced Branch & Sales Reports
+router.get('/reports/admission-hierarchy', getAdmissionHierarchyReport);
+router.get('/reports/target-vs-achievement', getTargetVsAchievementReport);
+router.get('/reports/session-report', getSessionReport);
 
 export default router;

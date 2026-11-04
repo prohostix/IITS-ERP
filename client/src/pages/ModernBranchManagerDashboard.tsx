@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, TrendingUp, Users, BookOpen, MapPin, Target, Zap, ArrowUpRight } from 'lucide-react';
+import { Building2, TrendingUp, Users, BookOpen, MapPin, Target, Zap, ArrowUpRight, Network, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,11 @@ import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
+// Report panels
+import { AdmissionHierarchyReportPanel } from '@/components/panels/AdmissionHierarchyReportPanel';
+import { TargetVsAchievementReportPanel } from '@/components/panels/TargetVsAchievementReportPanel';
+import { SessionReportPanel } from '@/components/panels/SessionReportPanel';
+
 export function getBranchManagerNavItems() {
   return [
     { id: '__branch_section', label: 'Branch Overview', isSection: true },
@@ -53,6 +58,10 @@ export function getBranchManagerNavItems() {
     { id: 'pending_verification', label: 'Pending Verification' },
     { id: 'enrollment_review', label: 'Enrollment Review' },
     { id: 'sessions', label: 'Admission Sessions' },
+    { id: '__reports_section', label: 'Reports', isSection: true },
+    { id: 'admission_report', label: 'Admission Report (Hierarchy)' },
+    { id: 'target_achievement_report', label: 'Target vs. Achievement' },
+    { id: 'session_report', label: 'Session Report' },
     { id: '__shared_section', label: 'Management', isSection: true },
     { id: 'tasks', label: 'Tasks' },
     { id: 'announcements', label: 'Announcements' },
@@ -120,6 +129,10 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'pending_verification': return <OpsCenterVerificationPanel />;
       case 'enrollment_review': return <DeptEnrollmentReviewPanel />;
       case 'sessions': return <AdmissionSessionsPanel />;
+      // Reports
+      case 'admission_report': return <AdmissionHierarchyReportPanel />;
+      case 'target_achievement_report': return <TargetVsAchievementReportPanel />;
+      case 'session_report': return <SessionReportPanel />;
       // Shared
       case 'tasks': return <TasksPanel />;
       case 'announcements': return <AnnouncementsPanel />;
@@ -236,7 +249,31 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
               ))}
             </CardContent>
           </Card>
-</div>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base">Branch Reports</CardTitle>
+                <CardDescription>Hierarchies, targets &amp; sessions</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[
+                { label: 'Admission Report', sub: 'TL/BDE Hierarchy', icon: <Network className="w-4 h-4 text-blue-500" />, tab: 'admission_report' },
+                { label: 'Target vs. Achv.', sub: 'Monthly Performance', icon: <Target className="w-4 h-4 text-emerald-500" />, tab: 'target_achievement_report' },
+                { label: 'Session Report', sub: 'Session Breakdown', icon: <Calendar className="w-4 h-4 text-purple-500" />, tab: 'session_report' },
+              ].map(item => (
+                <button key={item.tab} onClick={() => onNavigate(item.tab)}
+                  className="flex flex-col gap-1 p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all text-left">
+                  <div className="flex items-center gap-1.5 font-medium text-xs">
+                    {item.icon} {item.label}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{item.sub}</span>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Active targets */}
