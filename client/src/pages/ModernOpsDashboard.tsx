@@ -11,10 +11,20 @@ import {
   ArrowRight,
   ArrowUpRight,
   MapPin,
+  Wallet,
+  Receipt,
+  Landmark,
+  FileSpreadsheet,
+  FileBarChart2,
+  Layers,
+  Sparkles,
+  Filter,
+  DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { StudentsPanel } from '@/components/panels/StudentsPanel';
@@ -44,6 +54,11 @@ import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
+import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
+import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
+import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniversityFeeReportPanel';
+import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 
 
 export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
@@ -73,7 +88,7 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
-</div>
+        </div>
       );
       case 'my_subdept': return <SubOpsPortalPanel />;
       case 'students': return <StudentsPanel />;
@@ -89,6 +104,19 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
       case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
+      // Financial & Session Reports for Operations Admin
+      case 'center_ledger':
+      case 'center-ledger': return <FinanceCenterLedgerPanel />;
+      case 'student_ledger':
+      case 'student-ledger': return <FinanceStudentLedgerPanel />;
+      case 'total_report':
+      case 'total-report': return <FinanceTotalReportPanel />;
+      case 'university_fee_report':
+      case 'university-fee-report': return <FinanceUniversityFeeReportPanel />;
+      case 'rereg_report':
+      case 'rereg-report':
+      case 'rereg_payment_report':
+      case 'rereg-payment-report': return <FinanceReregReportWrapper />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
       case 'tasks': return <TasksPanel />;
@@ -119,6 +147,12 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
     { id: '__ops_section', label: 'Operations', isSection: true },
     { id: 'overview', label: 'Overview' },
     ...(isSubDeptManager ? [{ id: 'my_subdept', label: 'My Sub-Dept' }] : []),
+    { id: '__ops_finance_reports', label: 'Financial & Session Reports', isSection: true },
+    { id: 'center_ledger', label: 'Center Report' },
+    { id: 'student_ledger', label: 'Students Report' },
+    { id: 'total_report', label: 'IITS Reports' },
+    { id: 'university_fee_report', label: 'University Reports' },
+    { id: 'rereg_report', label: 'Re-Reg Report' },
     { id: '__academic_management', label: 'Academics & Admissions', isSection: true },
     { id: 'students', label: 'Students' },
     { id: 'universities', label: 'Universities' },
@@ -152,26 +186,79 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
 }
 
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
+  const [sessionStudentsCount, setSessionStudentsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.get('/operations/sessions')
+      .then(res => {
+        const sList = res.data.data || [];
+        setSessions(sList);
+        // Default to active session if available
+        const active = sList.find((s: any) => s.status === 'active');
+        if (active) setSelectedSessionId(active.id);
+      })
+      .catch(() => {});
+  }, []);
+
+  const activeSession = sessions.find(s => s.id === selectedSessionId);
+  const sessionDisplayName = activeSession ? activeSession.name : 'All Sessions';
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" onClick={() => onNavigate('sessions')}>
-          <Calendar className="w-4 h-4 mr-2" />
-          Academic Calendar
-        </Button>
-        <Button variant="premium" onClick={() => onNavigate('students')}>
-          <Users className="w-4 h-4 mr-2" />
-          View Students
-        </Button>
+    <div className="flex flex-col gap-8">
+      {/* Top Operations Header Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-card/60 backdrop-blur-xl border border-border/50 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Operations Command Center</h2>
+            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-semibold">
+              Live Operations
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Academic enrollments, institutional ledger reports, and session-wise financial reconciliations.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Session Switcher Dropdown */}
+          <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border shadow-inner">
+            <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-xs font-semibold text-slate-600 shrink-0">Session:</span>
+            <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
+              <SelectTrigger className="h-8 border-none bg-transparent shadow-none text-xs font-bold w-[160px] focus:ring-0">
+                <SelectValue placeholder="All Sessions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sessions</SelectItem>
+                {sessions.map(s => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} {s.status === 'active' ? '(Active)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button variant="outline" size="sm" onClick={() => onNavigate('sessions')} className="h-9">
+            <Calendar className="w-3.5 h-3.5 mr-1.5" />
+            Sessions
+          </Button>
+          <Button variant="premium" size="sm" onClick={() => onNavigate('students')} className="h-9">
+            <Users className="w-3.5 h-3.5 mr-1.5" />
+            View Students
+          </Button>
+        </div>
       </div>
 
       {/* Operations Quick Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-5">
         <OpsMetricCard 
           title="Total Students" 
           value={metrics.totalStudents || 0} 
           icon={<GraduationCap className="w-5 h-5 text-blue-500" />}
-          subtext="Active in current session"
+          subtext={`Active in ${sessionDisplayName}`}
           onClick={() => onNavigate('students')}
           colorClass="from-blue-500/20 to-blue-500/5 border-blue-500/20"
         />
@@ -195,51 +282,129 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           title="Affiliated Unis" 
           value={metrics.totalOrganizations || 0} 
           icon={<Building2 className="w-5 h-5 text-orange-500" />}
-          subtext="Partner institutions"
+          subtext="Partner universities"
           onClick={() => onNavigate('universities')}
           colorClass="from-orange-500/20 to-orange-500/5 border-orange-500/20"
         />
       </div>
 
+      {/* Financial & Session Reports Hub (Required Feature) */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">Financial & Operational Reports</h3>
+              <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px]">Session-Wise</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Comprehensive financial statements, institution ledgers, and re-registration realizations.
+            </p>
+          </div>
+          <Badge variant="outline" className="bg-slate-50 text-slate-700 font-mono text-xs w-fit">
+            Viewing: {sessionDisplayName}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {/* 1. Center Report */}
+          <ReportLaunchCard
+            title="Center Report"
+            tag="Wallets & Debits"
+            desc="Study Center wallet balances, approved top-ups, and student admission debits per center."
+            icon={<Wallet className="w-5 h-5 text-emerald-600" />}
+            accentColor="emerald"
+            buttonText="Open Center Report"
+            onClick={() => onNavigate('center_ledger')}
+          />
+
+          {/* 2. Students Report */}
+          <ReportLaunchCard
+            title="Students Report"
+            tag="Student Ledgers"
+            desc="Student-by-student ledger, fee structures, receipts recorded, and balance dues."
+            icon={<Receipt className="w-5 h-5 text-blue-600" />}
+            accentColor="blue"
+            buttonText="Open Students Report"
+            onClick={() => onNavigate('student_ledger')}
+          />
+
+          {/* 3. IITS Reports */}
+          <ReportLaunchCard
+            title="IITS Reports"
+            tag="Master Data"
+            desc="Master operations matrix with program fee breakdowns, university dues, and student enrollments."
+            icon={<FileBarChart2 className="w-5 h-5 text-purple-600" />}
+            accentColor="purple"
+            buttonText="Open IITS Reports"
+            onClick={() => onNavigate('total_report')}
+          />
+
+          {/* 4. University Reports */}
+          <ReportLaunchCard
+            title="University Reports"
+            tag="University Fees"
+            desc="University fee payments, semester remittances, verified UTR receipts, and university summaries."
+            icon={<Landmark className="w-5 h-5 text-amber-600" />}
+            accentColor="amber"
+            buttonText="Open University Reports"
+            onClick={() => onNavigate('university_fee_report')}
+          />
+
+          {/* 5. Re-Reg Report */}
+          <ReportLaunchCard
+            title="Re-Reg Report"
+            tag="Session & Uni Wise"
+            desc="Session-wise list & universities-wise list of semester 2+ re-registrations and realization rates."
+            icon={<Layers className="w-5 h-5 text-indigo-600" />}
+            accentColor="indigo"
+            buttonText="Open Re-Reg Report"
+            onClick={() => onNavigate('rereg_report')}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Admission Pipeline */}
-        <Card className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('students')}>
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('students')}>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
-              <CardTitle>Admission Pipeline</CardTitle>
-              <CardDescription>Current session progress</CardDescription>
+              <CardTitle className="text-base font-bold">Admission Pipeline</CardTitle>
+              <CardDescription className="text-xs">Progress & document verification workflow</CardDescription>
             </div>
-            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">Session 2026-A</Badge>
+            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs font-semibold">
+              {sessionDisplayName}
+            </Badge>
           </CardHeader>
           <CardContent>
-            <div className="space-y-8">
+            <div className="space-y-6">
               <PipelineStep 
                 label="Inquiry / Leads" 
                 value={metrics.totalLeads || 0} 
                 percentage={100} 
                 color="bg-primary"
-                subtext="Total potential candidates"
+                subtext="Total potential admission candidates"
               />
               <PipelineStep 
                 label="Application Submitted" 
                 value={metrics.pendingApplications || 0} 
                 percentage={metrics.totalLeads ? Math.round((metrics.pendingApplications || 0) / metrics.totalLeads * 100) : 0} 
                 color="bg-info"
-                subtext="Documents under review"
+                subtext="Documents under review & verification"
               />
               <PipelineStep 
                 label="Verified & Approved" 
                 value={metrics.verifiedApplications || 0} 
                 percentage={metrics.totalLeads ? Math.round((metrics.verifiedApplications || 0) / metrics.totalLeads * 100) : 0} 
                 color="bg-success"
-                subtext="Ready for enrollment"
+                subtext="Ready for final enrollment"
               />
               <PipelineStep 
                 label="Final Enrolled" 
                 value={metrics.enrolledStudents || 0} 
                 percentage={metrics.totalLeads ? Math.round((metrics.enrolledStudents || 0) / metrics.totalLeads * 100) : 0} 
                 color="bg-emerald-500"
-                subtext="Payment confirmed"
+                subtext="Payment confirmed & ID allocated"
               />
             </div>
           </CardContent>
@@ -247,15 +412,15 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
 
         {/* Action Needed */}
         <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle>Urgent Actions</CardTitle>
-            <CardDescription>Tasks requiring immediate attention</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold">Urgent Actions</CardTitle>
+            <CardDescription className="text-xs">Operations tasks requiring attention</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {!metrics.urgentActions || metrics.urgentActions.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">No urgent actions at the moment</p>
+              <div className="py-8 text-center text-muted-foreground">
+                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20 text-emerald-500" />
+                <p className="text-xs font-medium">All center verifications & reports up to date</p>
               </div>
             ) : (
               metrics.urgentActions.map((action: any, idx: number) => (
@@ -294,13 +459,93 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           onClick={() => onNavigate('programs')}
         />
         <OpsQuickLink 
-          title="Admission Rules" 
-          desc="Criteria & limits"
-          icon={<CheckCircle2 className="w-5 h-5 text-warning" />}
+          title="Admission Sessions" 
+          desc="Session rules & dates"
+          icon={<Calendar className="w-5 h-5 text-warning" />}
           onClick={() => onNavigate('sessions')}
         />
       </div>
     </div>
+  );
+}
+
+function ReportLaunchCard({ title, tag, desc, icon, accentColor, buttonText, onClick }: {
+  title: string;
+  tag: string;
+  desc: string;
+  icon: React.ReactNode;
+  accentColor: 'emerald' | 'blue' | 'purple' | 'amber' | 'indigo';
+  buttonText: string;
+  onClick: () => void;
+}) {
+  const colorMap = {
+    emerald: {
+      border: 'hover:border-emerald-300',
+      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      iconBg: 'bg-emerald-50',
+      btn: 'text-emerald-700 group-hover:text-emerald-800'
+    },
+    blue: {
+      border: 'hover:border-blue-300',
+      badge: 'bg-blue-50 text-blue-700 border-blue-200',
+      iconBg: 'bg-blue-50',
+      btn: 'text-blue-700 group-hover:text-blue-800'
+    },
+    purple: {
+      border: 'hover:border-purple-300',
+      badge: 'bg-purple-50 text-purple-700 border-purple-200',
+      iconBg: 'bg-purple-50',
+      btn: 'text-purple-700 group-hover:text-purple-800'
+    },
+    amber: {
+      border: 'hover:border-amber-300',
+      badge: 'bg-amber-50 text-amber-700 border-amber-200',
+      iconBg: 'bg-amber-50',
+      btn: 'text-amber-700 group-hover:text-amber-800'
+    },
+    indigo: {
+      border: 'hover:border-indigo-300',
+      badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      iconBg: 'bg-indigo-50',
+      btn: 'text-indigo-700 group-hover:text-indigo-800'
+    }
+  };
+
+  const c = colorMap[accentColor] || colorMap.indigo;
+
+  return (
+    <Card 
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer bg-card/60 backdrop-blur-xl flex flex-col justify-between p-4",
+        c.border
+      )}
+    >
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className={cn("p-2.5 rounded-xl ring-1 ring-black/5 group-hover:scale-110 transition-transform duration-300", c.iconBg)}>
+            {icon}
+          </div>
+          <Badge variant="outline" className={cn("text-[10px] font-semibold", c.badge)}>
+            {tag}
+          </Badge>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-bold text-slate-900 group-hover:text-primary transition-colors">{title}</h4>
+          <p className="text-[11px] text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
+            {desc}
+          </p>
+        </div>
+      </div>
+
+      <div className="pt-3 border-t border-slate-100/80 mt-3 flex items-center justify-between">
+        <span className={cn("text-xs font-bold flex items-center gap-1 transition-all", c.btn)}>
+          {buttonText}
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+        </span>
+      </div>
+    </Card>
   );
 }
 

@@ -87,6 +87,10 @@ const TABLE_TO_TAB: Record<string, string> = {
   'university-fee-report': 'university_fee_report',
   rereg_payment_report: 'rereg_payment_report',
   'rereg-payment-report': 'rereg_payment_report',
+  rereg_report: 'rereg_report',
+  'rereg-report': 'rereg_report',
+  total_report: 'total_report',
+  'total-report': 'total_report',
   // Operations / shared
   students: 'students',
   universities: 'universities',

@@ -36,6 +36,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   const [students, setStudents] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({});
   const [search, setSearch] = useState('');
+  const [selectedSession, setSelectedSession] = useState('all');
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedUniversity, setSelectedUniversity] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -43,6 +44,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   // Filter options
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
 
   // Detailed Ledger state
   const [ledgerData, setLedgerData] = useState<any | null>(null);
@@ -73,7 +75,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   useEffect(() => {
     fetchStudentList();
-  }, [selectedCenter, selectedUniversity, selectedStatus]);
+  }, [selectedSession, selectedCenter, selectedUniversity, selectedStatus]);
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -83,12 +85,14 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   const fetchFilterOptions = async () => {
     try {
-      const [cRes, uRes] = await Promise.all([
+      const [cRes, uRes, sRes] = await Promise.all([
         api.get('/operations/centers'),
-        api.get('/operations/universities')
+        api.get('/operations/universities'),
+        api.get('/operations/sessions')
       ]);
       setCenters(cRes.data.data || []);
       setUniversities(uRes.data.data || []);
+      setSessions(sRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -96,6 +100,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
       if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
       if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
       if (selectedStatus && selectedStatus !== 'all') q.append('status', selectedStatus);
@@ -991,7 +996,21 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[200px]">
+            <div className="w-[180px]">
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Sessions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
+                  {sessions.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-[180px]">
               <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Universities" />
@@ -1005,7 +1024,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
               </Select>
             </div>
 
-            <div className="w-[200px]">
+            <div className="w-[180px]">
               <Select value={selectedCenter} onValueChange={setSelectedCenter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Centers" />
@@ -1019,7 +1038,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
               </Select>
             </div>
 
-            <div className="w-[160px]">
+            <div className="w-[150px]">
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Statuses" />
@@ -1069,6 +1088,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
                   <tr>
                     <th className="px-4 py-3 text-left">Student Name</th>
                     <th className="px-4 py-3 text-left">Enrollment No</th>
+                    <th className="px-4 py-3 text-left">Session</th>
                     <th className="px-4 py-3 text-left">University & Program</th>
                     <th className="px-4 py-3 text-left">Study Center</th>
                     <th className="px-4 py-3 text-right">Assessed Fee</th>
@@ -1097,6 +1117,11 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
                         {s.uniEnrollmentNumber && s.uniEnrollmentNumber !== 'N/A' && (
                           <div className="text-[10px] text-slate-400">Uni: {s.uniEnrollmentNumber}</div>
                         )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Badge variant="outline" className="text-xs font-medium text-indigo-700 bg-indigo-50 border-indigo-200">
+                          {s.sessionName || '-'}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="font-medium text-slate-800 text-xs">{s.programName}</div>

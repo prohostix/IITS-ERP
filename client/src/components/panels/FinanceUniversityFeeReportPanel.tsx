@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Landmark, RefreshCw, Download, Printer, Search, CheckCircle2, Clock,
-  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink
+  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink, Calendar
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import api from '@/lib/api';
@@ -21,14 +21,17 @@ export function FinanceUniversityFeeReportPanel() {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<any>({});
   const [universities, setUniversities] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
 
   // Filter lists
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [allCenters, setAllCenters] = useState<any[]>([]);
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
+  const [allSessions, setAllSessions] = useState<any[]>([]);
 
   // Active filters
+  const [selectedSession, setSelectedSession] = useState('all');
   const [selectedUniversity, setSelectedUniversity] = useState('all');
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedProgram, setSelectedProgram] = useState('all');
@@ -46,18 +49,20 @@ export function FinanceUniversityFeeReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [selectedUniversity, selectedCenter, selectedProgram, selectedStatus, dateFrom, dateTo]);
+  }, [selectedSession, selectedUniversity, selectedCenter, selectedProgram, selectedStatus, dateFrom, dateTo]);
 
   const fetchFilterOptions = async () => {
     try {
-      const [uRes, cRes, pRes] = await Promise.all([
+      const [uRes, cRes, pRes, sRes] = await Promise.all([
         api.get('/operations/universities'),
         api.get('/operations/centers'),
-        api.get('/operations/programs')
+        api.get('/operations/programs'),
+        api.get('/operations/sessions')
       ]);
       setAllUniversities(uRes.data.data || []);
       setAllCenters(cRes.data.data || []);
       setAllPrograms(pRes.data.data || []);
+      setAllSessions(sRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -65,6 +70,7 @@ export function FinanceUniversityFeeReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
       if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
       if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
       if (selectedProgram && selectedProgram !== 'all') q.append('programId', selectedProgram);
@@ -77,6 +83,7 @@ export function FinanceUniversityFeeReportPanel() {
       if (res.data.success) {
         setSummary(res.data.data.summary || {});
         setUniversities(res.data.data.universities || []);
+        setSessions(res.data.data.sessions || []);
         setPayments(res.data.data.payments || []);
       }
     } catch (e: any) {
@@ -377,6 +384,20 @@ export function FinanceUniversityFeeReportPanel() {
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-[180px]">
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Sessions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
+                  {allSessions.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-[180px]">
               <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Universities" />
@@ -465,14 +486,106 @@ export function FinanceUniversityFeeReportPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="university_summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl">
           <TabsTrigger value="university_summary" className="gap-1.5">
             <Building2 className="w-4 h-4" /> University Summary ({universities.length})
+          </TabsTrigger>
+          <TabsTrigger value="session_summary" className="gap-1.5">
+            <Calendar className="w-4 h-4" /> Session Summary ({sessions.length})
           </TabsTrigger>
           <TabsTrigger value="detailed_payments" className="gap-1.5">
             <Layers className="w-4 h-4" /> Detailed Payments ({payments.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Session Summary */}
+        <TabsContent value="session_summary" className="pt-4">
+          <Card className="border border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-semibold text-slate-900">
+                Session-Wise University Fee Realization
+              </CardTitle>
+              <CardDescription>
+                Summary of university payable fees, realized amounts, and pending collections per admission session.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-8 text-center text-slate-500">Loading session summary...</div>
+              ) : sessions.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No session payment records found.</div>
+              ) : (
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold text-xs border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Admission Session</th>
+                        <th className="px-4 py-3 text-center">Students</th>
+                        <th className="px-4 py-3 text-right">Total Payable</th>
+                        <th className="px-4 py-3 text-right">Total Realized</th>
+                        <th className="px-4 py-3 text-right">Pending Amount</th>
+                        <th className="px-4 py-3 text-center">Paid Count</th>
+                        <th className="px-4 py-3 text-center">Pending Count</th>
+                        <th className="px-4 py-3 text-center">Payment Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sessions.map(s => (
+                        <tr key={s.sessionId} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3.5 font-medium text-slate-900 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-indigo-500" />
+                            <span>{s.sessionName}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center font-semibold text-slate-700">
+                            {s.studentsCount}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-medium text-slate-900">
+                            ₹{Number(s.totalPayable || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-emerald-700">
+                            ₹{Number(s.totalPaid || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-amber-700">
+                            ₹{Number(s.pendingAmount || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-xs text-emerald-700 font-medium">
+                            {s.paidCount}
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-xs text-amber-700 font-medium">
+                            {s.pendingCount}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="inline-flex items-center gap-1.5">
+                              <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="bg-indigo-500 h-2 rounded-full"
+                                  style={{ width: `${Math.min(100, s.paymentRate || 0)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-700">{s.paymentRate || 0}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50/80 font-bold border-t text-xs text-slate-900">
+                      <tr>
+                        <td className="px-4 py-3">Total</td>
+                        <td className="px-4 py-3 text-center">{summary.studentCount || 0}</td>
+                        <td className="px-4 py-3 text-right">₹{(summary.totalPayable || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-right text-emerald-700">₹{(summary.totalPaid || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-right text-amber-700">₹{(summary.totalPending || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-center">-</td>
+                        <td className="px-4 py-3 text-center">-</td>
+                        <td className="px-4 py-3 text-center">{summary.completionRate || 0}%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab 1: University Summary */}
         <TabsContent value="university_summary" className="pt-4">
@@ -592,6 +705,7 @@ export function FinanceUniversityFeeReportPanel() {
                     <thead className="bg-slate-50 text-slate-600 font-semibold text-xs border-b">
                       <tr>
                         <th className="px-4 py-3 text-left">Student</th>
+                        <th className="px-4 py-3 text-left">Session</th>
                         <th className="px-4 py-3 text-left">University & Program</th>
                         <th className="px-4 py-3 text-left">Study Center</th>
                         <th className="px-4 py-3 text-center">Semester / Year</th>
@@ -608,6 +722,11 @@ export function FinanceUniversityFeeReportPanel() {
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>
                             <div className="text-xs text-slate-400 font-mono">{item.enrollmentNo}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className="text-xs font-medium text-indigo-700 bg-indigo-50 border-indigo-200">
+                              {item.sessionName || '-'}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-800">{item.universityName}</div>

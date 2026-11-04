@@ -195,32 +195,32 @@ router.put('/payroll-batches/:id/complete-payment', authorize('finance_admin', '
 router.get('/total-report', getTotalReport);
 
 // Re-Reg Pending Report
-router.get('/rereg-pending-report', authorize('finance_admin', 'finance', 'center_admin'), getReregPendingReport);
-router.get('/rereg-completed-report', authorize('finance_admin', 'finance', 'center_admin'), getReregCompletedReport);
+router.get('/rereg-pending-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'center_admin', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getReregPendingReport);
+router.get('/rereg-completed-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'center_admin', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getReregCompletedReport);
 
 // University Wallet Ledger
-router.get('/university-wallet/:universityId', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getUniversityWalletLedger);
-router.post('/university-wallet/:universityId', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), addUniversityWalletTransaction);
+router.get('/university-wallet/:universityId', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ops_admin', 'ops_sub_admin'), getUniversityWalletLedger);
+router.post('/university-wallet/:universityId', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin'), addUniversityWalletTransaction);
 
 // ─── Commission Report Against University ─────────────────────────────────────
-router.get('/reports/commission-against-university', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getCommissionAgainstUniversityReport);
+router.get('/reports/commission-against-university', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getCommissionAgainstUniversityReport);
 
 // ─── University Fee Payment Report ────────────────────────────────────────────
-router.get('/reports/university-fee-payments', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getUniversityFeePaymentReport);
+router.get('/reports/university-fee-payments', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getUniversityFeePaymentReport);
 
 // ─── Re-Registration Fee Payment Report ────────────────────────────────────────
-router.get('/reports/rereg-payments', authorize('finance_admin', 'finance_sub_admin', 'finance', 'center_admin', 'superadmin', 'org_admin', 'ceo'), getReregPaymentReport);
+router.get('/reports/rereg-payments', authorize('finance_admin', 'finance_sub_admin', 'finance', 'center_admin', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getReregPaymentReport);
 
 // ─── Student Ledger ───────────────────────────────────────────────────────────
-router.get('/student-ledger', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo'), getStudentLedgerList);
-router.get('/student-ledger/:id', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo'), getStudentLedgerDetails);
+router.get('/student-ledger', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getStudentLedgerList);
+router.get('/student-ledger/:id', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getStudentLedgerDetails);
 
 // ─── Center Ledger (Study Center Ledger) ──────────────────────────────────────
-router.get('/center-ledger', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getCenterLedgerList);
-router.get('/center-ledger/:centerId', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo'), getCenterLedgerDetails);
+router.get('/center-ledger', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getCenterLedgerList);
+router.get('/center-ledger/:centerId', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'center_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getCenterLedgerDetails);
 
 // ─── Sales Users Financial Performance Report ─────────────────────────────────
-router.get('/reports/sales-users', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceSalesUsersReport);
-router.get('/sales-users-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceSalesUsersReport);
+router.get('/reports/sales-users', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getFinanceSalesUsersReport);
+router.get('/sales-users-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getFinanceSalesUsersReport);
 
 export default router;

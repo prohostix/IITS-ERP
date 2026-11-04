@@ -31,6 +31,8 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
   // Centers list mode
   const [centers, setCenters] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState('all');
   const [summary, setSummary] = useState<any>({});
   const [search, setSearch] = useState('');
 
@@ -44,19 +46,31 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
   const [ledgerSearch, setLedgerSearch] = useState('');
 
   useEffect(() => {
-    fetchCenterList();
+    fetchSessions();
   }, []);
+
+  useEffect(() => {
+    fetchCenterList();
+  }, [selectedSession]);
 
   useEffect(() => {
     if (selectedCenterId) {
       fetchCenterLedgerDetails(selectedCenterId);
     }
-  }, [selectedCenterId, typeFilter, dateFrom, dateTo]);
+  }, [selectedCenterId, selectedSession, typeFilter, dateFrom, dateTo]);
+
+  const fetchSessions = async () => {
+    try {
+      const res = await api.get('/operations/sessions');
+      setSessions(res.data.data || []);
+    } catch (_e) {}
+  };
 
   const fetchCenterList = async () => {
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
       if (search) q.append('search', search);
 
       const res = await api.get(`/finance/center-ledger?${q.toString()}`);
@@ -75,6 +89,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     setLoadingDetails(true);
     try {
       const q = new URLSearchParams();
+      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
       if (typeFilter && typeFilter !== 'all') q.append('type', typeFilter);
       if (dateFrom) q.append('dateFrom', dateFrom);
       if (dateTo) q.append('dateTo', dateTo);
@@ -644,9 +659,24 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
       {/* Filter / Search Bar */}
       <Card className="border border-slate-200 shadow-sm">
-        <CardContent className="p-4 flex items-center justify-between gap-4">
-          <div className="text-sm font-semibold text-slate-700">
-            Study Centers Directory ({centers.length})
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-semibold text-slate-700">
+              Study Centers Directory ({centers.length})
+            </div>
+            <div className="w-[180px]">
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="All Sessions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
+                  {sessions.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="relative w-full sm:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />

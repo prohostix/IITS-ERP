@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RefreshCw, Download, Printer, Search, CheckCircle2, Clock,
-  Building2, Layers, AlertCircle, FileText, ChevronRight
+  Building2, Layers, AlertCircle, FileText, ChevronRight, Calendar
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ export function FinanceReregPaymentReportPanel() {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<any>({});
   const [universities, setUniversities] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [completedRecords, setCompletedRecords] = useState<any[]>([]);
   const [pendingRecords, setPendingRecords] = useState<any[]>([]);
 
@@ -27,8 +28,10 @@ export function FinanceReregPaymentReportPanel() {
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [allCenters, setAllCenters] = useState<any[]>([]);
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
+  const [allSessions, setAllSessions] = useState<any[]>([]);
 
   // Active filters
+  const [selectedSession, setSelectedSession] = useState('all');
   const [selectedUniversity, setSelectedUniversity] = useState('all');
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedProgram, setSelectedProgram] = useState('all');
@@ -42,18 +45,20 @@ export function FinanceReregPaymentReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [selectedUniversity, selectedCenter, selectedProgram, dateFrom, dateTo]);
+  }, [selectedSession, selectedUniversity, selectedCenter, selectedProgram, dateFrom, dateTo]);
 
   const fetchFilterOptions = async () => {
     try {
-      const [uRes, cRes, pRes] = await Promise.all([
+      const [uRes, cRes, pRes, sRes] = await Promise.all([
         api.get('/operations/universities'),
         api.get('/operations/centers'),
-        api.get('/operations/programs')
+        api.get('/operations/programs'),
+        api.get('/operations/sessions')
       ]);
       setAllUniversities(uRes.data.data || []);
       setAllCenters(cRes.data.data || []);
       setAllPrograms(pRes.data.data || []);
+      setAllSessions(sRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -61,6 +66,7 @@ export function FinanceReregPaymentReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (selectedSession && selectedSession !== 'all') q.append('sessionId', selectedSession);
       if (selectedUniversity && selectedUniversity !== 'all') q.append('universityId', selectedUniversity);
       if (selectedCenter && selectedCenter !== 'all') q.append('centerId', selectedCenter);
       if (selectedProgram && selectedProgram !== 'all') q.append('programId', selectedProgram);
@@ -72,6 +78,7 @@ export function FinanceReregPaymentReportPanel() {
       if (res.data.success) {
         setSummary(res.data.data.summary || {});
         setUniversities(res.data.data.universities || []);
+        setSessions(res.data.data.sessions || []);
         setCompletedRecords(res.data.data.completedRecords || []);
         setPendingRecords(res.data.data.pendingRecords || []);
       }
@@ -89,7 +96,7 @@ export function FinanceReregPaymentReportPanel() {
     }
 
     const headers = [
-      'Type', 'Student Name', 'Enrollment No', 'University', 'Program',
+      'Type', 'Student Name', 'Enrollment No', 'Session', 'University', 'Program',
       'Study Center', 'Installment', 'Amount (INR)', 'Status', 'Date', 'Reference/Invoice'
     ];
 
@@ -97,6 +104,7 @@ export function FinanceReregPaymentReportPanel() {
       'Completed',
       `"${r.studentName || ''}"`,
       `"${r.enrollmentNumber || ''}"`,
+      `"${r.sessionName || '-'}"`,
       `"${r.universityName || ''}"`,
       `"${r.programName || ''}"`,
       `"${r.centerName || ''}"`,
@@ -111,6 +119,7 @@ export function FinanceReregPaymentReportPanel() {
       'Pending',
       `"${r.studentName || ''}"`,
       `"${r.enrollmentNumber || ''}"`,
+      `"${r.sessionName || '-'}"`,
       `"${r.universityName || ''}"`,
       `"${r.programName || ''}"`,
       `"${r.centerName || ''}"`,
@@ -412,6 +421,20 @@ export function FinanceReregPaymentReportPanel() {
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="w-[180px]">
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Sessions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
+                  {allSessions.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-[180px]">
               <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Universities" />
@@ -485,10 +508,13 @@ export function FinanceReregPaymentReportPanel() {
       </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="university_summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+      <Tabs defaultValue="session_summary" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsTrigger value="session_summary" className="gap-1.5">
+            <Calendar className="w-4 h-4" /> Session-wise List ({sessions.length})
+          </TabsTrigger>
           <TabsTrigger value="university_summary" className="gap-1.5">
-            <Building2 className="w-4 h-4" /> University Summary ({universities.length})
+            <Building2 className="w-4 h-4" /> Universities-wise List ({universities.length})
           </TabsTrigger>
           <TabsTrigger value="completed_payments" className="gap-1.5">
             <CheckCircle2 className="w-4 h-4" /> Completed ({completedRecords.length})
@@ -497,6 +523,128 @@ export function FinanceReregPaymentReportPanel() {
             <Clock className="w-4 h-4" /> Pending ({pendingRecords.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab 1: Session-Wise Summary */}
+        <TabsContent value="session_summary" className="pt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sessions.map(s => (
+              <Card key={s.sessionId} className="border border-slate-200 shadow-sm bg-gradient-to-br from-indigo-50/30 to-white hover:border-indigo-300 transition-all">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Admission Session
+                    </Badge>
+                    <Badge variant="secondary" className="font-semibold text-xs bg-slate-100 text-slate-700">
+                      {s.completionRate || 0}% Realized
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900 mt-2">{s.sessionName}</CardTitle>
+                  <CardDescription className="text-xs">
+                    {s.totalStudentsCount || 0} re-registration students
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-2">
+                  <div className="grid grid-cols-2 gap-2 p-2 bg-slate-50/80 rounded-lg text-xs">
+                    <div>
+                      <div className="text-slate-500">Collected</div>
+                      <div className="font-bold text-emerald-700 text-sm">₹{Number(s.totalCollected || 0).toLocaleString('en-IN')}</div>
+                      <div className="text-[10px] text-slate-400">{s.completedCount || 0} payments</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Pending Dues</div>
+                      <div className="font-bold text-amber-700 text-sm">₹{Number(s.totalPending || 0).toLocaleString('en-IN')}</div>
+                      <div className="text-[10px] text-slate-400">{s.pendingCount || 0} students</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="border border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-base font-semibold text-slate-900">
+                Session-Wise Re-Registration List & Realization
+              </CardTitle>
+              <CardDescription>
+                Breakdown of re-registration fees and collection percentages across admission sessions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-8 text-center text-slate-500">Loading session summary...</div>
+              ) : sessions.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No session re-registration data available.</div>
+              ) : (
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600 font-semibold text-xs border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Admission Session</th>
+                        <th className="px-4 py-3 text-center">Total Students</th>
+                        <th className="px-4 py-3 text-right">Collected Fees</th>
+                        <th className="px-4 py-3 text-right">Pending Dues</th>
+                        <th className="px-4 py-3 text-center">Completed Payments</th>
+                        <th className="px-4 py-3 text-center">Pending Candidates</th>
+                        <th className="px-4 py-3 text-center">Realization Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sessions.map(s => (
+                        <tr key={s.sessionId} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3.5 font-medium text-slate-900 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-indigo-500" />
+                            <span>{s.sessionName}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center font-semibold text-slate-700">
+                            {s.totalStudentsCount || 0}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-bold text-emerald-700">
+                            ₹{Number(s.totalCollected || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-amber-700">
+                            ₹{Number(s.totalPending || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-xs font-semibold text-emerald-700">
+                            {s.completedCount}
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-xs font-semibold text-amber-700">
+                            {s.pendingCount}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <Badge variant="outline" className={`font-semibold text-xs ${
+                              (s.completionRate || 0) >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              (s.completionRate || 0) >= 40 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {s.completionRate || 0}%
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50/80 font-bold border-t text-xs text-slate-900">
+                      <tr>
+                        <td className="px-4 py-3">Total</td>
+                        <td className="px-4 py-3 text-center">{summary.totalStudentsCount || 0}</td>
+                        <td className="px-4 py-3 text-right text-emerald-700">₹{(summary.totalCollected || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-right text-amber-700">₹{(summary.totalPendingAmount || 0).toLocaleString('en-IN')}</td>
+                        <td className="px-4 py-3 text-center">{summary.completedCount || 0}</td>
+                        <td className="px-4 py-3 text-center">{summary.pendingCount || 0}</td>
+                        <td className="px-4 py-3 text-center">
+                          {summary.totalCollected && (summary.totalCollected + (summary.totalPendingAmount || 0)) > 0
+                            ? Math.round((summary.totalCollected / (summary.totalCollected + summary.totalPendingAmount)) * 100) + '%'
+                            : '-'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab 1: University Summary */}
         <TabsContent value="university_summary" className="pt-4">
@@ -586,6 +734,7 @@ export function FinanceReregPaymentReportPanel() {
                     <thead className="bg-slate-50 text-slate-600 font-semibold text-xs border-b">
                       <tr>
                         <th className="px-4 py-3 text-left">Student</th>
+                        <th className="px-4 py-3 text-left">Session</th>
                         <th className="px-4 py-3 text-left">University & Program</th>
                         <th className="px-4 py-3 text-left">Study Center</th>
                         <th className="px-4 py-3 text-center">Installment</th>
@@ -602,6 +751,11 @@ export function FinanceReregPaymentReportPanel() {
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>
                             <div className="text-xs text-slate-400 font-mono">{item.enrollmentNumber}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className="text-xs font-medium text-indigo-700 bg-indigo-50 border-indigo-200">
+                              {item.sessionName || '-'}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-800">{item.universityName}</div>
@@ -667,6 +821,7 @@ export function FinanceReregPaymentReportPanel() {
                     <thead className="bg-slate-50 text-slate-600 font-semibold text-xs border-b">
                       <tr>
                         <th className="px-4 py-3 text-left">Student</th>
+                        <th className="px-4 py-3 text-left">Session</th>
                         <th className="px-4 py-3 text-left">University & Program</th>
                         <th className="px-4 py-3 text-left">Study Center</th>
                         <th className="px-4 py-3 text-center">Scheduled Installment</th>
@@ -680,6 +835,11 @@ export function FinanceReregPaymentReportPanel() {
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>
                             <div className="text-xs text-slate-400 font-mono">{item.enrollmentNumber}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className="text-xs font-medium text-indigo-700 bg-indigo-50 border-indigo-200">
+                              {item.sessionName || '-'}
+                            </Badge>
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-800">{item.universityName}</div>

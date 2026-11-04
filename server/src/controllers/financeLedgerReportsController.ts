@@ -219,7 +219,7 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { status, universityId, centerId, programId, search, dateFrom, dateTo } = req.query;
+  const { status, universityId, centerId, programId, search, dateFrom, dateTo, sessionId } = req.query;
   const orgId = req.user.organizationId;
 
   const whereClause: any = { organizationId: orgId };
@@ -245,15 +245,26 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
   if (programId && programId !== 'all') {
     studentConditions.programId = programId as string;
   }
+  if (sessionId && sessionId !== 'all') {
+    studentConditions.OR = [
+      { sessionId: sessionId as string },
+      { enrollments: { some: { sessionId: sessionId as string } } }
+    ];
+  }
   if (search) {
     const s = String(search).trim();
-    studentConditions.OR = [
+    const searchConditions = [
       { name: { contains: s, mode: 'insensitive' } },
       { enrollmentNo: { contains: s, mode: 'insensitive' } },
       { uniEnrollmentNumber: { contains: s, mode: 'insensitive' } },
       { phone: { contains: s, mode: 'insensitive' } },
       { email: { contains: s, mode: 'insensitive' } }
     ];
+    if (studentConditions.OR) {
+      studentConditions.AND = [{ OR: searchConditions }];
+    } else {
+      studentConditions.OR = searchConditions;
+    }
   }
 
   if (Object.keys(studentConditions).length > 0) {
@@ -270,7 +281,13 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
               university: { select: { id: true, name: true, code: true } }
             }
           },
-          center: { select: { id: true, name: true, code: true } }
+          center: { select: { id: true, name: true, code: true } },
+          enrollments: {
+            select: {
+              sessionId: true,
+              session: { select: { id: true, name: true } }
+            }
+          }
         }
       }
     },
@@ -296,6 +313,18 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
     paymentRate: number;
   }> = {};
 
+  const sessionSummaryMap: Record<string, {
+    sessionId: string;
+    sessionName: string;
+    studentsCount: Set<string>;
+    totalPayable: number;
+    totalPaid: number;
+    pendingAmount: number;
+    paidCount: number;
+    pendingCount: number;
+    paymentRate: number;
+  }> = {};
+
   const payments = rawPayments.map(p => {
     const amt = Number(p.amount || 0);
     totalPayable += amt;
@@ -312,6 +341,9 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
     const uName = uni?.name || 'Unassigned University';
     const uCode = uni?.code || 'N/A';
 
+    const sId = p.student?.enrollments?.[0]?.sessionId || p.student?.sessionId || 'unassigned';
+    const sName = p.student?.enrollments?.[0]?.session?.name || 'All / General Session';
+
     if (!uniSummaryMap[uId]) {
       uniSummaryMap[uId] = {
         universityId: uId,
@@ -327,14 +359,36 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
       };
     }
 
-    if (p.studentId) uniSummaryMap[uId].studentsCount.add(p.studentId);
+    if (!sessionSummaryMap[sId]) {
+      sessionSummaryMap[sId] = {
+        sessionId: sId,
+        sessionName: sName,
+        studentsCount: new Set<string>(),
+        totalPayable: 0,
+        totalPaid: 0,
+        pendingAmount: 0,
+        paidCount: 0,
+        pendingCount: 0,
+        paymentRate: 0
+      };
+    }
+
+    if (p.studentId) {
+      uniSummaryMap[uId].studentsCount.add(p.studentId);
+      sessionSummaryMap[sId].studentsCount.add(p.studentId);
+    }
     uniSummaryMap[uId].totalPayable += amt;
+    sessionSummaryMap[sId].totalPayable += amt;
     if (p.status === 'paid') {
       uniSummaryMap[uId].totalPaid += amt;
       uniSummaryMap[uId].paidCount += 1;
+      sessionSummaryMap[sId].totalPaid += amt;
+      sessionSummaryMap[sId].paidCount += 1;
     } else {
       uniSummaryMap[uId].pendingAmount += amt;
       uniSummaryMap[uId].pendingCount += 1;
+      sessionSummaryMap[sId].pendingAmount += amt;
+      sessionSummaryMap[sId].pendingCount += 1;
     }
 
     return {
@@ -345,6 +399,8 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
       uniEnrollmentNumber: p.student?.uniEnrollmentNumber || 'N/A',
       studentEmail: p.student?.email || '',
       studentPhone: p.student?.phone || '',
+      sessionId: sId,
+      sessionName: sName,
       universityId: uId,
       universityName: uName,
       programId: p.student?.programId,
@@ -375,6 +431,18 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
     paymentRate: u.totalPayable > 0 ? Math.round((u.totalPaid / u.totalPayable) * 100) : 0
   })).sort((a, b) => b.totalPayable - a.totalPayable);
 
+  const sessions = Object.values(sessionSummaryMap).map(s => ({
+    sessionId: s.sessionId,
+    sessionName: s.sessionName,
+    studentsCount: s.studentsCount.size,
+    totalPayable: s.totalPayable,
+    totalPaid: s.totalPaid,
+    pendingAmount: s.pendingAmount,
+    paidCount: s.paidCount,
+    pendingCount: s.pendingCount,
+    paymentRate: s.totalPayable > 0 ? Math.round((s.totalPaid / s.totalPayable) * 100) : 0
+  })).sort((a, b) => b.totalPayable - a.totalPayable);
+
   const completionRate = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
 
   res.json({
@@ -387,9 +455,11 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
         studentCount: uniqueStudents.size,
         recordsCount: payments.length,
         completionRate,
-        universitiesCount: universities.length
+        universitiesCount: universities.length,
+        sessionsCount: sessions.length
       },
       universities,
+      sessions,
       payments
     }
   });
@@ -400,7 +470,7 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { universityId, centerId, programId, search, status, dateFrom, dateTo } = req.query;
+  const { universityId, centerId, programId, search, status, dateFrom, dateTo, sessionId } = req.query;
   const orgId = req.user.organizationId;
 
   // 1. Fetch completed re-registration invoices
@@ -420,6 +490,16 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     if (dateTo) invoiceWhere.createdAt.lte = new Date((dateTo as string) + 'T23:59:59.999Z');
   }
 
+  if (sessionId && sessionId !== 'all') {
+    invoiceWhere.student = {
+      ...(invoiceWhere.student || {}),
+      OR: [
+        { sessionId: sessionId as string },
+        { enrollments: { some: { sessionId: sessionId as string } } }
+      ]
+    };
+  }
+
   const invoices = await prisma.invoice.findMany({
     where: invoiceWhere,
     include: {
@@ -430,7 +510,13 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
               university: { select: { id: true, name: true, code: true } }
             }
           },
-          center: { select: { id: true, name: true, code: true, branchName: true } }
+          center: { select: { id: true, name: true, code: true, branchName: true } },
+          enrollments: {
+            select: {
+              sessionId: true,
+              session: { select: { id: true, name: true } }
+            }
+          }
         }
       },
       payments: true
@@ -469,6 +555,9 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
         const match = (item.description || '').match(/(Semester|Year)\s+\d+/i);
         const installmentName = match ? match[0] : (item.description || 'Re-Registration Fee');
 
+        const sessId = inv.student?.enrollments?.[0]?.sessionId || inv.student?.sessionId || 'unknown';
+        const sessName = inv.student?.enrollments?.[0]?.session?.name || 'General Session';
+
         completedRecords.push({
           id: `${inv.id}-${item.id || Math.random()}`,
           invoiceId: inv.id,
@@ -479,6 +568,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           uniEnrollmentNumber: inv.student?.uniEnrollmentNumber || 'N/A',
           studentEmail: inv.student?.email || '',
           studentPhone: inv.student?.phone || '',
+          sessionId: sessId,
+          sessionName: sessName,
           universityId: inv.student?.program?.university?.id,
           universityName: inv.student?.program?.university?.name || 'Unassigned University',
           programId: inv.student?.programId,
@@ -502,6 +593,7 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     where: {
       organizationId: orgId,
       status: { in: ['enrolled', 'approved'] },
+      ...(sessionId && sessionId !== 'all' ? { sessionId: sessionId as string } : {}),
       ...(universityId && universityId !== 'all' ? { program: { universityId: universityId as string } } : {}),
       ...(centerId && centerId !== 'all' ? { studyCenterId: centerId as string } : {}),
       ...(programId && programId !== 'all' ? { programId: programId as string } : {})
@@ -581,6 +673,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           uniEnrollmentNumber: enr.uniEnrollmentNumber || 'N/A',
           studentEmail: enr.studentEmail,
           studentPhone: enr.studentPhone,
+          sessionId: enr.sessionId,
+          sessionName: enr.session?.name || 'General Session',
           universityId: enr.program?.university?.id,
           universityName: enr.program?.university?.name || 'Unassigned University',
           programId: enr.programId,
@@ -608,6 +702,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           uniEnrollmentNumber: enr.uniEnrollmentNumber || 'N/A',
           studentEmail: enr.studentEmail,
           studentPhone: enr.studentPhone,
+          sessionId: enr.sessionId,
+          sessionName: enr.session?.name || 'General Session',
           universityId: enr.program?.university?.id,
           universityName: enr.program?.university?.name || 'Unassigned University',
           programId: enr.programId,
@@ -624,9 +720,14 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     }
   }
 
-  // Filter completed and pending by university, program, center, search, status
+  // Filter completed and pending by university, program, center, session, search, status
   let filteredCompleted = completedRecords;
   let filteredPending = pendingRecords;
+
+  if (sessionId && sessionId !== 'all') {
+    filteredCompleted = filteredCompleted.filter(r => r.sessionId === sessionId);
+    filteredPending = filteredPending.filter(r => r.sessionId === sessionId);
+  }
 
   if (universityId && universityId !== 'all') {
     filteredCompleted = filteredCompleted.filter(r => r.universityId === universityId);
@@ -703,6 +804,64 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
 
   const universities = Object.values(uniSummaryMap).sort((a, b) => b.totalCollected - a.totalCollected);
 
+  // Group by Session (for session-wise report list)
+  const sessionSummaryMap: Record<string, {
+    sessionId: string;
+    sessionName: string;
+    totalCollected: number;
+    totalPending: number;
+    completedCount: number;
+    pendingCount: number;
+    totalStudentsCount: Set<string>;
+  }> = {};
+
+  filteredCompleted.forEach(r => {
+    const sId = r.sessionId || 'unknown';
+    if (!sessionSummaryMap[sId]) {
+      sessionSummaryMap[sId] = {
+        sessionId: sId,
+        sessionName: r.sessionName || 'General Session',
+        totalCollected: 0,
+        totalPending: 0,
+        completedCount: 0,
+        pendingCount: 0,
+        totalStudentsCount: new Set<string>()
+      };
+    }
+    sessionSummaryMap[sId].totalCollected += r.amount;
+    sessionSummaryMap[sId].completedCount += 1;
+    if (r.enrollmentNumber) sessionSummaryMap[sId].totalStudentsCount.add(r.enrollmentNumber);
+  });
+
+  filteredPending.forEach(r => {
+    const sId = r.sessionId || 'unknown';
+    if (!sessionSummaryMap[sId]) {
+      sessionSummaryMap[sId] = {
+        sessionId: sId,
+        sessionName: r.sessionName || 'General Session',
+        totalCollected: 0,
+        totalPending: 0,
+        completedCount: 0,
+        pendingCount: 0,
+        totalStudentsCount: new Set<string>()
+      };
+    }
+    sessionSummaryMap[sId].totalPending += r.amount;
+    sessionSummaryMap[sId].pendingCount += 1;
+    if (r.enrollmentNumber) sessionSummaryMap[sId].totalStudentsCount.add(r.enrollmentNumber);
+  });
+
+  const sessions = Object.values(sessionSummaryMap).map(s => ({
+    sessionId: s.sessionId,
+    sessionName: s.sessionName,
+    totalCollected: s.totalCollected,
+    totalPending: s.totalPending,
+    completedCount: s.completedCount,
+    pendingCount: s.pendingCount,
+    totalStudentsCount: s.totalStudentsCount.size,
+    completionRate: (s.totalCollected + s.totalPending) > 0 ? Math.round((s.totalCollected / (s.totalCollected + s.totalPending)) * 100) : 0
+  })).sort((a, b) => b.totalCollected - a.totalCollected);
+
   res.json({
     success: true,
     data: {
@@ -711,9 +870,12 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
         totalPendingAmount: totalPendingAmountFiltered,
         completedCount: filteredCompleted.length,
         pendingCount: filteredPending.length,
-        totalStudentsCount: new Set([...filteredCompleted.map(r => r.enrollmentNumber), ...filteredPending.map(r => r.enrollmentNumber)]).size
+        totalStudentsCount: new Set([...filteredCompleted.map(r => r.enrollmentNumber), ...filteredPending.map(r => r.enrollmentNumber)]).size,
+        universitiesCount: universities.length,
+        sessionsCount: sessions.length
       },
       universities,
+      sessions,
       completedRecords: status === 'pending' ? [] : filteredCompleted,
       pendingRecords: status === 'completed' ? [] : filteredPending
     }
@@ -725,11 +887,14 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { search, universityId, centerId, programId, status } = req.query;
+  const { search, universityId, centerId, programId, status, sessionId } = req.query;
   const orgId = req.user.organizationId;
 
   const where: any = { organizationId: orgId };
 
+  if (sessionId && sessionId !== 'all') {
+    where.sessionId = sessionId as string;
+  }
   if (req.user.role === 'center_admin' && req.user.studyCenterId) {
     where.studyCenterId = req.user.studyCenterId;
   } else if (centerId && centerId !== 'all') {
@@ -762,6 +927,7 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
         }
       },
       studyCenter: { select: { id: true, name: true, code: true } },
+      session: { select: { id: true, name: true } },
       studentFeeReceipts: true,
       payment: true
     },
@@ -818,6 +984,8 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
       uniEnrollmentNumber: enr.uniEnrollmentNumber || 'N/A',
       studentEmail: enr.studentEmail,
       studentPhone: enr.studentPhone,
+      sessionId: enr.sessionId,
+      sessionName: enr.session?.name || 'N/A',
       universityName: enr.program?.university?.name || 'Unassigned University',
       programName: enr.program?.name || 'N/A',
       studyCenterName: enr.studyCenter?.name || 'N/A',
@@ -1178,7 +1346,7 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { search } = req.query;
+  const { search, sessionId } = req.query;
   const orgId = req.user.organizationId;
 
   const where: any = { organizationId: orgId };
@@ -1192,6 +1360,14 @@ export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Re
     ];
   }
 
+  const enrollmentPaymentsWhere = sessionId && sessionId !== 'all'
+    ? { where: { enrollment: { sessionId: sessionId as string } } }
+    : true;
+
+  const commissionOutsWhere = sessionId && sessionId !== 'all'
+    ? { where: { status: 'paid', commissionIn: { enrollment: { sessionId: sessionId as string } } } }
+    : { where: { status: 'paid' } };
+
   const centers = await prisma.studyCenter.findMany({
     where,
     include: {
@@ -1199,10 +1375,8 @@ export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Re
       walletTopUps: {
         where: { status: 'approved' }
       },
-      enrollmentPayments: true,
-      commissionOuts: {
-        where: { status: 'paid' }
-      }
+      enrollmentPayments: enrollmentPaymentsWhere,
+      commissionOuts: commissionOutsWhere
     },
     orderBy: { name: 'asc' }
   });
@@ -1253,7 +1427,7 @@ export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Re
 
 export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { centerId } = req.params;
-  const { dateFrom, dateTo, type, search } = req.query;
+  const { dateFrom, dateTo, type, search, sessionId } = req.query;
   const orgId = req.user.organizationId;
 
   if (req.user.role === 'center_admin' && req.user.studyCenterId && req.user.studyCenterId !== centerId) {
@@ -1285,12 +1459,14 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
   // 2. Enrollment Debits
   const debits = await prisma.enrollmentPayment.findMany({
     where: {
-      studyCenterId: centerId
+      studyCenterId: centerId,
+      ...(sessionId && sessionId !== 'all' ? { enrollment: { sessionId: sessionId as string } } : {})
     },
     include: {
       enrollment: {
         include: {
-          program: { select: { name: true, code: true } }
+          program: { select: { name: true, code: true } },
+          session: { select: { id: true, name: true } }
         }
       }
     },
@@ -1303,7 +1479,8 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
       organizationId: orgId,
       centerId: centerId,
       status: 'paid',
-      studentId: { not: null }
+      studentId: { not: null },
+      ...(sessionId && sessionId !== 'all' ? { student: { OR: [{ sessionId: sessionId as string }, { enrollments: { some: { sessionId: sessionId as string } } }] } } : {})
     },
     include: {
       student: {
@@ -1318,7 +1495,8 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
     where: {
       organizationId: orgId,
       studyCenterId: centerId,
-      status: 'paid'
+      status: 'paid',
+      ...(sessionId && sessionId !== 'all' ? { commissionIn: { enrollment: { sessionId: sessionId as string } } } : {})
     },
     include: {
       commissionIn: {
