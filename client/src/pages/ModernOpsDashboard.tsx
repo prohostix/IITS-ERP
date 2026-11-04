@@ -15,7 +15,6 @@ import {
   Receipt,
   Landmark,
   FileSpreadsheet,
-  FileBarChart2,
   Layers,
   Sparkles,
   Filter,
@@ -56,7 +55,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
 import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
-import { FinanceTotalReportPanel } from '@/components/panels/FinanceTotalReportPanel';
 import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniversityFeeReportPanel';
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 
@@ -109,8 +107,6 @@ export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: st
       case 'center-ledger': return <FinanceCenterLedgerPanel />;
       case 'student_ledger':
       case 'student-ledger': return <FinanceStudentLedgerPanel />;
-      case 'total_report':
-      case 'total-report': return <FinanceTotalReportPanel />;
       case 'university_fee_report':
       case 'university-fee-report': return <FinanceUniversityFeeReportPanel />;
       case 'rereg_report':
@@ -150,7 +146,6 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
     { id: '__ops_finance_reports', label: 'Financial & Session Reports', isSection: true },
     { id: 'center_ledger', label: 'Center Report' },
     { id: 'student_ledger', label: 'Students Report' },
-    { id: 'total_report', label: 'IITS Reports' },
     { id: 'university_fee_report', label: 'University Reports' },
     { id: 'rereg_report', label: 'Re-Reg Report' },
     { id: '__academic_management', label: 'Academics & Admissions', isSection: true },
@@ -306,7 +301,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. Center Report */}
           <ReportLaunchCard
             title="Center Report"
@@ -329,18 +324,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             onClick={() => onNavigate('student_ledger')}
           />
 
-          {/* 3. IITS Reports */}
-          <ReportLaunchCard
-            title="IITS Reports"
-            tag="Master Data"
-            desc="Master operations matrix with program fee breakdowns, university dues, and student enrollments."
-            icon={<FileBarChart2 className="w-5 h-5 text-purple-600" />}
-            accentColor="purple"
-            buttonText="Open IITS Reports"
-            onClick={() => onNavigate('total_report')}
-          />
-
-          {/* 4. University Reports */}
+          {/* 3. University Reports */}
           <ReportLaunchCard
             title="University Reports"
             tag="University Fees"
@@ -351,7 +335,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             onClick={() => onNavigate('university_fee_report')}
           />
 
-          {/* 5. Re-Reg Report */}
+          {/* 4. Re-Reg Report */}
           <ReportLaunchCard
             title="Re-Reg Report"
             tag="Session & Uni Wise"
