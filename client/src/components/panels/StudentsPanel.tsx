@@ -13,6 +13,42 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+export const getStudentPhotoUrl = (student: any): string | null => {
+  if (!student) return null;
+  let raw = student.studentPhoto;
+  if (!raw && student.enrollments?.[0]?.studentPhoto) {
+    raw = student.enrollments[0].studentPhoto;
+  }
+  if (!raw && Array.isArray(student.enrollments?.[0]?.documents)) {
+    const photoDoc = student.enrollments[0].documents.find(
+      (d: any) =>
+        d.name?.toLowerCase().includes('photo') ||
+        d.reqName?.toLowerCase().includes('photo')
+    );
+    if (photoDoc?.url) raw = photoDoc.url;
+  }
+  if (!raw && Array.isArray(student.documents)) {
+    const photoDoc = student.documents.find(
+      (d: any) =>
+        d.name?.toLowerCase().includes('photo') ||
+        d.reqName?.toLowerCase().includes('photo')
+    );
+    if (photoDoc?.url) raw = photoDoc.url;
+  }
+
+  if (!raw || typeof raw !== 'string') return null;
+  raw = raw.trim();
+  if (!raw) return null;
+
+  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:image/')) {
+    return raw;
+  }
+  if (raw.startsWith('/')) {
+    return raw;
+  }
+  return `/uploads/${raw}`;
+};
+
 export function StudentsPanel() {
   const { user } = useAuth();
   const canWrite = ['org_admin', 'superadmin', 'center_admin'].includes(user?.role || '');
@@ -249,111 +285,139 @@ export function StudentsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
         <div>
-          <h2 className="text-2xl font-bold">Student Management</h2>
-          <p className="text-muted-foreground">Manage student records and enrollments</p>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold tracking-tight">Student Management</h2>
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-bold bg-primary/10 text-primary border border-primary/20 rounded-full">
+              {students.length} {students.length === 1 ? 'Student' : 'Students'}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-sm mt-0.5">Manage student records and enrollments</p>
         </div>
-        {canWrite && (
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" />Add Student</Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Edit Student' : 'Add New Student'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Full Name</Label>
-                <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex items-center gap-2">
+          {/* Status summary pill */}
+          <div className="hidden md:flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border text-xs">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              Total: <strong className="font-bold text-primary">{students.length}</strong>
+            </span>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+              Active: <strong>{students.filter(s => s.status === 'active').length}</strong>
+            </span>
+            <span className="h-3 w-px bg-border" />
+            <span className="text-amber-700 dark:text-amber-300 font-medium">
+              Pending: <strong>{students.filter(s => s.status === 'pending').length}</strong>
+            </span>
+          </div>
+
+          {canWrite && (
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button className="shadow-sm font-semibold"><Plus className="w-4 h-4 mr-2" />Add Student</Button>
+              </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingId ? 'Edit Student' : 'Add New Student'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Email</Label>
-                  <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+                  <Label>Full Name</Label>
+                  <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Email</Label>
+                    <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} required />
+                  </div>
                 </div>
                 <div>
-                  <Label>Phone</Label>
-                  <Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} required />
+                  <Label>Address</Label>
+                  <Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} required />
                 </div>
-              </div>
-              <div>
-                <Label>Address</Label>
-                <Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} required />
-              </div>
-              <div>
-                <Label>Admission Number</Label>
-                <Input value={formData.enrollmentNo} onChange={(e) => setFormData({...formData, enrollmentNo: e.target.value})} required />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Program</Label>
-                  <Select value={formData.programId} onValueChange={(value) => setFormData({...formData, programId: value})}>
-                    <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
+                  <Label>Admission Number</Label>
+                  <Input value={formData.enrollmentNo} onChange={(e) => setFormData({...formData, enrollmentNo: e.target.value})} required />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Program</Label>
+                    <Select value={formData.programId} onValueChange={(value) => setFormData({...formData, programId: value})}>
+                      <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
+                      <SelectContent>
+                        {programs.filter(p => p && (p.id || p.id)).map((prog) => (
+                          <SelectItem key={prog.id || prog.id} value={(prog.id || prog.id).toString()}>
+                            {prog.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Study Center</Label>
+                    <Select value={formData.centerId} onValueChange={(value) => setFormData({...formData, centerId: value})}>
+                      <SelectTrigger><SelectValue placeholder="Select center" /></SelectTrigger>
+                      <SelectContent>
+                        {centers.filter(c => c && (c.id || c.id)).map((center) => (
+                          <SelectItem key={center.id || center.id} value={(center.id || center.id).toString()}>
+                            {center.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {programs.filter(p => p && (p.id || p.id)).map((prog) => (
-                        <SelectItem key={prog.id || prog.id} value={(prog.id || prog.id).toString()}>
-                          {prog.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Study Center</Label>
-                  <Select value={formData.centerId} onValueChange={(value) => setFormData({...formData, centerId: value})}>
-                    <SelectTrigger><SelectValue placeholder="Select center" /></SelectTrigger>
-                    <SelectContent>
-                      {centers.filter(c => c && (c.id || c.id)).map((center) => (
-                        <SelectItem key={center.id || center.id} value={(center.id || center.id).toString()}>
-                          {center.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">Save</Button>
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 </div>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1">Save</Button>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-        )}
+              </form>
+            </DialogContent>
+          </Dialog>
+          )}
+        </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap mb-4">
+      <div className="flex gap-2 flex-wrap mb-4 items-center">
         {[
-          { key: '', label: 'All' },
-          { key: 'active', label: 'Active' },
-          { key: 'hold', label: 'Hold' },
-          { key: 'dropout', label: 'Dropout' }
+          { key: '', label: 'All', count: students.length },
+          { key: 'active', label: 'Active', count: students.filter(s => s.status === 'active').length },
+          { key: 'hold', label: 'Hold', count: students.filter(s => s.status === 'hold').length },
+          { key: 'dropout', label: 'Dropout', count: students.filter(s => s.status === 'dropout').length }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setStatusFilter(tab.key)}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+              'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5',
               statusFilter === tab.key
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-muted text-muted-foreground border-border hover:border-primary/40'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-muted/60 text-muted-foreground border-border hover:border-primary/40'
             )}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            <span className={cn(
+              'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
+              statusFilter === tab.key ? 'bg-primary-foreground/20 text-white' : 'bg-background text-muted-foreground border'
+            )}>
+              {tab.count}
+            </span>
           </button>
         ))}
 
@@ -421,48 +485,95 @@ export function StudentsPanel() {
         />
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Student Directory</CardTitle></CardHeader>
-        <CardContent>
+      <Card className="border shadow-sm">
+        <CardHeader className="py-4 border-b bg-muted/20">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <span>Student Directory</span>
+              <Badge variant="outline" className="text-xs font-mono font-semibold bg-background">
+                {students.length} {students.length === 1 ? 'student' : 'students'}
+              </Badge>
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading students...</div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No students found</div>
           ) : (
-            <div className="space-y-2">
-              {students.filter(s => s && (s.id || s.id)).map((student) => {
+            <div className="space-y-2.5">
+              {students.filter(s => s && (s.id || s.id)).map((student, index) => {
                 const studentId = student.id || student.id;
                 const centerName = typeof student.centerId === 'object' ? student.centerId?.name : '';
                 const programName = typeof student.programId === 'object' ? student.programId?.name : '';
+                const photoUrl = getStudentPhotoUrl(student);
+
                 return (
-                  <div key={studentId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => setSelectedStudent(student)}>
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <GraduationCap className="w-6 h-6 text-primary" />
+                  <div key={studentId} className="flex items-center justify-between p-3.5 border rounded-xl hover:bg-muted/40 transition-all hover:border-primary/40 group bg-card">
+                    <div className="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedStudent(student)}>
+                      {/* Serial Number */}
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-xs font-bold flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 group-hover:border-primary/40 group-hover:text-primary transition-colors">
+                        {index + 1}
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium">{student.name}</div>
-                        <div className="text-sm text-muted-foreground">
+
+                      {/* Student Photo */}
+                      <div className="relative w-12 h-12 rounded-full border-2 border-primary/20 overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800 shadow-sm flex items-center justify-center">
+                        {photoUrl ? (
+                          <img 
+                            src={photoUrl} 
+                            alt={student.name || 'Student Photo'} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).parentElement?.querySelector('.photo-fallback');
+                              if (fallback) fallback.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={cn(
+                          "w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-sm photo-fallback",
+                          photoUrl ? "hidden" : ""
+                        )}>
+                          {student.name ? (
+                            student.name.charAt(0).toUpperCase()
+                          ) : (
+                            <GraduationCap className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
+                          <span className="truncate">{student.name}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate mt-0.5">
                           {student.uniEnrollmentNumber ? (
                             <span className="font-semibold text-primary">Uni ENR: {student.uniEnrollmentNumber}</span>
                           ) : (
-                            <span>Admission No: {student.enrollmentNo}</span>
+                            <span>Admission No: <strong className="text-slate-700 dark:text-slate-300 font-medium">{student.enrollmentNo}</strong></span>
                           )}
                           {programName ? ` • ${programName}` : ''}{centerName ? ` • ${centerName}` : ''}
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {student.email}</span>
-                          {student.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {student.phone}</span>}
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                          <span className="flex items-center gap-1 truncate"><Mail className="w-3 h-3 shrink-0" /> {student.email}</span>
+                          {student.phone && <span className="flex items-center gap-1 shrink-0"><Phone className="w-3 h-3" /> {student.phone}</span>}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge>{student.status}</Badge>
+
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className={cn(
+                        "capitalize text-xs font-semibold",
+                        student.status === 'active' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+                      )}>
+                        {student.status}
+                      </Badge>
                       {canWrite && (
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(student)}><Edit className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(student)} className="h-8 w-8 p-0"><Edit className="w-4 h-4 text-muted-foreground hover:text-foreground" /></Button>
                       )}
                       {canDelete && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(studentId)}><Trash2 className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(studentId)} className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                       )}
                     </div>
                   </div>
@@ -479,11 +590,28 @@ export function StudentsPanel() {
             <>
               <DialogHeader>
                 <div className="flex items-center justify-between w-full pr-6">
-                  <div className="flex items-center gap-2">
-                    <DialogTitle>Student Details</DialogTitle>
-                    <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
-                      {selectedStudent.status}
-                    </Badge>
+                  <div className="flex items-center gap-3">
+                    {(() => {
+                      const photo = getStudentPhotoUrl(selectedStudent);
+                      return photo ? (
+                        <div className="w-11 h-11 rounded-full border-2 border-primary/30 overflow-hidden shrink-0 shadow-sm bg-slate-100">
+                          <img src={photo} alt={selectedStudent.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-5 h-5 text-primary" />
+                        </div>
+                      );
+                    })()}
+                    <div>
+                      <DialogTitle className="text-lg font-bold">{selectedStudent.name || 'Student Details'}</DialogTitle>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-muted-foreground font-mono">Admission: {selectedStudent.enrollmentNo}</span>
+                        <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
+                          {selectedStudent.status}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
@@ -521,15 +649,22 @@ export function StudentsPanel() {
                     <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal & Contact Details
                   </h4>
 
-                  {selectedStudent.enrollments?.[0]?.documents?.find((d: any) => d.name === 'Photo') && (
-                    <div className="absolute top-0 right-0 w-24 h-28 border border-border rounded overflow-hidden shadow-sm hidden sm:block">
-                      <img 
-                        src={selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url.startsWith('/') ? selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url : `/uploads/${selectedStudent.enrollments[0].documents.find((d: any) => d.name === 'Photo')?.url}`} 
-                        alt="Student Photo" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+                  {(() => {
+                    const photo = getStudentPhotoUrl(selectedStudent);
+                    if (!photo) return null;
+                    return (
+                      <div className="absolute top-0 right-0 w-24 h-28 border-2 border-primary/20 rounded-lg overflow-hidden shadow-md hidden sm:block bg-slate-100">
+                        <img 
+                          src={photo} 
+                          alt="Student Photo" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).parentElement!.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm sm:pr-28">
                     <div className="flex items-center gap-2">
