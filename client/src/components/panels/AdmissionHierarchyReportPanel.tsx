@@ -100,7 +100,7 @@ export function AdmissionHierarchyReportPanel() {
       'Assigned BDE / Staff': c.assignedStaff ? `${c.assignedStaff.name} (${c.assignedStaff.designation})` : 'Unassigned',
       'Team Leader (TL)': c.teamLeader ? `${c.teamLeader.name} (${c.teamLeader.designation})` : '-',
       'Asst BDM / BDM': c.assistantBDM ? `${c.assistantBDM.name} (${c.assistantBDM.designation})` : '-',
-      'District / Branch Mgr': c.districtManager ? `${c.districtManager.name} (${c.districtManager.designation})` : (c.branchManager?.name || '-'),
+      'District / Branch Mgr': c.districtManager ? `${c.districtManager.name} (${c.districtManager.designation})` : (c.branchManager ? `${c.branchManager.name} (${c.branchManager.designation || 'Branch Manager'})` : '-'),
       'Hierarchy Chain': c.hierarchyText
     }));
 

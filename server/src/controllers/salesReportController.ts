@@ -10,43 +10,116 @@ const GLOBAL_AUTH_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 
 /**
  * Recursive helper to fetch all subordinate IDs for a manager
  */
-async function getAllSubordinateIds(managerId: string): Promise<string[]> {
-  const subordinates = await prisma.user.findMany({
-    where: { reportingTo: managerId },
-    select: { id: true }
-  });
-  const ids = subordinates.map(s => s.id);
-  if (ids.length === 0) return [];
-  const subPromises = ids.map(id => getAllSubordinateIds(id));
-  const subIds = await Promise.all(subPromises);
-  return [...ids, ...subIds.flat()];
-}
-
 /**
- * Builds user in-memory map with manager reporting chain resolution
+ * Builds user in-memory map with full designation & reporting hierarchy resolution.
+ * In this ERP, reporting hierarchies are primarily modeled via Designation.parentDesignationId
+ * with users assigned via User.designationId. Direct User.reportingTo and Branch.branchManagerId
+ * are also incorporated to resolve complete chains up to Branch Managers and Executives.
  */
 async function buildUserHierarchyMap(organizationId: string) {
-  const allUsers = await prisma.user.findMany({
-    where: { organizationId, status: { not: 'deleted' } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      designation: true,
-      reportingTo: true,
-      branchId: true,
-      branch: { select: { id: true, name: true } },
-      department: { select: { id: true, name: true, type: true } }
-    }
-  });
+  const [allUsers, allDesignations, allBranches] = await Promise.all([
+    prisma.user.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        designation: true,
+        designationId: true,
+        reportingTo: true,
+        branchId: true,
+        departmentId: true,
+        branch: { select: { id: true, name: true, branchManagerId: true } },
+        department: { select: { id: true, name: true, type: true } }
+      }
+    }),
+    prisma.designation.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: {
+        id: true,
+        title: true,
+        level: true,
+        parentDesignationId: true,
+        branchId: true,
+        departmentId: true
+      }
+    }),
+    prisma.branch.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        branchManagerId: true
+      }
+    })
+  ]);
 
   const userMap = new Map<string, typeof allUsers[0]>();
   for (const u of allUsers) {
     userMap.set(u.id, u);
   }
 
+  const desigMap = new Map<string, typeof allDesignations[0]>();
+  for (const d of allDesignations) {
+    desigMap.set(d.id, d);
+  }
+
+  const branchMap = new Map<string, typeof allBranches[0]>();
+  for (const b of allBranches) {
+    branchMap.set(b.id, b);
+  }
+
+  const branchByName = new Map<string, typeof allBranches[0]>();
+  for (const b of allBranches) {
+    if (b.name) branchByName.set(b.name.trim().toLowerCase(), b);
+  }
+
+  // Group users by designation
+  const usersByDesigId = new Map<string, typeof allUsers>();
+  for (const u of allUsers) {
+    if (u.designationId) {
+      if (!usersByDesigId.has(u.designationId)) {
+        usersByDesigId.set(u.designationId, []);
+      }
+      usersByDesigId.get(u.designationId)!.push(u);
+    }
+  }
+
+  // Helper to format designation / title
+  const getUserTitle = (user: any): string => {
+    if (!user) return 'Staff';
+    if (user.designation && user.designation.trim()) return user.designation.trim();
+    if (user.designationId && desigMap.has(user.designationId)) {
+      return desigMap.get(user.designationId)!.title;
+    }
+    if (user.role === 'branch_manager') return 'Branch Manager';
+    if (user.role === 'bde') return 'BDE';
+    if (user.role === 'team_leader') return 'Team Leader';
+    return (user.role || 'Staff').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+  };
+
+  // Helper to get effective branch ID
+  const getUserBranchId = (user: any): string | null => {
+    if (!user) return null;
+    if (user.branchId) return user.branchId;
+    if (user.designationId && desigMap.has(user.designationId)) {
+      return desigMap.get(user.designationId)!.branchId || null;
+    }
+    return user.branch?.id || null;
+  };
+
+  // Helper to get effective branch name
+  const getUserBranchName = (user: any): string => {
+    if (!user) return 'N/A';
+    const bId = getUserBranchId(user);
+    if (bId && branchMap.has(bId)) return branchMap.get(bId)!.name;
+    return user.branch?.name || 'N/A';
+  };
+
+  // Helper to resolve reporting chain upwards
   const resolveChain = (userId: string | null | undefined) => {
     if (!userId || !userMap.has(userId)) return [];
     const chain: Array<{
@@ -59,29 +132,155 @@ async function buildUserHierarchyMap(organizationId: string) {
       level: number;
     }> = [];
 
-    let currId = userMap.get(userId)?.reportingTo;
-    let level = 1;
-    const visited = new Set<string>();
+    const user = userMap.get(userId)!;
+    const visited = new Set<string>([userId]);
+    const userBranchId = getUserBranchId(user);
+    const userDeptId = user.departmentId || (user.designationId ? desigMap.get(user.designationId)?.departmentId : null);
 
-    while (currId && userMap.has(currId) && !visited.has(currId) && level <= 10) {
-      visited.add(currId);
-      const mgr = userMap.get(currId)!;
+    // 1. Direct reportingTo (if assigned)
+    let currDirectId = user.reportingTo;
+    let level = 1;
+    while (currDirectId && userMap.has(currDirectId) && !visited.has(currDirectId) && level <= 5) {
+      visited.add(currDirectId);
+      const mgr = userMap.get(currDirectId)!;
       chain.push({
         id: mgr.id,
         name: mgr.name,
         email: mgr.email,
         role: mgr.role || 'employee',
-        designation: mgr.designation || mgr.role || 'Manager',
-        branch: mgr.branch?.name || 'N/A',
+        designation: getUserTitle(mgr),
+        branch: getUserBranchName(mgr),
         level
       });
-      currId = mgr.reportingTo;
+      currDirectId = mgr.reportingTo;
       level++;
     }
+
+    // 2. Designation hierarchy traversal
+    let currDesigId = user.designationId;
+    const visitedDesigs = new Set<string>();
+    while (currDesigId && desigMap.has(currDesigId) && !visitedDesigs.has(currDesigId) && level <= 10) {
+      visitedDesigs.add(currDesigId);
+      const currDesig = desigMap.get(currDesigId)!;
+      const parentDesigId = currDesig.parentDesignationId;
+      if (!parentDesigId || !desigMap.has(parentDesigId)) break;
+
+      const candidates = usersByDesigId.get(parentDesigId) || [];
+      // Pick best candidate: same branch & dept > same branch > same dept > any
+      let bestCandidate = candidates.find(c => {
+        const cBranch = getUserBranchId(c);
+        const cDept = c.departmentId || (c.designationId ? desigMap.get(c.designationId)?.departmentId : null);
+        return userBranchId && cBranch === userBranchId && userDeptId && cDept === userDeptId;
+      }) || candidates.find(c => {
+        const cBranch = getUserBranchId(c);
+        return userBranchId && cBranch === userBranchId;
+      }) || candidates.find(c => {
+        const cDept = c.departmentId || (c.designationId ? desigMap.get(c.designationId)?.departmentId : null);
+        return userDeptId && cDept === userDeptId;
+      }) || candidates[0];
+
+      if (bestCandidate && !visited.has(bestCandidate.id)) {
+        visited.add(bestCandidate.id);
+        chain.push({
+          id: bestCandidate.id,
+          name: bestCandidate.name,
+          email: bestCandidate.email,
+          role: bestCandidate.role || 'employee',
+          designation: getUserTitle(bestCandidate),
+          branch: getUserBranchName(bestCandidate),
+          level
+        });
+        level++;
+      }
+      currDesigId = parentDesigId;
+    }
+
+    // 3. Ensure Branch Manager is in chain if user belongs to a branch
+    if (userBranchId && branchMap.has(userBranchId)) {
+      const bmId = branchMap.get(userBranchId)!.branchManagerId;
+      if (bmId && !visited.has(bmId) && userMap.has(bmId)) {
+        const bm = userMap.get(bmId)!;
+        visited.add(bm.id);
+        chain.push({
+          id: bm.id,
+          name: bm.name,
+          email: bm.email,
+          role: bm.role || 'branch_manager',
+          designation: getUserTitle(bm) || 'Branch Manager',
+          branch: getUserBranchName(bm),
+          level: level++
+        });
+      }
+    }
+
     return chain;
   };
 
-  return { userMap, resolveChain, allUsers };
+  // Subordinate user IDs resolution
+  const getSubordinateIds = (managerId: string): string[] => {
+    const subIds = new Set<string>();
+    // Direct reporting
+    for (const u of allUsers) {
+      if (u.reportingTo === managerId) {
+        subIds.add(u.id);
+      }
+    }
+
+    const mgr = userMap.get(managerId);
+    if (!mgr) return Array.from(subIds);
+
+    // If manager is branch manager of a branch, all users in that branch are subordinates
+    const managedBranches = allBranches.filter(b => b.branchManagerId === managerId);
+    for (const mb of managedBranches) {
+      for (const u of allUsers) {
+        if (getUserBranchId(u) === mb.id && u.id !== managerId) {
+          subIds.add(u.id);
+        }
+      }
+    }
+
+    // If manager has a designation, find all child designations recursively
+    if (mgr.designationId && desigMap.has(mgr.designationId)) {
+      const childDesigIds = new Set<string>();
+      const queue = [mgr.designationId];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const d of allDesignations) {
+          if (d.parentDesignationId === current && !childDesigIds.has(d.id)) {
+            childDesigIds.add(d.id);
+            queue.push(d.id);
+          }
+        }
+      }
+
+      const mgrBranchId = getUserBranchId(mgr);
+      for (const cdId of childDesigIds) {
+        const usersInDesig = usersByDesigId.get(cdId) || [];
+        for (const u of usersInDesig) {
+          const uBranchId = getUserBranchId(u);
+          if (!mgrBranchId || !uBranchId || uBranchId === mgrBranchId) {
+            subIds.add(u.id);
+          }
+        }
+      }
+    }
+
+    return Array.from(subIds);
+  };
+
+  return {
+    userMap,
+    desigMap,
+    branchMap,
+    branchByName,
+    getUserTitle,
+    getUserBranchId,
+    getUserBranchName,
+    resolveChain,
+    getSubordinateIds,
+    allUsers,
+    allBranches
+  };
 }
 
 // ============================================================================
@@ -96,7 +295,19 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
   const selectedYear = year && year !== 'all' ? parseInt(year, 10) : 'all';
   const selectedMonth = month && month !== 'all' ? parseInt(month, 10) : 'all';
 
-  const { userMap, resolveChain, allUsers } = await buildUserHierarchyMap(organizationId);
+  const {
+    userMap,
+    desigMap,
+    branchMap,
+    branchByName,
+    getUserTitle,
+    getUserBranchId,
+    getUserBranchName,
+    resolveChain,
+    getSubordinateIds,
+    allUsers,
+    allBranches
+  } = await buildUserHierarchyMap(organizationId);
 
   // Scoping centers & staff
   let allowedCenterIds: string[] | null = null;
@@ -107,7 +318,7 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
     allowedCenterIds = scope.centerIds;
     allowedStaffIds = scope.staffIds;
   } else if (!isGlobalAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const subordinateIds = getSubordinateIds(req.user.id);
     allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
@@ -217,26 +428,107 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
     const referrer = c.referredBy ? userMap.get(c.referredBy) : null;
     const chain = resolveChain(c.referredBy);
 
-    // Identify levels in hierarchy
+    // Determine referrer designation & branch
+    const referrerTitle = referrer ? getUserTitle(referrer) : 'Unassigned';
+    const referrerBranch = referrer ? getUserBranchName(referrer) : (c.branchName || 'N/A');
+
     const assignedStaff = referrer ? {
       id: referrer.id,
       name: referrer.name,
       email: referrer.email,
       role: referrer.role,
-      designation: referrer.designation || 'BDE / Staff',
-      branch: referrer.branch?.name || c.branchName || 'N/A'
+      designation: referrerTitle,
+      branch: referrerBranch
     } : null;
 
-    const teamLeader = chain[0] || null;
-    const assistantBDM = chain.find(m => /asst|assistant/i.test(m.designation) && /bdm|business/i.test(m.designation)) || (chain.length > 1 ? chain[1] : null);
-    const districtManager = chain.find(m => /\bdm\b|district/i.test(m.designation)) || (chain.length > 2 ? chain[2] : null);
-    const branchManager = chain.find(m => m.role === 'branch_manager' || /branch/i.test(m.designation)) || (chain.length > 3 ? chain[3] : null);
+    // Detect rank of the referrer
+    const isSelfTL = referrer ? (/team\s*leader|\btl\b/i.test(referrerTitle) || referrer.role === 'team_leader') : false;
+    const isSelfAsstBDM = referrer ? ((/bdm|business\s*development\s*manager/i.test(referrerTitle) || /asst|assistant/i.test(referrerTitle)) && !isSelfTL) : false;
+    const isSelfBranchMgr = referrer ? (/branch\s*manager|\bdm\b|district/i.test(referrerTitle) || referrer.role === 'branch_manager') : false;
+
+    // Find managers in chain
+    const chainTL = chain.find(m => /team\s*leader|\btl\b/i.test(m.designation) || m.role === 'team_leader');
+    const chainAsstBDM = chain.find(m => (/bdm|business\s*development\s*manager/i.test(m.designation) || /asst|assistant/i.test(m.designation)) && !/team\s*leader|\btl\b/i.test(m.designation));
+    const chainDM = chain.find(m => /district\s*manager|\bdm\b/i.test(m.designation) || m.role === 'district_manager');
+    const chainBM = chain.find(m => /branch\s*manager/i.test(m.designation) || m.role === 'branch_manager');
+
+    // Fallback branch manager from center's branch if unassigned or not in chain
+    let fallbackBM: any = null;
+    const centerBranchObj = c.branchName ? branchByName.get(c.branchName.trim().toLowerCase()) : null;
+    if (centerBranchObj?.branchManagerId && userMap.has(centerBranchObj.branchManagerId)) {
+      const bmUser = userMap.get(centerBranchObj.branchManagerId)!;
+      fallbackBM = {
+        id: bmUser.id,
+        name: bmUser.name,
+        email: bmUser.email,
+        role: bmUser.role || 'branch_manager',
+        designation: getUserTitle(bmUser) || 'Branch Manager',
+        branch: centerBranchObj.name,
+        level: 99
+      };
+    }
+
+    // 1. Team Leader (TL)
+    let teamLeader: any = null;
+    if (isSelfTL && assignedStaff) {
+      teamLeader = {
+        id: assignedStaff.id,
+        name: assignedStaff.name,
+        email: assignedStaff.email,
+        role: assignedStaff.role,
+        designation: assignedStaff.designation,
+        branch: assignedStaff.branch
+      };
+    } else if (!isSelfAsstBDM && !isSelfBranchMgr) {
+      teamLeader = chainTL || (chain.length > 0 ? chain[0] : null);
+    }
+
+    // 2. Assistant BDM / BDM
+    let assistantBDM: any = null;
+    if (isSelfAsstBDM && assignedStaff) {
+      assistantBDM = {
+        id: assignedStaff.id,
+        name: assignedStaff.name,
+        email: assignedStaff.email,
+        role: assignedStaff.role,
+        designation: assignedStaff.designation,
+        branch: assignedStaff.branch
+      };
+    } else if (!isSelfBranchMgr) {
+      assistantBDM = chainAsstBDM || (chain.length > 1 ? chain[1] : null);
+    }
+
+    // 3. District / Branch Mgr
+    let districtManager: any = null;
+    let branchManager: any = null;
+
+    if (isSelfBranchMgr && assignedStaff) {
+      districtManager = {
+        id: assignedStaff.id,
+        name: assignedStaff.name,
+        email: assignedStaff.email,
+        role: assignedStaff.role,
+        designation: assignedStaff.designation,
+        branch: assignedStaff.branch
+      };
+      branchManager = districtManager;
+    } else {
+      districtManager = chainDM || chainBM || fallbackBM || (chain.length > 2 ? chain[2] : null);
+      branchManager = chainBM || fallbackBM || (chain.length > 3 ? chain[3] : null);
+    }
+
+    const hierarchyParts = [
+      assignedStaff ? `${assignedStaff.name} (${assignedStaff.designation})` : 'Unassigned',
+      teamLeader && teamLeader.id !== assignedStaff?.id ? `${teamLeader.name} (${teamLeader.designation})` : null,
+      assistantBDM && assistantBDM.id !== assignedStaff?.id && assistantBDM.id !== teamLeader?.id ? `${assistantBDM.name} (${assistantBDM.designation})` : null,
+      districtManager && districtManager.id !== assignedStaff?.id && districtManager.id !== assistantBDM?.id ? `${districtManager.name} (${districtManager.designation})` : null
+    ].filter(Boolean);
 
     return {
       centerId: c.id,
       centerName: c.name,
       centerCode: c.code,
-      branchName: c.branchName || referrer?.branch?.name || 'N/A',
+      branchName: c.branchName || referrerBranch,
       status: c.status,
       createdAt: c.createdAt,
       totalAdmissions: stats.total,
@@ -250,10 +542,7 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
       districtManager,
       branchManager,
       hierarchyChain: chain,
-      hierarchyText: [
-        assignedStaff?.name || 'Unassigned',
-        ...chain.map(m => `${m.name} (${m.designation})`)
-      ].join(' ➔ ')
+      hierarchyText: hierarchyParts.join(' ➔ ')
     };
   });
 
@@ -276,7 +565,11 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
   if (managerId && managerId !== 'all') {
     filteredCenterItems = filteredCenterItems.filter(item =>
       item.hierarchyChain.some(m => m.id === managerId) ||
-      item.assignedStaff?.id === managerId
+      item.assignedStaff?.id === managerId ||
+      item.teamLeader?.id === managerId ||
+      item.assistantBDM?.id === managerId ||
+      item.districtManager?.id === managerId ||
+      item.branchManager?.id === managerId
     );
   }
 
@@ -295,30 +588,44 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
     subordinatesCount: number;
   }>();
 
+  const registerAuthority = (auth: any) => {
+    if (!auth || !auth.id) return;
+    if (!authorityStatsMap.has(auth.id)) {
+      const subCount = getSubordinateIds(auth.id).length;
+      authorityStatsMap.set(auth.id, {
+        authority: {
+          id: auth.id,
+          name: auth.name,
+          email: auth.email,
+          role: auth.role,
+          designation: auth.designation,
+          branch: auth.branch
+        },
+        centersCount: 0,
+        totalAdmissions: 0,
+        completedAdmissions: 0,
+        pendingAdmissions: 0,
+        rejectedAdmissions: 0,
+        totalRevenue: 0,
+        subordinatesCount: subCount
+      });
+    }
+  };
+
   for (const item of centerItems) {
-    for (const mgr of item.hierarchyChain) {
-      if (!authorityStatsMap.has(mgr.id)) {
-        const fullUser = userMap.get(mgr.id);
-        const subCount = allUsers.filter(u => u.reportingTo === mgr.id).length;
-        authorityStatsMap.set(mgr.id, {
-          authority: {
-            id: mgr.id,
-            name: mgr.name,
-            email: mgr.email,
-            role: mgr.role,
-            designation: mgr.designation,
-            branch: mgr.branch
-          },
-          centersCount: 0,
-          totalAdmissions: 0,
-          completedAdmissions: 0,
-          pendingAdmissions: 0,
-          rejectedAdmissions: 0,
-          totalRevenue: 0,
-          subordinatesCount: subCount
-        });
-      }
-      const stat = authorityStatsMap.get(mgr.id)!;
+    // Collect all unique authorities governing this center
+    const authList: any[] = [];
+    if (item.teamLeader) authList.push(item.teamLeader);
+    if (item.assistantBDM && !authList.some(a => a.id === item.assistantBDM.id)) authList.push(item.assistantBDM);
+    if (item.districtManager && !authList.some(a => a.id === item.districtManager.id)) authList.push(item.districtManager);
+    if (item.branchManager && !authList.some(a => a.id === item.branchManager.id)) authList.push(item.branchManager);
+    for (const m of item.hierarchyChain) {
+      if (!authList.some(a => a.id === m.id)) authList.push(m);
+    }
+
+    for (const auth of authList) {
+      registerAuthority(auth);
+      const stat = authorityStatsMap.get(auth.id)!;
       stat.centersCount += 1;
       stat.totalAdmissions += item.totalAdmissions;
       stat.completedAdmissions += item.completedAdmissions;
@@ -342,10 +649,12 @@ export const getAdmissionHierarchyReport = asyncHandler(async (req: AuthRequest,
     activeAuthoritiesCount: authoritySummary.length
   };
 
-  // Distinct reporting managers for dropdown filter
-  const availableManagers = Array.from(new Set(
-    centerItems.flatMap(c => c.hierarchyChain.map(m => JSON.stringify({ id: m.id, name: m.name, designation: m.designation })))
-  )).map(s => JSON.parse(s));
+  // Distinct reporting authorities for dropdown filter
+  const availableManagers = Array.from(authorityStatsMap.values()).map(s => ({
+    id: s.authority.id,
+    name: s.authority.name,
+    designation: s.authority.designation
+  }));
 
   res.json({
     success: true,
@@ -385,7 +694,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
     dateTo = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
   }
 
-  const { userMap, resolveChain } = await buildUserHierarchyMap(organizationId);
+  const { userMap, resolveChain, getSubordinateIds, getUserTitle } = await buildUserHierarchyMap(organizationId);
 
   // Scoping
   let allowedStaffIds: string[] | null = null;
@@ -393,7 +702,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
     const scope = await getBranchScope(req.user);
     allowedStaffIds = scope.staffIds;
   } else if (!isGlobalAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const subordinateIds = getSubordinateIds(req.user.id);
     allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
@@ -525,7 +834,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
         name: emp.name,
         email: emp.email,
         role: emp.role,
-        designation: emp.designation || 'Staff',
+        designation: getUserTitle(userMap.get(emp.id) || emp) || 'Staff',
         branch: emp.branch?.name || 'N/A'
       } : null,
       reportingTL: hierarchy[0] || null,
@@ -631,7 +940,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     });
   }
 
-  const { userMap, resolveChain } = await buildUserHierarchyMap(organizationId);
+  const { userMap, resolveChain, getSubordinateIds, getUserTitle } = await buildUserHierarchyMap(organizationId);
 
   // Scoping
   let allowedCenterIds: string[] | null = null;
@@ -642,7 +951,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     allowedCenterIds = scope.centerIds;
     allowedStaffIds = scope.staffIds;
   } else if (!isGlobalAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
+    const subordinateIds = getSubordinateIds(req.user.id);
     allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
@@ -762,7 +1071,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
           name: staffUser.name,
           email: staffUser.email,
           role: staffUser.role,
-          designation: staffUser.designation || 'Staff',
+          designation: getUserTitle(staffUser) || 'Staff',
           branch: staffUser.branch?.name || 'N/A'
         } : { id: 'unassigned', name: 'Direct / Unassigned', email: '', role: '', designation: '', branch: 'N/A' },
         reportingTL: chain[0] || null,
