@@ -115,6 +115,31 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  // Check if user account is suspended or resigned
+  if (user.status === 'suspended') {
+    res.status(403).json({ 
+      success: false, 
+      message: 'Your account has been suspended. Please contact HR or Administrator.' 
+    });
+    return;
+  }
+
+  if (user.status === 'resigned') {
+    res.status(403).json({ 
+      success: false, 
+      message: 'Your account has been deactivated due to resignation. Please contact HR.' 
+    });
+    return;
+  }
+
+  if (user.status === 'inactive') {
+    res.status(403).json({ 
+      success: false, 
+      message: 'Your account is currently inactive. Please contact Administrator.' 
+    });
+    return;
+  }
+
   // Update last login
   const updatedUser = await prisma.user.update({
     where: { id: user.id },

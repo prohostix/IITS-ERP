@@ -49,6 +49,16 @@ export const protect = async (
         return;
       }
 
+      if (user.status === 'suspended') {
+        res.status(403).json({ success: false, message: 'Your account has been suspended. Please contact HR.' });
+        return;
+      }
+
+      if (user.status === 'resigned') {
+        res.status(403).json({ success: false, message: 'Your account has been deactivated due to resignation.' });
+        return;
+      }
+
       user.isDepartmentManager = Boolean(user.department?.managerId === user.id) || Boolean((user as any).managedDepartments?.length > 0);
       applyBranchManagerRole(user);
       req.user = user;

@@ -77,6 +77,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
         </div>
       );
       case 'users': return <HRUsersPanel key="users" />;
+      case 'resigned-staff': return <HRUsersPanel key="resigned-staff" defaultStatus="resigned" />;
       case 'employees': return <EmployeesPanel key="employees" />;
       case 'leaves': return <LeavesPanel key="leaves" />;
       case 'leave_approvals':
@@ -122,6 +123,7 @@ export function getHRNavItems() {
     { id: 'overview', label: 'Overview' },
     { id: '__employees_section', label: 'Employees & Users', isSection: true },
     { id: 'users', label: 'Users' },
+    { id: 'resigned-staff', label: 'Resigned Staff' },
     { id: 'employees', label: 'Employees' },
     { id: 'managers', label: 'Managers' },
     { id: 'org-chart', label: 'Org Chart' },

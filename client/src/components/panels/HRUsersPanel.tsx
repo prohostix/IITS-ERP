@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, Upload, Loader2, Image as ImageIcon, Search, Filter } from 'lucide-react';
+import { 
+  Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, 
+  Upload, Loader2, Image as ImageIcon, Search, Filter, Ban, UserX, UserMinus, RotateCcw, CheckCircle2, ShieldAlert 
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -19,10 +23,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 
 interface User {
   id?: string;
+  userId?: string;
   name: string;
   email: string;
   role: string;
@@ -36,6 +43,7 @@ interface User {
   subDepartment?: { name: string };
   reportingToUser?: { name: string };
   status?: string;
+  remarks?: string;
 }
 
 interface Department {
@@ -60,7 +68,7 @@ interface DesignationOption {
   filledBy: any[];
 }
 
-export function HRUsersPanel() {
+export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string }) {
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([]);
@@ -78,7 +86,22 @@ export function HRUsersPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(defaultStatus);
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'suspended' | 'resigned'>(
+    defaultStatus === 'resigned' ? 'resigned' : defaultStatus === 'suspended' ? 'suspended' : 'all'
+  );
+
+  // Suspend & Resign Dialog States
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [userToSuspend, setUserToSuspend] = useState<User | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [suspending, setSuspending] = useState(false);
+
+  const [resignDialogOpen, setResignDialogOpen] = useState(false);
+  const [userToResign, setUserToResign] = useState<User | null>(null);
+  const [resignationDate, setResignationDate] = useState(new Date().toISOString().split('T')[0]);
+  const [resignationReason, setResignationReason] = useState('');
+  const [resigning, setResigning] = useState(false);
 
   const [formData, setFormData] = useState<{
     userId?: string;
@@ -150,6 +173,16 @@ export function HRUsersPanel() {
       fetchSubDepartmentsByParent(transferData.departmentId);
     }
   }, [transferData.departmentId]);
+
+  useEffect(() => {
+    if (defaultStatus === 'resigned') {
+      setActiveTab('resigned');
+      setStatusFilter('resigned');
+    } else if (defaultStatus === 'suspended') {
+      setActiveTab('suspended');
+      setStatusFilter('suspended');
+    }
+  }, [defaultStatus]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -320,6 +353,78 @@ export function HRUsersPanel() {
     }
   };
 
+  const openSuspendDialog = (user: User) => {
+    setUserToSuspend(user);
+    setSuspendReason('');
+    setSuspendDialogOpen(true);
+  };
+
+  const handleSuspendConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToSuspend?.id) return;
+    setSuspending(true);
+    try {
+      await api.put(`/users/${userToSuspend.id}`, {
+        status: 'suspended',
+        remarks: suspendReason || 'Suspended by HR'
+      });
+      toast.success(`${userToSuspend.name} has been suspended. Login access is now blocked.`);
+      setSuspendDialogOpen(false);
+      setUserToSuspend(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to suspend user');
+    } finally {
+      setSuspending(false);
+    }
+  };
+
+  const openResignDialog = (user: User) => {
+    setUserToResign(user);
+    setResignationDate(new Date().toISOString().split('T')[0]);
+    setResignationReason('');
+    setResignDialogOpen(true);
+  };
+
+  const handleResignConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToResign?.id) return;
+    setResigning(true);
+    try {
+      await api.put(`/users/${userToResign.id}`, {
+        status: 'resigned',
+        remarks: resignationReason ? `Resigned on ${resignationDate}: ${resignationReason}` : `Resigned on ${resignationDate}`
+      });
+      toast.success(`${userToResign.name} has been marked as resigned and moved to Resigned Staff.`);
+      setResignDialogOpen(false);
+      setUserToResign(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to mark user as resigned');
+    } finally {
+      setResigning(false);
+    }
+  };
+
+  const handleReactivate = async (user: User) => {
+    if (!user.id) return;
+    const isResigned = user.status === 'resigned';
+    const actionLabel = isResigned ? 'Re-instate / Re-hire' : 'Reactivate (Unsuspend)';
+    if (!confirm(`Are you sure you want to ${actionLabel} ${user.name}? They will be able to log into the ERP again.`)) {
+      return;
+    }
+    try {
+      await api.put(`/users/${user.id}`, {
+        status: 'active',
+        remarks: isResigned ? 'Re-instated by HR' : 'Unsuspended by HR'
+      });
+      toast.success(`${user.name} has been reactivated. Login access has been restored.`);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reactivate user');
+    }
+  };
+
   const openEditDialog = (user: User) => {
     setEditingUser(user);
     const deptId = typeof user.departmentId === 'object' && user.departmentId !== null
@@ -425,11 +530,33 @@ export function HRUsersPanel() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <CardTitle>User Management</CardTitle>
+          <div className="flex items-center gap-2.5">
+            <CardTitle>
+              {activeTab === 'resigned' 
+                ? 'Resigned Staff Directory' 
+                : activeTab === 'suspended' 
+                  ? 'Suspended Users' 
+                  : 'User Management'}
+            </CardTitle>
+            {activeTab === 'resigned' && (
+              <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-300 font-semibold gap-1">
+                <UserX className="w-3 h-3" /> Resigned Staff
+              </Badge>
+            )}
+            {activeTab === 'suspended' && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 font-semibold gap-1">
+                <Ban className="w-3 h-3" /> Suspended
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage all staff accounts — HR, Finance, Ops, Sales, and Employees
+            {activeTab === 'resigned'
+              ? 'Former staff accounts that have resigned. Deactivated from system login.'
+              : activeTab === 'suspended'
+                ? 'Accounts currently suspended. Blocked from logging into ERP.'
+                : 'Manage all staff accounts — HR, Finance, Ops, Sales, and Employees'}
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -803,6 +930,98 @@ export function HRUsersPanel() {
         </Dialog>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Status Tab Bar */}
+        {(() => {
+          const totalCount = users.length;
+          const activeCount = users.filter((u) => !u.status || u.status === 'active').length;
+          const suspendedCount = users.filter((u) => u.status === 'suspended').length;
+          const resignedCount = users.filter((u) => u.status === 'resigned').length;
+
+          return (
+            <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('all');
+                  setStatusFilter('all');
+                }}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 border',
+                  activeTab === 'all'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-muted/40 text-muted-foreground hover:bg-muted border-transparent hover:text-foreground'
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>All Staff</span>
+                <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-bold', activeTab === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                  {totalCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('active');
+                  setStatusFilter('active');
+                }}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 border',
+                  activeTab === 'active'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20'
+                )}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Active</span>
+                <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-bold', activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300')}>
+                  {activeCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('suspended');
+                  setStatusFilter('suspended');
+                }}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 border',
+                  activeTab === 'suspended'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/20'
+                )}
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>Suspended</span>
+                <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-bold', activeTab === 'suspended' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-700 dark:text-amber-300')}>
+                  {suspendedCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('resigned');
+                  setStatusFilter('resigned');
+                }}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 border',
+                  activeTab === 'resigned'
+                    ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 border-rose-500/20'
+                )}
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Resigned Staff</span>
+                <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-bold', activeTab === 'resigned' ? 'bg-white/20 text-white' : 'bg-rose-500/20 text-rose-700 dark:text-rose-300')}>
+                  {resignedCount}
+                </span>
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Search & Filter Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-xl border">
           <div className="relative">
@@ -853,13 +1072,23 @@ export function HRUsersPanel() {
           </div>
 
           <div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select 
+              value={statusFilter} 
+              onValueChange={(val) => {
+                setStatusFilter(val);
+                if (val === 'active' || val === 'suspended' || val === 'resigned' || val === 'all') {
+                  setActiveTab(val as any);
+                }
+              }}
+            >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="suspended">Suspended Only</SelectItem>
+                <SelectItem value="resigned">Resigned Staff Only</SelectItem>
                 <SelectItem value="inactive">Inactive Only</SelectItem>
               </SelectContent>
             </Select>
@@ -873,8 +1102,12 @@ export function HRUsersPanel() {
               const uDeptId = u.departmentId || u.department?.id;
               if (uDeptId !== deptFilter) return false;
             }
-            if (statusFilter !== 'all') {
-              const uStatus = u.status || 'active';
+            const uStatus = u.status || 'active';
+            if (activeTab !== 'all') {
+              if (activeTab === 'active' && uStatus !== 'active') return false;
+              if (activeTab === 'suspended' && uStatus !== 'suspended') return false;
+              if (activeTab === 'resigned' && uStatus !== 'resigned') return false;
+            } else if (statusFilter !== 'all') {
               if (uStatus !== statusFilter) return false;
             }
             if (searchQuery.trim()) {
@@ -900,9 +1133,41 @@ export function HRUsersPanel() {
           if (filteredUsers.length === 0) {
             return (
               <div className="text-center py-12 text-muted-foreground">
-                <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p className="font-medium">No matching users</p>
-                <p className="text-xs mt-1">Try adjusting your search terms or filters</p>
+                {activeTab === 'resigned' ? (
+                  <>
+                    <UserX className="w-12 h-12 mx-auto mb-3 opacity-40 text-rose-500" />
+                    <p className="font-semibold text-foreground">No Resigned Staff</p>
+                    <p className="text-xs mt-1">There are currently no staff members marked as resigned.</p>
+                  </>
+                ) : activeTab === 'suspended' ? (
+                  <>
+                    <Ban className="w-12 h-12 mx-auto mb-3 opacity-40 text-amber-500" />
+                    <p className="font-semibold text-foreground">No Suspended Users</p>
+                    <p className="text-xs mt-1">There are currently no users with suspended login access.</p>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p className="font-medium">No matching users</p>
+                    <p className="text-xs mt-1">Try adjusting your search terms or filters</p>
+                  </>
+                )}
+                {(searchQuery || roleFilter !== 'all' || deptFilter !== 'all' || statusFilter !== 'all' || activeTab !== 'all') && (
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    onClick={() => { 
+                      setSearchQuery(''); 
+                      setRoleFilter('all'); 
+                      setDeptFilter('all'); 
+                      setStatusFilter('all'); 
+                      setActiveTab('all');
+                    }}
+                    className="mt-2 text-xs"
+                  >
+                    Reset all filters
+                  </Button>
+                )}
               </div>
             );
           }
@@ -910,10 +1175,19 @@ export function HRUsersPanel() {
           return (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                <span>Showing <strong>{filteredUsers.length}</strong> of {users.length} users</span>
-                {(searchQuery || roleFilter !== 'all' || deptFilter !== 'all' || statusFilter !== 'all') && (
+                <span>
+                  Showing <strong>{filteredUsers.length}</strong> of {users.length} users
+                  {activeTab !== 'all' && <span className="ml-1 font-medium capitalize">({activeTab})</span>}
+                </span>
+                {(searchQuery || roleFilter !== 'all' || deptFilter !== 'all' || statusFilter !== 'all' || activeTab !== 'all') && (
                   <button 
-                    onClick={() => { setSearchQuery(''); setRoleFilter('all'); setDeptFilter('all'); setStatusFilter('all'); }}
+                    onClick={() => { 
+                      setSearchQuery(''); 
+                      setRoleFilter('all'); 
+                      setDeptFilter('all'); 
+                      setStatusFilter('all'); 
+                      setActiveTab('all');
+                    }}
                     className="text-primary hover:underline font-medium"
                   >
                     Clear filters
@@ -922,103 +1196,203 @@ export function HRUsersPanel() {
               </div>
               {filteredUsers.map((user) => {
               const userId = user.id || user.id || '';
+              const isSuspended = user.status === 'suspended';
+              const isResigned = user.status === 'resigned';
               return (
                 <div
                   key={userId}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className={cn(
+                    "flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors",
+                    isSuspended && "border-amber-300/60 bg-amber-500/[0.02]",
+                    isResigned && "border-rose-300/60 bg-rose-500/[0.02] opacity-90"
+                  )}
                 >
-                  <div className="flex-1 flex gap-4">
+                  <div className="flex-1 flex gap-4 items-start">
                     {user.avatar ? (
                       <div className="w-12 h-12 rounded-full overflow-hidden border border-border shrink-0 mt-1">
                         <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0 mt-1">
-                        <Users className="w-6 h-6 text-muted-foreground opacity-50" />
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center shrink-0 mt-1",
+                        isResigned ? "bg-rose-100 dark:bg-rose-950/40 text-rose-600" :
+                        isSuspended ? "bg-amber-100 dark:bg-amber-950/40 text-amber-600" :
+                        "bg-muted text-muted-foreground"
+                      )}>
+                        {isResigned ? (
+                          <UserX className="w-6 h-6" />
+                        ) : isSuspended ? (
+                          <Ban className="w-6 h-6" />
+                        ) : (
+                          <Users className="w-6 h-6 opacity-50" />
+                        )}
                       </div>
                     )}
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold">{user.name}</h3>
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                      {user.status === 'inactive' && (
-                        <Badge variant="outline" className="bg-red-50 text-red-700">
-                          Inactive
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-base">{user.name}</h3>
+                        <Badge className={getRoleBadgeColor(user.role)}>
+                          {user.role}
                         </Badge>
+                        {isSuspended && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold flex items-center gap-1">
+                            <Ban className="w-3 h-3" /> Suspended
+                          </Badge>
+                        )}
+                        {isResigned && (
+                          <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30 font-semibold flex items-center gap-1">
+                            <UserX className="w-3 h-3" /> Resigned Staff
+                          </Badge>
+                        )}
+                        {user.status === 'inactive' && (
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                            Inactive
+                          </Badge>
+                        )}
+                        {(!user.status || user.status === 'active') && (
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pt-0.5">
+                        {user.designation && (
+                          <span><strong>Designation:</strong> {user.designation}</span>
+                        )}
+                        {user.department && (
+                          <span>
+                            <strong>Department:</strong> {user.department.name}
+                            {user.subDepartment && ` → ${user.subDepartment.name}`}
+                          </span>
+                        )}
+                        {user.additionalDepartments && user.additionalDepartments.length > 0 && (
+                          <span>
+                            <strong>Also:</strong> {user.additionalDepartments.map((d: any) => d.name || d).join(', ')}
+                          </span>
+                        )}
+                        {user.reportingToUser && (
+                          <span><strong>Reports to:</strong> {user.reportingToUser.name}</span>
+                        )}
+                      </div>
+                      {user.remarks && (isSuspended || isResigned) && (
+                        <p className="text-xs text-muted-foreground mt-1.5 italic bg-muted/60 px-2 py-1 rounded border border-dashed inline-block">
+                          Status note: {user.remarks}
+                        </p>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
-                    {user.designation && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Designation: {user.designation}
-                      </p>
-                    )}
-                    {user.department && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Department: {user.department.name}
-                        {user.subDepartment && ` → ${user.subDepartment.name}`}
-                      </p>
-                    )}
-                    {user.additionalDepartments && user.additionalDepartments.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Also: {user.additionalDepartments.map((d: any) => d.name || d).join(', ')}
-                      </p>
-                    )}
-                    {user.reportingToUser && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Reports to: {user.reportingToUser.name}
-                      </p>
-                    )}
-                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap self-end md:self-center">
+                    {/* Suspend / Resign / Reactivate Actions */}
+                    {isSuspended ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReactivate(user)}
+                          title="Reactivate / Unsuspend User (Restore Login Access)"
+                          className="h-8 px-2.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-300 font-medium text-xs flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Unsuspend</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openResignDialog(user)}
+                          title="Mark as Resigned Staff"
+                          className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    ) : isResigned ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleReactivate(user)}
+                        title="Re-instate / Re-hire Staff (Restore Active Status & Login Access)"
+                        className="h-8 px-2.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-300 font-medium text-xs flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Re-instate</span>
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openSuspendDialog(user)}
+                          title="Suspend User (Block Login Access)"
+                          className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openResignDialog(user)}
+                          title="Mark as Resigned Staff (Block Login & Move to Resigned Staff)"
+                          className="h-8 px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openTransferDialog(user)}
                       title="Transfer Employee"
+                      className="h-8 w-8 p-0"
                     >
-                      <ArrowRightLeft className="w-4 h-4" />
+                      <ArrowRightLeft className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openPromotionDialog(user, 'promotion')}
                       title="Promote Employee"
+                      className="h-8 w-8 p-0"
                     >
-                      <TrendingUp className="w-4 h-4" />
+                      <TrendingUp className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openPromotionDialog(user, 'demotion')}
                       title="Demote Employee"
+                      className="h-8 w-8 p-0"
                     >
-                      <TrendingDown className="w-4 h-4" />
+                      <TrendingDown className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openPasswordDialog(userId)}
                       title="Change Password"
+                      className="h-8 w-8 p-0"
                     >
-                      <Key className="w-4 h-4" />
+                      <Key className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => openEditDialog(user)}
+                      title="Edit User"
+                      className="h-8 w-8 p-0"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(userId)}
+                      title="Delete User"
+                      className="h-8 w-8 p-0 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -1261,6 +1635,148 @@ export function HRUsersPanel() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend User Confirmation Dialog */}
+      <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600">
+              <ShieldAlert className="w-5 h-5" />
+              <DialogTitle>Suspend User Account</DialogTitle>
+            </div>
+          </DialogHeader>
+          {userToSuspend && (
+            <form onSubmit={handleSuspendConfirm} className="space-y-4">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm space-y-1">
+                <p className="font-semibold text-foreground">{userToSuspend.name}</p>
+                <p className="text-xs text-muted-foreground">{userToSuspend.email} &bull; {userToSuspend.designation || userToSuspend.role}</p>
+                <div className="mt-2 text-xs text-amber-800 dark:text-amber-300">
+                  <strong>Warning:</strong> Suspending this user will immediately terminate active sessions and block them from logging in to the ERP. Their records and history will be preserved.
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="suspendReason">Reason / Remarks (Optional)</Label>
+                <Textarea
+                  id="suspendReason"
+                  placeholder="e.g., Pending disciplinary review, temporary leave, or security precaution..."
+                  value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSuspendDialogOpen(false);
+                    setUserToSuspend(null);
+                  }}
+                  disabled={suspending}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={suspending}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {suspending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Suspending...
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-4 h-4 mr-2" />
+                      Suspend User
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Resign Employee Dialog */}
+      <Dialog open={resignDialogOpen} onOpenChange={setResignDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-rose-600">
+              <UserX className="w-5 h-5" />
+              <DialogTitle>Mark Employee as Resigned</DialogTitle>
+            </div>
+          </DialogHeader>
+          {userToResign && (
+            <form onSubmit={handleResignConfirm} className="space-y-4">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-sm space-y-1">
+                <p className="font-semibold text-foreground">{userToResign.name}</p>
+                <p className="text-xs text-muted-foreground">{userToResign.email} &bull; {userToResign.designation || userToResign.role}</p>
+                <div className="mt-2 text-xs text-rose-800 dark:text-rose-300">
+                  <strong>Notice:</strong> Marking this employee as resigned will block their login access immediately, move them into the <strong>Resigned Staff Directory</strong>, and automatically exclude them from regular monthly payroll processing.
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="resignationDate">Effective Resignation Date</Label>
+                <Input
+                  id="resignationDate"
+                  type="date"
+                  value={resignationDate}
+                  onChange={(e) => setResignationDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="resignationReason">Exit Reason / Notes (Optional)</Label>
+                <Textarea
+                  id="resignationReason"
+                  placeholder="e.g., Higher studies, relocation, career opportunity, personal reasons..."
+                  value={resignationReason}
+                  onChange={(e) => setResignationReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setResignDialogOpen(false);
+                    setUserToResign(null);
+                  }}
+                  disabled={resigning}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={resigning}
+                  variant="destructive"
+                  className="bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  {resigning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Marking Resigned...
+                    </>
+                  ) : (
+                    <>
+                      <UserX className="w-4 h-4 mr-2" />
+                      Confirm Resignation
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </Card>

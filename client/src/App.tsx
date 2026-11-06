@@ -48,6 +48,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   tasks: 'tasks',
   // HR
   employees: 'employees',
+  'resigned-staff': 'resigned-staff',
+  resigned_staff: 'resigned-staff',
   vacancies: 'vacancies',
   leave_requests: 'leaves',
   leave_approvals: 'leave_approvals',

@@ -99,6 +99,12 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     return;
   }
 
+  // Prevent self-suspension or self-resignation
+  if (userExists.id === req.user.id && (req.body.status === 'suspended' || req.body.status === 'resigned')) {
+    res.status(400).json({ success: false, message: 'You cannot suspend or resign your own account.' });
+    return;
+  }
+
   // If password is being updated, hash it
   if (req.body.password) {
     req.body.password = await hashPassword(req.body.password);
@@ -108,6 +114,25 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     where: { id: req.params.id },
     data: req.body
   });
+
+  // Log audit if status was changed
+  if (req.body.status && req.body.status !== userExists.status && req.user?.organizationId) {
+    try {
+      await prisma.auditLog.create({
+        data: {
+          organizationId: req.user.organizationId,
+          userId: req.user.id,
+          action: `USER_STATUS_${req.body.status.toUpperCase()}`,
+          entityType: 'User',
+          entityId: user.id,
+          oldValue: { status: userExists.status },
+          newValue: { status: req.body.status, remarks: req.body.remarks || null }
+        }
+      });
+    } catch {
+      // non-fatal
+    }
+  }
 
   res.status(200).json({ success: true, data: user });
 });
