@@ -299,7 +299,7 @@ function BranchSection({
                     style={{ background: '#0891b222', color: '#0891b2' }}>
                     <Building2 className="h-2.5 w-2.5" /> Branch Manager
                   </span>
-                  <p className="font-bold text-sm text-gray-800">{mgr.name}</p>
+                  <p className="font-bold text-sm text-foreground">{mgr.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {mgr.designation || mgr.role.replace(/_/g, ' ')}
                   </p>
@@ -595,7 +595,7 @@ export function OrgHierarchyPanel() {
 
       {/* Global org chart */}
       {globalRoots.length > 0 && (
-        <div className="overflow-auto border rounded-xl bg-gray-50 p-4 sm:p-8">
+        <div className="overflow-auto border rounded-xl bg-slate-50 dark:bg-card/40 p-4 sm:p-8">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-6 text-center">
             Organisation — Head Office
           </p>
