@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   User, Mail, Phone, Briefcase, Building2, Calendar,
   DollarSign, Target, TrendingUp, Star, Plus, Trash2, Edit,
-  Save, RefreshCw, Award, AlertCircle,
+  Save, RefreshCw, Award, AlertCircle, FileText, Upload,
+  ExternalLink, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -104,9 +105,17 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
   const [employmentForm, setEmploymentForm] = useState<any>({});
   const [salaryForm, setSalaryForm] = useState<any>({});
   const [salaryConfigForm, setSalaryConfigForm] = useState<SalaryConfig>({});
+  const [documents, setDocuments] = useState<any[]>([]);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [kras, setKras] = useState<KRA[]>([]);
   const [reviewForm, setReviewForm] = useState<any>({});
+
+  // Document upload dialog
+  const [uploadDocDialogOpen, setUploadDocDialogOpen] = useState(false);
+  const [docTitle, setDocTitle] = useState('');
+  const [docCategory, setDocCategory] = useState('Aadhar Card');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // KPI/KRA dialog
   const [kpiDialog, setKpiDialog] = useState(false);
@@ -125,6 +134,7 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
       setData(d);
       const p = d.profile || {};
       const u = d.user || {};
+      const ec = p.emergencyContact || {};
       setPersonalForm({
         dateOfBirth: p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '',
         gender: p.gender || '',
@@ -133,9 +143,9 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
         city: p.city || '',
         state: p.state || '',
         pincode: p.pincode || '',
-        emergencyName: p.emergencyContact?.name || '',
-        emergencyPhone: p.emergencyContact?.phone || '',
-        emergencyRelation: p.emergencyContact?.relation || '',
+        emergencyName: ec.name || '',
+        emergencyPhone: ec.phone || '',
+        emergencyRelation: ec.relation || '',
       });
       setEmploymentForm({
         employeeCode: p.employeeCode || u.userId || '',
@@ -154,7 +164,11 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
         bankAccountNo: p.bankAccountNo || '',
         ifscCode: p.ifscCode || '',
         panNumber: p.panNumber || '',
+        uanNumber: ec.uanNumber || '',
+        previousEsiNumber: ec.previousEsiNumber || '',
+        lwfNumber: ec.lwfNumber || '',
       });
+      setDocuments(Array.isArray(p.documents) ? p.documents : []);
       const sc = d.salaryConfig || {};
       setSalaryConfigForm({
         basicSalary: (sc).basicSalary || 0,
@@ -263,6 +277,57 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
     } catch { toast.error('Save failed'); } finally { setSaving(false); }
   };
 
+  // ─── Document handlers (Req 32) ───────────────────────────────────────────
+  const handleUploadDocument = async () => {
+    if (!docFile) {
+      toast.error('Please choose a document file to upload');
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', docFile);
+      const res = await api.post('/enrollment/upload', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const fileUrl = res.data?.url || res.data?.fileUrl || res.data?.data?.url;
+      if (!fileUrl) throw new Error('File URL not returned');
+
+      const newDoc = {
+        id: Date.now().toString(),
+        title: docTitle.trim() || docCategory,
+        category: docCategory,
+        url: fileUrl,
+        fileName: docFile.name,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      const updatedDocs = [...documents, newDoc];
+      await api.put(`/hr/employee-profiles/${userId}`, { documents: updatedDocs });
+      setDocuments(updatedDocs);
+      toast.success('Document uploaded successfully');
+      setUploadDocDialogOpen(false);
+      setDocTitle('');
+      setDocFile(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to upload document');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docIdOrIndex: string | number) => {
+    if (!confirm('Are you sure you want to remove this document?')) return;
+    try {
+      const updatedDocs = documents.filter((doc, idx) => (doc.id ? doc.id !== docIdOrIndex : idx !== docIdOrIndex));
+      await api.put(`/hr/employee-profiles/${userId}`, { documents: updatedDocs });
+      setDocuments(updatedDocs);
+      toast.success('Document removed');
+    } catch {
+      toast.error('Failed to remove document');
+    }
+  };
+
   // ─── KPI helpers ──────────────────────────────────────────────────────────
   const openAddKpi = () => { setEditKpi({ title: '', target: 100, achieved: 0, unit: '%', period: '', status: 'on_track' }); setKpiIdx(null); setKpiDialog(true); };
   const openEditKpi = (kpi: KPI, idx: number) => { setEditKpi({ ...kpi }); setKpiIdx(idx); setKpiDialog(true); };
@@ -334,9 +399,9 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
         ) : (
           <Tabs value={tab} onValueChange={setTab} className="flex flex-col h-full">
             <TabsList className="flex-wrap h-auto gap-1 mx-6 mt-4 justify-start bg-transparent border-b rounded-none pb-0">
-              {['overview', 'personal', 'employment', 'salary', 'kpi', 'kra', 'review'].map(t => (
+              {['overview', 'personal', 'employment', 'salary', 'documents', 'kpi', 'kra', 'review'].map(t => (
                 <TabsTrigger key={t} value={t} className="capitalize rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
-                  {t === 'kpi' ? 'KPI' : t === 'kra' ? 'KRA' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'kpi' ? 'KPI' : t === 'kra' ? 'KRA' : t === 'documents' ? 'Documents' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -470,13 +535,56 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
                   </div>
                   <div><Label>Join Date</Label><Input type="date" value={employmentForm.joinDate} onChange={e => setEmploymentForm({ ...employmentForm, joinDate: e.target.value })} /></div>
                   <div><Label>Confirmation Date</Label><Input type="date" value={employmentForm.confirmationDate} onChange={e => setEmploymentForm({ ...employmentForm, confirmationDate: e.target.value })} /></div>
-                  <div><Label>Probation End Date</Label><Input type="date" value={employmentForm.probationEndDate} onChange={e => setEmploymentForm({ ...employmentForm, probationEndDate: e.target.value })} /></div>
-                  <div><Label>Work Location</Label><Input value={employmentForm.workLocation} onChange={e => setEmploymentForm({ ...employmentForm, workLocation: e.target.value })} placeholder="Head Office, Remote..." /></div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <Label>Probation End Date</Label>
+                    <Input
+                      type="date"
+                      value={employmentForm.probationEndDate}
+                      onChange={e => setEmploymentForm({ ...employmentForm, probationEndDate: e.target.value })}
+                    />
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[11px] text-muted-foreground font-medium">Quick Probation Duration:</span>
+                      <button
+                        type="button"
+                        className="text-[11px] px-2.5 py-0.5 rounded-full border bg-muted/60 hover:bg-primary hover:text-primary-foreground font-medium transition-colors"
+                        onClick={() => {
+                          const base = employmentForm.joinDate ? new Date(employmentForm.joinDate) : new Date();
+                          const d = new Date(base);
+                          d.setMonth(d.getMonth() + 6);
+                          setEmploymentForm((prev: any) => ({ ...prev, probationEndDate: d.toISOString().split('T')[0] }));
+                          toast.info('Probation set to 6 Months (Executive)');
+                        }}
+                      >
+                        6 Months (Executive)
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] px-2.5 py-0.5 rounded-full border bg-muted/60 hover:bg-primary hover:text-primary-foreground font-medium transition-colors"
+                        onClick={() => {
+                          const base = employmentForm.joinDate ? new Date(employmentForm.joinDate) : new Date();
+                          const d = new Date(base);
+                          d.setMonth(d.getMonth() + 3);
+                          setEmploymentForm((prev: any) => ({ ...prev, probationEndDate: d.toISOString().split('T')[0] }));
+                          toast.info('Probation set to 3 Months (Manager)');
+                        }}
+                      >
+                        3 Months (Manager)
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] px-2 py-0.5 rounded-full border bg-muted/60 text-muted-foreground hover:text-foreground"
+                        onClick={() => setEmploymentForm((prev: any) => ({ ...prev, probationEndDate: '' }))}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2"><Label>Work Location</Label><Input value={employmentForm.workLocation} onChange={e => setEmploymentForm({ ...employmentForm, workLocation: e.target.value })} placeholder="Head Office, Remote..." /></div>
                 </div>
                 <Button onClick={saveEmployment} disabled={saving} className="w-full"><Save className="w-4 h-4 mr-2" />Save Employment Info</Button>
               </TabsContent>
 
-              {/* ── SALARY ── */}
+              {/* ── SALARY (Req 8, 9, 40) ── */}
               <TabsContent value="salary" className="space-y-4 mt-0">
                 <SectionTitle icon={DollarSign} title="Salary & Bank Details" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -486,6 +594,10 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
                   <div><Label>Account Number</Label><Input value={salaryForm.bankAccountNo} onChange={e => setSalaryForm({ ...salaryForm, bankAccountNo: e.target.value })} /></div>
                   <div><Label>IFSC Code</Label><Input value={salaryForm.ifscCode} onChange={e => setSalaryForm({ ...salaryForm, ifscCode: e.target.value })} /></div>
                   <div><Label>PAN Number</Label><Input value={salaryForm.panNumber} onChange={e => setSalaryForm({ ...salaryForm, panNumber: e.target.value })} /></div>
+                  {/* Req 40: Statutory identifiers */}
+                  <div><Label>UAN (PF Number)</Label><Input value={salaryForm.uanNumber || ''} onChange={e => setSalaryForm({ ...salaryForm, uanNumber: e.target.value })} placeholder="12-digit UAN" /></div>
+                  <div><Label>Previous ESI Number</Label><Input value={salaryForm.previousEsiNumber || ''} onChange={e => setSalaryForm({ ...salaryForm, previousEsiNumber: e.target.value })} placeholder="17-digit ESI No." /></div>
+                  <div className="sm:col-span-2"><Label>LWF Number</Label><Input value={salaryForm.lwfNumber || ''} onChange={e => setSalaryForm({ ...salaryForm, lwfNumber: e.target.value })} placeholder="Labour Welfare Fund No." /></div>
                 </div>
 
                 <SectionTitle icon={TrendingUp} title="Salary Structure (Payroll Config)" />
@@ -515,6 +627,134 @@ export function EmployeeProfilePanel({ userId, open, onClose }: Props) {
                 })()}
 
                 <Button onClick={saveSalary} disabled={saving} className="w-full"><Save className="w-4 h-4 mr-2" />Save Salary Details</Button>
+              </TabsContent>
+
+              {/* ── DOCUMENTS (Req 32) ── */}
+              <TabsContent value="documents" className="space-y-4 mt-0">
+                <div className="flex items-center justify-between">
+                  <SectionTitle icon={FileText} title={`Employee Documents (${documents.length})`} />
+                  <Button size="sm" onClick={() => setUploadDocDialogOpen(true)}><Plus className="w-4 h-4 mr-1" />Upload Document</Button>
+                </div>
+
+                {documents.length === 0 ? (
+                  <div className="border-2 border-dashed rounded-xl p-10 text-center text-muted-foreground">
+                    <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm font-medium">No employee documents uploaded yet.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Upload Aadhar, PAN card, degree certificates, experience letters, or resume.</p>
+                    <Button size="sm" variant="outline" className="mt-4" onClick={() => setUploadDocDialogOpen(true)}>
+                      <Upload className="w-4 h-4 mr-1.5" />Upload First Document
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {documents.map((doc, idx) => (
+                      <Card key={doc.id || idx} className="hover:border-primary/50 transition-colors">
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{doc.title}</span>
+                                {doc.category && <Badge variant="secondary" className="text-[10px]">{doc.category}</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {doc.fileName ? `${doc.fileName} · ` : ''}
+                                Uploaded on {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {doc.url && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5 text-xs"
+                                onClick={() => window.open(doc.url, '_blank')}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />View
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteDocument(doc.id || idx)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Document Dialog */}
+                <Dialog open={uploadDocDialogOpen} onOpenChange={setUploadDocDialogOpen}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Upload Employee Document</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-1.5">
+                        <Label>Document Category</Label>
+                        <Select value={docCategory} onValueChange={setDocCategory}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Aadhar Card">Aadhar Card</SelectItem>
+                            <SelectItem value="PAN Card">PAN Card</SelectItem>
+                            <SelectItem value="Educational Certificate">Educational Certificate / Degree</SelectItem>
+                            <SelectItem value="Offer Letter">Offer Letter</SelectItem>
+                            <SelectItem value="Relieving / Experience Letter">Relieving / Experience Letter</SelectItem>
+                            <SelectItem value="Resume">Resume / CV</SelectItem>
+                            <SelectItem value="Passport / ID Proof">Passport / Other ID</SelectItem>
+                            <SelectItem value="Other">Other Document</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Document Title (Optional)</Label>
+                        <Input
+                          placeholder="e.g. Master's Degree, Aadhar Front & Back"
+                          value={docTitle}
+                          onChange={e => setDocTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Select File (PDF, Image, DOC)</Label>
+                        <Input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              setDocFile(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setUploadDocDialogOpen(false)} disabled={uploadingDoc}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUploadDocument} disabled={uploadingDoc || !docFile}>
+                        {uploadingDoc ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin mr-1.5" /> Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-1.5" /> Upload & Save
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
 
               {/* ── KPI ── */}

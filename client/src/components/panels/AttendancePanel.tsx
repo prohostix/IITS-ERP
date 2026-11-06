@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, CalendarIcon, LayoutList, CalendarDays, Search, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, CalendarIcon, LayoutList, CalendarDays, Search, Clock, CheckCircle2, XCircle, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -198,6 +198,38 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
       checkOut: '',
       notes: ''
     });
+  };
+
+  const handleExportCSV = () => {
+    if (!combinedRecords || combinedRecords.length === 0) {
+      toast.error('No attendance records to export');
+      return;
+    }
+    const headers = ['Employee Name', 'Email', 'Designation', 'Date', 'Status', 'Check In', 'Check Out', 'Late Minutes', 'Working Hours', 'WFH', 'Notes'];
+    const rows = combinedRecords.map(r => [
+      `"${r.employeeName || ''}"`,
+      `"${r.employeeEmail || ''}"`,
+      `"${r.employeeDesignation || ''}"`,
+      `"${r.date ? format(new Date(r.date), 'yyyy-MM-dd') : (dateFilter ? format(dateFilter, 'yyyy-MM-dd') : '')}"`,
+      `"${r.status || (r.isRecorded ? 'present' : 'absent')}"`,
+      `"${r.checkIn ? format(new Date(r.checkIn), 'HH:mm') : ''}"`,
+      `"${r.checkOut ? format(new Date(r.checkOut), 'HH:mm') : ''}"`,
+      r.lateMinutes || 0,
+      r.workingHours || 0,
+      r.isWFH ? 'Yes' : 'No',
+      `"${(r.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const dateStr = dateFilter ? format(dateFilter, 'yyyy-MM-dd') : 'all';
+    link.setAttribute('download', `attendance_report_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Attendance report downloaded');
   };
 
   const getStatusBadge = (status: string, isRecorded: boolean) => {
@@ -427,6 +459,10 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
               </div>
             </PopoverContent>
           </Popover>
+
+          <Button variant="outline" onClick={handleExportCSV} className="gap-1.5 text-xs font-medium border-dashed">
+            <Download className="w-4 h-4" /> Export Report
+          </Button>
 
           {isHR && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>

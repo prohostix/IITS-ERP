@@ -81,6 +81,7 @@ export function HRUsersPanel() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [formData, setFormData] = useState<{
+    userId?: string;
     name: string;
     email: string;
     password?: string;
@@ -94,6 +95,7 @@ export function HRUsersPanel() {
     canAddPrograms: boolean;
     avatar?: string;
   }>({
+    userId: '',
     name: '',
     email: '',
     password: '',
@@ -202,6 +204,7 @@ export function HRUsersPanel() {
     e.preventDefault();
     try {
       const additionalDepts = formData.additionalDepartmentIds.filter(id => id && id !== formData.departmentId);
+      const customUserId = formData.userId?.trim() || undefined;
       if (editingUser) {
         const userId = editingUser.id || editingUser.id;
         await api.put(`/users/${userId}`, {
@@ -214,10 +217,12 @@ export function HRUsersPanel() {
           subDepartmentId: (formData.subDepartmentId && formData.subDepartmentId !== 'none') ? formData.subDepartmentId : undefined,
           reportingTo: (formData.reportingTo && formData.reportingTo !== 'none') ? formData.reportingTo : undefined,
           avatar: formData.avatar || undefined,
+          userId: customUserId,
         });
       } else {
         await api.post('/users', {
           ...formData,
+          userId: customUserId,
           additionalDepartmentIds: additionalDepts,
           departmentId: (formData.departmentId && formData.departmentId !== 'none') ? formData.departmentId : undefined,
           subDepartmentId: (formData.subDepartmentId && formData.subDepartmentId !== 'none') ? formData.subDepartmentId : undefined,
@@ -330,6 +335,7 @@ export function HRUsersPanel() {
       typeof d === 'object' ? (d.id || d.id) : d
     ).filter(Boolean);
     setFormData({
+      userId: user.userId || (user as any).employeeId || '',
       name: user.name,
       email: user.email,
       password: '',
@@ -375,6 +381,7 @@ export function HRUsersPanel() {
 
   const resetForm = () => {
     setFormData({
+      userId: '',
       name: '',
       email: '',
       password: '',
@@ -487,7 +494,7 @@ export function HRUsersPanel() {
                   </label>
                 </div>
                 
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 space-y-3">
                   <div>
                     <Label htmlFor="name">Full Name</Label>
                     <Input
@@ -495,6 +502,15 @@ export function HRUsersPanel() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="userId">Employee ID / Code</Label>
+                    <Input
+                      id="userId"
+                      placeholder="e.g. EMP-101 (auto if blank)"
+                      value={formData.userId || ''}
+                      onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                     />
                   </div>
                 </div>
@@ -556,12 +572,26 @@ export function HRUsersPanel() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input
-                    id="designation"
-                    value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    placeholder="e.g., Senior Manager, Team Lead"
-                  />
+                  <div>
+                    <Input
+                      id="designation"
+                      value={formData.designation}
+                      onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                      placeholder="e.g., Executive, Team Lead, Manager, HOD"
+                    />
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {['Executive', 'Team Lead', 'Manager', 'HOD'].map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className="text-[10px] px-2 py-0.5 rounded border bg-muted/50 hover:bg-primary hover:text-primary-foreground font-medium transition-colors"
+                          onClick={() => setFormData({ ...formData, designation: tag })}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {designations.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
@@ -579,6 +609,10 @@ export function HRUsersPanel() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="executive">Executive</SelectItem>
+                    <SelectItem value="team_lead">Team Lead</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="hod">HOD (Head of Department)</SelectItem>
                     <SelectItem value="employee">Employee</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
                     <SelectItem value="general_manager">General Manager</SelectItem>

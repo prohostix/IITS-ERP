@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, UserCheck, UserX, Building, Building2, Crown, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
@@ -64,6 +65,7 @@ export function ManagerAssignmentPanel() {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [managerSearchQuery, setManagerSearchQuery] = useState('');
   const [assignTarget, setAssignTarget] = useState<{
     type: 'department' | 'subdepartment';
     id: string;
@@ -341,19 +343,36 @@ export function ManagerAssignmentPanel() {
             </div>
             <div className="space-y-2">
               <Label>Select Manager</Label>
+              <Input
+                placeholder="Search staff by name, email, or designation..."
+                value={managerSearchQuery}
+                onChange={(e) => setManagerSearchQuery(e.target.value)}
+                className="mb-2"
+              />
               <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a manager" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-64">
                   <SelectItem value="none">— Remove Manager —</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                      {' — '}
-                      {user.designation || user.role.replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
+                  {users
+                    .filter((user) => {
+                      if (!managerSearchQuery.trim()) return true;
+                      const q = managerSearchQuery.toLowerCase();
+                      return (
+                        user.name.toLowerCase().includes(q) ||
+                        user.email.toLowerCase().includes(q) ||
+                        (user.designation && user.designation.toLowerCase().includes(q)) ||
+                        user.role.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                        {' — '}
+                        {user.designation || user.role.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

@@ -38,7 +38,9 @@ export function EmployeesPanel() {
     status: string;
     permissions: string[];
     canAddPrograms: boolean;
+    userId?: string;
   }>({
+    userId: '',
     name: '',
     email: '',
     phone: '',
@@ -94,13 +96,14 @@ export function EmployeesPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
+      const payload: any = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         departmentId: formData.departmentId || undefined,
         role: formData.role,
         designation: formData.designation,
+        ...(formData.userId ? { userId: formData.userId.trim() } : {}),
         ...(editingId ? {} : { password: formData.password || 'password123' })
       };
       
@@ -133,6 +136,7 @@ export function EmployeesPanel() {
       : (rawDept || employee.department?.id || employee.department?.id);
     setEditingId(empId);
     setFormData({
+      userId: employee.userId || employee.employeeCode || '',
       name: employee.name || '',
       email: employee.email || '',
       phone: employee.phone || '',
@@ -165,6 +169,7 @@ export function EmployeesPanel() {
   const resetForm = () => {
     setEditingId(null);
     setFormData({
+      userId: '',
       name: '',
       email: '',
       phone: '',
@@ -209,17 +214,29 @@ export function EmployeesPanel() {
               <DialogTitle>{editingId ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Full Name</Label>
-                <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Full Name</Label>
+                  <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+                </div>
+                <div>
+                  <Label>Employee ID / Code</Label>
+                  <Input
+                    value={formData.userId || ''}
+                    onChange={(e) => setFormData({...formData, userId: e.target.value})}
+                    placeholder="e.g. EMP-101 (auto if blank)"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Email</Label>
-                <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Email</Label>
+                  <Input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                </div>
               </div>
               {!editingId && (
                 <div>
@@ -238,6 +255,10 @@ export function EmployeesPanel() {
                   <Select value={formData.role} onValueChange={(value) => setFormData({...formData, role: value})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="executive">Executive</SelectItem>
+                      <SelectItem value="team_lead">Team Lead</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="hod">HOD (Head of Department)</SelectItem>
                       <SelectItem value="employee">Employee</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
                       <SelectItem value="general_manager">General Manager</SelectItem>
@@ -258,8 +279,20 @@ export function EmployeesPanel() {
                   <Input
                     value={formData.designation}
                     onChange={(e) => setFormData({...formData, designation: e.target.value})}
-                    placeholder="e.g. Branch Manager, CFO"
+                    placeholder="e.g. Executive, Team Lead, Manager, HOD"
                   />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {['Executive', 'Team Lead', 'Manager', 'HOD'].map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className="text-[10px] px-2 py-0.5 rounded border bg-muted/50 hover:bg-primary hover:text-primary-foreground font-medium transition-colors"
+                        onClick={() => setFormData({ ...formData, designation: tag })}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

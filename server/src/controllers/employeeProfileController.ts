@@ -61,15 +61,25 @@ export const updateKRAs = asyncHandler(async (req: AuthRequest, res: Response) =
 
 export const updateSalaryDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
-  const { salaryConfig, ctc, basicSalary, bankName, bankAccountNo, ifscCode, panNumber } = req.body;
+  const { salaryConfig, ctc, basicSalary, bankName, bankAccountNo, ifscCode, panNumber, uanNumber, previousEsiNumber, lwfNumber } = req.body;
 
-  const profileData = { 
+  const existingProfile = await prisma.employeeProfile.findUnique({ where: { userId } });
+  const existingContact = (existingProfile?.emergencyContact as any) || {};
+  const updatedContact = {
+    ...existingContact,
+    ...(uanNumber !== undefined ? { uanNumber: String(uanNumber).trim() } : {}),
+    ...(previousEsiNumber !== undefined ? { previousEsiNumber: String(previousEsiNumber).trim() } : {}),
+    ...(lwfNumber !== undefined ? { lwfNumber: String(lwfNumber).trim() } : {}),
+  };
+
+  const profileData: any = { 
     ctc: ctc ? Number(ctc) : null,
     basicSalary: basicSalary ? Number(basicSalary) : null,
     bankName, 
     bankAccountNo, 
     ifscCode, 
-    panNumber 
+    panNumber,
+    emergencyContact: updatedContact,
   };
 
   const profile = await prisma.employeeProfile.upsert({

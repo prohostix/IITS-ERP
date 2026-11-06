@@ -55,6 +55,7 @@ export function SalaryConfigPanel() {
   const [form, setForm] = useState<any>(EMPTY_CONFIG);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
 
   useEffect(() => {
     fetchAll();
@@ -255,14 +256,26 @@ export function SalaryConfigPanel() {
             {!configs.find(c => (typeof c.userId === 'object' ? c.userId.id : c.userId) === editingUserId) && (
               <div className="space-y-2">
                 <Label>Employee</Label>
+                <Input
+                  placeholder="Search employee by name or role..."
+                  value={employeeSearchQuery}
+                  onChange={e => setEmployeeSearchQuery(e.target.value)}
+                  className="mb-1.5"
+                />
                 <Select value={editingUserId} onValueChange={setEditingUserId}>
                   <SelectTrigger><SelectValue placeholder="Select employee..." /></SelectTrigger>
-                  <SelectContent>
-                    {unconfiguredUsers.map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name} — {u.role.replace(/_/g, ' ')}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-60">
+                    {unconfiguredUsers
+                      .filter(u => {
+                        if (!employeeSearchQuery.trim()) return true;
+                        const q = employeeSearchQuery.toLowerCase();
+                        return u.name.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+                      })
+                      .map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name} — {u.role.replace(/_/g, ' ')}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -437,8 +450,11 @@ export function SalaryConfigPanel() {
                   <p className="text-[11px] text-muted-foreground">Any company-specific advances, loans, or equipment deductions</p>
                 </div>
 
-                <div className="space-y-1 border p-3 rounded-lg bg-muted/20">
-                  <Label className="font-semibold text-xs">Late Deduction per Minute (₹)</Label>
+                <div className="space-y-2 border p-3 rounded-lg bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-xs">Late Deduction per Minute (₹)</Label>
+                    <span className="text-[10px] text-muted-foreground">Auto-calc based on month days:</span>
+                  </div>
                   <Input
                     type="number"
                     min="0"
@@ -446,8 +462,34 @@ export function SalaryConfigPanel() {
                     value={form.lateDeductionPerMinute}
                     onChange={e => setForm((f: any) => ({ ...f, lateDeductionPerMinute: Number(e.target.value) }))}
                   />
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {[
+                      { days: 30, label: '30 Days Month' },
+                      { days: 31, label: '31 Days Month' },
+                      { days: 28, label: '28 Days (Feb)' },
+                      { days: 26, label: '26 Working Days' }
+                    ].map(item => (
+                      <button
+                        key={item.days}
+                        type="button"
+                        className="text-[11px] px-2 py-0.5 rounded border bg-card hover:bg-primary hover:text-primary-foreground font-medium transition-colors"
+                        onClick={() => {
+                          const grossAmt = gross(form);
+                          if (grossAmt <= 0) {
+                            toast.error('Please enter Basic Salary and allowances first');
+                            return;
+                          }
+                          const calculatedRate = Number((grossAmt / item.days / 8 / 60).toFixed(2));
+                          setForm((f: any) => ({ ...f, lateDeductionPerMinute: calculatedRate }));
+                          toast.info(`Late rate set to ₹${calculatedRate}/min (${item.label})`);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Deducted for late punches beyond grace period. During monthly payroll execution, per-day salary automatically calculates based on days in that specific month (28, 30, or 31 days).
+                    Calculated as Gross Salary ÷ Days in month ÷ 8 Shift Hours ÷ 60 Mins. Deducted for late punches beyond grace period during smart payroll.
                   </p>
                 </div>
 
