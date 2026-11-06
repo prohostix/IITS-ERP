@@ -178,6 +178,7 @@ export function SalaryConfigPanel() {
           {filtered.map(config => {
             const user = (config as any).user || (typeof config.userId === 'object' ? config.userId : null);
             const uid = user?.id || (typeof config.userId === 'string' ? config.userId : config.id);
+            const grossAmt = gross(config);
             const statutoryAmt = (config.professionalTax || 0) + (config.labourWelfareFund || 0) + (config.tds || 0);
             const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0) - statutoryAmt;
             return (
