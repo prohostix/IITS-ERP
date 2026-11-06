@@ -28,6 +28,7 @@ import api from '@/lib/api';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { Users, GraduationCap, MapPin, Building2, Target, FileText, ArrowRight, ArrowUpRight, Search, Activity, BookOpen, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
@@ -45,10 +46,27 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Organization Admin</h1>
-        <p className="text-muted-foreground mt-1">Manage your organization's operations, finance, HR, and sales.</p>
-      </div>
+      <DashboardHero
+        title="Organization Command & Control"
+        badge="Enterprise Administration"
+        description="Comprehensive management over organizational hierarchy, branches, academic programs, employees, and institutional pipelines."
+        metrics={[
+          { label: 'Total Employees', value: metrics.totalEmployees || 0, change: '+12%', isPositive: true },
+          { label: 'Active Students', value: (metrics.totalStudents || 0).toLocaleString(), change: '+18.4%', isPositive: true },
+          { label: 'Study Centers', value: metrics.totalCenters || 0, change: 'Branch Network', isPositive: true },
+          { label: 'Partner Universities', value: metrics.totalOrganizations || 0, change: 'Accredited', isPositive: true },
+        ]}
+        primaryAction={{
+          label: 'View Hierarchy',
+          icon: <Layers className="w-4 h-4 mr-2" />,
+          onClick: () => setActiveTab('hierarchy'),
+        }}
+        secondaryAction={{
+          label: 'Branch Network',
+          icon: <Building2 className="w-4 h-4 mr-2" />,
+          onClick: () => setActiveTab('branches'),
+        }}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="relative">

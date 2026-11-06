@@ -47,6 +47,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
@@ -219,12 +220,35 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Hero Header */}
+      <DashboardHero
+        title="Sales Growth & Admissions Pulse"
+        badge="Live Sales Pipeline"
+        subtitle="Monitor inbound lead pipelines, regional study center acquisitions, target velocities, and real-time conversion rates across all territories."
+        stats={[
+          { label: 'Total Inbound Leads', value: loading ? '...' : totalLeads, icon: Users },
+          { label: 'Conversion Velocity', value: `${conversionRate}%`, icon: TrendingUp, change: `${convertedLeads} enrolled`, isPositive: true },
+          { label: 'Active Targets', value: loading ? '...' : activeTargets.length, icon: Target },
+          { label: 'Avg Progress', value: `${avgProgress}%`, icon: Zap, change: avgProgress >= 70 ? 'On pace' : 'Attention needed', isPositive: avgProgress >= 70 },
+        ]}
+        primaryAction={{
+          label: 'Manage Leads',
+          onClick: () => onNavigate('leads'),
+          icon: Users
+        }}
+        secondaryAction={{
+          label: 'View Targets',
+          onClick: () => onNavigate('targets'),
+          icon: Target
+        }}
+      />
+
       {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
         <SalesMetric
           title="Total Leads"
           value={loading ? '...' : totalLeads}
-          trend={newLeads > 0 ? `${newLeads} new` : 'No new leads'}
+          trend={newLeads > 0 ? `${newLeads} new leads` : 'Pipeline active'}
           icon={<Users className="w-5 h-5" />}
           color="primary"
           onClick={() => onNavigate('leads')}
@@ -232,7 +256,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
         <SalesMetric
           title="Conversions"
           value={loading ? '...' : convertedLeads}
-          trend={`${conversionRate}% rate`}
+          trend={`${conversionRate}% conversion rate`}
           icon={<TrendingUp className="w-5 h-5" />}
           color="success"
           onClick={() => onNavigate('leads')}
@@ -240,7 +264,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
         <SalesMetric
           title="Active Targets"
           value={loading ? '...' : activeTargets.length}
-          trend={avgProgress > 0 ? `${avgProgress}% avg progress` : 'No targets yet'}
+          trend={avgProgress > 0 ? `${avgProgress}% avg quota reached` : 'No active quotas'}
           icon={<Target className="w-5 h-5" />}
           color="warning"
           onClick={() => onNavigate('targets')}
@@ -248,7 +272,7 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
         <SalesMetric
           title="Pending Tasks"
           value={loading ? '...' : (metrics.pendingTasks || 0)}
-          trend={metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'On track'}
+          trend={metrics.overdueTasks ? `${metrics.overdueTasks} tasks overdue` : 'All tasks on schedule'}
           icon={<Zap className="w-5 h-5" />}
           color="info"
           onClick={() => onNavigate('tasks')}
@@ -418,27 +442,62 @@ function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) 
 
 function SalesMetric({ title, value, trend, icon, color, onClick }: any) {
   const colorMap: any = {
-    primary: 'bg-primary/10 text-primary',
-    info: 'bg-info/10 text-info',
-    warning: 'bg-warning/10 text-warning',
-    success: 'bg-success/10 text-success',
+    primary: {
+      bg: 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground',
+      glow: 'stat-glow-indigo',
+      border: 'group-hover:border-primary/40',
+    },
+    info: {
+      bg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white',
+      glow: 'stat-glow-cyan',
+      border: 'group-hover:border-sky-500/40',
+    },
+    warning: {
+      bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white',
+      glow: 'stat-glow-amber',
+      border: 'group-hover:border-amber-500/40',
+    },
+    success: {
+      bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white',
+      glow: 'stat-glow-emerald',
+      border: 'group-hover:border-emerald-500/40',
+    },
   };
+
+  const style = colorMap[color] || colorMap.primary;
 
   return (
     <Card
-      className={cn('group transition-all duration-300 hover:border-primary/50', onClick && 'cursor-pointer')}
+      className={cn(
+        'group relative overflow-hidden transition-all duration-300 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-xl hover:-translate-y-1 hover:shadow-xl',
+        style.glow,
+        style.border,
+        onClick && 'cursor-pointer'
+      )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn('p-2.5 rounded-xl transition-transform group-hover:scale-110', colorMap[color])}>
-            {icon}
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3.5">
+          <div className={cn('p-3 rounded-2xl transition-all duration-300 shadow-xs border border-border/40', style.bg)}>
+            <div className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 flex items-center justify-center">
+              {icon}
+            </div>
           </div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase">{trend}</p>
+          {trend && (
+            <Badge variant="outline" className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 bg-background/50 border-border/60">
+              {trend}
+            </Badge>
+          )}
         </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{title}</p>
-          <p className="text-3xl font-bold tracking-tight mt-1">{value}</p>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground/70 transition-colors">
+            {title}
+          </p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-feature-settings-tnum">
+              {value}
+            </h3>
+          </div>
         </div>
       </CardContent>
     </Card>

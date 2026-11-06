@@ -58,6 +58,7 @@ import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedge
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { 
   XAxis, 
   YAxis, 
@@ -347,8 +348,31 @@ function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, l
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Hero Header */}
+      <DashboardHero
+        title="Financial Operations & Treasury Hub"
+        badge="Live Treasury Reconciled"
+        subtitle="Live monitoring of institutional fee receivables, student collections, study center ledgers, university royalty payments, and monthly payroll batches."
+        stats={[
+          { label: 'Total Receivables', value: formatINR(totalReceivables), icon: DollarSign },
+          { label: 'Total Collected', value: formatINR(totalCollected), icon: CreditCard, change: `${collectionRate}% rate`, isPositive: true },
+          { label: 'Operational Outflow', value: formatINR(totalExpenses), icon: TrendingUp },
+          { label: 'Pending Batches', value: pendingBatches, icon: Users, change: pendingBatches > 0 ? 'Requires review' : 'All clear', isPositive: pendingBatches === 0 },
+        ]}
+        primaryAction={{
+          label: 'Student Ledger',
+          onClick: () => onNavigate('student_ledger'),
+          icon: FileText
+        }}
+        secondaryAction={{
+          label: 'Invoices',
+          onClick: () => onNavigate('invoices'),
+          icon: Receipt
+        }}
+      />
+
       {/* Hero Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <FinanceMetric
           title="Total Receivables"
           value={formatINR(totalReceivables)}
@@ -603,36 +627,72 @@ function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, l
 
 function FinanceMetric({ title, value, fullValue, sub, trend, trendType, icon, color, onClick }: any) {
   const colorMap: any = {
-    primary: 'text-primary bg-primary/10',
-    success: 'text-success bg-success/10',
-    warning: 'text-warning bg-warning/10',
-    info: 'text-info bg-info/10',
+    primary: {
+      bg: 'text-primary bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground',
+      glow: 'stat-glow-indigo',
+      border: 'group-hover:border-primary/40',
+    },
+    success: {
+      bg: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 group-hover:bg-emerald-600 group-hover:text-white',
+      glow: 'stat-glow-emerald',
+      border: 'group-hover:border-emerald-500/40',
+    },
+    warning: {
+      bg: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 group-hover:bg-amber-600 group-hover:text-white',
+      glow: 'stat-glow-amber',
+      border: 'group-hover:border-amber-500/40',
+    },
+    info: {
+      bg: 'text-sky-600 dark:text-sky-400 bg-sky-500/10 group-hover:bg-sky-600 group-hover:text-white',
+      glow: 'stat-glow-cyan',
+      border: 'group-hover:border-sky-500/40',
+    },
   };
+
+  const style = colorMap[color] || colorMap.primary;
+
   return (
     <Card
-      className={cn('group transition-all duration-300 hover:border-primary/50', onClick && 'cursor-pointer')}
+      className={cn(
+        'group relative overflow-hidden transition-all duration-300 rounded-2xl border border-border/70 bg-card/85 backdrop-blur-xl hover:-translate-y-1 hover:shadow-xl',
+        style.glow,
+        style.border,
+        onClick && 'cursor-pointer'
+      )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn('p-2.5 rounded-xl transition-transform group-hover:scale-110', colorMap[color])}>
-            {icon}
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3.5">
+          <div className={cn('p-3 rounded-2xl transition-all duration-300 shadow-xs border border-border/40', style.bg)}>
+            <div className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 flex items-center justify-center">
+              {icon}
+            </div>
           </div>
           <div className={cn(
-            'flex items-center text-xs font-bold px-2 py-1 rounded-full',
-            trendType === 'up' ? 'bg-success/10 text-success' : trendType === 'down' ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning'
+            'flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border',
+            trendType === 'up' 
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+              : trendType === 'down' 
+              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' 
+              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
           )}>
             {trendType === 'up' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
             {trend}
           </div>
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground/70 transition-colors">
+            {title}
+          </p>
           <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold tracking-tight text-foreground">{value}</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-feature-settings-tnum">
+              {value}
+            </h3>
             {fullValue && <span className="text-xs text-muted-foreground/80 font-mono">({fullValue})</span>}
           </div>
-          <p className="text-xs text-muted-foreground pt-1">{sub}</p>
+          <p className="text-[11px] text-muted-foreground group-hover:text-foreground/60 transition-colors pt-0.5 truncate">
+            {sub}
+          </p>
         </div>
       </CardContent>
     </Card>

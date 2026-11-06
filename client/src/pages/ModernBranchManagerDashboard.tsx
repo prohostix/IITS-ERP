@@ -3,6 +3,7 @@ import { Building2, TrendingUp, Users, BookOpen, MapPin, Target, Zap, ArrowUpRig
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -166,35 +167,39 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
 
   return (
     <div className="space-y-6">
-      {/* Branch header */}
-      {branch && (
-        <Card className="border-none shadow-xl bg-gradient-to-r from-primary/10 to-primary/5">
-          <CardContent className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-primary/20">
-                <Building2 className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{branch.name}</h2>
-                <p className="text-sm text-muted-foreground">{branch.location}{branch.city ? `, ${branch.city}` : ''}{branch.state ? `, ${branch.state}` : ''}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="font-mono">{branch.code}</Badge>
-              <Badge className={cn(branch.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground')}>
-                {branch.status}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Branch Hero */}
+      <DashboardHero
+        title={branch?.name ? `${branch.name} Command Center` : "Branch Operations Command Center"}
+        badge={branch?.code ? `${branch.code} · ${branch.status?.toUpperCase() || 'ACTIVE'}` : "REGIONAL HUB"}
+        description={
+          branch?.location
+            ? `${branch.location}${branch.city ? `, ${branch.city}` : ''}${branch.state ? `, ${branch.state}` : ''} — Regional admissions, sales targets, study center networks, and team operations.`
+            : "Regional operations, center verification, sales targets, and admissions pipeline."
+        }
+        metrics={[
+          { label: 'Total Leads', value: loading ? '...' : totalLeads, change: `+${leads.filter((l: any) => l.status === 'new').length} new`, isPositive: true },
+          { label: 'Conversions', value: loading ? '...' : convertedLeads, change: `${conversionRate}% rate`, isPositive: conversionRate >= 30 },
+          { label: 'Active Targets', value: loading ? '...' : activeTargets.length, change: 'Active', isPositive: true },
+          { label: 'Pending Tasks', value: loading ? '...' : (metrics.pendingTasks || 0), change: metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'On track', isPositive: !metrics.overdueTasks },
+        ]}
+        primaryAction={{
+          label: 'Branch Reports',
+          icon: <Network className="w-4 h-4 mr-2" />,
+          onClick: () => onNavigate('admission_report'),
+        }}
+        secondaryAction={{
+          label: 'Sales Pipeline',
+          icon: <Target className="w-4 h-4 mr-2" />,
+          onClick: () => onNavigate('leads'),
+        }}
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <BranchMetric title="Total Leads" value={loading ? '...' : totalLeads} sub={`${leads.filter((l:any) => l.status === 'new').length} new`} icon={<TrendingUp className="w-4 h-4" />} color="primary" onClick={() => onNavigate('leads')} />
-        <BranchMetric title="Conversions" value={loading ? '...' : convertedLeads} sub={`${conversionRate}% rate`} icon={<Target className="w-4 h-4" />} color="success" onClick={() => onNavigate('leads')} />
-        <BranchMetric title="Active Targets" value={loading ? '...' : activeTargets.length} sub="in progress" icon={<Zap className="w-4 h-4" />} color="warning" onClick={() => onNavigate('targets')} />
-        <BranchMetric title="Pending Tasks" value={loading ? '...' : (metrics.pendingTasks || 0)} sub={metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'on track'} icon={<Users className="w-4 h-4" />} color="info" onClick={() => onNavigate('tasks')} />
+        <BranchMetric title="Total Leads" value={loading ? '...' : totalLeads} sub={`${leads.filter((l:any) => l.status === 'new').length} new`} icon={<TrendingUp className="w-5 h-5" />} color="primary" onClick={() => onNavigate('leads')} />
+        <BranchMetric title="Conversions" value={loading ? '...' : convertedLeads} sub={`${conversionRate}% rate`} icon={<Target className="w-5 h-5" />} color="success" onClick={() => onNavigate('leads')} />
+        <BranchMetric title="Active Targets" value={loading ? '...' : activeTargets.length} sub="in progress" icon={<Zap className="w-5 h-5" />} color="warning" onClick={() => onNavigate('targets')} />
+        <BranchMetric title="Pending Tasks" value={loading ? '...' : (metrics.pendingTasks || 0)} sub={metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'on track'} icon={<Users className="w-5 h-5" />} color="info" onClick={() => onNavigate('tasks')} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -311,22 +316,35 @@ function BranchOverview({ branch, metrics, leads, targets, loading, onNavigate }
 }
 
 function BranchMetric({ title, value, sub, icon, color, onClick }: any) {
-  const colorMap: any = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-warning',
-    info: 'bg-info/10 text-info',
+  const glowMap: Record<string, { ring: string; glow: string; text: string; bg: string }> = {
+    primary: { ring: 'ring-indigo-500/20', glow: 'stat-glow-indigo', text: 'text-indigo-500 dark:text-indigo-400', bg: 'bg-indigo-500/10' },
+    success: { ring: 'ring-emerald-500/20', glow: 'stat-glow-emerald', text: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+    warning: { ring: 'ring-amber-500/20', glow: 'stat-glow-amber', text: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10' },
+    info: { ring: 'ring-cyan-500/20', glow: 'stat-glow-cyan', text: 'text-cyan-500 dark:text-cyan-400', bg: 'bg-cyan-500/10' },
   };
+
+  const scheme = glowMap[color] || glowMap.primary;
+
   return (
-    <Card className="cursor-pointer hover:border-primary/40 transition-all" onClick={onClick}>
-      <CardContent className="p-5">
+    <div
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-border/60 bg-card/75 p-5 backdrop-blur-xl transition-all duration-300",
+        scheme.glow,
+        "hover:-translate-y-1 hover:border-border hover:shadow-xl hover:shadow-primary/5 cursor-pointer"
+      )}
+    >
+      <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+      <div className="relative z-10">
         <div className="flex items-center justify-between mb-3">
-          <div className={cn('p-2 rounded-xl', colorMap[color])}>{icon}</div>
-          <span className="text-[10px] text-muted-foreground font-medium">{sub}</span>
+          <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center ring-1 transition-transform group-hover:scale-105 group-hover:rotate-1", scheme.bg, scheme.text, scheme.ring)}>
+            {icon}
+          </div>
+          <span className="text-[11px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full border border-border/40">{sub}</span>
         </div>
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">{title}</p>
-        <p className="text-2xl font-bold mt-0.5">{value}</p>
-      </CardContent>
-    </Card>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <p className="text-3xl font-black tracking-tight text-foreground font-display mt-0.5">{value}</p>
+      </div>
+    </div>
   );
 }

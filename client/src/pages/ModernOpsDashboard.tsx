@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { StudentsPanel } from '@/components/panels/StudentsPanel';
 import { UniversitiesPanel } from '@/components/panels/UniversitiesPanel';
 import { ProgramsPanel } from '@/components/panels/ProgramsPanel';
@@ -201,28 +202,48 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
   const sessionDisplayName = activeSession ? activeSession.name : 'All Sessions';
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Top Operations Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-card/60 backdrop-blur-xl border border-border/50 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Operations Command Center</h2>
-            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs font-semibold">
-              Live Operations
-            </Badge>
+    <div className="flex flex-col gap-6">
+      {/* Dashboard Hero Header */}
+      <DashboardHero
+        title="Academic Operations Command"
+        badge="Live Operational Services"
+        subtitle="Manage student admissions, verify study center affiliations, oversee academic sessions, and track degree program allocations."
+        stats={[
+          { label: 'Total Enrolled Students', value: metrics.totalStudents || 0, icon: GraduationCap },
+          { label: 'Affiliated Centers', value: metrics.totalCenters || 0, icon: Building2 },
+          { label: 'Academic Programs', value: metrics.totalPrograms || 0, icon: BookOpen },
+          { label: 'Active Session', value: sessionDisplayName, icon: Calendar },
+        ]}
+        primaryAction={{
+          label: 'View Students',
+          onClick: () => onNavigate('students'),
+          icon: Users
+        }}
+        secondaryAction={{
+          label: 'Academic Sessions',
+          onClick: () => onNavigate('sessions'),
+          icon: Calendar
+        }}
+      />
+
+      {/* Session Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl glass-card border border-border/70 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <Layers className="w-4 h-4" />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Academic enrollments, institutional ledger reports, and session-wise financial reconciliations.
-          </p>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">Operational Scope</h4>
+            <p className="text-xs text-muted-foreground">Select an academic session to scope enrollments and verification metrics.</p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Session Switcher Dropdown */}
-          <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border shadow-inner">
-            <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span className="text-xs font-semibold text-slate-600 shrink-0">Session:</span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">Session:</span>
             <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
-              <SelectTrigger className="h-8 border-none bg-transparent shadow-none text-xs font-bold w-[160px] focus:ring-0">
+              <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-[160px] focus:ring-0">
                 <SelectValue placeholder="All Sessions" />
               </SelectTrigger>
               <SelectContent>
@@ -236,13 +257,9 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             </Select>
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => onNavigate('sessions')} className="h-9">
-            <Calendar className="w-3.5 h-3.5 mr-1.5" />
-            Sessions
-          </Button>
-          <Button variant="premium" size="sm" onClick={() => onNavigate('students')} className="h-9">
-            <Users className="w-3.5 h-3.5 mr-1.5" />
-            View Students
+          <Button variant="outline" size="sm" onClick={() => onNavigate('pending_verification')} className="h-8 text-xs font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            Center Approvals
           </Button>
         </div>
       </div>

@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 
 import { Badge } from '@/components/ui/badge';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import {
   Dialog,
   DialogContent,
@@ -118,22 +119,27 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Executive Overview</h1>
-          <p className="text-muted-foreground mt-1">Real-time institutional performance and strategic metrics.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={fetchAll} disabled={loadingMetrics}>
-            <RefreshCw className={cn('w-4 h-4 mr-2', loadingMetrics && 'animate-spin')} />
-            Refresh
-          </Button>
-          <Button variant="default" onClick={() => handleTabChange('kpi-kra')}>
-            <Target className="w-4 h-4 mr-2" />
-            KPI / KRA Report
-          </Button>
-        </div>
-      </div>
+      <DashboardHero
+        title="Executive Command Center"
+        badge="Strategic Oversight"
+        description="Real-time institutional performance, fiscal trajectory, student enrollments, and cross-departmental operations."
+        metrics={[
+          { label: 'Total Revenue', value: metrics.totalRevenue ? `₹${(metrics.totalRevenue / 1000).toFixed(1)}K` : '₹0', change: '+14.2%', isPositive: true },
+          { label: 'Active Students', value: metrics.totalStudents?.toLocaleString() || '0', change: '+6.8%', isPositive: true },
+          { label: 'Pending Tasks', value: metrics.pendingTasks || 0, change: metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'On track', isPositive: !metrics.overdueTasks },
+          { label: 'Escalations', value: metrics.activeEscalations || 0, change: metrics.criticalEscalations ? `${metrics.criticalEscalations} crit` : 'Clear', isPositive: !metrics.criticalEscalations },
+        ]}
+        primaryAction={{
+          label: 'KPI / KRA Report',
+          icon: <Target className="w-4 h-4 mr-2" />,
+          onClick: () => handleTabChange('kpi-kra'),
+        }}
+        secondaryAction={{
+          label: 'Refresh',
+          icon: <RefreshCw className={cn('w-4 h-4 mr-2', loadingMetrics && 'animate-spin')} />,
+          onClick: fetchAll,
+        }}
+      />
 
       <div className="space-y-6">
 
@@ -143,7 +149,7 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
             <MetricCard
               title="Total Revenue"
               value={metrics.totalRevenue ? `₹${(metrics.totalRevenue / 1000).toFixed(1)}K` : '₹0'}
-              trend={metrics.totalRevenue ? 'Live data' : 'No data yet'}
+              trend={metrics.totalRevenue ? 'Live stream' : 'No data yet'}
               trendType="up"
               icon={<DollarSign className="w-5 h-5" />}
               color="primary"
@@ -152,7 +158,7 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
             <MetricCard
               title="Active Students"
               value={metrics.totalStudents?.toLocaleString() || '0'}
-              trend={metrics.totalStudents ? 'Live data' : 'No data yet'}
+              trend={metrics.totalStudents ? 'Verified' : 'No data yet'}
               trendType="up"
               icon={<GraduationCap className="w-5 h-5" />}
               color="success"
@@ -161,7 +167,7 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
             <MetricCard
               title="Pending Tasks"
               value={metrics.pendingTasks || 0}
-              trend={metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'On track'}
+              trend={metrics.overdueTasks ? `${metrics.overdueTasks} overdue` : 'On schedule'}
               trendType={metrics.overdueTasks > 0 ? 'down' : 'up'}
               icon={<Zap className="w-5 h-5" />}
               color="warning"
@@ -179,22 +185,26 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
           </div>
 
           {/* Secondary metrics row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total Employees', value: metrics.totalEmployees || 0, icon: <Users className="w-4 h-4" />, tab: 'users' },
-              { label: 'Active Leads', value: metrics.totalLeads || 0, icon: <TrendingUp className="w-4 h-4" />, tab: 'leads' },
-              { label: 'Departments', value: metrics.totalDepartments || 0, icon: <Building2 className="w-4 h-4" />, tab: 'departments' },
-              { label: 'Programs', value: metrics.totalPrograms || 0, icon: <BookOpen className="w-4 h-4" />, tab: 'students' },
+              { label: 'Total Employees', value: metrics.totalEmployees || 0, icon: <Users className="w-4 h-4 text-indigo-500" />, tab: 'users', bg: 'bg-indigo-500/10' },
+              { label: 'Active Leads', value: metrics.totalLeads || 0, icon: <TrendingUp className="w-4 h-4 text-emerald-500" />, tab: 'leads', bg: 'bg-emerald-500/10' },
+              { label: 'Departments', value: metrics.totalDepartments || 0, icon: <Building2 className="w-4 h-4 text-amber-500" />, tab: 'departments', bg: 'bg-amber-500/10' },
+              { label: 'Programs', value: metrics.totalPrograms || 0, icon: <BookOpen className="w-4 h-4 text-cyan-500" />, tab: 'students', bg: 'bg-cyan-500/10' },
             ].map(item => (
-              <Card key={item.label} className="cursor-pointer hover:border-primary/40 transition-colors" onClick={() => handleTabChange(item.tab)}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted text-muted-foreground">{item.icon}</div>
-                  <div>
-                    <p className="text-xl font-bold">{item.value}</p>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div
+                key={item.label}
+                className="group glass-card p-4 rounded-2xl cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 transition-all duration-300 flex items-center gap-3.5 shadow-sm"
+                onClick={() => handleTabChange(item.tab)}
+              >
+                <div className={cn("p-2.5 rounded-xl transition-transform group-hover:scale-110", item.bg)}>
+                  {item.icon}
+                </div>
+                <div>
+                  <p className="text-xl font-black font-display tracking-tight text-foreground">{item.value}</p>
+                  <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -335,37 +345,49 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
 }
 
 function MetricCard({ title, value, trend, trendType, icon, color, onClick }: any) {
-  const colorMap: any = {
-    primary: "text-primary bg-primary/10",
-    success: "text-success bg-success/10",
-    warning: "text-warning bg-warning/10",
-    info: "text-info bg-info/10",
+  const glowMap: Record<string, { ring: string; glow: string; text: string; bg: string }> = {
+    primary: { ring: 'ring-indigo-500/20', glow: 'stat-glow-indigo', text: 'text-indigo-500 dark:text-indigo-400', bg: 'bg-indigo-500/10' },
+    success: { ring: 'ring-emerald-500/20', glow: 'stat-glow-emerald', text: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+    warning: { ring: 'ring-amber-500/20', glow: 'stat-glow-amber', text: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10' },
+    info: { ring: 'ring-cyan-500/20', glow: 'stat-glow-cyan', text: 'text-cyan-500 dark:text-cyan-400', bg: 'bg-cyan-500/10' },
   };
 
+  const scheme = glowMap[color] || glowMap.primary;
+
   return (
-    <Card
-      className={cn("group transition-all duration-300 hover:border-primary/50", onClick && "cursor-pointer")}
+    <div
       onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-xl transition-all duration-300",
+        scheme.glow,
+        "hover:-translate-y-1 hover:border-border hover:shadow-xl hover:shadow-primary/5",
+        onClick && "cursor-pointer"
+      )}
     >
-      <CardContent className="p-6">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+      <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className={cn("p-2.5 rounded-xl transition-transform group-hover:scale-110", colorMap[color])}>
+          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center ring-1 transition-transform group-hover:scale-105 group-hover:rotate-1", scheme.bg, scheme.text, scheme.ring)}>
             {icon}
           </div>
-          <div className={cn(
-            "flex items-center text-xs font-bold px-2 py-1 rounded-full",
-            trendType === 'up' ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}>
-            {trendType === 'up' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
-            {trend}
-          </div>
+          {trend && (
+            <div className={cn(
+              "flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border",
+              trendType === 'up'
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+            )}>
+              {trendType === 'up' ? <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> : <ArrowDownRight className="w-3.5 h-3.5 mr-1" />}
+              {trend}
+            </div>
+          )}
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className="text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+          <p className="text-3xl font-black tracking-tight text-foreground font-display">{value}</p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

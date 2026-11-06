@@ -53,6 +53,10 @@ module.exports = {
         error: "hsl(var(--error) / <alpha-value>)",
         info: "hsl(var(--info) / <alpha-value>)",
       },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Outfit', '"Plus Jakarta Sans"', 'sans-serif'],
+      },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",

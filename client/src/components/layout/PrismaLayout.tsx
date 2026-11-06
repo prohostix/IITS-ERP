@@ -257,8 +257,11 @@ export function PrismaLayout({
               placeholder="Search features..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-9 pl-9 pr-4 bg-white/5 border border-transparent rounded-lg text-xs text-sidebar-foreground outline-none focus:border-sidebar-primary/50 focus:bg-white/10 transition-all placeholder:text-sidebar-foreground/40"
+              className="w-full h-9 pl-9 pr-11 bg-white/5 border border-white/5 rounded-lg text-xs text-sidebar-foreground outline-none focus:border-sidebar-primary/50 focus:bg-white/10 transition-all placeholder:text-sidebar-foreground/40"
             />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-sidebar-foreground/40 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded pointer-events-none">
+              ⌘K
+            </span>
           </div>
         </div>
 
@@ -308,21 +311,24 @@ export function PrismaLayout({
 
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/20">
           <div className="flex items-center gap-3 px-2 py-2 mb-4">
-            <button
-              type="button"
-              onClick={() => setAvatarDialogOpen(true)}
-              className="relative group w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-              title="Click to change profile photo"
-            >
-              {currentAvatar ? (
-                <img src={currentAvatar} alt={userName} className="w-full h-full object-cover" />
-              ) : (
-                userName?.charAt(0) || 'U'
-              )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <Camera className="w-4 h-4 text-white" />
-              </div>
-            </button>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setAvatarDialogOpen(true)}
+                className="relative group w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                title="Click to change profile photo"
+              >
+                {currentAvatar ? (
+                  <img src={currentAvatar} alt={userName} className="w-full h-full object-cover" />
+                ) : (
+                  userName?.charAt(0) || 'U'
+                )}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Camera className="w-4 h-4 text-white" />
+                </div>
+              </button>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-sidebar ring-1 ring-emerald-500/40" />
+            </div>
             <div className="flex flex-col min-w-0 flex-1">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName || 'Unknown User'}</p>
               <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userDesignation || userRole?.replace(/_/g, ' ')}</span>
@@ -347,22 +353,22 @@ export function PrismaLayout({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 flex items-center px-2 sm:px-4 lg:px-8 gap-2 sm:gap-4 bg-background/40 backdrop-blur-2xl border-b border-white/20 dark:border-white/5 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 flex items-center px-3 sm:px-6 lg:px-8 gap-2 sm:gap-4 bg-background/70 backdrop-blur-2xl border-b border-border/50 sticky top-0 z-20 shadow-sm/30">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="lg:hidden shrink-0" 
+            className="lg:hidden shrink-0 hover:bg-muted/80" 
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </Button>
 
-          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary hidden sm:flex shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20 hidden sm:flex shrink-0 shadow-sm">
               {activeTableItem?.icon}
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground/30 hidden sm:block shrink-0" />
-            <span className="text-base sm:text-lg font-bold text-foreground truncate hidden xs:block">{activeTableItem?.label}</span>
+            <span className="text-base sm:text-lg font-bold font-display tracking-tight text-foreground truncate hidden xs:block">{activeTableItem?.label}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-1 sm:gap-4 shrink-0">
@@ -438,7 +444,7 @@ export function PrismaLayout({
           </div>
         </header>
 
-        <section className="flex-1 overflow-auto p-4 lg:p-8 bg-background">
+        <section className="flex-1 overflow-auto p-4 lg:p-8 bg-transparent">
           <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             <ErrorBoundary>
               {children}

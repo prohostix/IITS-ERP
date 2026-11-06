@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
@@ -115,31 +116,30 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-            <User className="w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Welcome Back, {user?.name?.split(' ')[0] || 'there'}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {pendingTaskCount > 0 ? `You have ${pendingTaskCount} task${pendingTaskCount > 1 ? 's' : ''} pending.` : 'All caught up for today.'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading}>
-            <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleTabChange('notice-board')}>
-            <Bell className="w-4 h-4 mr-2" />
-            Notices
-          </Button>
-        </div>
-      </div>
+      <DashboardHero
+        title={`Welcome, ${user?.name?.split(' ')[0] || 'Team Member'}`}
+        badge={user?.role?.toUpperCase() || 'WORKSPACE'}
+        description={
+          pendingTaskCount > 0
+            ? `You have ${pendingTaskCount} active task${pendingTaskCount > 1 ? 's' : ''} assigned. Review priority items and deadlines below.`
+            : 'You are completely up to date with your assignments for today. Great work!'
+        }
+        metrics={[
+          { label: 'Assigned Tasks', value: pendingTaskCount, change: dueSoonCount > 0 ? `${dueSoonCount} due soon` : 'On track', isPositive: dueSoonCount === 0 },
+          { label: 'Leave Balance', value: `${remainingLeaves} Days`, change: `${usedDays} taken`, isPositive: true },
+          { label: 'Efficiency', value: metrics.efficiencyScore ? `${metrics.efficiencyScore}%` : 'Optimal', change: 'Personal KPI', isPositive: true },
+        ]}
+        primaryAction={{
+          label: 'Notice Board',
+          icon: <Bell className="w-4 h-4 mr-2" />,
+          onClick: () => handleTabChange('notice-board'),
+        }}
+        secondaryAction={{
+          label: 'Refresh',
+          icon: <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />,
+          onClick: fetchAll,
+        }}
+      />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
@@ -396,32 +396,43 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
 }
 
 function EmployeeMetric({ title, value, icon, subtext, color, onClick }: any) {
-  const colorMap: any = {
-    primary: 'bg-primary/10 text-primary',
-    success: 'bg-success/10 text-success',
-    info: 'bg-info/10 text-info',
-    warning: 'bg-warning/10 text-warning',
+  const glowMap: Record<string, { ring: string; glow: string; text: string; bg: string }> = {
+    primary: { ring: 'ring-indigo-500/20', glow: 'stat-glow-indigo', text: 'text-indigo-500 dark:text-indigo-400', bg: 'bg-indigo-500/10' },
+    success: { ring: 'ring-emerald-500/20', glow: 'stat-glow-emerald', text: 'text-emerald-500 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+    warning: { ring: 'ring-amber-500/20', glow: 'stat-glow-amber', text: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10' },
+    info: { ring: 'ring-cyan-500/20', glow: 'stat-glow-cyan', text: 'text-cyan-500 dark:text-cyan-400', bg: 'bg-cyan-500/10' },
   };
 
+  const scheme = glowMap[color] || glowMap.primary;
+
   return (
-    <Card
-      className={cn('group transition-all duration-300 hover:border-primary/50 hover:-translate-y-1', onClick && 'cursor-pointer')}
+    <div
       onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-border/60 bg-card/75 p-6 backdrop-blur-xl transition-all duration-300",
+        scheme.glow,
+        "hover:-translate-y-1 hover:border-border hover:shadow-xl hover:shadow-primary/5",
+        onClick && "cursor-pointer"
+      )}
     >
-      <CardContent className="p-6">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+      <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className={cn('p-2.5 rounded-xl transition-transform group-hover:scale-110', colorMap[color])}>
+          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center ring-1 transition-transform group-hover:scale-105 group-hover:rotate-1", scheme.bg, scheme.text, scheme.ring)}>
             {icon}
           </div>
-          <Badge variant="outline" className="text-[9px] opacity-60">Live</Badge>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Live
+          </span>
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{subtext}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+          <p className="text-3xl font-black tracking-tight text-foreground font-display">{value}</p>
+          {subtext && <p className="text-xs text-muted-foreground/80 mt-1">{subtext}</p>}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

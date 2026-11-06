@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { LeavesPanel } from '@/components/panels/LeavesPanel';
 import { AttendancePanel } from '@/components/panels/AttendancePanel';
 import { VacanciesPanel } from '@/components/panels/VacanciesPanel';
@@ -185,13 +186,36 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Hero Header */}
+      <DashboardHero
+        title="Human Resources Command Center"
+        badge="HR Management Live"
+        subtitle="Real-time staff directory, live biometric punches, leave approval workflows, and talent recruitment pipeline across all operational wings."
+        stats={[
+          { label: 'Total Headcount', value: metrics.totalEmployees ?? '—', icon: Users },
+          { label: 'Present Today', value: metrics.presentToday ?? '—', icon: Heart, change: metrics.onLeave != null ? `${metrics.onLeave} on leave` : undefined, isPositive: true },
+          { label: 'Pending Leaves', value: pendingLeaves.length, icon: Calendar, change: pendingLeaves.length > 0 ? 'Action needed' : 'All clear', isPositive: pendingLeaves.length === 0 },
+          { label: 'Open Positions', value: vacancies.length, icon: Briefcase },
+        ]}
+        primaryAction={{
+          label: 'View Attendance',
+          onClick: () => onNavigate('attendance'),
+          icon: Clock
+        }}
+        secondaryAction={{
+          label: 'Manage Users',
+          onClick: () => onNavigate('users'),
+          icon: Users
+        }}
+      />
+
       {/* HR Core Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-5">
         <HRMetricCard 
           title="Total Headcount" 
           value={metrics.totalEmployees ?? '—'} 
           icon={<Users className="w-5 h-5" />}
-          subtext="Active across all wings"
+          subtext="Active staff across all wings"
           color="primary"
           onClick={() => onNavigate('users')}
         />
@@ -199,7 +223,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           title="Open Vacancies" 
           value={metrics.totalVacancies ?? vacancies.length} 
           icon={<Briefcase className="w-5 h-5" />}
-          subtext={highPriorityVacancies.length > 0 ? `${highPriorityVacancies.length} high priority` : 'No high priority'}
+          subtext={highPriorityVacancies.length > 0 ? `${highPriorityVacancies.length} high priority openings` : 'All roles progressing normally'}
           color="info"
           onClick={() => onNavigate('vacancies')}
         />
@@ -207,7 +231,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           title="Absent Today" 
           value={metrics.absentToday ?? 0} 
           icon={<Clock className="w-5 h-5" />}
-          subtext={metrics.absentToday > 0 ? `${metrics.absentToday} not checked in` : 'All present'}
+          subtext={metrics.absentToday > 0 ? `${metrics.absentToday} not checked in yet` : 'Full attendance registered'}
           color="warning"
           onClick={() => onNavigate('attendance')}
         />
@@ -215,34 +239,44 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           title="Present Today" 
           value={metrics.presentToday ?? '—'} 
           icon={<Heart className="w-5 h-5" />}
-          subtext={metrics.onLeave != null ? `${metrics.onLeave} on leave` : 'Attendance today'}
+          subtext={metrics.onLeave != null ? `${metrics.onLeave} on approved leave` : 'Live attendance tracking'}
           color="success"
           onClick={() => onNavigate('attendance')}
         />
       </div>
 
       {/* Quick Feature Navigation Hub */}
-      <div className="bg-card/70 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-sm">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick HR Management & Shortcuts</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+      <div className="glass-card rounded-2xl p-5 shadow-xs border border-border/70">
+        <div className="flex items-center justify-between mb-3.5">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            Quick Navigation & Management Hub
+          </p>
+          <span className="text-[11px] text-muted-foreground">8 Core Tools</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-            { id: 'employees', label: 'Employees', icon: UserCheck, desc: 'Profiles & Docs' },
-            { id: 'users', label: 'HR Users', icon: Users, desc: 'Roles & Codes' },
-            { id: 'attendance', label: 'Attendance', icon: Clock, desc: 'Punches & Export' },
-            { id: 'attendance-calendar', label: 'Calendar', icon: CalendarDays, desc: 'SalaryBox View' },
-            { id: 'salary-config', label: 'Salary Config', icon: DollarSign, desc: 'Statutory & Late' },
-            { id: 'leaves', label: 'Leaves', icon: Calendar, desc: 'Requests & Docs' },
-            { id: 'vacancies', label: 'Vacancies', icon: Briefcase, desc: 'Hiring & Openings' },
-            { id: 'org-chart', label: 'Org Chart', icon: GitBranch, desc: 'Hierarchy' },
+            { id: 'employees', label: 'Employees', icon: UserCheck, desc: 'Profiles & Docs', color: 'hover:border-blue-500/40 hover:bg-blue-500/5 hover:text-blue-600' },
+            { id: 'users', label: 'HR Users', icon: Users, desc: 'Roles & Codes', color: 'hover:border-indigo-500/40 hover:bg-indigo-500/5 hover:text-indigo-600' },
+            { id: 'attendance', label: 'Attendance', icon: Clock, desc: 'Punches & Export', color: 'hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600' },
+            { id: 'attendance-calendar', label: 'Calendar', icon: CalendarDays, desc: 'SalaryBox View', color: 'hover:border-teal-500/40 hover:bg-teal-500/5 hover:text-teal-600' },
+            { id: 'salary-config', label: 'Salary Config', icon: DollarSign, desc: 'Statutory & Late', color: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600' },
+            { id: 'leaves', label: 'Leaves', icon: Calendar, desc: 'Requests & Docs', color: 'hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-600' },
+            { id: 'vacancies', label: 'Vacancies', icon: Briefcase, desc: 'Hiring & Openings', color: 'hover:border-purple-500/40 hover:bg-purple-500/5 hover:text-purple-600' },
+            { id: 'org-chart', label: 'Org Chart', icon: GitBranch, desc: 'Full Hierarchy', color: 'hover:border-sky-500/40 hover:bg-sky-500/5 hover:text-sky-600' },
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className="flex flex-col items-center justify-center p-3 rounded-lg border border-border/40 bg-background/50 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-all text-center group"
+              className={cn(
+                "flex flex-col items-center justify-center p-3.5 rounded-xl border border-border/50 bg-background/60 backdrop-blur-md transition-all duration-200 text-center group cursor-pointer hover:-translate-y-0.5 hover:shadow-md",
+                item.color
+              )}
             >
-              <item.icon className="w-5 h-5 mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              <span className="text-xs font-semibold">{item.label}</span>
-              <span className="text-[10px] text-muted-foreground group-hover:text-primary/80">{item.desc}</span>
+              <div className="p-2 rounded-xl bg-muted/60 mb-2 group-hover:scale-110 transition-transform duration-200">
+                <item.icon className="w-5 h-5 text-muted-foreground group-hover:text-inherit transition-colors" />
+              </div>
+              <span className="text-xs font-bold tracking-tight">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</span>
             </button>
           ))}
         </div>
@@ -411,32 +445,62 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
 
 function HRMetricCard({ title, value, icon, subtext, color, onClick }: any) {
   const colorMap: any = {
-    primary: "bg-primary/10 text-primary group-hover:bg-primary",
-    info: "bg-info/10 text-info group-hover:bg-info",
-    warning: "bg-warning/10 text-warning group-hover:bg-warning",
-    success: "bg-success/10 text-success group-hover:bg-success",
+    primary: {
+      bg: "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground",
+      glow: "stat-glow-indigo",
+      border: "group-hover:border-primary/40",
+    },
+    info: {
+      bg: "bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white",
+      glow: "stat-glow-cyan",
+      border: "group-hover:border-sky-500/40",
+    },
+    warning: {
+      bg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white",
+      glow: "stat-glow-amber",
+      border: "group-hover:border-amber-500/40",
+    },
+    success: {
+      bg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white",
+      glow: "stat-glow-emerald",
+      border: "group-hover:border-emerald-500/40",
+    },
   };
+
+  const style = colorMap[color] || colorMap.primary;
 
   return (
     <Card
-      className="group hover:shadow-lg transition-all duration-300 cursor-pointer"
+      className={cn(
+        "group relative overflow-hidden transition-all duration-300 cursor-pointer rounded-2xl border border-border/70 bg-card/85 backdrop-blur-xl hover:-translate-y-1 hover:shadow-xl",
+        style.glow,
+        style.border
+      )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn("p-3 rounded-2xl group-hover:text-white transition-all duration-300", colorMap[color])}>
-            {icon}
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-3.5">
+          <div className={cn("p-3 rounded-2xl transition-all duration-300 shadow-xs border border-border/40", style.bg)}>
+            <div className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 flex items-center justify-center">
+              {icon}
+            </div>
           </div>
-          <div className="opacity-40 group-hover:opacity-100 transition-opacity">
-            <ArrowRight className="w-4 h-4" />
+          <div className="p-1 rounded-lg text-muted-foreground/40 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
           </div>
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground/60 transition-colors uppercase tracking-wider">{title}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-foreground/70 transition-colors">
+            {title}
+          </p>
           <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-feature-settings-tnum">
+              {value}
+            </p>
           </div>
-          <p className="text-[10px] text-muted-foreground group-hover:text-foreground/50 transition-colors">{subtext}</p>
+          <p className="text-[11px] text-muted-foreground group-hover:text-foreground/60 transition-colors truncate pt-0.5">
+            {subtext}
+          </p>
         </div>
       </CardContent>
     </Card>
