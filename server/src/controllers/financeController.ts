@@ -2487,14 +2487,13 @@ export const getFinanceOverviewStats = asyncHandler(async (req: AuthRequest, res
 
   // 3. Wallet Top-ups
   const walletTopUps = await prisma.walletTopUp.findMany({
-    where: { status: 'approved', studyCenter: { organizationId: orgId } },
+    where: { status: 'approved', organizationId: orgId },
     select: {
       id: true,
       amount: true,
       status: true,
       paymentMethod: true,
-      referenceNo: true,
-      approvedAt: true,
+      referenceNumber: true,
       createdAt: true,
       studyCenter: { select: { name: true } }
     },
@@ -2602,7 +2601,7 @@ export const getFinanceOverviewStats = asyncHandler(async (req: AuthRequest, res
       name: w.studyCenter?.name || 'Center Wallet Top-Up',
       sub: `Wallet Deposit (${w.paymentMethod || 'Online'})`,
       amount: Number(w.amount || 0),
-      date: w.approvedAt || w.createdAt,
+      date: w.createdAt,
       status: 'Approved',
       type: 'revenue'
     });
