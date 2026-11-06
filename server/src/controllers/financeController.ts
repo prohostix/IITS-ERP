@@ -1037,7 +1037,13 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
     }
   });
 
-  // After paying a semester/year installment, unlock the next one
+  await unlockNextSemesterForPayment(payment).catch(() => {});
+
+  res.json({ success: true, data: updated });
+});
+
+// Helper to unlock next semester fee upon payment
+async function unlockNextSemesterForPayment(payment: any) {
   const semLabel = payment.semesterOrYear || '';
   const semMatch = semLabel.match(/^(Semester|Year)\s+(\d+)$/);
   if (semMatch && payment.enrollmentId) {
@@ -1099,8 +1105,264 @@ export const payUniversityFee = asyncHandler(async (req: AuthRequest, res: Respo
       }
     }
   }
+}
 
-  res.json({ success: true, data: updated });
+// Bulk/Batch Pay Multiple Students in a Single Transaction
+export const batchPayUniversityFees = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { paymentIds, referenceNo, paidAt } = req.body;
+  let ids: string[] = [];
+
+  if (Array.isArray(paymentIds)) {
+    ids = paymentIds;
+  } else if (typeof paymentIds === 'string') {
+    try {
+      ids = JSON.parse(paymentIds);
+    } catch {
+      ids = paymentIds.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+  }
+
+  if (!ids || ids.length === 0) {
+    res.status(400).json({ success: false, message: 'Please select at least one university fee payment to record' });
+    return;
+  }
+
+  const screenshot = req.file ? `/uploads/${req.file.filename}` : undefined;
+  const paymentDate = paidAt ? new Date(paidAt) : new Date();
+  const batchId = `UBATCH-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+  const payments = await prisma.universityFeePayment.findMany({
+    where: {
+      id: { in: ids },
+      organizationId: req.user.organizationId
+    },
+    include: {
+      student: {
+        include: {
+          program: {
+            include: { university: true }
+          },
+          center: true
+        }
+      }
+    }
+  });
+
+  if (payments.length === 0) {
+    res.status(404).json({ success: false, message: 'No valid fee payment records found' });
+    return;
+  }
+
+  // Update all selected payments in bulk
+  await prisma.universityFeePayment.updateMany({
+    where: {
+      id: { in: payments.map(p => p.id) },
+      organizationId: req.user.organizationId
+    },
+    data: {
+      status: 'paid',
+      batchId,
+      referenceNo: referenceNo || batchId,
+      paidAt: paymentDate,
+      screenshot: screenshot || null
+    }
+  });
+
+  // Unlock next semester for each student
+  for (const p of payments) {
+    await unlockNextSemesterForPayment(p).catch(() => {});
+  }
+
+  res.json({
+    success: true,
+    message: `Successfully recorded single university payment for ${payments.length} student records`,
+    data: {
+      batchId,
+      referenceNo: referenceNo || batchId,
+      paidCount: payments.length,
+      totalAmount: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
+      paidAt: paymentDate,
+      screenshot
+    }
+  });
+});
+
+// Get University Fee Transaction Batches / History
+export const getUniversityFeeBatches = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orgId = req.user.organizationId;
+  const { search, universityId } = req.query;
+
+  const whereClause: any = {
+    organizationId: orgId,
+    status: 'paid',
+    OR: [
+      { batchId: { not: null } },
+      { referenceNo: { not: null } }
+    ]
+  };
+
+  if (universityId && universityId !== 'all') {
+    whereClause.student = {
+      program: { universityId: universityId as string }
+    };
+  }
+
+  const payments = await prisma.universityFeePayment.findMany({
+    where: whereClause,
+    include: {
+      student: {
+        include: {
+          program: {
+            include: { university: true }
+          },
+          center: true
+        }
+      }
+    },
+    orderBy: { paidAt: 'desc' }
+  });
+
+  // Group by batchId (or referenceNo if batchId is missing)
+  const batchMap: Record<string, {
+    key: string;
+    batchId?: string | null;
+    referenceNo?: string | null;
+    paidAt?: Date | null;
+    screenshot?: string | null;
+    universityNames: Set<string>;
+    totalAmount: number;
+    studentCount: number;
+    payments: any[];
+  }> = {};
+
+  for (const p of payments) {
+    const groupKey = p.batchId || p.referenceNo || p.id;
+    if (!batchMap[groupKey]) {
+      batchMap[groupKey] = {
+        key: groupKey,
+        batchId: p.batchId,
+        referenceNo: p.referenceNo,
+        paidAt: p.paidAt,
+        screenshot: p.screenshot,
+        universityNames: new Set<string>(),
+        totalAmount: 0,
+        studentCount: 0,
+        payments: []
+      };
+    }
+    const b = batchMap[groupKey];
+    b.totalAmount += p.amount || 0;
+    b.studentCount += 1;
+    if (p.student?.program?.university?.name) {
+      b.universityNames.add(p.student.program.university.name);
+    }
+    b.payments.push({
+      id: p.id,
+      studentName: p.student?.name || 'N/A',
+      enrollmentNo: p.student?.enrollmentNo || 'N/A',
+      uniEnrollmentNumber: p.student?.uniEnrollmentNumber || 'N/A',
+      programName: p.student?.program?.name || 'N/A',
+      centerName: p.student?.center?.name || 'N/A',
+      semesterOrYear: p.semesterOrYear,
+      amount: p.amount
+    });
+  }
+
+  let batches = Object.values(batchMap).map(b => ({
+    key: b.key,
+    batchId: b.batchId,
+    referenceNo: b.referenceNo,
+    paidAt: b.paidAt,
+    screenshot: b.screenshot,
+    universityName: Array.from(b.universityNames).join(', ') || 'N/A',
+    totalAmount: b.totalAmount,
+    studentCount: b.studentCount,
+    payments: b.payments
+  }));
+
+  if (search) {
+    const s = String(search).toLowerCase();
+    batches = batches.filter(b => 
+      (b.referenceNo && b.referenceNo.toLowerCase().includes(s)) ||
+      (b.batchId && b.batchId.toLowerCase().includes(s)) ||
+      (b.universityName && b.universityName.toLowerCase().includes(s)) ||
+      b.payments.some((p: any) => 
+        p.studentName.toLowerCase().includes(s) || 
+        p.enrollmentNo.toLowerCase().includes(s) ||
+        p.uniEnrollmentNumber.toLowerCase().includes(s)
+      )
+    );
+  }
+
+  res.json({ success: true, count: batches.length, data: batches });
+});
+
+// Get Individual Transaction Details & All Students Paid in It
+export const getUniversityFeeTransactionDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { identifier } = req.params;
+  const orgId = req.user.organizationId;
+
+  const payments = await prisma.universityFeePayment.findMany({
+    where: {
+      organizationId: orgId,
+      OR: [
+        { batchId: identifier },
+        { referenceNo: identifier },
+        { id: identifier }
+      ]
+    },
+    include: {
+      student: {
+        include: {
+          program: {
+            include: { university: true }
+          },
+          center: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (payments.length === 0) {
+    res.status(404).json({ success: false, message: 'Transaction payment details not found' });
+    return;
+  }
+
+  const first = payments[0];
+  const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const universities = Array.from(new Set(payments.map(p => p.student?.program?.university?.name).filter(Boolean)));
+
+  res.json({
+    success: true,
+    data: {
+      batchId: first.batchId,
+      referenceNo: first.referenceNo,
+      paidAt: first.paidAt,
+      screenshot: first.screenshot,
+      totalAmount,
+      studentCount: payments.length,
+      universityName: universities.join(', ') || 'General',
+      students: payments.map(p => ({
+        id: p.id,
+        studentId: p.studentId,
+        studentName: p.student?.name || 'N/A',
+        enrollmentNo: p.student?.enrollmentNo || 'N/A',
+        uniEnrollmentNumber: p.student?.uniEnrollmentNumber || 'N/A',
+        studentEmail: p.student?.email,
+        studentPhone: p.student?.phone,
+        programName: p.student?.program?.name || 'N/A',
+        universityName: p.student?.program?.university?.name || 'N/A',
+        centerName: p.student?.center?.name || 'N/A',
+        semesterOrYear: p.semesterOrYear,
+        amount: p.amount,
+        status: p.status,
+        paidAt: p.paidAt,
+        referenceNo: p.referenceNo,
+        screenshot: p.screenshot
+      }))
+    }
+  });
 });
 
 

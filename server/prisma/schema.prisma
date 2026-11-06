@@ -1529,6 +1529,7 @@ model UniversityFeePayment {
   amount         Float
   status         String       @default("pending") // "pending", "paid"
   referenceNo    String?
+  batchId        String?
   paidAt         DateTime?
   screenshot     String?
   createdAt      DateTime     @default(now())
@@ -1538,6 +1539,8 @@ model UniversityFeePayment {
 
   @@index([organizationId])
   @@index([studentId])
+  @@index([batchId])
+  @@index([referenceNo])
 }
 
 model ProgramMaterial {

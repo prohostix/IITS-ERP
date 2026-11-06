@@ -38,6 +38,9 @@ import {
   getFinanceSalesUsers,
   getUniversityFeePayments,
   payUniversityFee,
+  batchPayUniversityFees,
+  getUniversityFeeBatches,
+  getUniversityFeeTransactionDetails,
   getTotalReport,
   getReregPendingReport,
   getReregCompletedReport,
@@ -177,6 +180,9 @@ router.get('/sales-users', authorize('finance_admin', 'finance', 'superadmin', '
 
 // University Fee Payments
 router.get('/university-fees', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getUniversityFeePayments);
+router.post('/university-fees/batch-pay', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), upload.single('screenshot'), batchPayUniversityFees);
+router.get('/university-fees/batches', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getUniversityFeeBatches);
+router.get('/university-fees/transaction/:identifier', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getUniversityFeeTransactionDetails);
 router.post('/university-fees/:id/pay', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), upload.single('screenshot'), payUniversityFee);
 
 // Salary Config Approval

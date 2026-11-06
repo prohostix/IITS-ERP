@@ -11,13 +11,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Landmark, RefreshCw, Download, Printer, Search, CheckCircle2, Clock,
-  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink, Calendar, RotateCcw
+  Lock, Building2, Layers, Eye, FileText, Image, ExternalLink, Calendar, RotateCcw,
+  Receipt
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { TransactionBreakdownModal } from './TransactionBreakdownModal';
 
 export function FinanceUniversityFeeReportPanel() {
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,10 @@ export function FinanceUniversityFeeReportPanel() {
 
   // Screenshot / detail modal
   const [selectedProof, setSelectedProof] = useState<string | null>(null);
+
+  // Transaction Breakdown Modal
+  const [breakdownIdentifier, setBreakdownIdentifier] = useState<string | null>(null);
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState(false);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -751,7 +757,22 @@ export function FinanceUniversityFeeReportPanel() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-600 font-mono">
-                            {item.referenceNo || '-'}
+                            {item.status === 'paid' && (item.referenceNo || item.batchId) ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBreakdownIdentifier(item.batchId || item.referenceNo || item.id);
+                                  setBreakdownModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 font-mono font-semibold text-primary hover:underline hover:text-primary/80 transition-colors"
+                                title="Click to view all students in this transaction"
+                              >
+                                <Receipt className="w-3.5 h-3.5 text-blue-500" />
+                                <span>{item.referenceNo || item.batchId}</span>
+                              </button>
+                            ) : (
+                              <span>{item.referenceNo || '-'}</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center text-xs text-slate-500">
                             {item.paidAt ? new Date(item.paidAt).toLocaleDateString('en-IN') : '-'}
@@ -804,6 +825,13 @@ export function FinanceUniversityFeeReportPanel() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Transaction Student Breakdown Modal */}
+      <TransactionBreakdownModal
+        identifier={breakdownIdentifier}
+        open={breakdownModalOpen}
+        onOpenChange={setBreakdownModalOpen}
+      />
     </div>
   );
 }
