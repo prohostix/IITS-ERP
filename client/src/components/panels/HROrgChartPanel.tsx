@@ -70,7 +70,7 @@ function HROrgNode({
     <div className="flex flex-col items-center">
       <div className="relative group" style={{ minWidth: 190 }}>
         <div
-          className="rounded-xl border-2 bg-white shadow-md px-4 py-3 text-center transition-all hover:shadow-lg"
+          className="rounded-xl border-2 bg-card text-card-foreground shadow-md px-4 py-3 text-center transition-all hover:shadow-lg"
           style={{ borderColor: boxColor, minWidth: 190 }}
         >
           {/* Branch badge */}
@@ -92,15 +92,15 @@ function HROrgNode({
 
           {/* Sub-dept badge */}
           {subDeptName && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full mb-1 inline-flex items-center gap-1 bg-slate-100 text-slate-600">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full mb-1 inline-flex items-center gap-1 bg-muted text-muted-foreground">
               <Layers className="h-2.5 w-2.5" />{subDeptName}
             </span>
           )}
 
-          <p className="font-bold text-sm text-gray-800 leading-tight">{node.title}</p>
+          <p className="font-bold text-sm text-foreground leading-tight">{node.title}</p>
 
           <div className="flex items-center justify-center gap-1 mt-1">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isFull ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isFull ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>
               {filled}/{node.maxHeadcount} filled
             </span>
           </div>
@@ -109,15 +109,15 @@ function HROrgNode({
           {filled > 0 && (
             <div className="mt-2 space-y-1">
               {node.filledBy.map(u => (
-                <div key={u.id} className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 group/person">
+                <div key={u.id} className="flex items-center gap-1 bg-muted/60 rounded-lg px-2 py-1 group/person">
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                     style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
                   >
                     {u.name.charAt(0)}
                   </div>
-                  <span className="text-xs text-gray-700 truncate flex-1 text-left">{u.name}</span>
-                  <span className="text-[9px] text-gray-400 capitalize hidden group-hover/person:inline">
+                  <span className="text-xs text-foreground truncate flex-1 text-left">{u.name}</span>
+                  <span className="text-[9px] text-muted-foreground capitalize hidden group-hover/person:inline">
                     {u.role.replace(/_/g, ' ')}
                   </span>
                   <button

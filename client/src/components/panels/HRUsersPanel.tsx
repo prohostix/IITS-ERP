@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, Upload, Loader2, Image as ImageIcon, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,13 @@ export function HRUsersPanel() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -762,16 +768,125 @@ export function HRUsersPanel() {
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <CardContent>
-        {users.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No users found</p>
-            <p className="text-sm">Create your first user to get started</p>
+      <CardContent className="space-y-4">
+        {/* Search & Filter Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-xl border">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search user by name, email, designation..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {users.map((user) => {
+
+          <div>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => (
+                  <SelectItem key={d.id} value={d.id || ''}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="hr_admin">HR Admin</SelectItem>
+                <SelectItem value="hr_sub_admin">HR Sub-Admin</SelectItem>
+                <SelectItem value="finance_admin">Finance Admin</SelectItem>
+                <SelectItem value="finance_sub_admin">Finance Sub-Admin</SelectItem>
+                <SelectItem value="ops_admin">Ops Admin</SelectItem>
+                <SelectItem value="ops_sub_admin">Ops Sub-Admin</SelectItem>
+                <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                <SelectItem value="sales_sub_admin">Sales Sub-Admin</SelectItem>
+                <SelectItem value="branch_manager">Branch Manager</SelectItem>
+                <SelectItem value="general_manager">General Manager</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="inactive">Inactive Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {(() => {
+          const filteredUsers = users.filter((u) => {
+            if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+            if (deptFilter !== 'all') {
+              const uDeptId = u.departmentId || u.department?.id;
+              if (uDeptId !== deptFilter) return false;
+            }
+            if (statusFilter !== 'all') {
+              const uStatus = u.status || 'active';
+              if (uStatus !== statusFilter) return false;
+            }
+            if (searchQuery.trim()) {
+              const q = searchQuery.toLowerCase();
+              const matchName = u.name?.toLowerCase().includes(q);
+              const matchEmail = u.email?.toLowerCase().includes(q);
+              const matchDesig = u.designation?.toLowerCase().includes(q);
+              if (!matchName && !matchEmail && !matchDesig) return false;
+            }
+            return true;
+          });
+
+          if (users.length === 0) {
+            return (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No users found</p>
+                <p className="text-sm">Create your first user to get started</p>
+              </div>
+            );
+          }
+
+          if (filteredUsers.length === 0) {
+            return (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">No matching users</p>
+                <p className="text-xs mt-1">Try adjusting your search terms or filters</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <span>Showing <strong>{filteredUsers.length}</strong> of {users.length} users</span>
+                {(searchQuery || roleFilter !== 'all' || deptFilter !== 'all' || statusFilter !== 'all') && (
+                  <button 
+                    onClick={() => { setSearchQuery(''); setRoleFilter('all'); setDeptFilter('all'); setStatusFilter('all'); }}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+              {filteredUsers.map((user) => {
               const userId = user.id || user.id || '';
               return (
                 <div
@@ -873,10 +988,11 @@ export function HRUsersPanel() {
                     </Button>
                   </div>
                 </div>
-              );
-            })}
+                );
+              })}
           </div>
-        )}
+          );
+        })()}
       </CardContent>
 
       {/* Password Change Dialog */}

@@ -48,48 +48,58 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
   useEffect(() => {
-    setActiveTab(initialTab || 'overview');
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
   }, [initialTab]);
+
   useEffect(() => {
     api.get('/dashboard/metrics').then(r => setMetrics(r.data.data || {})).catch(() => {});
   }, []);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (_onNavigate) {
+      _onNavigate(tab);
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={setActiveTab} /></div>
-</div>
+          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={handleTabChange} /></div>
+        </div>
       );
-      case 'users': return <HRUsersPanel />;
-      case 'employees': return <EmployeesPanel />;
-      case 'leaves': return <LeavesPanel />;
+      case 'users': return <HRUsersPanel key="users" />;
+      case 'employees': return <EmployeesPanel key="employees" />;
+      case 'leaves': return <LeavesPanel key="leaves" />;
       case 'leave_approvals':
-      case 'leave-approvals': return <LeaveApprovalsPanel />;
-      case 'attendance': return <AttendancePanel />;
-      case 'attendance-calendar': return <AttendanceCalendarPanel />;
-      case 'hiring': return <HiringPanel />;
-      case 'vacancies': return <VacanciesPanel />;
-      case 'holidays': return <HolidaysPanel />;
-      case 'complaints': return <ComplaintsPanel />;
-      case 'tasks': return <TasksPanel />;
-      case 'payroll': return <PayrollPanel />;
-      case 'payroll-batches': return <PayrollBatchesPanel />;
-      case 'salary-config': return <SalaryConfigPanel />;
-      case 'leave-alloc': return <LeaveAllocationPanel />;
-      case 'announcements': return <AnnouncementsPanel />;
-      case 'polls': return <PollsPanel />;
-      case 'org-chart': return <HROrgChartPanel />;
-      case 'managers': return <ManagerAssignmentPanel />;
-      case 'att-settings': return <HRSettingsPanel />;
-      case 'shift-settings': return <ShiftPanel />;
-      case 'activity_report': return <EmployeeActivityReportPanel />;
-      case 'my_leaves': return <LeavesPanel isPersonalView />;
-      case 'my_attendance': return <AttendancePanel isPersonalView />;
-      case 'my_payslips': return <PayrollPanel />;
-      case 'my_documents': return <MyDocumentsPanel />;
-      case 'subdepartments': return <SubDepartmentsPanel />;
-      case 'notice-board': return <NoticeBoardPanel />;
+      case 'leave-approvals': return <LeaveApprovalsPanel key="leave-approvals" />;
+      case 'attendance': return <AttendancePanel key="attendance" />;
+      case 'attendance-calendar': return <AttendanceCalendarPanel key="attendance-calendar" />;
+      case 'hiring': return <HiringPanel key="hiring" />;
+      case 'vacancies': return <VacanciesPanel key="vacancies" />;
+      case 'holidays': return <HolidaysPanel key="holidays" />;
+      case 'complaints': return <ComplaintsPanel key="complaints" />;
+      case 'tasks': return <TasksPanel key="tasks" />;
+      case 'payroll': return <PayrollPanel key="payroll" />;
+      case 'payroll-batches': return <PayrollBatchesPanel key="payroll-batches" />;
+      case 'salary-config': return <SalaryConfigPanel key="salary-config" />;
+      case 'leave-alloc': return <LeaveAllocationPanel key="leave-alloc" />;
+      case 'announcements': return <AnnouncementsPanel key="announcements" />;
+      case 'polls': return <PollsPanel key="polls" />;
+      case 'org-chart': return <HROrgChartPanel key="org-chart" />;
+      case 'managers': return <ManagerAssignmentPanel key="managers" />;
+      case 'att-settings': return <HRSettingsPanel key="att-settings" />;
+      case 'shift-settings': return <ShiftPanel key="shift-settings" />;
+      case 'activity_report': return <EmployeeActivityReportPanel key="activity_report" />;
+      case 'my_leaves': return <LeavesPanel key="my_leaves" isPersonalView />;
+      case 'my_attendance': return <AttendancePanel key="my_attendance" isPersonalView />;
+      case 'my_payslips': return <PayrollPanel key="my_payslips" />;
+      case 'my_documents': return <MyDocumentsPanel key="my_documents" />;
+      case 'subdepartments': return <SubDepartmentsPanel key="subdepartments" />;
+      case 'notice-board': return <NoticeBoardPanel key="notice-board" />;
       default: return <div className="p-8 text-center text-red-500 font-bold">Unknown tab: {activeTab} (initialTab: {initialTab})</div>;
     }
   };
@@ -262,9 +272,10 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             <CardContent>
               <div className="space-y-3">
                 {[
-                  { label: 'Pending', value: metrics.pendingLeaves ?? pendingLeaves.length, color: 'bg-yellow-500', tab: 'leaves' },
+                  { label: 'Pending Requests', value: metrics.pendingLeaves ?? pendingLeaves.length, color: 'bg-yellow-500', tab: 'leaves' },
                   { label: 'Present Today', value: metrics.presentToday ?? '—', color: 'bg-green-500', tab: 'attendance' },
-                  { label: 'On Leave', value: metrics.onLeave ?? '—', color: 'bg-blue-500', tab: 'leaves' },
+                  { label: 'On Leave', value: metrics.onLeave ?? 0, color: 'bg-blue-500', tab: 'leaves' },
+                  { label: 'Total Absent', value: metrics.absentToday ?? 0, color: 'bg-red-500', tab: 'attendance' },
                 ].map(item => (
                   <button
                     key={item.label}

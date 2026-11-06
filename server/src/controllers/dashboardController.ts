@@ -59,9 +59,25 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
   if (['hr_admin', 'ceo', 'org_admin'].includes(role)) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    metrics.presentToday = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'present' as any } });
-    metrics.onLeave = await prisma.attendance.count({ where: { organizationId: organizationId, date: today, status: 'leave' as any } });
+    metrics.presentToday = await prisma.attendance.count({ 
+      where: { 
+        organizationId: organizationId, 
+        date: { gte: today, lte: endOfDay }, 
+        status: { in: ['present', 'late', 'half_day'] as any } 
+      } 
+    });
+
+    metrics.onLeave = await prisma.leaveRequest.count({
+      where: {
+        organizationId: organizationId,
+        status: 'approved' as any,
+        startDate: { lte: endOfDay },
+        endDate: { gte: today }
+      }
+    });
     
     metrics.absentToday = Math.max(0, (metrics.totalEmployees || 0) - metrics.presentToday - metrics.onLeave);
 

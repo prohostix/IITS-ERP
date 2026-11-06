@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
@@ -176,8 +177,8 @@ export function SalaryConfigPanel() {
           {filtered.map(config => {
             const user = (config as any).user || (typeof config.userId === 'object' ? config.userId : null);
             const uid = user?.id || (typeof config.userId === 'string' ? config.userId : config.id);
-            const grossAmt = config.basicSalary + Object.values(config.allowances).reduce((s, v) => s + (v || 0), 0);
-            const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0);
+            const statutoryAmt = (config.professionalTax || 0) + (config.labourWelfareFund || 0) + (config.tds || 0);
+            const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0) - statutoryAmt;
             return (
               <Card key={uid} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
@@ -267,91 +268,240 @@ export function SalaryConfigPanel() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1 col-span-2">
-                <Label>Basic Salary (₹)</Label>
-                <Input type="number" min="0" value={form.basicSalary}
-                  onChange={e => setForm((f: any) => ({ ...f, basicSalary: Number(e.target.value) }))} />
-              </div>
-            </div>
+            {/* Tabs for Earnings, Statutory, and Deductions/Policies */}
+            <Tabs defaultValue="earnings" className="w-full">
+              <TabsList className="grid grid-cols-3 w-full">
+                <TabsTrigger value="earnings">Earnings</TabsTrigger>
+                <TabsTrigger value="statutory">Statutory</TabsTrigger>
+                <TabsTrigger value="policies">Policies & Other</TabsTrigger>
+              </TabsList>
 
-            <div>
-              <p className="text-sm font-semibold mb-2">Allowances</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(['hra', 'transport', 'medical', 'other'] as const).map(key => (
-                  <div key={key} className="space-y-1">
-                    <Label className="capitalize">{key} (₹)</Label>
-                    <Input type="number" min="0" value={form.allowances[key]}
-                      onChange={e => setForm((f: any) => ({ ...f, allowances: { ...f.allowances, [key]: Number(e.target.value) } }))} />
+              {/* Earnings Tab */}
+              <TabsContent value="earnings" className="space-y-4 pt-3">
+                <div className="space-y-1">
+                  <Label className="font-semibold">Basic Salary (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.basicSalary}
+                    onChange={e => setForm((f: any) => ({ ...f, basicSalary: Number(e.target.value) }))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Must be at least 50% of total Gross Salary under statutory rules</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold mb-2">Allowances</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(['hra', 'transport', 'medical', 'other'] as const).map(key => (
+                      <div key={key} className="space-y-1">
+                        <Label className="capitalize text-xs">{key === 'hra' ? 'HRA' : key} (₹)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={form.allowances[key]}
+                          onChange={e => setForm((f: any) => ({
+                            ...f,
+                            allowances: { ...f.allowances, [key]: Number(e.target.value) }
+                          }))}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </TabsContent>
 
-            <div>
-              <p className="text-sm font-semibold mb-2">Deductions</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(['pf', 'tax', 'insurance', 'other'] as const).map(key => (
-                  <div key={key} className="space-y-1">
-                    <Label className="capitalize">{key} (₹)</Label>
-                    <Input type="number" min="0" value={form.deductions[key]}
-                      onChange={e => setForm((f: any) => ({ ...f, deductions: { ...f.deductions, [key]: Number(e.target.value) } }))} />
+              {/* Statutory Tab (Req 8, 9) */}
+              <TabsContent value="statutory" className="space-y-4 pt-3">
+                <div className="bg-muted/40 p-3 rounded-lg border text-xs space-y-1 mb-2">
+                  <p className="font-semibold text-foreground">Statutory Deductions & Contributions</p>
+                  <p className="text-muted-foreground">All mandatory state & central compliance deductions (ESI, PF, TDS, PT, LWF) are configured here.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* ESI (Formerly Insurance) */}
+                  <div className="space-y-1 border p-2.5 rounded-lg bg-card">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold text-xs">ESI Deduction (₹)</Label>
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline font-semibold"
+                        onClick={() => {
+                          const grossVal = gross(form);
+                          // Standard employee contribution is 0.75% of gross if gross <= 21000
+                          const calculated = grossVal <= 21000 ? Math.round(grossVal * 0.0075) : 0;
+                          setForm((f: any) => ({ ...f, deductions: { ...f.deductions, insurance: calculated } }));
+                          toast.info(`ESI set to ₹${calculated} (0.75% of gross)`);
+                        }}
+                      >
+                        Auto (0.75%)
+                      </button>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.deductions.insurance}
+                      onChange={e => setForm((f: any) => ({
+                        ...f,
+                        deductions: { ...f.deductions, insurance: Number(e.target.value) }
+                      }))}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Employee State Insurance (0.75% of monthly earned gross)</p>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-1">
-              <Label>Late Deduction per Minute (₹)</Label>
-              <Input type="number" min="0" step="0.01" value={form.lateDeductionPerMinute}
-                onChange={e => setForm((f: any) => ({ ...f, lateDeductionPerMinute: Number(e.target.value) }))} />
-              <p className="text-xs text-muted-foreground">Amount deducted per late minute from attendance records</p>
-            </div>
+                  {/* PF */}
+                  <div className="space-y-1 border p-2.5 rounded-lg bg-card">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold text-xs">PF Deduction (₹)</Label>
+                      <button
+                        type="button"
+                        className="text-[10px] text-primary hover:underline font-semibold"
+                        onClick={() => {
+                          const calculated = Math.round(form.basicSalary * 0.12);
+                          setForm((f: any) => ({ ...f, deductions: { ...f.deductions, pf: calculated } }));
+                          toast.info(`PF set to ₹${calculated} (12% of basic)`);
+                        }}
+                      >
+                        Auto (12%)
+                      </button>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.deductions.pf}
+                      onChange={e => setForm((f: any) => ({
+                        ...f,
+                        deductions: { ...f.deductions, pf: Number(e.target.value) }
+                      }))}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Provident Fund (Standard 12% of monthly basic)</p>
+                  </div>
 
-            <div className="space-y-1">
-              <Label>Effective From</Label>
-              <Input type="date" value={form.effectiveFrom}
-                onChange={e => setForm((f: any) => ({ ...f, effectiveFrom: e.target.value }))} />
-            </div>
-            
-            <div className="col-span-1 sm:col-span-2 border-t border-border mt-4 pt-4">
-              <h4 className="font-medium mb-3">Statutory & Compliance</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label>Professional Tax (PT)</Label>
-                  <Input type="number" value={form.professionalTax} onChange={e => setForm((f: any) => ({ ...f, professionalTax: Number(e.target.value) }))} />
+                  {/* TDS / Income Tax */}
+                  <div className="space-y-1 border p-2.5 rounded-lg bg-card">
+                    <Label className="font-semibold text-xs">TDS / Income Tax (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.tds || form.deductions.tax || 0}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setForm((f: any) => ({
+                          ...f,
+                          tds: val,
+                          deductions: { ...f.deductions, tax: val }
+                        }));
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Monthly Tax Deducted at Source</p>
+                  </div>
+
+                  {/* Professional Tax (PT) */}
+                  <div className="space-y-1 border p-2.5 rounded-lg bg-card">
+                    <Label className="font-semibold text-xs">Professional Tax (PT) (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.professionalTax}
+                      onChange={e => setForm((f: any) => ({ ...f, professionalTax: Number(e.target.value) }))}
+                    />
+                    <p className="text-[10px] text-muted-foreground">State Professional Tax slab</p>
+                  </div>
+
+                  {/* Labour Welfare Fund (LWF) */}
+                  <div className="space-y-1 border p-2.5 rounded-lg bg-card col-span-1 sm:col-span-2">
+                    <Label className="font-semibold text-xs">Labour Welfare Fund (LWF) (₹)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.labourWelfareFund}
+                      onChange={e => setForm((f: any) => ({ ...f, labourWelfareFund: Number(e.target.value) }))}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Statutory State Labour Welfare Fund contribution</p>
+                  </div>
                 </div>
-                <div>
-                  <Label>Labour Welfare Fund (LWF)</Label>
-                  <Input type="number" value={form.labourWelfareFund} onChange={e => setForm((f: any) => ({ ...f, labourWelfareFund: Number(e.target.value) }))} />
+              </TabsContent>
+
+              {/* Policies & Other Tab */}
+              <TabsContent value="policies" className="space-y-4 pt-3">
+                <div className="space-y-1">
+                  <Label className="font-semibold text-xs">Other Non-Statutory Deductions (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.deductions.other}
+                    onChange={e => setForm((f: any) => ({
+                      ...f,
+                      deductions: { ...f.deductions, other: Number(e.target.value) }
+                    }))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Any company-specific advances, loans, or equipment deductions</p>
                 </div>
-                <div>
-                  <Label>TDS</Label>
-                  <Input type="number" value={form.tds} onChange={e => setForm((f: any) => ({ ...f, tds: Number(e.target.value) }))} />
+
+                <div className="space-y-1 border p-3 rounded-lg bg-muted/20">
+                  <Label className="font-semibold text-xs">Late Deduction per Minute (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.lateDeductionPerMinute}
+                    onChange={e => setForm((f: any) => ({ ...f, lateDeductionPerMinute: Number(e.target.value) }))}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Deducted for late punches beyond grace period. During monthly payroll execution, per-day salary automatically calculates based on days in that specific month (28, 30, or 31 days).
+                  </p>
                 </div>
-              </div>
-              {form.basicSalary <= 15000 && (
-                <div className="mt-2 text-sm text-muted-foreground flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1 text-warning" />
-                  PF will be automatically deducted at 12% of basic (₹{(form.basicSalary * 0.12).toFixed(2)})
+
+                <div className="space-y-1">
+                  <Label className="font-semibold text-xs">Effective From</Label>
+                  <Input
+                    type="date"
+                    value={form.effectiveFrom}
+                    onChange={e => setForm((f: any) => ({ ...f, effectiveFrom: e.target.value }))}
+                  />
                 </div>
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Wage Code Warning Banner (Req 12) */}
+            {(() => {
+              const totalAllowances = Object.values(form.allowances as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+              const isInvalid = form.basicSalary > 0 && totalAllowances > form.basicSalary;
+              if (isInvalid) {
+                return (
+                  <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Wage Code Compliance Notice (50% Rule)</p>
+                      <p>Basic Salary (₹{form.basicSalary}) is less than total allowances (₹{totalAllowances}). Under Indian Wage Code regulations, Basic Salary must be at least 50% of Gross Salary. Total allowances cannot exceed ₹{form.basicSalary}.</p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Live preview */}
-            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
               <div>
-                <p className="text-xs text-muted-foreground">Gross</p>
+                <p className="text-muted-foreground">Basic</p>
+                <p className="font-bold text-foreground">₹{form.basicSalary.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Gross Earnings</p>
                 <p className="font-bold text-blue-600">₹{gross(form).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Deductions</p>
+                <p className="text-muted-foreground">Total Deductions</p>
                 <p className="font-bold text-red-500">
-                  ₹{Object.values(form.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0).toLocaleString()}
+                  ₹{(
+                    Object.values(form.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0) +
+                    (form.professionalTax || 0) +
+                    (form.labourWelfareFund || 0)
+                  ).toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Net</p>
+                <p className="text-muted-foreground">Est. Net</p>
                 <p className="font-bold text-green-600">₹{net(form).toLocaleString()}</p>
               </div>
             </div>

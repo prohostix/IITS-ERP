@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 
@@ -17,6 +18,7 @@ export function VacanciesPanel() {
   const [hireDialogOpen, setHireDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVacancy, setSelectedVacancy] = useState<any>(null);
+  const [filterTab, setFilterTab] = useState<'all' | 'open' | 'hired'>('all');
   const [formData, setFormData] = useState({
     designation: '',
     departmentId: '',
@@ -214,18 +216,43 @@ export function VacanciesPanel() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Vacancies</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : vacancies.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No vacancies found</div>
-          ) : (
-            <div className="space-y-4">
-              {vacancies.map((vacancy) => {
+      {(() => {
+        const openCount = vacancies.filter(v => v.status === 'open' && (v.filled || 0) < (v.count || 0)).length;
+        const hiredCount = vacancies.filter(v => v.status === 'closed' || (v.filled || 0) >= (v.count || 0)).length;
+        const filteredVacancies = vacancies.filter(v => {
+          const isClosedOrFull = v.status === 'closed' || (v.filled || 0) >= (v.count || 0);
+          if (filterTab === 'open') return v.status === 'open' && !isClosedOrFull;
+          if (filterTab === 'hired') return isClosedOrFull;
+          return true;
+        });
+
+        return (
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+              <div>
+                <CardTitle>Vacancy Management</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Filter between live open recruitment and fulfilled/closed positions</p>
+              </div>
+              <Tabs value={filterTab} onValueChange={(v: any) => setFilterTab(v)} className="w-auto">
+                <TabsList className="bg-muted/60">
+                  <TabsTrigger value="all">All ({vacancies.length})</TabsTrigger>
+                  <TabsTrigger value="open" className="text-green-600 data-[state=active]:bg-green-500/10">
+                    Open Hirings ({openCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="hired" className="text-muted-foreground data-[state=active]:bg-muted">
+                    Hired / Closed ({hiredCount})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8">Loading vacancies...</div>
+              ) : filteredVacancies.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No vacancies matching current filter</div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredVacancies.map((vacancy) => {
                 const vid = vacancy.id || vacancy.id || '';
                 const deptName = typeof vacancy.departmentId === 'object'
                   ? vacancy.departmentId?.name
@@ -275,6 +302,8 @@ export function VacanciesPanel() {
           )}
         </CardContent>
       </Card>
+      );
+    })()}
 
       {/* Hire Dialog */}
       <Dialog open={hireDialogOpen} onOpenChange={setHireDialogOpen}>

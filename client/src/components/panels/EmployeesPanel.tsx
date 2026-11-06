@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, UserCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, UserCircle, Search, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -19,6 +19,13 @@ export function EmployeesPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -382,60 +389,162 @@ export function EmployeesPanel() {
         <CardHeader>
           <CardTitle>Employee Directory</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Search & Filter Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-xl border">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, phone, role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+
+            <div>
+              <Select value={deptFilter} onValueChange={setDeptFilter}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map(d => (
+                    <SelectItem key={d.id} value={(d.id || '').toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="hr_admin">HR Admin</SelectItem>
+                  <SelectItem value="finance_admin">Finance Admin</SelectItem>
+                  <SelectItem value="ops_admin">Ops Admin</SelectItem>
+                  <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                  <SelectItem value="branch_manager">Branch Manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active Only</SelectItem>
+                  <SelectItem value="inactive">Inactive Only</SelectItem>
+                  <SelectItem value="on_leave">On Leave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {loading ? (
-            <div className="text-center py-8">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground animate-pulse">Loading employee directory...</div>
           ) : employees.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No employees found</div>
-          ) : (
-            <div className="space-y-2">
-              {employees.filter(emp => emp && (emp.id || emp.id)).map((employee) => {
-                const empId = employee.id || employee.id;
-                return (
-                <div key={empId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                      {(employee.name || '?')[0].toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">{employee.name || 'Unknown'}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {employee.role}{employee.designation ? ` · ${employee.designation}` : ''} • {employee.department?.name || (typeof employee.departmentId === 'object' ? employee.departmentId?.name : '')}
-                        {employee.branchId && (
-                          <span className="ml-1 text-primary text-xs">
-                            · {typeof employee.branchId === 'object' ? employee.branchId?.name : 'Branch Manager'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3" /> {employee.email}
-                        </span>
-                        {employee.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" /> {employee.phone}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(employee.status)}
-                    <Button variant="ghost" size="sm" onClick={() => openProfile(empId)} title="View Profile">
-                      <UserCircle className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(employee)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(empId)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+          ) : (() => {
+            const filteredEmployees = employees.filter(emp => {
+              if (!emp || (!emp.id && !emp._id)) return false;
+              if (roleFilter !== 'all' && emp.role !== roleFilter) return false;
+              if (deptFilter !== 'all') {
+                const empDeptId = typeof emp.departmentId === 'object' ? emp.departmentId?.id : (emp.departmentId || emp.department?.id);
+                if (String(empDeptId) !== String(deptFilter)) return false;
+              }
+              if (statusFilter !== 'all' && (emp.status || 'active') !== statusFilter) return false;
+              if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const matchName = emp.name?.toLowerCase().includes(q);
+                const matchEmail = emp.email?.toLowerCase().includes(q);
+                const matchPhone = emp.phone?.toLowerCase().includes(q);
+                const matchDesig = emp.designation?.toLowerCase().includes(q);
+                const matchRole = emp.role?.toLowerCase().includes(q);
+                if (!matchName && !matchEmail && !matchPhone && !matchDesig && !matchRole) return false;
+              }
+              return true;
+            });
+
+            if (filteredEmployees.length === 0) {
+              return (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="font-medium">No matching employees</p>
+                  <p className="text-xs mt-1">Try adjusting your search criteria or clear filters.</p>
                 </div>
-                );
-              })}
-            </div>
-          )}
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span>Showing <strong>{filteredEmployees.length}</strong> of {employees.length} employees</span>
+                  {(searchQuery || deptFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'all') && (
+                    <button 
+                      onClick={() => { setSearchQuery(''); setDeptFilter('all'); setRoleFilter('all'); setStatusFilter('all'); }}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+                {filteredEmployees.map((employee) => {
+                  const empId = employee.id || employee.id;
+                  return (
+                  <div key={empId} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
+                        {(employee.name || '?')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">{employee.name || 'Unknown'}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {employee.role}{employee.designation ? ` · ${employee.designation}` : ''} • {employee.department?.name || (typeof employee.departmentId === 'object' ? employee.departmentId?.name : '')}
+                          {employee.branchId && (
+                            <span className="ml-1 text-primary text-xs">
+                              · {typeof employee.branchId === 'object' ? employee.branchId?.name : 'Branch Manager'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" /> {employee.email}
+                          </span>
+                          {employee.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3" /> {employee.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(employee.status)}
+                      <Button variant="ghost" size="sm" onClick={() => openProfile(empId)} title="View Profile">
+                        <UserCircle className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(employee)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(empId)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

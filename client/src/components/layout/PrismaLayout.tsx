@@ -24,12 +24,23 @@ import {
   Clock,
   Menu,
   GitBranch,
-  Bell
+  Bell,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PunchWidget } from '@/components/attendance/PunchWidget';
+import { toast } from 'sonner';
+import api from '@/lib/api';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 
 interface TableItem {
   id: string;
@@ -70,10 +81,17 @@ export function PrismaLayout({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(userAvatar);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark') || 
            localStorage.getItem('theme') === 'dark';
   });
+
+  useEffect(() => {
+    setCurrentAvatar(userAvatar);
+  }, [userAvatar]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -288,14 +306,22 @@ export function PrismaLayout({
 
         <div className="p-4 border-t border-sidebar-border bg-sidebar-accent/20">
           <div className="flex items-center gap-3 px-2 py-2 mb-4">
-            <div className="w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold shrink-0 overflow-hidden">
-              {userAvatar ? (
-                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setAvatarDialogOpen(true)}
+              className="relative group w-9 h-9 rounded-full bg-sidebar-primary/20 border border-sidebar-primary/30 flex items-center justify-center text-sidebar-primary font-bold shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+              title="Click to change profile photo"
+            >
+              {currentAvatar ? (
+                <img src={currentAvatar} alt={userName} className="w-full h-full object-cover" />
               ) : (
                 userName?.charAt(0) || 'U'
               )}
-            </div>
-            <div className="flex flex-col min-w-0">
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Camera className="w-4 h-4 text-white" />
+              </div>
+            </button>
+            <div className="flex flex-col min-w-0 flex-1">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName || 'Unknown User'}</p>
               <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userDesignation || userRole?.replace(/_/g, ' ')}</span>
             </div>
@@ -418,6 +444,60 @@ export function PrismaLayout({
           </div>
         </section>
       </main>
+
+      {/* Profile Photo Dialog */}
+      <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Update Profile Photo</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="w-24 h-24 rounded-full border-2 border-primary/40 overflow-hidden flex items-center justify-center bg-muted">
+              {currentAvatar ? (
+                <img src={currentAvatar} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold text-muted-foreground">{userName?.charAt(0) || 'U'}</span>
+              )}
+            </div>
+            <label className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-xs cursor-pointer hover:bg-primary/90 transition-all shadow-sm">
+              <Upload className="w-4 h-4" />
+              <span>{uploadingAvatar ? 'Uploading...' : 'Choose New Photo'}</span>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                disabled={uploadingAvatar}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingAvatar(true);
+                  const toastId = toast.loading('Uploading profile photo...');
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await api.post('/enrollment/upload', fd, {
+                      headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    const url = res.data.fileUrl || res.data.url;
+                    await api.put('/auth/updatedetails', { avatar: url });
+                    setCurrentAvatar(url);
+                    toast.success('Profile photo updated successfully!', { id: toastId });
+                    setAvatarDialogOpen(false);
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.message || 'Failed to update photo', { id: toastId });
+                  } finally {
+                    setUploadingAvatar(false);
+                  }
+                }}
+              />
+            </label>
+            <p className="text-[11px] text-muted-foreground text-center">Supported formats: JPG, PNG, WEBP (Max 5MB)</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAvatarDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

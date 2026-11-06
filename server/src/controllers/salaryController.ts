@@ -31,6 +31,12 @@ export const getSalaryConfig = asyncHandler(async (req: AuthRequest, res: Respon
 
 export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
   let { effectiveFrom, basicSalary, allowances, professionalTax, labourWelfareFund, tds } = req.body;
+  
+  const targetUser = await prisma.user.findUnique({ where: { id: req.params.userId } });
+  if (!targetUser) {
+    return res.status(404).json({ success: false, message: 'Employee user not found.' });
+  }
+
   // Whitelist remaining fields so unexpected keys from the client never reach Prisma
   const salaryData: Record<string, any> = {};
   if (req.body.lateDeductionPerMinute !== undefined) {
@@ -38,6 +44,11 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
   }
   const parsedEffectiveFrom = effectiveFrom && !isNaN(new Date(effectiveFrom).getTime()) ? new Date(effectiveFrom) : null;
   
+  const numBasic = Number(basicSalary) || 0;
+  if (numBasic <= 0) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid Basic Salary greater than 0.' });
+  }
+
   // Calculate total allowances
   let totalAllowances = 0;
   if (Array.isArray(allowances)) {
@@ -46,18 +57,18 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
     totalAllowances = Object.values(allowances).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
   }
 
-  const grossSalary = Number(basicSalary) + totalAllowances;
-  if (Number(basicSalary) < grossSalary * 0.5) {
+  const grossSalary = numBasic + totalAllowances;
+  if (totalAllowances > 0 && numBasic < grossSalary * 0.5) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Basic Salary must be at least 50% of Gross Salary.' 
+      message: `Statutory Wage Rule: Basic Salary (₹${numBasic}) must be at least 50% of Gross Salary (₹${grossSalary}). Allowances cannot exceed ₹${numBasic}.` 
     });
   }
 
   const deductions = req.body.deductions || {};
   // If basic is <= 15000 and the frontend hasn't provided a pf value, apply default statutory calculation
-  if (Number(basicSalary) <= 15000 && (deductions.pf === undefined || deductions.pf === null || deductions.pf === '')) {
-    deductions.pf = Number(basicSalary) * 0.12;
+  if (numBasic <= 15000 && (deductions.pf === undefined || deductions.pf === null || deductions.pf === '')) {
+    deductions.pf = Math.round(numBasic * 0.12);
   }
 
   const config = await prisma.salaryConfig.upsert({

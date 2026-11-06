@@ -157,6 +157,8 @@ export function TasksPanel() {
     setEditingTask(null);
   };
 
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+
   const priorityColor = (p: string) => ({
     critical: 'bg-red-100 text-red-800',
     high: 'bg-orange-100 text-orange-800',
@@ -165,23 +167,52 @@ export function TasksPanel() {
   }[p] || 'bg-gray-100 text-gray-800');
 
   const statusColor = (s: string) => ({
-    completed: 'bg-green-100 text-green-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    overdue: 'bg-red-100 text-red-800',
-    pending: 'bg-gray-100 text-gray-800',
+    completed: 'bg-green-100 text-green-800 border-green-200',
+    in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
+    overdue: 'bg-red-100 text-red-800 border-red-300 font-bold',
+    upcoming: 'bg-amber-100 text-amber-800 border-amber-300',
+    pending: 'bg-gray-100 text-gray-800 border-gray-200',
   }[s] || 'bg-gray-100 text-gray-800');
+
+  const getTaskStatus = (task: Task) => {
+    if (task.status === 'completed') return 'completed';
+    if (task.deadline) {
+      const deadlineDate = new Date(task.deadline);
+      deadlineDate.setHours(23, 59, 59, 999);
+      const now = new Date();
+      if (deadlineDate.getTime() < now.getTime()) {
+        return 'overdue';
+      }
+      const daysUntil = (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysUntil >= 0 && daysUntil <= 7) {
+        return 'upcoming';
+      }
+    }
+    return task.status || 'pending';
+  };
 
   const currentUserId = user?.id || (user)?.id;
 
+  const overdueCount = tasks.filter(t => getTaskStatus(t) === 'overdue').length;
+  const upcomingCount = tasks.filter(t => getTaskStatus(t) === 'upcoming' && t.status !== 'completed').length;
+
   const filteredTasks = (() => {
     switch (activeTab) {
-      case 'assigned': return tasks.filter(t => (t.assignedBy?.id || t.assignedBy?.id || t.assignedBy) === currentUserId);
-      case 'my': return tasks.filter(t => (t.assignedTo?.id || t.assignedTo?.id || t.assignedTo) === currentUserId);
-      case 'pending': return tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+      case 'assigned': return tasks.filter(t => (t.assignedBy?.id || (t as any).createdBy) === currentUserId);
+      case 'my': return tasks.filter(t => (t.assignedTo?.id || t.assignedTo) === currentUserId);
+      case 'overdue': return tasks.filter(t => getTaskStatus(t) === 'overdue');
+      case 'upcoming': return tasks.filter(t => getTaskStatus(t) === 'upcoming' && t.status !== 'completed');
+      case 'pending': return tasks.filter(t => (t.status === 'pending' || t.status === 'in_progress') && getTaskStatus(t) !== 'overdue');
       case 'completed': return tasks.filter(t => t.status === 'completed');
       default: return tasks;
     }
   })();
+
+  const filteredSubordinates = subordinates.filter(s =>
+    !assigneeSearch ||
+    s.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+    (s.designation && s.designation.toLowerCase().includes(assigneeSearch.toLowerCase()))
+  );
 
   if (loading) return (
     <Card><CardContent className="p-8 text-center text-muted-foreground">Loading tasks...</CardContent></Card>
@@ -219,8 +250,14 @@ export function TasksPanel() {
                   required placeholder="Detailed task description..." rows={3}
                 />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label>Assign To</Label>
+                <Input
+                  placeholder="Type to filter team members..."
+                  value={assigneeSearch}
+                  onChange={e => setAssigneeSearch(e.target.value)}
+                  className="text-xs h-8 mb-1"
+                />
                 <Select
                   value={formData.assignedTo}
                   onValueChange={v => setFormData({ ...formData, assignedTo: v })}
@@ -229,10 +266,10 @@ export function TasksPanel() {
                     <SelectValue placeholder="Select team member" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subordinates.length === 0 ? (
-                      <SelectItem value="__none__" disabled>No direct reports found</SelectItem>
+                    {filteredSubordinates.length === 0 ? (
+                      <SelectItem value="__none__" disabled>No team members matching</SelectItem>
                     ) : (
-                      subordinates.map(s => (
+                      filteredSubordinates.map(s => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name}{s.designation ? ` — ${s.designation}` : ''}
                         </SelectItem>
@@ -277,10 +314,16 @@ export function TasksPanel() {
 
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="all">All Tasks</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1 bg-muted/60">
+            <TabsTrigger value="all">All ({tasks.length})</TabsTrigger>
             <TabsTrigger value="assigned">Assigned by Me</TabsTrigger>
             <TabsTrigger value="my">My Tasks</TabsTrigger>
+            <TabsTrigger value="overdue" className="text-red-600 data-[state=active]:bg-red-500/10">
+              Overdue {overdueCount > 0 && <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-red-600 text-white font-bold">{overdueCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="upcoming" className="text-amber-600 data-[state=active]:bg-amber-500/10">
+              Upcoming {upcomingCount > 0 && <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-600 text-white font-bold">{upcomingCount}</span>}
+            </TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
           </TabsList>
@@ -297,13 +340,20 @@ export function TasksPanel() {
                   const taskId = task.id || task.id || '';
                   const isAssignedByMe = (task as any).createdBy === currentUserId;
                   const isAssignedToMe = task.assignedTo === currentUserId;
+                  const effectiveStatus = getTaskStatus(task);
                   return (
                     <div key={taskId} className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold">{task.title}</h3>
                           <Badge className={priorityColor(task.priority)}>{task.priority}</Badge>
-                          <Badge className={statusColor(task.status)}>{task.status.replace('_', ' ')}</Badge>
+                          {effectiveStatus === 'overdue' ? (
+                            <Badge className="bg-red-500/10 text-red-600 border border-red-500/30 font-bold">Overdue</Badge>
+                          ) : effectiveStatus === 'upcoming' ? (
+                            <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/30 font-semibold">Upcoming</Badge>
+                          ) : (
+                            <Badge className={statusColor(task.status)}>{task.status.replace('_', ' ')}</Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">

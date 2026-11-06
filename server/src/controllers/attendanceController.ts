@@ -202,7 +202,14 @@ export const createAttendance = asyncHandler(async (req: AuthRequest, res: Respo
   if (isNaN(d.getTime())) {
     return res.status(400).json({ success: false, message: 'Invalid date provided' });
   }
+
+  // Prevent marking attendance for future dates
+  const now = new Date();
+  const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
   const targetDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  if (targetDate.getTime() > todayEnd.getTime()) {
+    return res.status(400).json({ success: false, message: 'Attendance cannot be marked for a future date' });
+  }
 
   const checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
   const checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
@@ -291,6 +298,16 @@ export const updateAttendance = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   const updateData: any = {};
+  if (req.body.date) {
+    const d = new Date(req.body.date);
+    const now = new Date();
+    const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    const targetDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+    if (targetDate.getTime() > todayEnd.getTime()) {
+      return res.status(400).json({ success: false, message: 'Attendance cannot be marked for a future date' });
+    }
+    updateData.date = targetDate;
+  }
   if (req.body.status !== undefined) updateData.status = req.body.status;
   if (req.body.notes !== undefined) updateData.notes = req.body.notes ? String(req.body.notes) : null;
   if (req.body.checkIn !== undefined) updateData.checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;

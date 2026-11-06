@@ -199,11 +199,17 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
 // @route   PUT /api/v1/auth/updatedetails
 // @access  Private
 export const updateDetails = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, email, phone } = req.body;
+  const { name, email, phone, avatar } = req.body;
+
+  const data: any = {};
+  if (name !== undefined) data.name = name;
+  if (email !== undefined) data.email = email;
+  if (phone !== undefined) data.phone = phone;
+  if (avatar !== undefined) data.avatar = avatar;
 
   const user = await prisma.user.update({
     where: { id: req.user.id },
-    data: { name, email, phone }
+    data
   });
 
   res.status(200).json({

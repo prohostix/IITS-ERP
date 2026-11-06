@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp, Paperclip, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ interface LeaveRequest {
   hrRemarks?: string;
   deptApprovedBy?: { name: string } | null;
   hrApprovedBy?: { name: string } | null;
+  attachmentUrl?: string;
   appliedAt: string;
   createdAt: string;
 }
@@ -301,6 +302,20 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                             <span className="line-clamp-1">{leave.reason}</span>
                           </div>
 
+                          {/* Attached document link */}
+                          {leave.attachmentUrl && (
+                            <div className="mt-1.5">
+                              <a
+                                href={leave.attachmentUrl.startsWith('/') || leave.attachmentUrl.startsWith('http') ? leave.attachmentUrl : `/uploads/${leave.attachmentUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded transition-colors"
+                              >
+                                <Paperclip className="w-3 h-3" /> Supporting Document
+                              </a>
+                            </div>
+                          )}
+
                           {/* Expandable remarks/approver details */}
                           {(leave.deptAdminRemarks || leave.hrRemarks || leave.deptApprovedBy || leave.hrApprovedBy) && (
                             <button
@@ -440,9 +455,48 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
               <input type="checkbox" id="isHalfDay" checked={form.isHalfDay} onChange={e => setForm({ ...form, isHalfDay: e.target.checked, endDate: form.startDate })} />
               <Label htmlFor="isHalfDay">Half Day</Label>
             </div>
-            <div>
-              <Label>Attachment URL (Optional)</Label>
-              <Input placeholder="Link to medical certificate or document" value={form.attachmentUrl} onChange={e => setForm({ ...form, attachmentUrl: e.target.value })} />
+            <div className="space-y-1.5">
+              <Label>Supporting Document (Optional{form.type === 'sick' ? ' - e.g. Medical Certificate' : ''})</Label>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-dashed rounded-md cursor-pointer hover:bg-muted text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Choose File</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,image/*,.doc,.docx"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const toastId = toast.loading('Uploading document...');
+                      try {
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const res = await api.post('/enrollment/upload', fd, {
+                          headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        const uploadedUrl = res.data.fileUrl || res.data.url;
+                        setForm(f => ({ ...f, attachmentUrl: uploadedUrl }));
+                        toast.success('Document uploaded successfully', { id: toastId });
+                      } catch {
+                        toast.error('Failed to upload document', { id: toastId });
+                      }
+                    }}
+                  />
+                </label>
+                <Input
+                  className="text-xs h-8 flex-1"
+                  placeholder="Or paste URL (Google Drive, Doc link)"
+                  value={form.attachmentUrl}
+                  onChange={e => setForm({ ...form, attachmentUrl: e.target.value })}
+                />
+              </div>
+              {form.attachmentUrl && (
+                <p className="text-[11px] text-green-600 truncate flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 inline shrink-0" />
+                  <span className="truncate">Attached: {form.attachmentUrl}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Reason</Label>
