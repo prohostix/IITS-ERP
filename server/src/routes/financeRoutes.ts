@@ -46,7 +46,8 @@ import {
   getReregCompletedReport,
   getUniversityWalletLedger,
   addUniversityWalletTransaction,
-  getFinanceSalesUsersReport
+  getFinanceSalesUsersReport,
+  getFinanceOverviewStats
 } from '../controllers/financeController.js';
 import { upload } from '../middleware/upload.js';
 import {
@@ -173,6 +174,7 @@ router.put('/enrollments/:id/reject', authorize('finance_admin', 'finance', 'sup
 router.post('/enrollments/:id/refund', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), processRefund);
 
 // Reports
+router.get('/overview-stats', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceOverviewStats);
 router.get('/reports/income-expenditure', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getIncomeExpenditureReport);
 
 // Sales users (for target assignment)

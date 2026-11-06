@@ -78,6 +78,7 @@ import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel'
 
 export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<any>({});
+  const [overviewStats, setOverviewStats] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payrollBatches, setPayrollBatches] = useState<any[]>([]);
@@ -104,16 +105,18 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [metricsRes, invoicesRes, expensesRes, batchesRes] = await Promise.all([
-        api.get('/dashboard/metrics'),
+      const [statsRes, metricsRes, invoicesRes, expensesRes, batchesRes] = await Promise.all([
+        api.get('/finance/overview-stats').catch(() => ({ data: { data: null } })),
+        api.get('/dashboard/metrics').catch(() => ({ data: { data: {} } })),
         api.get('/finance/invoices').catch(() => ({ data: { data: [] } })),
         api.get('/finance/expenses').catch(() => ({ data: { data: [] } })),
         api.get('/finance/payroll-batches').catch(() => ({ data: { data: [] } })),
       ]);
-      setMetrics(metricsRes.data.data || {});
-      setInvoices(invoicesRes.data.data || []);
-      setExpenses(expensesRes.data.data || []);
-      setPayrollBatches(batchesRes.data.data || []);
+      setOverviewStats(statsRes.data?.data || null);
+      setMetrics(metricsRes.data?.data || {});
+      setInvoices(invoicesRes.data?.data || []);
+      setExpenses(expensesRes.data?.data || []);
+      setPayrollBatches(batchesRes.data?.data || []);
     } catch (e) {
     } finally {
       setLoading(false);
@@ -124,6 +127,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
     switch (activeTab) {
       case 'overview': return (
         <OverviewContent
+          stats={overviewStats}
           metrics={metrics} invoices={invoices} expenses={expenses}
           payrollBatches={payrollBatches} loading={loading} onNavigate={setActiveTab}
         />
@@ -249,30 +253,97 @@ export function getFinanceNavItems(isManager: boolean = true) {
 
 // ─── Overview Content ─────────────────────────────────────────────────────────
 
-function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading, onNavigate }: any) {
-  // Compute live stats from real data
-  const totalInvoiceAmount = invoices.reduce((s: number, i: any) => s + (i.total || i.amount || 0), 0);
-  const paidInvoices = invoices.filter((i: any) => i.status === 'paid');
-  const pendingInvoices = invoices.filter((i: any) => i.status === 'pending' || i.status === 'unpaid');
-  const partialInvoices = invoices.filter((i: any) => i.status === 'partial');
-  const totalPaid = paidInvoices.reduce((s: number, i: any) => s + (i.total || i.amount || 0), 0);
-  const totalExpenses = expenses.reduce((s: number, e: any) => s + (e.amount || 0), 0);
-  const pendingExpenses = expenses.filter((e: any) => e.status === 'pending');
-  const pendingBatches = payrollBatches.filter((b: any) => b.status === 'pending_finance_approval' || b.status === 'pending_finance');
+function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, loading, onNavigate }: any) {
+  const hasStats = Boolean(stats && stats.totals);
 
-  // Build bar chart data from invoices grouped by status
-  const chartData = [
-    { label: 'Paid', value: paidInvoices.length, color: 'hsl(var(--success))' },
-    { label: 'Pending', value: pendingInvoices.length, color: 'hsl(var(--warning))' },
-    { label: 'Partial', value: partialInvoices.length, color: 'hsl(var(--info))' },
-    { label: 'Expenses', value: expenses.length, color: 'hsl(var(--error))' },
+  // Authoritative live numbers from backend or fallback to array reduce
+  const totalReceivables = hasStats
+    ? Number(stats.totals.receivables || 0)
+    : invoices.reduce((s: number, i: any) => s + Number(i.total || i.amount || 0), 0);
+
+  const totalCollected = hasStats
+    ? Number(stats.totals.collected || 0)
+    : invoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + Number(i.total || i.amount || 0), 0);
+
+  const totalExpenses = hasStats
+    ? Number(stats.totals.operationalExpenses || 0)
+    : expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+
+  const totalWalletTopUps = hasStats ? Number(stats.totals.walletTopUps || 0) : 0;
+  const totalUniFees = hasStats ? Number(stats.totals.universityFees || 0) : 0;
+  const totalSalaries = hasStats ? Number(stats.totals.salaries || 0) : 0;
+
+  const totalAdmissionsCount = hasStats
+    ? (stats.counts.enrollments + stats.counts.invoices)
+    : invoices.length;
+
+  const pendingAmount = hasStats
+    ? Number(stats.totals.pending || 0)
+    : Math.max(0, totalReceivables - totalCollected);
+
+  const collectionRate = hasStats
+    ? Number(stats.totals.collectionRate || 0)
+    : (totalReceivables > 0 ? Math.round((totalCollected / totalReceivables) * 100) : 0);
+
+  const pendingExpensesCount = hasStats
+    ? stats.counts.pendingExpenses
+    : expenses.filter((e: any) => e.status === 'pending').length;
+
+  const pendingBatches = hasStats
+    ? stats.counts.pendingBatches
+    : payrollBatches.filter((b: any) => b.status === 'pending_finance_approval' || b.status === 'pending_finance').length;
+
+  const fullyPaidCount = hasStats
+    ? stats.counts.fullyPaid
+    : invoices.filter((i: any) => i.status === 'paid').length;
+
+  const partialPaidCount = hasStats
+    ? stats.counts.partialPaid
+    : invoices.filter((i: any) => i.status === 'partial').length;
+
+  const unpaidCount = hasStats
+    ? stats.counts.unpaid
+    : invoices.filter((i: any) => i.status === 'pending' || i.status === 'unpaid').length;
+
+  const fullyPaidPct = hasStats
+    ? stats.feeBreakdown.fullyPaidPct
+    : (totalAdmissionsCount > 0 ? Math.round((fullyPaidCount / totalAdmissionsCount) * 100) : 0);
+
+  const partialPaidPct = hasStats
+    ? stats.feeBreakdown.partialPaidPct
+    : (totalAdmissionsCount > 0 ? Math.round((partialPaidCount / totalAdmissionsCount) * 100) : 0);
+
+  const unpaidPct = hasStats
+    ? stats.feeBreakdown.unpaidPct
+    : (totalAdmissionsCount > 0 ? Math.round((unpaidCount / totalAdmissionsCount) * 100) : 0);
+
+  const formatINR = (n: number) => {
+    if (!n || isNaN(n)) return '₹0.0K';
+    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`;
+    if (n >= 100000) return `₹${(n / 100000).toFixed(2)}L`;
+    if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+    return `₹${Math.round(n).toLocaleString('en-IN')}`;
+  };
+
+  const formatFullINR = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+
+  const chartData = hasStats && stats.chartData?.length ? stats.chartData : [
+    { label: 'Receivables', value: Math.round(totalReceivables / 1000), fullValue: totalReceivables, color: 'hsl(var(--primary))' },
+    { label: 'Collected', value: Math.round(totalCollected / 1000), fullValue: totalCollected, color: 'hsl(var(--success))' },
+    { label: 'Wallet Funds', value: Math.round(totalWalletTopUps / 1000), fullValue: totalWalletTopUps, color: '#3b82f6' },
+    { label: 'Salaries', value: Math.round(totalSalaries / 1000), fullValue: totalSalaries, color: '#f59e0b' },
+    { label: 'Univ Fees', value: Math.round(totalUniFees / 1000), fullValue: totalUniFees, color: '#8b5cf6' },
   ];
 
-  const paidPct = invoices.length ? Math.round((paidInvoices.length / invoices.length) * 100) : 0;
-  const partialPct = invoices.length ? Math.round((partialInvoices.length / invoices.length) * 100) : 0;
-  const pendingPct = invoices.length ? Math.round((pendingInvoices.length / invoices.length) * 100) : 0;
-
-  const recentInvoices = [...invoices].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
+  const recentActivities = hasStats && stats.recentActivities?.length ? stats.recentActivities : invoices.slice(0, 5).map((inv: any) => ({
+    id: `#${inv.id?.slice(-8).toUpperCase()}`,
+    name: inv.center?.name || inv.student?.name || 'Invoice',
+    sub: 'Invoice',
+    amount: inv.total || inv.amount || 0,
+    status: inv.status,
+    date: inv.createdAt,
+    type: 'revenue'
+  }));
 
   return (
     <div className="space-y-6">
@@ -280,43 +351,46 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <FinanceMetric
           title="Total Receivables"
-          value={`₹${(totalInvoiceAmount / 1000).toFixed(1)}K`}
-          sub={`${invoices.length} total invoices`}
-          trend={pendingInvoices.length > 0 ? `${pendingInvoices.length} pending` : 'All collected'}
-          trendType={pendingInvoices.length > 0 ? 'warn' : 'up'}
+          value={formatINR(totalReceivables)}
+          fullValue={formatFullINR(totalReceivables)}
+          sub={`${totalAdmissionsCount} admissions & invoices • ${formatINR(pendingAmount)} pending`}
+          trend={pendingAmount > 0 ? `${formatINR(pendingAmount)} pending` : 'All collected'}
+          trendType={pendingAmount > 0 ? 'warn' : 'up'}
           icon={<DollarSign className="w-5 h-5" />}
           color="primary"
-          onClick={() => onNavigate('invoices')}
+          onClick={() => onNavigate('student_payment_log')}
         />
         <FinanceMetric
           title="Total Collected"
-          value={`₹${(totalPaid / 1000).toFixed(1)}K`}
-          sub={`${paidInvoices.length} paid invoices`}
-          trend={paidPct > 0 ? `${paidPct}% collection rate` : 'No payments yet'}
+          value={formatINR(totalCollected)}
+          fullValue={formatFullINR(totalCollected)}
+          sub={`${fullyPaidCount} settled • ${formatINR(totalWalletTopUps)} wallet funds`}
+          trend={collectionRate > 0 ? `${collectionRate}% collected` : 'No payments yet'}
           trendType="up"
           icon={<CreditCard className="w-5 h-5" />}
           color="success"
-          onClick={() => onNavigate('payments')}
+          onClick={() => onNavigate('wallet_topups')}
         />
         <FinanceMetric
           title="Operational Expenses"
-          value={`₹${(totalExpenses / 1000).toFixed(1)}K`}
-          sub={`${expenses.length} expense claims`}
-          trend={pendingExpenses.length > 0 ? `${pendingExpenses.length} pending approval` : 'All reviewed'}
-          trendType={pendingExpenses.length > 0 ? 'down' : 'up'}
+          value={formatINR(totalExpenses)}
+          fullValue={formatFullINR(totalExpenses)}
+          sub={`${hasStats ? stats.counts.payrolls : payrollBatches.length} payrolls • ${hasStats ? stats.counts.expenseClaims : expenses.length} claims • ${formatINR(totalUniFees)} uni fees`}
+          trend={pendingBatches > 0 ? `${pendingBatches} pending approval` : 'All reviewed'}
+          trendType={pendingBatches > 0 ? 'down' : 'up'}
           icon={<TrendingUp className="w-5 h-5" />}
           color="warning"
-          onClick={() => onNavigate('expenses')}
+          onClick={() => onNavigate('payroll-batches')}
         />
       </div>
 
       {/* Secondary quick-nav row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Payroll Batches', value: pendingBatches.length, sub: 'Pending approval', icon: <Users className="w-4 h-4" />, tab: 'payroll-batches', urgent: pendingBatches.length > 0 },
-          { label: 'Wallet Top-Ups', value: metrics.pendingWalletTopUps || 0, sub: 'Awaiting review', icon: <Wallet className="w-4 h-4" />, tab: 'wallet_topups', urgent: (metrics.pendingWalletTopUps || 0) > 0 },
-          { label: 'Enrollments', value: metrics.pendingEnrollments || 0, sub: 'Pending review', icon: <FileText className="w-4 h-4" />, tab: 'enrollments_finance', urgent: (metrics.pendingEnrollments || 0) > 0 },
-          { label: 'Pending Centers', value: metrics.pendingCenters || 0, sub: 'Payment verification', icon: <Receipt className="w-4 h-4" />, tab: 'pending_payment', urgent: (metrics.pendingCenters || 0) > 0 },
+          { label: 'Payroll Batches', value: pendingBatches, sub: 'Pending approval', icon: <Users className="w-4 h-4" />, tab: 'payroll-batches', urgent: pendingBatches > 0 },
+          { label: 'Wallet Top-Ups', value: (hasStats ? stats.counts.pendingWalletTopUps : metrics.pendingWalletTopUps) || 0, sub: 'Awaiting review', icon: <Wallet className="w-4 h-4" />, tab: 'wallet_topups', urgent: ((hasStats ? stats.counts.pendingWalletTopUps : metrics.pendingWalletTopUps) || 0) > 0 },
+          { label: 'Enrollments', value: (hasStats ? stats.counts.pendingEnrollments : metrics.pendingEnrollments) || 0, sub: 'Pending review', icon: <FileText className="w-4 h-4" />, tab: 'enrollments_finance', urgent: ((hasStats ? stats.counts.pendingEnrollments : metrics.pendingEnrollments) || 0) > 0 },
+          { label: 'Pending Centers', value: (hasStats ? stats.counts.pendingCenters : metrics.pendingCenters) || 0, sub: 'Payment verification', icon: <Receipt className="w-4 h-4" />, tab: 'pending_payment', urgent: ((hasStats ? stats.counts.pendingCenters : metrics.pendingCenters) || 0) > 0 },
         ].map(item => (
           <Card
             key={item.label}
@@ -365,27 +439,33 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Invoice Status Chart */}
-        <Card
-          className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => onNavigate('invoices')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between">
+        {/* Financial Health Overview Chart */}
+        <Card className="lg:col-span-2 border-none shadow-xl bg-card/60 backdrop-blur-xl hover:border-primary/30 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle>Invoice Overview</CardTitle>
-              <CardDescription>Live billing status — click to manage invoices</CardDescription>
+              <CardTitle>Financial Health & Liquidity Overview</CardTitle>
+              <CardDescription>Live comparison of receivables, collections, wallet deposits, salaries, and university fees (in ₹K)</CardDescription>
             </div>
+            <Badge variant="outline" className="font-semibold text-xs border-primary/20 text-primary bg-primary/5">
+              Live Real-Time
+            </Badge>
           </CardHeader>
           <CardContent className="h-[280px]">
-            {invoices.length > 0 ? (
+            {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <BarChart data={chartData} margin={{ top: 15, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px' }} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
-                    {chartData.map((entry, index) => (
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} allowDecimals={false} tickFormatter={v => `₹${v}K`} />
+                  <Tooltip
+                    formatter={(val: any, _name: any, item: any) => [
+                      formatFullINR(item.payload.fullValue || val * 1000),
+                      item.payload.label
+                    ]}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
+                  />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={42}>
+                    {chartData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
@@ -394,73 +474,83 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
                 <Receipt className="w-10 h-10 opacity-20" />
-                <p className="text-sm">No invoice data yet</p>
-                <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); onNavigate('invoices'); }}>
-                  Create Invoice
-                </Button>
+                <p className="text-sm">No financial metrics available</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Fee Status */}
-        <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('invoices')}>
+        {/* Fee Collection Status */}
+        <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('student_payment_log')}>
           <CardHeader>
-            <CardTitle>Fee Status</CardTitle>
-            <CardDescription>Live student billing breakdown</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle>Fee Collection Status</CardTitle>
+              <Badge variant="secondary" className="text-[11px] font-bold">
+                {collectionRate}% Settled
+              </Badge>
+            </div>
+            <CardDescription>Live student & course fee collection progress</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <FeeStat label="Fully Paid" value={`${paidPct}%`} color="bg-success" count={`${paidInvoices.length} invoices`} />
-            <FeeStat label="Partial" value={`${partialPct}%`} color="bg-warning" count={`${partialInvoices.length} invoices`} />
-            <FeeStat label="Outstanding" value={`${pendingPct}%`} color="bg-error" count={`${pendingInvoices.length} invoices`} />
+            <FeeStat label="Fully Paid" value={`${fullyPaidPct}%`} color="bg-success" count={`${fullyPaidCount} admissions`} />
+            <FeeStat label="Partial Payments" value={`${partialPaidPct}%`} color="bg-warning" count={`${partialPaidCount} admissions`} />
+            <FeeStat label="Outstanding / Pending" value={`${unpaidPct}%`} color="bg-error" count={`${unpaidCount} admissions`} />
             <div className="pt-3 mt-3 border-t border-border">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">Total Invoices</span>
-                <span className="text-sm font-bold">{invoices.length}</span>
+                <span className="text-sm font-medium">Total Tracked Admissions</span>
+                <span className="text-sm font-bold">{totalAdmissionsCount}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Click to view full invoice list</p>
+              <p className="text-xs text-muted-foreground">Click to inspect student payment logs & ledgers</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Invoices */}
-        <Card className="lg:col-span-3 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('invoices')}>
+        {/* Recent Transactions Stream */}
+        <Card className="lg:col-span-2 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('student_payment_log')}>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Recent Invoices</CardTitle>
-            <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); onNavigate('invoices'); }}>
+            <div>
+              <CardTitle className="text-lg">Recent Financial Activity</CardTitle>
+              <CardDescription className="text-xs">Live stream of student fees, center wallet deposits, and payouts</CardDescription>
+            </div>
+            <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); onNavigate('student_payment_log'); }}>
               View All <ArrowUpRight className="ml-1 w-3 h-3" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
             {loading ? (
               [1,2,3,4].map(i => <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />)
-            ) : recentInvoices.length === 0 ? (
+            ) : recentActivities.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No invoices yet</p>
+                <p className="text-sm">No recent financial transactions</p>
               </div>
             ) : (
-              recentInvoices.map((inv: any) => (
+              recentActivities.map((act: any) => (
                 <TransactionItem
-                  key={inv.id}
-                  name={inv.center?.name || inv.student?.name || (typeof inv.centerId === 'object' ? inv.centerId?.name : '') || 'Invoice'}
-                  id={`#${inv.id?.slice(-8).toUpperCase()}`}
-                  amount={`₹${(inv.total || inv.amount || 0).toLocaleString()}`}
-                  status={inv.status}
-                  type="revenue"
+                  key={act.id + (act.date || '')}
+                  name={act.name}
+                  id={act.id}
+                  sub={act.sub}
+                  date={act.date ? new Date(act.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}
+                  amount={`${act.type === 'revenue' ? '+' : '-'}${formatFullINR(act.amount)}`}
+                  status={act.status}
+                  type={act.type}
                 />
               ))
             )}
           </CardContent>
         </Card>
 
-        {/* Priority Tasks */}
+        {/* Priority Actions */}
         <Card>
-          <CardHeader><CardTitle className="text-lg">Priority Actions</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg">Priority Financial Actions</CardTitle>
+            <CardDescription className="text-xs">Pending items requiring Accounts review</CardDescription>
+          </CardHeader>
           <CardContent className="space-y-3">
-            {pendingBatches.length > 0 && (
+            {pendingBatches > 0 && (
               <div
                 className="p-4 rounded-xl border border-warning/20 bg-warning/5 flex items-start gap-3 cursor-pointer hover:bg-warning/10 transition-colors"
                 onClick={() => onNavigate('payroll-batches')}
@@ -468,11 +558,11 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
                 <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div>
                   <h5 className="font-bold text-sm">Payroll Batches Pending</h5>
-                  <p className="text-xs text-muted-foreground mt-1">{pendingBatches.length} batch{pendingBatches.length > 1 ? 'es' : ''} awaiting finance approval.</p>
+                  <p className="text-xs text-muted-foreground mt-1">{pendingBatches} batch{pendingBatches > 1 ? 'es' : ''} awaiting finance approval.</p>
                 </div>
               </div>
             )}
-            {pendingExpenses.length > 0 && (
+            {pendingExpensesCount > 0 && (
               <div
                 className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 cursor-pointer hover:bg-primary/10 transition-colors"
                 onClick={() => onNavigate('expenses')}
@@ -480,30 +570,28 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
                 <Clock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <h5 className="font-bold text-sm">Expense Claims Pending</h5>
-                  <p className="text-xs text-muted-foreground mt-1">{pendingExpenses.length} expense claim{pendingExpenses.length > 1 ? 's' : ''} waiting for review.</p>
+                  <p className="text-xs text-muted-foreground mt-1">{pendingExpensesCount} expense claim{pendingExpensesCount > 1 ? 's' : ''} waiting for review.</p>
                 </div>
               </div>
             )}
-            {pendingInvoices.length > 0 && (
+            {unpaidCount > 0 && (
               <div
                 className="p-4 rounded-xl border border-error/20 bg-error/5 flex items-start gap-3 cursor-pointer hover:bg-error/10 transition-colors"
-                onClick={() => onNavigate('invoices')}
+                onClick={() => onNavigate('student_payment_log')}
               >
                 <AlertTriangle className="w-5 h-5 text-error shrink-0 mt-0.5" />
                 <div>
-                  <h5 className="font-bold text-sm">Unpaid Invoices</h5>
-                  <p className="text-xs text-muted-foreground mt-1">{pendingInvoices.length} invoice{pendingInvoices.length > 1 ? 's' : ''} outstanding.</p>
+                  <h5 className="font-bold text-sm">Pending Fee Collections</h5>
+                  <p className="text-xs text-muted-foreground mt-1">{unpaidCount} admission{unpaidCount > 1 ? 's' : ''} with pending course fee balance ({formatINR(pendingAmount)}).</p>
                 </div>
               </div>
             )}
-            {pendingBatches.length === 0 && pendingExpenses.length === 0 && pendingInvoices.length === 0 && (
+            {pendingBatches === 0 && pendingExpensesCount === 0 && unpaidCount === 0 && (
               <div className="py-8 text-center text-muted-foreground">
-                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-success" />
                 <p className="text-sm">All clear — no pending actions</p>
               </div>
             )}
-            <div className="pt-2">
-</div>
           </CardContent>
         </Card>
       </div>
@@ -513,7 +601,7 @@ function OverviewContent({ metrics, invoices, expenses, payrollBatches, loading,
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function FinanceMetric({ title, value, sub, trend, trendType, icon, color, onClick }: any) {
+function FinanceMetric({ title, value, fullValue, sub, trend, trendType, icon, color, onClick }: any) {
   const colorMap: any = {
     primary: 'text-primary bg-primary/10',
     success: 'text-success bg-success/10',
@@ -540,7 +628,10 @@ function FinanceMetric({ title, value, sub, trend, trendType, icon, color, onCli
         </div>
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className="text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-bold tracking-tight text-foreground">{value}</p>
+            {fullValue && <span className="text-xs text-muted-foreground/80 font-mono">({fullValue})</span>}
+          </div>
           <p className="text-xs text-muted-foreground pt-1">{sub}</p>
         </div>
       </CardContent>
@@ -563,27 +654,32 @@ function FeeStat({ label, value, color, count }: any) {
   );
 }
 
-function TransactionItem({ name, id, amount, status, type }: any) {
+function TransactionItem({ name, id, sub, date, amount, status, type }: any) {
   const statusColor: Record<string, string> = {
     paid: 'bg-success/10 text-success',
+    approved: 'bg-success/10 text-success',
     pending: 'bg-warning/10 text-warning',
     partial: 'bg-info/10 text-info',
     rejected: 'bg-error/10 text-error',
   };
   return (
-    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-3">
-        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', type === 'revenue' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
+    <div className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/60">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0', type === 'revenue' ? 'bg-success/10 text-success' : 'bg-rose-500/10 text-rose-600')}>
           {type === 'revenue' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
         </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground truncate max-w-[160px]">{name}</p>
-          <p className="text-[11px] text-muted-foreground uppercase">{id}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate max-w-[180px] sm:max-w-[260px]">{name}</p>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="font-mono uppercase font-semibold">{id}</span>
+            {sub && <span>• {sub}</span>}
+            {date && <span className="text-[10px] opacity-75">({date})</span>}
+          </div>
         </div>
       </div>
-      <div className="text-right shrink-0">
+      <div className="text-right shrink-0 ml-2">
         <p className={cn('text-sm font-bold', type === 'revenue' ? 'text-success' : 'text-foreground')}>{amount}</p>
-        <span className={cn('text-[10px] px-1.5 py-0.5 rounded uppercase font-bold', statusColor[status?.toLowerCase()] || 'bg-muted text-muted-foreground')}>
+        <span className={cn('text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider', statusColor[status?.toLowerCase()] || 'bg-muted text-muted-foreground')}>
           {status}
         </span>
       </div>

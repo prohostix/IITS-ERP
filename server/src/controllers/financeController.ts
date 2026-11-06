@@ -2424,3 +2424,279 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
   });
 });
 
+export const getFinanceOverviewStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orgId = req.user.organizationId;
+
+  // 1. Enrollments
+  const enrollments = await prisma.enrollment.findMany({
+    where: { organizationId: orgId },
+    select: {
+      id: true,
+      studentName: true,
+      enrollmentNumber: true,
+      totalFee: true,
+      status: true,
+      admissionDate: true,
+      createdAt: true,
+      payment: { select: { amount: true, debitedAt: true } },
+      studentFeeReceipts: { select: { amount: true, receiptDate: true } },
+      studyCenter: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  let totalEnrollmentReceivables = 0;
+  let totalEnrollmentCollected = 0;
+  let fullyPaidCount = 0;
+  let partialPaidCount = 0;
+  let unpaidCount = 0;
+
+  for (const e of enrollments) {
+    const fee = Number(e.totalFee || 0);
+    totalEnrollmentReceivables += fee;
+    const debited = Number(e.payment?.amount || 0);
+    const receipts = (e.studentFeeReceipts || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const paid = debited > 0 ? debited : receipts > 0 ? receipts : (e.status === 'enrolled' ? fee : 0);
+    totalEnrollmentCollected += paid;
+
+    if (fee > 0 && paid >= fee) {
+      fullyPaidCount++;
+    } else if (paid > 0 && paid < fee) {
+      partialPaidCount++;
+    } else {
+      unpaidCount++;
+    }
+  }
+
+  // 2. Invoices
+  const invoices = await prisma.invoice.findMany({
+    where: { organizationId: orgId },
+    select: {
+      id: true,
+      invoiceNo: true,
+      total: true,
+      status: true,
+      createdAt: true,
+      center: { select: { name: true } },
+      student: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const totalInvoiceReceivables = invoices.reduce((s: number, i: any) => s + Number(i.total || 0), 0);
+  const totalInvoiceCollected = invoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + Number(i.total || 0), 0);
+
+  // 3. Wallet Top-ups
+  const walletTopUps = await prisma.walletTopUp.findMany({
+    where: { status: 'approved', studyCenter: { organizationId: orgId } },
+    select: {
+      id: true,
+      amount: true,
+      status: true,
+      paymentMethod: true,
+      referenceNo: true,
+      approvedAt: true,
+      createdAt: true,
+      studyCenter: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const totalWalletTopUps = walletTopUps.reduce((s: number, w: any) => s + Number(w.amount || 0), 0);
+
+  // 4. Payroll / Salaries
+  const payrolls = await prisma.payroll.findMany({
+    where: { organizationId: orgId },
+    select: {
+      id: true,
+      netSalary: true,
+      grossSalary: true,
+      status: true,
+      paymentDate: true,
+      createdAt: true,
+      user: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const totalSalaries = payrolls.reduce((s: number, p: any) => s + Number(p.netSalary || 0), 0);
+
+  // 5. Expense claims
+  const expenses = await prisma.expenseClaim.findMany({
+    where: { organizationId: orgId },
+    select: {
+      id: true,
+      amount: true,
+      category: true,
+      description: true,
+      status: true,
+      createdAt: true,
+      user: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const approvedExpenses = expenses.filter((e: any) => ['approved', 'reimbursed'].includes(e.status));
+  const totalExpenses = approvedExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+  const pendingExpensesCount = expenses.filter((e: any) => e.status === 'pending').length;
+
+  // 6. University Fee Payments
+  const uniFees = await prisma.universityFeePayment.findMany({
+    where: { organizationId: orgId },
+    select: {
+      id: true,
+      amount: true,
+      status: true,
+      paidAt: true,
+      createdAt: true,
+      student: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+  const totalUniFees = uniFees.reduce((s: number, u: any) => s + Number(u.amount || 0), 0);
+
+  // 7. Pending approvals count
+  const pendingBatchesCount = await prisma.payrollBatch.count({
+    where: {
+      organizationId: orgId,
+      status: { in: ['pending_finance_approval', 'pending_finance'] }
+    }
+  });
+  const pendingWalletTopUpsCount = await prisma.walletTopUp.count({
+    where: { organizationId: orgId, status: 'pending' as any }
+  });
+  const pendingEnrollmentsCount = await prisma.enrollment.count({
+    where: {
+      organizationId: orgId,
+      status: { in: ['pending_doc_review', 'document_review', 'pending_finance_review', 'payment_pending'] }
+    }
+  });
+  const pendingCentersCount = await prisma.studyCenter.count({
+    where: { organizationId: orgId, status: 'pending_payment' as any }
+  });
+
+  const totalReceivables = totalEnrollmentReceivables + totalInvoiceReceivables;
+  const totalCollected = totalEnrollmentCollected + totalInvoiceCollected;
+  const totalOperationalExpenses = totalSalaries + totalExpenses;
+  const collectionRate = totalReceivables > 0 ? Math.round((totalCollected / totalReceivables) * 100) : 0;
+  const totalPending = Math.max(0, totalReceivables - totalCollected);
+
+  // Build Recent Transactions Feed
+  const recentActivities: any[] = [];
+
+  // Recent enrollment payments
+  for (const e of enrollments.slice(0, 10)) {
+    if (e.payment?.amount || e.status === 'enrolled') {
+      recentActivities.push({
+        id: `ADM-${e.id.slice(-6).toUpperCase()}`,
+        name: e.studentName || 'Student Admission',
+        sub: e.studyCenter?.name || e.enrollmentNumber || 'Course Fee',
+        amount: Number(e.payment?.amount || e.totalFee || 0),
+        date: e.payment?.debitedAt || e.admissionDate || e.createdAt,
+        status: e.payment?.amount ? 'Paid' : e.status,
+        type: 'revenue'
+      });
+    }
+  }
+
+  // Recent wallet top-ups
+  for (const w of walletTopUps.slice(0, 8)) {
+    recentActivities.push({
+      id: `WTU-${w.id.slice(-6).toUpperCase()}`,
+      name: w.studyCenter?.name || 'Center Wallet Top-Up',
+      sub: `Wallet Deposit (${w.paymentMethod || 'Online'})`,
+      amount: Number(w.amount || 0),
+      date: w.approvedAt || w.createdAt,
+      status: 'Approved',
+      type: 'revenue'
+    });
+  }
+
+  // Recent university fee payments
+  for (const u of uniFees.slice(0, 6)) {
+    recentActivities.push({
+      id: `UNI-${u.id.slice(-6).toUpperCase()}`,
+      name: u.student?.name || 'University Fee',
+      sub: 'University Fee Disbursement',
+      amount: Number(u.amount || 0),
+      date: u.paidAt || u.createdAt,
+      status: u.status || 'Paid',
+      type: 'expense'
+    });
+  }
+
+  // Recent invoices
+  for (const i of invoices.slice(0, 5)) {
+    recentActivities.push({
+      id: i.invoiceNo ? `#${i.invoiceNo}` : `#INV-${i.id.slice(-6).toUpperCase()}`,
+      name: i.center?.name || i.student?.name || 'Invoice',
+      sub: 'Service Invoice',
+      amount: Number(i.total || 0),
+      date: i.createdAt,
+      status: i.status || 'Pending',
+      type: 'revenue'
+    });
+  }
+
+  // Recent expenses
+  for (const exp of expenses.slice(0, 5)) {
+    recentActivities.push({
+      id: `EXP-${exp.id.slice(-6).toUpperCase()}`,
+      name: exp.user?.name || 'Employee Claim',
+      sub: exp.category || exp.description || 'Expense',
+      amount: Number(exp.amount || 0),
+      date: exp.createdAt,
+      status: exp.status || 'Pending',
+      type: 'expense'
+    });
+  }
+
+  // Sort unified feed by date descending
+  recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  res.json({
+    success: true,
+    data: {
+      totals: {
+        receivables: totalReceivables,
+        enrollmentReceivables: totalEnrollmentReceivables,
+        invoiceReceivables: totalInvoiceReceivables,
+        collected: totalCollected,
+        pending: totalPending,
+        collectionRate,
+        operationalExpenses: totalOperationalExpenses,
+        salaries: totalSalaries,
+        expenses: totalExpenses,
+        universityFees: totalUniFees,
+        walletTopUps: totalWalletTopUps
+      },
+      counts: {
+        enrollments: enrollments.length,
+        invoices: invoices.length,
+        fullyPaid: fullyPaidCount,
+        partialPaid: partialPaidCount,
+        unpaid: unpaidCount,
+        payrolls: payrolls.length,
+        expenseClaims: expenses.length,
+        universityFees: uniFees.length,
+        walletTopUps: walletTopUps.length,
+        pendingExpenses: pendingExpensesCount,
+        pendingBatches: pendingBatchesCount,
+        pendingWalletTopUps: pendingWalletTopUpsCount,
+        pendingEnrollments: pendingEnrollmentsCount,
+        pendingCenters: pendingCentersCount
+      },
+      feeBreakdown: {
+        fullyPaidPct: enrollments.length > 0 ? Math.round((fullyPaidCount / enrollments.length) * 100) : 0,
+        partialPaidPct: enrollments.length > 0 ? Math.round((partialPaidCount / enrollments.length) * 100) : 0,
+        unpaidPct: enrollments.length > 0 ? Math.round((unpaidCount / enrollments.length) * 100) : 0,
+      },
+      recentActivities: recentActivities.slice(0, 10),
+      chartData: [
+        { label: 'Receivables', value: Math.round(totalReceivables / 1000), fullValue: totalReceivables, color: 'hsl(var(--primary))' },
+        { label: 'Collected', value: Math.round(totalCollected / 1000), fullValue: totalCollected, color: 'hsl(var(--success))' },
+        { label: 'Wallet Funds', value: Math.round(totalWalletTopUps / 1000), fullValue: totalWalletTopUps, color: '#3b82f6' },
+        { label: 'Salaries', value: Math.round(totalSalaries / 1000), fullValue: totalSalaries, color: '#f59e0b' },
+        { label: 'Univ Fees', value: Math.round(totalUniFees / 1000), fullValue: totalUniFees, color: '#8b5cf6' },
+      ]
+    }
+  });
+});
+
+

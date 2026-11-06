@@ -86,10 +86,20 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
   }
 
   if (['finance_admin', 'finance', 'ceo', 'org_admin'].includes(role)) {
+    const enrollments = await prisma.enrollment.findMany({
+      where: { organizationId: organizationId },
+      select: { totalFee: true, payment: { select: { amount: true } }, status: true }
+    });
+    const totalEnrollmentFee = enrollments.reduce((sum, e) => sum + (e.totalFee || 0), 0);
+    const totalEnrollmentCollected = enrollments.reduce((sum, e) => sum + (e.payment?.amount || (e.status === 'enrolled' ? (e.totalFee || 0) : 0)), 0);
+
     const invoices = await prisma.invoice.findMany({ where: { organizationId: organizationId, status: 'paid' as any }, select: { total: true } });
-    metrics.totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
+    const invoiceRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
+
+    metrics.totalRevenue = totalEnrollmentCollected + invoiceRevenue;
+    metrics.totalReceivables = totalEnrollmentFee;
     metrics.pendingInvoices = await prisma.invoice.count({ where: { organizationId: organizationId, status: { in: ['draft', 'sent'] } } });
-    metrics.totalPayments = await prisma.paymentEntry.count({ where: { organizationId: organizationId } });
+    metrics.totalPayments = enrollments.filter(e => e.payment?.amount || e.status === 'enrolled').length;
     metrics.pendingExpenses = await prisma.expenseClaim.count({ where: { organizationId: organizationId, status: 'pending' as any } });
     metrics.pendingWalletTopUps = await prisma.walletTopUp.count({ where: { organizationId: organizationId, status: 'pending' as any } });
     metrics.pendingEnrollments = await prisma.enrollment.count({ where: { organizationId: organizationId, status: { in: ['pending_doc_review', 'document_review', 'pending_finance_review', 'payment_pending'] } } });
