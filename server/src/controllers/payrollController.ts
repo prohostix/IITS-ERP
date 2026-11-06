@@ -275,34 +275,135 @@ export const markPayrollPaid = asyncHandler(async (req: AuthRequest, res: Respon
   res.status(200).json({ success: true, data: payroll });
 });
 
+// Helper to convert date to YYYY-MM-DD cleanly supporting both UTC and IST
+function toLocalDateStr(d: Date | string | null | undefined): string {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  // Check if date has an IST offset embedded (e.g. 18:30:00 UTC = 00:00:00 IST)
+  if (date.getUTCHours() === 18 && date.getUTCMinutes() === 30) {
+    const ist = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+    return ist.toISOString().slice(0, 10);
+  }
+  return date.toISOString().slice(0, 10);
+}
+
 // Helper for generating monthly payroll (basic and smart)
 async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boolean = false) {
-  // Get active employees with salary configs
-  const users = await prisma.user.findMany({
-    where: {
-      organizationId: req.user.organizationId,
-      status: 'active' as any,
-      role: {
-        notIn: ['ceo', 'org_admin', 'superadmin', 'center_admin', 'student']
+  // Parse month
+  const parts = month.split('-');
+  const year = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(year) || isNaN(m) || m < 1 || m > 12) {
+    throw new Error('Invalid month format, expected YYYY-MM');
+  }
+
+  // Total calendar days in the target month (e.g., 30 for Nov, 31 for Oct, 28/29 for Feb)
+  const totalDaysInMonth = new Date(year, m, 0).getDate();
+
+  // Query date boundaries with +/- 24h buffer for timezone safety
+  const queryStart = new Date(Date.UTC(year, m - 1, 1, 0, 0, 0, 0) - 24 * 3600 * 1000);
+  const queryEnd = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999) + 24 * 3600 * 1000);
+
+  // Today in IST
+  const now = new Date();
+  const istNow = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const todayStr = istNow.toISOString().slice(0, 10);
+
+  // Fetch HR Settings and Holidays for the organization
+  const [hrSettings, holidays, users] = await Promise.all([
+    prisma.hRSettings.findFirst({
+      where: { organizationId: req.user.organizationId }
+    }),
+    prisma.holiday.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        date: { gte: queryStart, lte: queryEnd }
       }
-    },
-    include: {
-      salaryConfig: true,
-      employeeProfile: true
+    }),
+    prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        status: 'active' as any,
+        role: {
+          notIn: ['ceo', 'org_admin', 'superadmin', 'center_admin', 'student']
+        }
+      },
+      include: {
+        salaryConfig: true,
+        employeeProfile: true
+      }
+    })
+  ]);
+
+  // Working days (default Mon-Sat if not specified)
+  let workingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  let latePolicyDeductionPerMinute = 0;
+  if (hrSettings?.officeHours) {
+    const oh: any = typeof hrSettings.officeHours === 'string'
+      ? JSON.parse(hrSettings.officeHours)
+      : hrSettings.officeHours;
+    if (Array.isArray(oh?.workingDays) && oh.workingDays.length > 0) {
+      workingDays = oh.workingDays;
     }
+  }
+  if (hrSettings?.latePolicy) {
+    const lp: any = typeof hrSettings.latePolicy === 'string'
+      ? JSON.parse(hrSettings.latePolicy)
+      : hrSettings.latePolicy;
+    if (Number(lp?.deductionPerExtraMinute) > 0) {
+      latePolicyDeductionPerMinute = Number(lp.deductionPerExtraMinute);
+    }
+  }
+
+  // Map of holiday dates YYYY-MM-DD
+  const holidayDateSet = new Set<string>();
+  holidays.forEach(h => {
+    const dStr = toLocalDateStr(h.date);
+    if (dStr) holidayDateSet.add(dStr);
   });
 
-  // Calculate date boundaries for month if smart mode
-  let monthStart: Date | null = null;
-  let monthEnd: Date | null = null;
-  if (isSmart && month) {
-    const parts = month.split('-');
-    const year = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10);
-    if (!isNaN(year) && !isNaN(m)) {
-      monthStart = new Date(year, m - 1, 1, 0, 0, 0, 0);
-      monthEnd = new Date(year, m, 0, 23, 59, 59, 999);
+  // Batch fetch Attendances and approved Leaves for all users in the month
+  const userIds = users.map(u => u.id);
+  const [allAttendances, allLeaves] = await Promise.all([
+    prisma.attendance.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        userId: { in: userIds },
+        date: { gte: queryStart, lte: queryEnd }
+      }
+    }),
+    prisma.leaveRequest.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        userId: { in: userIds },
+        status: 'approved',
+        OR: [
+          { startDate: { lte: queryEnd }, endDate: { gte: queryStart } }
+        ]
+      }
+    })
+  ]);
+
+  // Index attendances by userId -> (dateStr -> Attendance)
+  const userAttendancesMap = new Map<string, Map<string, any>>();
+  for (const att of allAttendances) {
+    if (!userAttendancesMap.has(att.userId)) {
+      userAttendancesMap.set(att.userId, new Map());
     }
+    const dStr = toLocalDateStr(att.date);
+    if (dStr) {
+      userAttendancesMap.get(att.userId)!.set(dStr, att);
+    }
+  }
+
+  // Index leaves by userId -> LeaveRequest[]
+  const userLeavesMap = new Map<string, any[]>();
+  for (const leave of allLeaves) {
+    if (!userLeavesMap.has(leave.userId)) {
+      userLeavesMap.set(leave.userId, []);
+    }
+    userLeavesMap.get(leave.userId)!.push(leave);
   }
 
   const generated = [];
@@ -326,44 +427,6 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
 
     // Parse allowances
     const parsedAllowances: any = typeof allowances === 'string' ? JSON.parse(allowances) : (allowances || {});
-    // Parse deductions
-    const parsedDeductions: any = typeof deductions === 'string' ? JSON.parse(deductions) : (deductions || {});
-
-    // If smart mode, calculate late deductions from attendance
-    let smartLateDeduction = 0;
-    if (isSmart && monthStart && monthEnd) {
-      try {
-        const attendances = await prisma.attendance.findMany({
-          where: {
-            userId: user.id,
-            organizationId: req.user.organizationId,
-            date: {
-              gte: monthStart,
-              lte: monthEnd
-            }
-          }
-        });
-
-        attendances.forEach((att) => {
-          if (att.lateDeductionAmount && att.lateDeductionAmount > 0) {
-            smartLateDeduction += att.lateDeductionAmount;
-          } else if (att.isLate && att.lateMinutes && lateDeductionPerMinute > 0) {
-            smartLateDeduction += att.lateMinutes * lateDeductionPerMinute;
-          }
-        });
-
-        if (smartLateDeduction > 0) {
-          if (Array.isArray(parsedDeductions)) {
-            parsedDeductions.push({ name: 'Late Deduction (Attendance)', amount: smartLateDeduction });
-          } else {
-            parsedDeductions.late_deduction = (parsedDeductions.late_deduction || 0) + smartLateDeduction;
-          }
-        }
-      } catch (attErr: any) {
-        console.warn(`Smart attendance fetch error for user ${user.id}:`, attErr.message);
-      }
-    }
-
     let allowancesTotal = 0;
     if (Array.isArray(parsedAllowances)) {
       parsedAllowances.forEach((a: any) => allowancesTotal += Number(a.amount || 0));
@@ -371,15 +434,191 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       Object.values(parsedAllowances).forEach((v: any) => allowancesTotal += Number(v || 0));
     }
 
-    let deductionsTotal = Number(professionalTax || 0) + Number(labourWelfareFund || 0) + Number(tds || 0);
-    if (Array.isArray(parsedDeductions)) {
-      parsedDeductions.forEach((d: any) => deductionsTotal += Number(d.amount || 0));
-    } else {
-      Object.values(parsedDeductions).forEach((v: any) => deductionsTotal += Number(v || 0));
+    const fixedMonthlyGross = basicSalary + allowancesTotal;
+    const perDaySalary = totalDaysInMonth > 0 ? fixedMonthlyGross / totalDaysInMonth : 0;
+
+    // Parse deductions base
+    const parsedDeductions: any = typeof deductions === 'string' ? JSON.parse(deductions) : (deductions || {});
+
+    // Check joining date
+    const joinDateStr = toLocalDateStr(user.employeeProfile?.joinDate);
+
+    const userAttMap = userAttendancesMap.get(user.id) || new Map<string, any>();
+    const userLeaves = userLeavesMap.get(user.id) || [];
+
+    let presentDays = 0;
+    let absentDays = 0;
+    let halfDays = 0;
+    let paidLeaveDays = 0;
+    let unpaidLeaveDays = 0;
+    let lateDays = 0;
+    let totalLateMinutes = 0;
+    let smartLateDeductions = 0;
+    let preJoiningDays = 0;
+
+    // Track whether employee has any actual punch or approved leave in this month
+    const hasAnyPunchesOrLeaves = userAttMap.size > 0 || userLeaves.length > 0;
+
+    // Iterate through every single calendar day of the month
+    for (let day = 1; day <= totalDaysInMonth; day++) {
+      const dayDate = new Date(Date.UTC(year, m - 1, day, 0, 0, 0, 0));
+      const dayStr = `${year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayOfWeek = dayDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+
+      // 1. If employee joined mid-month after this day
+      if (joinDateStr && dayStr < joinDateStr) {
+        absentDays += 1;
+        preJoiningDays += 1;
+        continue;
+      }
+
+      // 2. Is Holiday? (Company public holiday = paid non-working day)
+      if (holidayDateSet.has(dayStr)) {
+        continue;
+      }
+
+      // 3. Is Weekly Off? (e.g. Sunday = paid non-working day)
+      if (!workingDays.includes(dayOfWeek)) {
+        continue;
+      }
+
+      // 4. Scheduled Working Day:
+      const att = userAttMap.get(dayStr);
+      const matchingLeave = userLeaves.find(l => {
+        const startStr = toLocalDateStr(l.startDate);
+        const endStr = toLocalDateStr(l.endDate);
+        return dayStr >= startStr && dayStr <= endStr;
+      });
+
+      if (att) {
+        if (att.status === 'present' || att.status === 'late') {
+          presentDays += 1;
+          if (att.status === 'late' || att.isLate) {
+            lateDays += 1;
+            const mins = att.lateMinutes || 0;
+            totalLateMinutes += mins;
+            if (att.lateDeductionAmount && att.lateDeductionAmount > 0) {
+              smartLateDeductions += att.lateDeductionAmount;
+            } else if (isSmart) {
+              const perMin = Number(lateDeductionPerMinute) || latePolicyDeductionPerMinute;
+              if (perMin > 0 && mins > 0) {
+                smartLateDeductions += mins * perMin;
+              }
+            }
+          }
+        } else if (att.status === 'half_day' || att.isHalfDay) {
+          halfDays += 1;
+          presentDays += 0.5;
+          absentDays += 0.5;
+        } else if (att.status === 'leave') {
+          if (matchingLeave && matchingLeave.type === 'unpaid') {
+            unpaidLeaveDays += 1;
+            absentDays += 1;
+          } else {
+            paidLeaveDays += 1;
+          }
+        } else if (att.status === 'absent') {
+          absentDays += 1;
+        }
+      } else if (matchingLeave) {
+        if (matchingLeave.type === 'unpaid') {
+          unpaidLeaveDays += 1;
+          absentDays += 1;
+        } else if (matchingLeave.isHalfDay) {
+          halfDays += 1;
+          paidLeaveDays += 0.5;
+          absentDays += 0.5;
+        } else {
+          paidLeaveDays += 1;
+        }
+      } else {
+        // Scheduled working day with neither punch nor approved leave
+        if (dayStr <= todayStr) {
+          // Elapsed / past day = unexcused absence
+          absentDays += 1;
+        } else {
+          // Future day in ongoing month
+          if (!hasAnyPunchesOrLeaves) {
+            // Employee has zero attendance in the entire month -> marked absent
+            absentDays += 1;
+          } else {
+            // Active employee with punches this month -> project scheduled future day as present
+            presentDays += 1;
+          }
+        }
+      }
     }
 
-    const grossSalary = basicSalary + allowancesTotal;
+    // Determine payable days & Loss of Pay (LOP)
+    let payableDays = 0;
+    let lopDeduction = 0;
+
+    if (presentDays === 0 && paidLeaveDays === 0 && halfDays === 0) {
+      // Zero attendance in the entire month -> 0 payable days and 100% LOP
+      payableDays = 0;
+      absentDays = totalDaysInMonth;
+      lopDeduction = fixedMonthlyGross;
+    } else {
+      payableDays = Math.max(0, parseFloat((totalDaysInMonth - absentDays).toFixed(1)));
+      lopDeduction = Math.min(fixedMonthlyGross, Math.round(perDaySalary * absentDays));
+    }
+
+    // Build final deductions object/array
+    let finalDeductions: any;
+    if (Array.isArray(parsedDeductions)) {
+      finalDeductions = parsedDeductions.filter((d: any) =>
+        d.name !== 'Loss of Pay (Absenteeism)' &&
+        d.name !== 'Late Arrival Penalty' &&
+        d.name !== 'Late Deduction (Attendance)'
+      );
+      if (lopDeduction > 0) {
+        finalDeductions.push({ name: 'Loss of Pay (Absenteeism)', amount: lopDeduction });
+      }
+      if (isSmart && smartLateDeductions > 0) {
+        finalDeductions.push({ name: 'Late Arrival Penalty', amount: Math.round(smartLateDeductions) });
+      }
+    } else {
+      finalDeductions = { ...parsedDeductions };
+      delete finalDeductions.loss_of_pay;
+      delete finalDeductions.late_arrival;
+      delete finalDeductions.late_deduction;
+      if (lopDeduction > 0) {
+        finalDeductions.loss_of_pay = lopDeduction;
+      }
+      if (isSmart && smartLateDeductions > 0) {
+        finalDeductions.late_arrival = Math.round(smartLateDeductions);
+      }
+    }
+
+    // Total deductions
+    let deductionsTotal = Number(professionalTax || 0) + Number(labourWelfareFund || 0) + Number(tds || 0);
+    if (Array.isArray(finalDeductions)) {
+      finalDeductions.forEach((d: any) => deductionsTotal += Number(d.amount || 0));
+    } else {
+      Object.values(finalDeductions).forEach((v: any) => deductionsTotal += Number(v || 0));
+    }
+
+    const grossSalary = fixedMonthlyGross;
     const netSalary = Math.max(0, grossSalary - deductionsTotal);
+
+    // Human-readable remarks
+    let remarks = '';
+    if (payableDays === 0) {
+      remarks = `No attendance recorded (0 working days). Full Loss of Pay: -₹${lopDeduction.toLocaleString('en-IN')}`;
+    } else {
+      const parts = [`Att: ${presentDays}P, ${absentDays}A`];
+      if (halfDays > 0) parts.push(`${halfDays}HD`);
+      if (paidLeaveDays > 0) parts.push(`${paidLeaveDays}L`);
+      if (lateDays > 0) parts.push(`${lateDays}Late (${totalLateMinutes}m)`);
+
+      let summary = parts.join(', ');
+      summary += ` | Payable: ${payableDays}/${totalDaysInMonth} days`;
+      if (lopDeduction > 0) summary += ` | LOP: -₹${lopDeduction.toLocaleString('en-IN')}`;
+      if (isSmart && smartLateDeductions > 0) summary += ` | Late: -₹${Math.round(smartLateDeductions).toLocaleString('en-IN')}`;
+      if (lopDeduction === 0 && smartLateDeductions === 0) summary += ` (Full attendance)`;
+      if (preJoiningDays > 0) summary += ` (Joined: ${joinDateStr})`;
+      remarks = summary;
+    }
 
     try {
       const payroll = await prisma.payroll.upsert({
@@ -392,13 +631,13 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         update: {
           basicSalary,
           allowances: parsedAllowances,
-          deductions: parsedDeductions,
+          deductions: finalDeductions,
           professionalTax: Number(professionalTax || 0),
           labourWelfareFund: Number(labourWelfareFund || 0),
           tds: Number(tds || 0),
           grossSalary,
           netSalary,
-          remarks: isSmart && smartLateDeduction > 0 ? `Smart generated (Late deduction: ₹${smartLateDeduction})` : undefined
+          remarks
         },
         create: {
           organizationId: req.user.organizationId,
@@ -406,14 +645,14 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
           month: month,
           basicSalary,
           allowances: parsedAllowances,
-          deductions: parsedDeductions,
+          deductions: finalDeductions,
           professionalTax: Number(professionalTax || 0),
           labourWelfareFund: Number(labourWelfareFund || 0),
           tds: Number(tds || 0),
           grossSalary,
           netSalary,
           status: 'draft',
-          remarks: isSmart && smartLateDeduction > 0 ? `Smart generated (Late deduction: ₹${smartLateDeduction})` : undefined
+          remarks
         }
       });
       generated.push(payroll);

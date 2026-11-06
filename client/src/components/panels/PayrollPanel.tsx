@@ -321,7 +321,7 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
                     }`}
                   >
                     <div className="font-semibold">Smart Mode</div>
-                    <div className="text-xs opacity-80">Includes late arrival & attendance deductions</div>
+                    <div className="text-xs opacity-80">Full attendance (LOP for absences/half-days) + late arrival penalties</div>
                   </button>
                   <button
                     type="button"
@@ -331,7 +331,7 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
                     }`}
                   >
                     <div className="font-semibold">Standard Mode</div>
-                    <div className="text-xs opacity-80">Salary structure without attendance cuts</div>
+                    <div className="text-xs opacity-80">Full attendance (LOP for absences/half-days) without late penalties</div>
                   </button>
                 </div>
               </div>
@@ -372,13 +372,24 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
               <div>
                 <p className="text-sm font-semibold mb-2">Deductions</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(['pf', 'tax', 'insurance', 'other'] as const).map(key => (
-                    <div key={key} className="space-y-1">
-                      <Label className="capitalize">{key} (₹)</Label>
-                      <Input type="number" min="0" value={editForm.deductions?.[key] || 0}
-                        onChange={e => setEditForm((f: any) => ({ ...f, deductions: { ...f.deductions, [key]: Number(e.target.value) } }))} />
-                    </div>
-                  ))}
+                  {Array.from(new Set(['loss_of_pay', 'late_arrival', 'pf', 'tax', 'insurance', 'other', ...Object.keys(editForm.deductions || {})])).map(key => {
+                    const label = key === 'loss_of_pay'
+                      ? 'Loss of Pay (LOP) (₹)'
+                      : key === 'late_arrival' || key === 'late_deduction'
+                      ? 'Late Arrival (₹)'
+                      : key === 'pf'
+                      ? 'Provident Fund (PF) (₹)'
+                      : key === 'tax'
+                      ? 'TDS / Tax (₹)'
+                      : `${key.replace(/_/g, ' ')} (₹)`;
+                    return (
+                      <div key={key} className="space-y-1">
+                        <Label className="capitalize text-xs">{label}</Label>
+                        <Input type="number" min="0" value={editForm.deductions?.[key] || 0}
+                          onChange={e => setEditForm((f: any) => ({ ...f, deductions: { ...f.deductions, [key]: Number(e.target.value) } }))} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

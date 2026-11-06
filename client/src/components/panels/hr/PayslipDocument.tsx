@@ -13,8 +13,29 @@ interface Payroll {
   bonus: number;
   overtime: number;
   status: string;
+  remarks?: string;
   createdAt: string;
 }
+
+const formatDeductionLabel = (key: string) => {
+  switch (key) {
+    case 'loss_of_pay':
+      return 'Loss of Pay (Absenteeism)';
+    case 'late_arrival':
+    case 'late_deduction':
+      return 'Late Arrival Penalty';
+    case 'pf':
+      return 'Provident Fund (PF)';
+    case 'tax':
+      return 'Income Tax / TDS';
+    case 'insurance':
+      return 'Insurance';
+    case 'other':
+      return 'Other Deductions';
+    default:
+      return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+};
 
 export function PayslipDocument({ payroll }: { payroll: Payroll }) {
   if (!payroll) return null;
@@ -46,7 +67,7 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-0 border border-gray-300 mb-8 rounded overflow-hidden">
+      <div className="grid grid-cols-2 gap-0 border border-gray-300 mb-6 rounded overflow-hidden">
         {/* Earnings */}
         <div className="border-r border-gray-300">
           <div className="bg-gray-100 font-bold p-2 border-b border-gray-300 uppercase text-sm tracking-wider">Earnings</div>
@@ -86,7 +107,7 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
           <div className="p-4 space-y-2 text-sm flex-grow">
             {Object.entries(payroll.deductions || {}).map(([key, val]: any) => (
               <div key={key} className="flex justify-between">
-                <span className="capitalize">{key === 'pf' ? 'Provident Fund (PF)' : key === 'tax' ? 'Income Tax / TDS' : key}</span>
+                <span>{formatDeductionLabel(key)}</span>
                 <span className="font-semibold text-red-600">-₹{Number(val).toLocaleString()}</span>
               </div>
             ))}
@@ -100,6 +121,16 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
           </div>
         </div>
       </div>
+
+      {/* Attendance & Work Days Breakdown */}
+      {payroll.remarks && (
+        <div className="bg-amber-50/60 border border-amber-200 rounded p-3 mb-6 text-xs text-amber-950">
+          <div className="font-bold uppercase tracking-wider text-[11px] text-amber-900 mb-1">
+            Attendance & Work Days Summary
+          </div>
+          <p className="font-medium text-gray-800 leading-relaxed">{payroll.remarks}</p>
+        </div>
+      )}
 
       <div className="bg-primary/10 border-l-4 border-primary p-4 rounded mb-10 flex justify-between items-center">
         <span className="text-lg font-bold text-gray-800">NET PAY</span>
