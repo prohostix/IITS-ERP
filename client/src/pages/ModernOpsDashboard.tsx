@@ -18,7 +18,8 @@ import {
   Layers,
   Sparkles,
   Filter,
-  DollarSign
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -184,22 +185,41 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
-  const [sessionStudentsCount, setSessionStudentsCount] = useState<number | null>(null);
+  const [sessionMetrics, setSessionMetrics] = useState<any>(metrics);
+  const [loadingSession, setLoadingSession] = useState(false);
+
+  useEffect(() => {
+    setSessionMetrics(metrics);
+  }, [metrics]);
 
   useEffect(() => {
     api.get('/operations/sessions')
       .then(res => {
         const sList = res.data.data || [];
         setSessions(sList);
-        // Default to active session if available
-        const active = sList.find((s: any) => s.status === 'active');
-        if (active) setSelectedSessionId(active.id);
       })
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (selectedSessionId === 'all') {
+      setSessionMetrics(metrics);
+      return;
+    }
+    setLoadingSession(true);
+    api.get(`/dashboard/metrics?sessionId=${selectedSessionId}`)
+      .then(res => {
+        if (res.data.data) {
+          setSessionMetrics({ ...metrics, ...res.data.data });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSession(false));
+  }, [selectedSessionId, metrics]);
+
   const activeSession = sessions.find(s => s.id === selectedSessionId);
   const sessionDisplayName = activeSession ? activeSession.name : 'All Sessions';
+  const currentData = sessionMetrics || metrics || {};
 
   return (
     <div className="flex flex-col gap-6">
@@ -209,9 +229,9 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         badge="Live Operational Services"
         subtitle="Manage student admissions, verify study center affiliations, oversee academic sessions, and track degree program allocations."
         stats={[
-          { label: 'Total Enrolled Students', value: metrics.totalStudents || 0, icon: GraduationCap },
+          { label: 'Total Enrolled Students', value: currentData.enrolledStudents || currentData.totalStudents || 0, icon: GraduationCap },
+          { label: 'Pending Review', value: currentData.pendingApplications || 0, icon: Clock },
           { label: 'Affiliated Centers', value: metrics.totalCenters || 0, icon: Building2 },
-          { label: 'Academic Programs', value: metrics.totalPrograms || 0, icon: BookOpen },
           { label: 'Active Session', value: sessionDisplayName, icon: Calendar },
         ]}
         primaryAction={{
@@ -373,41 +393,62 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
               <CardTitle className="text-base font-bold">Admission Pipeline</CardTitle>
               <CardDescription className="text-xs">Progress & document verification workflow</CardDescription>
             </div>
-            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs font-semibold">
-              {sessionDisplayName}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {loadingSession && <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />}
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs font-semibold">
+                {sessionDisplayName}
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              <PipelineStep 
-                label="Inquiry / Leads" 
-                value={metrics.totalLeads || 0} 
-                percentage={100} 
-                color="bg-primary"
-                subtext="Total potential admission candidates"
-              />
-              <PipelineStep 
-                label="Application Submitted" 
-                value={metrics.pendingApplications || 0} 
-                percentage={metrics.totalLeads ? Math.round((metrics.pendingApplications || 0) / metrics.totalLeads * 100) : 0} 
-                color="bg-info"
-                subtext="Documents under review & verification"
-              />
-              <PipelineStep 
-                label="Verified & Approved" 
-                value={metrics.verifiedApplications || 0} 
-                percentage={metrics.totalLeads ? Math.round((metrics.verifiedApplications || 0) / metrics.totalLeads * 100) : 0} 
-                color="bg-success"
-                subtext="Ready for final enrollment"
-              />
-              <PipelineStep 
-                label="Final Enrolled" 
-                value={metrics.enrolledStudents || 0} 
-                percentage={metrics.totalLeads ? Math.round((metrics.enrolledStudents || 0) / metrics.totalLeads * 100) : 0} 
-                color="bg-emerald-500"
-                subtext="Payment confirmed & ID allocated"
-              />
-            </div>
+            {(() => {
+              const enrolledCount = currentData.enrolledStudents || 0;
+              const verifiedCount = currentData.verifiedApplications || 0;
+              const pendingCount = currentData.pendingApplications || 0;
+              const rawLeadsCount = currentData.totalLeads || 0;
+
+              // The true intake pipeline is all students entering the admissions system (leads or enrolled/reviewed applicants)
+              const totalCandidates = Math.max(rawLeadsCount, pendingCount + verifiedCount + enrolledCount + (currentData.rejectedApplications || 0));
+
+              // Accurately compute percentages (0 if totalCandidates is 0)
+              const leadsPct = totalCandidates > 0 ? 100 : 0;
+              const pendingPct = totalCandidates > 0 ? Math.round((pendingCount / totalCandidates) * 100) : 0;
+              const verifiedPct = totalCandidates > 0 ? Math.round((verifiedCount / totalCandidates) * 100) : 0;
+              const enrolledPct = totalCandidates > 0 ? Math.round((enrolledCount / totalCandidates) * 100) : 0;
+
+              return (
+                <div className="space-y-6">
+                  <PipelineStep 
+                    label="Inquiry / Leads" 
+                    value={totalCandidates} 
+                    percentage={leadsPct} 
+                    color="bg-primary"
+                    subtext="Total potential admission candidates"
+                  />
+                  <PipelineStep 
+                    label="Application Submitted" 
+                    value={pendingCount} 
+                    percentage={pendingPct} 
+                    color="bg-info"
+                    subtext="Documents under review & verification"
+                  />
+                  <PipelineStep 
+                    label="Verified & Approved" 
+                    value={verifiedCount} 
+                    percentage={verifiedPct} 
+                    color="bg-success"
+                    subtext="Ready for final enrollment"
+                  />
+                  <PipelineStep 
+                    label="Final Enrolled" 
+                    value={enrolledCount} 
+                    percentage={enrolledPct} 
+                    color="bg-emerald-500"
+                    subtext="Payment confirmed & ID allocated"
+                  />
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -418,13 +459,13 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             <CardDescription className="text-xs">Operations tasks requiring attention</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {!metrics.urgentActions || metrics.urgentActions.length === 0 ? (
+            {!currentData.urgentActions || currentData.urgentActions.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
                 <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20 text-emerald-500" />
                 <p className="text-xs font-medium">All center verifications & reports up to date</p>
               </div>
             ) : (
-              metrics.urgentActions.map((action: any, idx: number) => (
+              currentData.urgentActions.map((action: any, idx: number) => (
                 <ActionItem 
                   key={idx}
                   icon={action.type === 'error' ? <AlertCircle className="w-4 h-4 text-error" /> : <Clock className="w-4 h-4 text-warning" />}
@@ -591,10 +632,10 @@ function OpsMetricCard({ title, value, icon, subtext, onClick, colorClass = "fro
 
 function PipelineStep({ label, value, percentage, color, subtext }: any) {
   // Determine badge styling based on the progress color
-  let badgeClasses = "bg-primary/10 text-primary";
-  if (color.includes('info')) badgeClasses = "bg-info/10 text-info";
-  if (color.includes('success') || color.includes('emerald')) badgeClasses = "bg-emerald-500/10 text-emerald-500";
-  if (color.includes('warning') || color.includes('orange')) badgeClasses = "bg-orange-500/10 text-orange-500";
+  let badgeClasses = "bg-primary/10 text-primary border border-primary/20";
+  if (color.includes('info')) badgeClasses = "bg-info/10 text-info border border-info/20";
+  if (color.includes('success') || color.includes('emerald')) badgeClasses = "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+  if (color.includes('warning') || color.includes('orange')) badgeClasses = "bg-orange-500/10 text-orange-500 border border-orange-500/20";
 
   return (
     <div className="space-y-3 group">
@@ -604,19 +645,21 @@ function PipelineStep({ label, value, percentage, color, subtext }: any) {
           <p className="text-[11px] text-muted-foreground mt-0.5">{subtext}</p>
         </div>
         <div className="text-right flex items-center gap-3">
-          <span className="text-lg font-black">{value.toLocaleString()}</span>
-          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", badgeClasses)}>
+          <span className="text-lg font-black font-display tracking-tight text-foreground">{value.toLocaleString()}</span>
+          <span className={cn("text-xs font-bold px-2.5 py-0.5 rounded-full", badgeClasses)}>
             {percentage}%
           </span>
         </div>
       </div>
       <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden shadow-inner">
         <div 
-          className={cn("h-full rounded-full transition-all duration-1000 relative overflow-hidden", color)} 
-          style={{ width: `${Math.max(percentage, 2)}%` }} 
+          className={cn("h-full rounded-full transition-all duration-700 relative overflow-hidden", color)} 
+          style={{ width: `${percentage > 0 ? Math.max(percentage, 2) : 0}%` }} 
         >
           {/* Subtle shimmer effect inside the progress bar */}
-          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+          {percentage > 0 && (
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+          )}
         </div>
       </div>
     </div>

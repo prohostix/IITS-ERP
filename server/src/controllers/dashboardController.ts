@@ -7,6 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const organizationId = req.user.organizationId;
   const role = req.user.role;
+  const sessionId = req.query.sessionId as string | undefined;
 
   const metrics: any = {};
 
@@ -23,26 +24,42 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
         NOT: { role: { in: ['student', 'center_admin', 'superadmin'] } } 
       }
     });
-    metrics.totalStudents = await prisma.student.count({ where: { organizationId: organizationId } });
+
+    const studentWhere: any = { organizationId: organizationId };
+    const enrollmentWhere: any = { organizationId: organizationId };
+    if (sessionId && sessionId !== 'all') {
+      studentWhere.sessionId = sessionId;
+      enrollmentWhere.sessionId = sessionId;
+    }
+
+    metrics.totalStudents = await prisma.student.count({ where: studentWhere });
     metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId } });
     metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } });
     metrics.totalDepartments = await prisma.department.count({ where: { organizationId: organizationId } });
     metrics.totalPrograms = await prisma.program.count({ where: { organizationId: organizationId } });
     metrics.totalOrganizations = await prisma.university.count({ where: { organizationId: organizationId } });
     
-    // Pipeline stats
+    // Pipeline stats with accurate enrollment statuses in the system
     metrics.totalLeads = await prisma.lead.count({ where: { organizationId: organizationId } });
     metrics.pendingApplications = await prisma.enrollment.count({ 
-      where: { organizationId: organizationId, status: { in: ['submitted', 'document_review'] } as any } 
+      where: { ...enrollmentWhere, status: { in: ['pending_doc_review', 'document_review', 'submitted'] } as any } 
     });
     metrics.verifiedApplications = await prisma.enrollment.count({ 
-      where: { organizationId: organizationId, status: 'finance_review' as any } 
+      where: { ...enrollmentWhere, status: { in: ['pending_finance_review', 'finance_review', 'approved', 'verified'] } as any } 
     });
     metrics.enrolledStudents = await prisma.enrollment.count({ 
-      where: { organizationId: organizationId, status: 'enrolled' as any } 
+      where: { ...enrollmentWhere, status: { in: ['enrolled', 'confirmed'] } as any } 
+    });
+    metrics.rejectedApplications = await prisma.enrollment.count({
+      where: { ...enrollmentWhere, status: 'rejected' as any }
     });
 
-    // Urgent actions
+    // Centers pending verification
+    metrics.pendingCenters = await prisma.studyCenter.count({
+      where: { organizationId: organizationId, status: { in: ['pending_verification', 'pending'] } as any }
+    });
+
+    // Urgent actions for Operations and Admins
     const urgentActions = [];
     if (metrics.pendingApplications > 0) {
       urgentActions.push({
@@ -51,6 +68,15 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
         desc: `${metrics.pendingApplications} student enrollment(s) are pending document verification.`,
         btnText: 'Review Now',
         tab: 'enrollment_review'
+      });
+    }
+    if (metrics.pendingCenters > 0) {
+      urgentActions.push({
+        type: 'error',
+        title: 'Study Center Verifications',
+        desc: `${metrics.pendingCenters} center affiliation request(s) awaiting verification.`,
+        btnText: 'Verify Centers',
+        tab: 'pending_verification'
       });
     }
     metrics.urgentActions = urgentActions;
