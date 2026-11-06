@@ -14,6 +14,7 @@ import { getBranchManagerNavItems } from '@/pages/ModernBranchManagerDashboard';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useLocation, Router } from 'wouter';
+import { TaskExplanationModal } from '@/components/TaskExplanationModal';
 
 type ViewMode = 'dashboard' | 'table';
 
@@ -856,8 +857,10 @@ function App() {
   );
 
   return (
-    <PrismaLayout
-      tables={tables}
+    <>
+      <TaskExplanationModal />
+      <PrismaLayout
+        tables={tables}
       activeTable={activeTable}
       onTableChange={handleTableChange}
       onLogout={logout}
@@ -892,6 +895,7 @@ function App() {
         />
       )}
     </PrismaLayout>
+    </>
   );
 }
 

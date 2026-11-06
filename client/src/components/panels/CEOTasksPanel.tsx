@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, RefreshCw, CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, Plus } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle2, Clock, AlertTriangle, ListTodo, Filter, Plus, ShieldAlert, ExternalLink, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,7 @@ interface Task {
   completedAt?: string;
   remarks?: string;
   escalationStatus?: string;
+  explanations?: any[];
   createdAt: string;
 }
 
@@ -94,6 +95,9 @@ export function CEOTasksPanel() {
   const [assignDialog, setAssignDialog] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedExplanationTask, setSelectedExplanationTask] = useState<Task | null>(null);
+  const [ceoResolutionText, setCeoResolutionText] = useState('');
+  const [resolvingEscalation, setResolvingEscalation] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -335,6 +339,16 @@ export function CEOTasksPanel() {
                               {task.escalationStatus.replace(/_/g, ' ')}
                             </Badge>
                           )}
+                          {task.explanations && task.explanations.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedExplanationTask(task); setCeoResolutionText(''); }}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 transition-colors"
+                            >
+                              <ShieldAlert className="w-3 h-3" />
+                              {task.explanations.length} Explanation{task.explanations.length > 1 ? 's' : ''} in Chain
+                            </button>
+                          )}
                         </div>
 
                         {/* Description */}
@@ -467,6 +481,113 @@ export function CEOTasksPanel() {
                 Cancel
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CEO Escalation Review Dialog */}
+      <Dialog open={!!selectedExplanationTask} onOpenChange={() => setSelectedExplanationTask(null)}>
+        <DialogContent className="max-w-xl max-h-[88vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-4 border-b border-border bg-card">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold">Executive Escalation Review</DialogTitle>
+                <p className="text-xs text-muted-foreground">Complete chain of explanations from employee to company CEO</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {selectedExplanationTask && (
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="p-3 rounded-xl border border-border bg-muted/20 text-xs space-y-1">
+                <p className="font-bold text-foreground text-sm">{selectedExplanationTask.title}</p>
+                <p className="text-muted-foreground">Assigned to: {(selectedExplanationTask as any).assignee?.name || 'Staff'}</p>
+                <p className="text-muted-foreground">Deadline: {new Date(selectedExplanationTask.deadline).toLocaleDateString('en-IN')}</p>
+              </div>
+
+              <div className="space-y-3">
+                {selectedExplanationTask.explanations?.map((exp: any, idx: number) => (
+                  <div key={idx} className="p-3.5 rounded-xl border border-border bg-card space-y-2 text-xs shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] font-bold">Level {exp.level || idx + 1}</Badge>
+                        <span className="font-bold text-foreground">{exp.userName}</span>
+                        <span className="text-muted-foreground text-[11px]">({exp.designation || exp.role})</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {new Date(exp.submittedAt).toLocaleDateString('en-IN')}
+                      </span>
+                    </div>
+
+                    <p className="italic text-foreground border-l-2 border-primary/50 pl-2.5">
+                      "{exp.explanation}"
+                    </p>
+
+                    {exp.evidence && exp.evidence.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-[10px] text-muted-foreground font-medium">Evidence:</span>
+                        {exp.evidence.map((ev: string, i: number) => (
+                          <a
+                            key={i}
+                            href={`${(import.meta.env.VITE_API_URL || '').replace('/api/v1', '')}${ev}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-semibold"
+                          >
+                            <ExternalLink className="w-3 h-3" /> Proof {i + 1}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs font-bold text-foreground">CEO Final Executive Remarks / Resolution</Label>
+                <Textarea
+                  rows={3}
+                  value={ceoResolutionText}
+                  onChange={e => setCeoResolutionText(e.target.value)}
+                  placeholder="Enter executive remarks, warnings, or resolution notes to close this escalation..."
+                  className="text-xs resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 border-t border-border bg-card flex justify-between items-center">
+            <Button variant="outline" size="sm" onClick={() => setSelectedExplanationTask(null)}>
+              Close
+            </Button>
+            <Button
+              size="sm"
+              disabled={resolvingEscalation}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5"
+              onClick={async () => {
+                if (!selectedExplanationTask?.id) return;
+                setResolvingEscalation(true);
+                try {
+                  await api.post(`/tasks/${selectedExplanationTask.id}/resolve-escalation`, {
+                    resolution: ceoResolutionText || 'Reviewed and acknowledged by CEO',
+                    action: 'acknowledged'
+                  });
+                  toast.success('Escalation resolved by CEO');
+                  setSelectedExplanationTask(null);
+                  fetchTasks();
+                } catch (e: any) {
+                  toast.error(e.response?.data?.message || 'Failed to resolve escalation');
+                } finally {
+                  setResolvingEscalation(false);
+                }
+              }}
+            >
+              <Check className="w-4 h-4" />
+              {resolvingEscalation ? 'Resolving...' : 'Acknowledge & Close Escalation'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
