@@ -92,6 +92,22 @@ export const getWalletTransactions = asyncHandler(async (req: AuthRequest, res: 
     orderBy: { paidAt: 'desc' }
   });
 
+  // Get paid commission payouts credited to center
+  const commissions = await prisma.commissionOut.findMany({
+    where: {
+      studyCenterId: centerId,
+      status: 'paid'
+    },
+    include: {
+      commissionIn: {
+        include: {
+          enrollment: { select: { studentName: true, enrollmentNumber: true } }
+        }
+      }
+    },
+    orderBy: { paidAt: 'desc' }
+  });
+
   // Map into a unified ledger structure
   const ledger = [
     ...topUps.map(t => ({
@@ -103,6 +119,20 @@ export const getWalletTransactions = asyncHandler(async (req: AuthRequest, res: 
       reference: t.referenceNumber || 'N/A',
       description: 'Wallet Top-Up Approved'
     })),
+    ...commissions.map(co => {
+      const gross = Number(co.amount || 0);
+      const tds = Number(co.tdsAmount || 0);
+      const net = co.netAmount !== null && co.netAmount !== undefined ? Number(co.netAmount) : Math.max(0, gross - tds);
+      return {
+        id: `comm-${co.id}`,
+        date: co.paidAt || co.createdAt,
+        type: 'credit',
+        amount: net,
+        method: 'commission_credit',
+        reference: co.paymentDetails || `COMM-${co.id.slice(0, 8)}`,
+        description: `Commission Payout (Net after TDS): ${co.commissionIn?.enrollment?.studentName || 'Student'} (Gross: ₹${gross.toLocaleString('en-IN')}, TDS: -₹${tds.toLocaleString('en-IN')})`
+      };
+    }),
     ...debits.map(d => ({
       id: d.id,
       date: d.debitedAt || d.createdAt,

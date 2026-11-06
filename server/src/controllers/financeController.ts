@@ -1575,7 +1575,9 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
       commissionInStatus: commInList.length > 0 ? (commInList.every((c: any) => c.status === 'received') ? 'received' : 'pending') : 'pending',
       commissionInDate: commInList.length > 0 ? (commInList.filter((c: any) => c.receivedAt).sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())[0]?.receivedAt || null) : null,
       // Commission Given to Centers details
-      commissionOutAmount: commOutList.length > 0 ? commOutList.reduce((sum: number, c: any) => sum + (c.amount || 0), 0) : null,
+      commissionOutAmount: commOutList.length > 0 ? commOutList.reduce((sum: number, c: any) => sum + (c.netAmount ?? (c.amount - (c.tdsAmount || 0))), 0) : null,
+      commissionOutGross: commOutList.length > 0 ? commOutList.reduce((sum: number, c: any) => sum + (c.amount || 0), 0) : null,
+      commissionOutTds: commOutList.length > 0 ? commOutList.reduce((sum: number, c: any) => sum + (c.tdsAmount || 0), 0) : null,
       commissionOutStatus: commOutList.length > 0 ? (commOutList.every((c: any) => c.status === 'paid') ? 'paid' : 'pending') : 'pending',
       commissionOutDate: commOutList.length > 0 ? (commOutList.filter((c: any) => c.paidAt).sort((a: any, b: any) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())[0]?.paidAt || null) : null,
     };

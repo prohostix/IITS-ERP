@@ -146,12 +146,12 @@ export const getCommissionOutList = asyncHandler(async (req: AuthRequest, res: R
   const list = await prisma.commissionOut.findMany({
     where,
     include: {
-      studyCenter: { select: { name: true } },
+      studyCenter: { select: { id: true, name: true, code: true } },
       commissionIn: {
         include: {
           enrollment: {
             include: {
-              program: { select: { name: true } }
+              program: { select: { id: true, name: true, university: { select: { id: true, name: true } } } }
             }
           }
         }
@@ -160,12 +160,26 @@ export const getCommissionOutList = asyncHandler(async (req: AuthRequest, res: R
     orderBy: { createdAt: 'desc' }
   });
 
-  res.json({ success: true, count: list.length, data: list });
+  const enrichedList = list.map(item => {
+    const gross = Number(item.amount || 0);
+    const tds = Number(item.tdsAmount || 0);
+    const net = item.netAmount !== null && item.netAmount !== undefined ? Number(item.netAmount) : Math.max(0, gross - tds);
+    const tdsPct = gross > 0 && tds > 0 ? Number(((tds / gross) * 100).toFixed(1)) : 0;
+    return {
+      ...item,
+      grossAmount: gross,
+      tdsAmount: tds,
+      netAmount: net,
+      tdsPercentage: tdsPct
+    };
+  });
+
+  res.json({ success: true, count: enrichedList.length, data: enrichedList });
 });
 
 export const payCommissionOut = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { amount, tdsPercentage, paymentDetails } = req.body;
+  const { amount, tdsPercentage, tdsAmount: customTds, netAmount: customNet, paymentDetails } = req.body;
 
   const item = await prisma.commissionOut.findUnique({
     where: { id }
@@ -177,9 +191,17 @@ export const payCommissionOut = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   const grossAmount = parseFloat(amount || item.amount.toString());
-  const tdsPercentValue = tdsPercentage ? parseFloat(tdsPercentage) : 0;
-  const tdsAmount = Math.round((grossAmount * tdsPercentValue) / 100);
-  const netAmount = grossAmount - tdsAmount;
+  const tdsPercentValue = tdsPercentage !== undefined && tdsPercentage !== null && tdsPercentage !== ''
+    ? parseFloat(tdsPercentage)
+    : 0;
+
+  const tdsAmount = customTds !== undefined && customTds !== null && customTds !== ''
+    ? parseFloat(customTds)
+    : Math.round((grossAmount * tdsPercentValue) / 100);
+
+  const netAmount = customNet !== undefined && customNet !== null && customNet !== ''
+    ? parseFloat(customNet)
+    : Math.max(0, grossAmount - tdsAmount);
 
   const updated = await prisma.commissionOut.update({
     where: { id },
@@ -193,5 +215,14 @@ export const payCommissionOut = asyncHandler(async (req: AuthRequest, res: Respo
     }
   });
 
-  res.json({ success: true, data: updated });
+  res.json({
+    success: true,
+    data: {
+      ...updated,
+      grossAmount,
+      tdsAmount,
+      netAmount,
+      tdsPercentage: tdsPercentValue || (grossAmount > 0 && tdsAmount > 0 ? Number(((tdsAmount / grossAmount) * 100).toFixed(1)) : 0)
+    }
+  });
 });

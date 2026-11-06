@@ -46,7 +46,8 @@ export function CommissionsPanel() {
   const [payItem, setPayItem] = useState<any | null>(null);
   const [payForm, setPayForm] = useState({
     amount: '',
-    tdsPercentage: '0',
+    tdsPercentage: '5',
+    tdsAmount: '',
     paymentDetails: ''
   });
 
@@ -135,21 +136,36 @@ export function CommissionsPanel() {
 
   const openPay = (item: any) => {
     setPayItem(item);
+    const gross = Number(item.amount || 0);
+    const defaultPct = 5; // standard 5% TDS under Section 194H
+    const defaultTds = Math.round((gross * defaultPct) / 100);
     setPayForm({
-      amount: String(item.amount),
-      tdsPercentage: '0',
+      amount: String(gross),
+      tdsPercentage: String(defaultPct),
+      tdsAmount: String(defaultTds),
       paymentDetails: ''
     });
   };
 
   const handlePay = async () => {
-    if (!payForm.amount || isNaN(Number(payForm.amount))) {
+    const gross = Number(payForm.amount);
+    if (!payForm.amount || isNaN(gross) || gross <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
+    const tdsPct = Number(payForm.tdsPercentage || 0);
+    const tdsAmt = payForm.tdsAmount !== '' ? Number(payForm.tdsAmount) : Math.round((gross * tdsPct) / 100);
+    const net = Math.max(0, gross - tdsAmt);
+
     try {
-      await api.post(`/commissions/out/${payItem.id}/pay`, payForm);
-      toast.success('Commission payout marked as paid');
+      await api.post(`/commissions/out/${payItem.id}/pay`, {
+        amount: gross,
+        tdsPercentage: tdsPct,
+        tdsAmount: tdsAmt,
+        netAmount: net,
+        paymentDetails: payForm.paymentDetails
+      });
+      toast.success('Commission payout marked as paid with TDS deducted');
       setPayItem(null);
       fetchData();
     } catch (e: any) {
@@ -161,8 +177,10 @@ export function CommissionsPanel() {
   const totalInReceived = commIn.reduce((s, x) => s + x.receivedAmount, 0);
   const totalInTds = commIn.reduce((s, x) => s + (x.tdsAmount || 0), 0);
   const totalInNet = commIn.reduce((s, x) => s + (x.netAmount ?? (x.receivedAmount - (x.tdsAmount || 0))), 0);
-  const totalOutExpected = commOut.reduce((s, x) => s + x.amount, 0);
-  const totalOutPaid = commOut.filter(x => x.status === 'paid').reduce((s, x) => s + x.amount, 0);
+  const totalOutExpected = commOut.reduce((s, x) => s + Number(x.amount || 0), 0);
+  const totalOutGrossPaid = commOut.filter(x => x.status === 'paid').reduce((s, x) => s + Number(x.grossAmount ?? x.amount ?? 0), 0);
+  const totalOutTdsPaid = commOut.filter(x => x.status === 'paid').reduce((s, x) => s + Number(x.tdsAmount || 0), 0);
+  const totalOutNetPaid = commOut.filter(x => x.status === 'paid').reduce((s, x) => s + Number(x.netAmount ?? (x.amount - (x.tdsAmount || 0))), 0);
 
   return (
     <div className="space-y-6">
@@ -236,7 +254,12 @@ export function CommissionsPanel() {
             <Receipt className="w-4 h-4 text-rose-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-rose-700">₹{totalOutPaid.toLocaleString('en-IN')}</div>
+            <div className="text-xl font-bold text-rose-700">₹{totalOutNetPaid.toLocaleString('en-IN')}</div>
+            {totalOutTdsPaid > 0 && (
+              <p className="text-[11px] text-amber-700 font-medium mt-1">
+                Gross: ₹{totalOutGrossPaid.toLocaleString('en-IN')} | TDS: -₹{totalOutTdsPaid.toLocaleString('en-IN')}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -350,46 +373,78 @@ export function CommissionsPanel() {
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Study Center</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Student Reference</th>
                         <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Program</th>
-                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Payout Amount</th>
-                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Status</th>
-                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Paid Date</th>
-                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Actions</th>
+                        <th className="px-4 py-3 text-right font-semibold text-xs text-muted-foreground">Gross Amount</th>
+                        <th className="px-4 py-3 text-right font-semibold text-xs text-muted-foreground">TDS Deducted</th>
+                        <th className="px-4 py-3 text-right font-semibold text-xs text-muted-foreground">Net Payout</th>
+                        <th className="px-4 py-3 text-center font-semibold text-xs text-muted-foreground">Status</th>
+                        <th className="px-4 py-3 text-left font-semibold text-xs text-muted-foreground">Paid Date & UTR</th>
+                        <th className="px-4 py-3 text-center font-semibold text-xs text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {commOut.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-3 font-medium whitespace-nowrap">{item.studyCenter?.name || '-'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                            {item.commissionIn?.enrollment?.studentName || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {item.commissionIn?.enrollment?.program?.name || '-'}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="font-semibold text-slate-800">Gross: ₹{item.amount.toLocaleString('en-IN')}</div>
-                            {item.status === 'paid' && (
-                              <div className="text-xs text-slate-500 mt-1">
-                                TDS: ₹{item.tdsAmount || 0} ({item.netAmount ? ((item.tdsAmount/item.amount)*100).toFixed(0) : 0}%)<br/>
-                                Net: <span className="font-medium text-slate-700">₹{item.netAmount?.toLocaleString('en-IN') || item.amount.toLocaleString('en-IN')}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <Badge variant="secondary" className={item.status === 'paid' ? 'bg-green-100 text-green-800 capitalize' : 'bg-amber-100 text-amber-800 capitalize'}>
-                              {item.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{fmtDate(item.paidAt)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {item.status === 'pending' && (
-                              <Button size="sm" variant="destructive" onClick={() => openPay(item)} className="flex items-center gap-1">
-                                Pay Center
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {commOut.map((item) => {
+                        const gross = Number(item.grossAmount ?? item.amount ?? 0);
+                        const tds = Number(item.tdsAmount ?? 0);
+                        const net = Number(item.netAmount ?? (gross - tds));
+                        const tdsPct = item.tdsPercentage || (gross > 0 && tds > 0 ? Number(((tds / gross) * 100).toFixed(0)) : 0);
+
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/50">
+                            <td className="px-4 py-3 font-medium whitespace-nowrap">
+                              <span className="font-semibold text-slate-800">{item.studyCenter?.name || '-'}</span>
+                              {item.studyCenter?.code && (
+                                <span className="ml-1.5 text-[10px] text-muted-foreground">({item.studyCenter.code})</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                              {item.commissionIn?.enrollment?.studentName || '-'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                              {item.commissionIn?.enrollment?.program?.name || '-'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right font-medium">
+                              ₹{gross.toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-xs">
+                              {item.status === 'paid' ? (
+                                tds > 0 ? (
+                                  <span className="text-amber-700 font-medium">
+                                    -₹{tds.toLocaleString('en-IN')}{' '}
+                                    <span className="text-[10px] text-muted-foreground">({tdsPct}%)</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">₹0 (0%)</span>
+                                )
+                              ) : (
+                                <span className="text-muted-foreground italic text-[11px]">Deducted at payout</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right font-bold text-emerald-700">
+                              ₹{net.toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <Badge variant="secondary" className={item.status === 'paid' ? 'bg-green-100 text-green-800 capitalize' : 'bg-amber-100 text-amber-800 capitalize'}>
+                                {item.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
+                              <div>{fmtDate(item.paidAt)}</div>
+                              {item.paymentDetails && (
+                                <div className="text-[11px] font-mono text-slate-500 truncate max-w-[140px]" title={item.paymentDetails}>
+                                  {item.paymentDetails}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              {item.status === 'pending' && (
+                                <Button size="sm" variant="destructive" onClick={() => openPay(item)} className="h-8 text-xs flex items-center gap-1">
+                                  Pay Center
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
 </div>
@@ -537,6 +592,11 @@ export function CommissionsPanel() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Mark Center Payout Paid</DialogTitle>
+            {payItem && (
+              <DialogDescription className="text-xs">
+                {payItem.studyCenter?.name} • Student: {payItem.commissionIn?.enrollment?.studentName || '-'}
+              </DialogDescription>
+            )}
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
@@ -544,41 +604,97 @@ export function CommissionsPanel() {
               <Input
                 type="number"
                 value={payForm.amount}
-                onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}
+                onChange={e => {
+                  const grossVal = e.target.value;
+                  const gross = Number(grossVal) || 0;
+                  const pct = Number(payForm.tdsPercentage || 0);
+                  const newTds = Math.round((gross * pct) / 100);
+                  setPayForm(f => ({ ...f, amount: grossVal, tdsAmount: String(newTds) }));
+                }}
                 placeholder="e.g. 5000"
               />
             </div>
+
             <div className="space-y-1">
-              <Label>TDS Percentage (%)</Label>
-              <Input
-                type="number"
-                value={payForm.tdsPercentage}
-                onChange={e => setPayForm(f => ({ ...f, tdsPercentage: e.target.value }))}
-                placeholder="e.g. 10"
-              />
+              <div className="flex items-center justify-between">
+                <Label>TDS Rate (%) u/s 194H</Label>
+                <div className="flex gap-1">
+                  {[0, 2, 5, 10].map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => {
+                        const gross = Number(payForm.amount) || 0;
+                        const newTds = Math.round((gross * p) / 100);
+                        setPayForm(f => ({ ...f, tdsPercentage: String(p), tdsAmount: String(newTds) }));
+                      }}
+                      className={cn(
+                        "px-2 py-0.5 text-xs rounded border transition-colors",
+                        payForm.tdsPercentage === String(p)
+                          ? "bg-rose-50 border-rose-500 text-rose-700 font-semibold"
+                          : "bg-white text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Input
+                    type="number"
+                    value={payForm.tdsPercentage}
+                    onChange={e => {
+                      const pct = e.target.value;
+                      const gross = Number(payForm.amount) || 0;
+                      const newTds = Math.round((gross * (Number(pct) || 0)) / 100);
+                      setPayForm(f => ({ ...f, tdsPercentage: pct, tdsAmount: String(newTds) }));
+                    }}
+                    placeholder="TDS % (e.g. 5)"
+                  />
+                  <span className="text-[10px] text-muted-foreground">TDS Rate %</span>
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    value={payForm.tdsAmount}
+                    onChange={e => {
+                      const tdsVal = e.target.value;
+                      const gross = Number(payForm.amount) || 0;
+                      const calcPct = gross > 0 ? ((Number(tdsVal) / gross) * 100).toFixed(1) : '0';
+                      setPayForm(f => ({ ...f, tdsAmount: tdsVal, tdsPercentage: calcPct }));
+                    }}
+                    placeholder="TDS Amount (₹)"
+                  />
+                  <span className="text-[10px] text-muted-foreground">TDS Amount (₹)</span>
+                </div>
+              </div>
             </div>
+
             {payForm.amount && !isNaN(Number(payForm.amount)) && (
-              <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-700 space-y-1 border border-slate-100">
+              <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-700 space-y-1.5 border border-slate-200">
                 <div className="flex justify-between">
-                  <span>Gross Amount:</span>
-                  <span className="font-medium">₹{Number(payForm.amount).toFixed(2)}</span>
+                  <span className="text-slate-600">Gross Commission:</span>
+                  <span className="font-semibold text-slate-900">₹{Number(payForm.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between text-rose-600">
-                  <span>TDS Deduction:</span>
-                  <span>-₹{((Number(payForm.amount) * Number(payForm.tdsPercentage || 0)) / 100).toFixed(2)}</span>
+                <div className="flex justify-between text-amber-700">
+                  <span>TDS Deduction ({payForm.tdsPercentage}%):</span>
+                  <span className="font-medium">-₹{(Number(payForm.tdsAmount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between font-bold border-t border-slate-200 pt-1 mt-1">
+                <div className="flex justify-between font-bold border-t border-slate-200 pt-1 mt-1 text-emerald-700">
                   <span>Net Amount Payable:</span>
-                  <span>₹{(Number(payForm.amount) - ((Number(payForm.amount) * Number(payForm.tdsPercentage || 0)) / 100)).toFixed(2)}</span>
+                  <span>₹{(Math.max(0, Number(payForm.amount) - (Number(payForm.tdsAmount) || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             )}
+
             <div className="space-y-1">
-              <Label>Payment details / Remarks</Label>
+              <Label>Payment details / UTR Reference</Label>
               <Input
                 value={payForm.paymentDetails}
                 onChange={e => setPayForm(f => ({ ...f, paymentDetails: e.target.value }))}
-                placeholder="Transaction ID, IMPS/NEFT reference..."
+                placeholder="Transaction ID, IMPS/NEFT reference, Bank Ref..."
               />
             </div>
           </div>
