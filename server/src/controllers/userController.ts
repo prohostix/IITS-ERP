@@ -105,14 +105,30 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     return;
   }
 
+  // Sanitize allowed fields for User update to prevent Prisma unknown argument errors
+  const allowedFields = [
+    'userId', 'organizationId', 'departmentId', 'additionalDepartmentIds',
+    'branchId', 'subDepartmentId', 'ceoPanelId', 'studyCenterId', 'universityId',
+    'email', 'password', 'name', 'role', 'avatar', 'phone', 'designation',
+    'reportingTo', 'status', 'remarks', 'lastLogin', 'designationId',
+    'canAddPrograms', 'permissions'
+  ];
+
+  const updateData: Record<string, any> = {};
+  for (const key of allowedFields) {
+    if (req.body[key] !== undefined) {
+      updateData[key] = req.body[key];
+    }
+  }
+
   // If password is being updated, hash it
-  if (req.body.password) {
-    req.body.password = await hashPassword(req.body.password);
+  if (updateData.password) {
+    updateData.password = await hashPassword(updateData.password);
   }
 
   const user = await prisma.user.update({
     where: { id: req.params.id },
-    data: req.body
+    data: updateData
   });
 
   // Log audit if status was changed

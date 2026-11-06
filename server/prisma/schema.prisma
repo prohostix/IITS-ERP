@@ -161,6 +161,7 @@ model User {
   designation                   String?
   reportingTo                   String?
   status                        String?                @default("active")
+  remarks                       String?
   lastLogin                     DateTime?
   designationId                 String?
   canAddPrograms                Boolean                @default(false)
