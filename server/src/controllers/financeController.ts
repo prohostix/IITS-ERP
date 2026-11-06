@@ -2554,7 +2554,7 @@ export const getFinanceOverviewStats = asyncHandler(async (req: AuthRequest, res
   const pendingBatchesCount = await prisma.payrollBatch.count({
     where: {
       organizationId: orgId,
-      status: { in: ['pending_finance_approval', 'pending_finance'] }
+      status: 'pending_finance_approval' as any
     }
   });
   const pendingWalletTopUpsCount = await prisma.walletTopUp.count({
