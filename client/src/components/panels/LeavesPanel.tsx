@@ -193,9 +193,13 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Leave Requests</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            {isPersonalView ? 'My Leaves & Applications' : isDeptManager || isHR ? 'Leave Requests Management' : 'My Leave Requests'}
+          </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            {isDeptManager
+            {isPersonalView 
+              ? 'Apply for leaves, attach medical supporting documents, and track approval progress.' 
+              : isDeptManager
               ? 'Review and approve leave requests from your department.'
               : isHR
               ? 'Final approval for department-approved leave requests.'

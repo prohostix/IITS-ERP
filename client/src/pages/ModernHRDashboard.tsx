@@ -9,6 +9,11 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  CalendarDays,
+  Calendar,
+  DollarSign,
+  GitBranch,
+  UserCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -122,6 +127,7 @@ export function getHRNavItems() {
     { id: 'org-chart', label: 'Org Chart' },
     { id: '__attendance_section', label: 'Attendance & Leave', isSection: true },
     { id: 'attendance', label: 'Attendance' },
+    { id: 'attendance-calendar', label: 'Monthly Attendance Calendar' },
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'leave-approvals', label: 'Leave Approvals' },
     { id: 'leave-alloc', label: 'Leave Allocation' },
@@ -211,6 +217,33 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           color="success"
           onClick={() => onNavigate('attendance')}
         />
+      </div>
+
+      {/* Quick Feature Navigation Hub */}
+      <div className="bg-card/70 backdrop-blur-xl border border-border/50 rounded-xl p-4 shadow-sm">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick HR Management & Shortcuts</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          {[
+            { id: 'employees', label: 'Employees', icon: UserCheck, desc: 'Profiles & Docs' },
+            { id: 'users', label: 'HR Users', icon: Users, desc: 'Roles & Codes' },
+            { id: 'attendance', label: 'Attendance', icon: Clock, desc: 'Punches & Export' },
+            { id: 'attendance-calendar', label: 'Calendar', icon: CalendarDays, desc: 'SalaryBox View' },
+            { id: 'salary-config', label: 'Salary Config', icon: DollarSign, desc: 'Statutory & Late' },
+            { id: 'leaves', label: 'Leaves', icon: Calendar, desc: 'Requests & Docs' },
+            { id: 'vacancies', label: 'Vacancies', icon: Briefcase, desc: 'Hiring & Openings' },
+            { id: 'org-chart', label: 'Org Chart', icon: GitBranch, desc: 'Hierarchy' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className="flex flex-col items-center justify-center p-3 rounded-lg border border-border/40 bg-background/50 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-all text-center group"
+            >
+              <item.icon className="w-5 h-5 mb-1.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-xs font-semibold">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground group-hover:text-primary/80">{item.desc}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -420,17 +453,18 @@ const STAGE_PROGRESS: Record<string, number> = {
 function VacancyItem({ vacancy, onClick }: { vacancy: any; onClick?: () => void }) {
   const stage = vacancy.stage || vacancy.status || 'open';
   const progress = STAGE_PROGRESS[stage.toLowerCase()] ?? 10;
-  const deptName = typeof vacancy.departmentId === 'object' ? vacancy.departmentId?.name : 'General';
+  const deptName = vacancy.department?.name || (typeof vacancy.departmentId === 'object' ? vacancy.departmentId?.name : 'General');
   const filled = vacancy.filled ?? 0;
-  const total = vacancy.count ?? 1;
+  const total = vacancy.count ?? vacancy.positions ?? 1;
+  const title = vacancy.designation || vacancy.title || 'Open Position';
 
   return (
     <div className="space-y-2 cursor-pointer group" onClick={onClick}>
       <div className="flex items-center justify-between">
         <div className="min-w-0">
-          <h5 className="text-sm font-bold truncate group-hover:text-primary transition-colors">{vacancy.title}</h5>
+          <h5 className="text-sm font-bold truncate group-hover:text-primary transition-colors">{title}</h5>
           <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
-            {deptName} • {total - filled} position{total - filled !== 1 ? 's' : ''} open
+            {deptName} • {Math.max(0, total - filled)} position{total - filled !== 1 ? 's' : ''} open
           </p>
         </div>
         <Badge variant="outline" className="text-[10px] bg-muted py-0.5 font-bold uppercase capitalize shrink-0 ml-2">

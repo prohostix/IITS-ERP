@@ -60,6 +60,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   manager_hiring: 'manager_hiring',
   my_subdept: 'my_subdept',
   attendance: 'attendance',
+  'attendance-calendar': 'attendance-calendar',
+  attendance_calendar: 'attendance-calendar',
   holidays: 'holidays',
   complaints: 'complaints',
   // Finance

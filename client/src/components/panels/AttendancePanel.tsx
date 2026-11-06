@@ -464,6 +464,16 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
             <Download className="w-4 h-4" /> Export Report
           </Button>
 
+          {canViewAll && (
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/attendance-calendar'} 
+              className="gap-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+            >
+              <CalendarDays className="w-4 h-4 text-primary" /> Monthly Calendar View
+            </Button>
+          )}
+
           {isHR && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>

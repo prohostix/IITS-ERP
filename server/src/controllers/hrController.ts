@@ -383,7 +383,15 @@ export const getMyLeaves = asyncHandler(async (req: AuthRequest, res: Response) 
 
 // --- Vacancies ---
 export const getVacancies = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const vacancies = await prisma.vacancy.findMany({ where: { organizationId: req.user.organizationId } });
+  const where: any = { organizationId: req.user.organizationId };
+  if (req.query.status) {
+    where.status = req.query.status as string;
+  }
+  const vacancies = await prisma.vacancy.findMany({ 
+    where,
+    include: { department: true },
+    orderBy: { createdAt: 'desc' }
+  });
   res.json({ success: true, data: vacancies });
 });
 export const getVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {
