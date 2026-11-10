@@ -116,7 +116,7 @@ export function StudentsPanel() {
     }
   };
 
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('students_panel', {
+  const [filters, , clearFilters, isFiltered, setField] = usePersistentFilters('students_panel', {
     status: '',
     sessions: [] as string[],
     universities: [] as string[],
