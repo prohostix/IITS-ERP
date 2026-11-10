@@ -70,6 +70,9 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
   };
 
   const pendingStudents = studentList.filter(s => s.status === 'pending');
+  const activeStudents = studentList.filter(s => s.status === 'active');
+  const holdStudents = studentList.filter(s => s.status === 'hold');
+  const dropoutStudents = studentList.filter(s => s.status === 'dropout');
   const pendingCenters = centerList.filter(c => c.status === 'pending');
 
   const universityColumns = [
@@ -163,7 +166,8 @@ export function OperationsPanel({ activeModule }: OperationsPanelProps) {
           title="Total Students"
           value={studentList.length}
           icon={Users}
-          badge={{ label: `${pendingStudents.length} pending`, variant: 'secondary' }}
+          badge={{ label: `${activeStudents.length} active`, variant: 'success' }}
+          description={`${activeStudents.length} Active • ${pendingStudents.length} Pending • ${holdStudents.length} Hold • ${dropoutStudents.length} Dropout`}
         />
         <MetricCard
           title="Active Sessions"

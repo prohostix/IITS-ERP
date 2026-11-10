@@ -14,6 +14,33 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
   if (role === 'superadmin') {
     metrics.totalOrganizations = await prisma.organization.count();
     metrics.activeOrganizations = await prisma.organization.count({ where: { status: 'active' as any } });
+
+    const superStudentWhere: any = {};
+    if (sessionId && sessionId !== 'all') {
+      superStudentWhere.OR = [
+        { sessionId: sessionId },
+        { enrollments: { some: { sessionId: sessionId } } }
+      ];
+    }
+    const [sTotal, sActive, sPending, sHold, sDropout] = await Promise.all([
+      prisma.student.count({ where: superStudentWhere }),
+      prisma.student.count({ where: { ...superStudentWhere, status: 'active' } }),
+      prisma.student.count({ where: { ...superStudentWhere, status: 'pending' } }),
+      prisma.student.count({ where: { ...superStudentWhere, status: 'hold' } }),
+      prisma.student.count({ where: { ...superStudentWhere, status: 'dropout' } })
+    ]);
+    metrics.totalStudents = sTotal;
+    metrics.studentsActive = sActive;
+    metrics.studentsPending = sPending;
+    metrics.studentsHold = sHold;
+    metrics.studentsDropout = sDropout;
+    metrics.studentCounts = {
+      total: sTotal,
+      active: sActive,
+      pending: sPending,
+      hold: sHold,
+      dropout: sDropout
+    };
   }
 
   if (role !== 'superadmin') {
@@ -28,11 +55,39 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     const studentWhere: any = { organizationId: organizationId };
     const enrollmentWhere: any = { organizationId: organizationId };
     if (sessionId && sessionId !== 'all') {
-      studentWhere.sessionId = sessionId;
+      studentWhere.OR = [
+        { sessionId: sessionId },
+        { enrollments: { some: { sessionId: sessionId } } }
+      ];
       enrollmentWhere.sessionId = sessionId;
     }
 
-    metrics.totalStudents = await prisma.student.count({ where: studentWhere });
+    const [
+      totalStudents,
+      studentsActive,
+      studentsPending,
+      studentsHold,
+      studentsDropout
+    ] = await Promise.all([
+      prisma.student.count({ where: studentWhere }),
+      prisma.student.count({ where: { ...studentWhere, status: 'active' } }),
+      prisma.student.count({ where: { ...studentWhere, status: 'pending' } }),
+      prisma.student.count({ where: { ...studentWhere, status: 'hold' } }),
+      prisma.student.count({ where: { ...studentWhere, status: 'dropout' } })
+    ]);
+
+    metrics.totalStudents = totalStudents;
+    metrics.studentsActive = studentsActive;
+    metrics.studentsPending = studentsPending;
+    metrics.studentsHold = studentsHold;
+    metrics.studentsDropout = studentsDropout;
+    metrics.studentCounts = {
+      total: totalStudents,
+      active: studentsActive,
+      pending: studentsPending,
+      hold: studentsHold,
+      dropout: studentsDropout
+    };
     metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId } });
     metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } });
     metrics.totalDepartments = await prisma.department.count({ where: { organizationId: organizationId } });
