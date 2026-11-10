@@ -97,6 +97,18 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     where.AND = andConditions;
   }
 
+  // Calculate status counts for the current filtered scope (ignoring status filter so tabs maintain accurate counts)
+  const countWhere = { ...where };
+  delete countWhere.status;
+
+  const [totalCount, activeCount, pendingCount, holdCount, dropoutCount] = await Promise.all([
+    prisma.student.count({ where: countWhere }),
+    prisma.student.count({ where: { ...countWhere, status: 'active' } }),
+    prisma.student.count({ where: { ...countWhere, status: 'pending' } }),
+    prisma.student.count({ where: { ...countWhere, status: 'hold' } }),
+    prisma.student.count({ where: { ...countWhere, status: 'dropout' } })
+  ]);
+
   const students = await prisma.student.findMany({
     where,
     include: { 
@@ -125,7 +137,18 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     programId: s.program
   }));
 
-  res.status(200).json({ success: true, count: mappedStudents.length, data: mappedStudents });
+  res.status(200).json({ 
+    success: true, 
+    count: mappedStudents.length, 
+    counts: {
+      total: totalCount,
+      active: activeCount,
+      pending: pendingCount,
+      hold: holdCount,
+      dropout: dropoutCount
+    },
+    data: mappedStudents 
+  });
 });
 
 export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) => {

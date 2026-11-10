@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -75,6 +75,13 @@ export function StudentsPanel() {
     status: 'pending'
   });
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [statusCounts, setStatusCounts] = useState({
+    total: 0,
+    active: 0,
+    pending: 0,
+    hold: 0,
+    dropout: 0,
+  });
 
   // Installments state
   const [installments, setInstallments] = useState<any[]>([]);
@@ -130,7 +137,19 @@ export function StudentsPanel() {
       if (filters.search) query.append('search', filters.search);
       
       const response = await api.get(`/students?${query.toString()}`);
-      setStudents(response.data.data || []);
+      const list = response.data.data || [];
+      setStudents(list);
+      if (response.data.counts) {
+        setStatusCounts(response.data.counts);
+      } else {
+        setStatusCounts({
+          total: list.length,
+          active: list.filter((s: any) => s.status === 'active').length,
+          pending: list.filter((s: any) => s.status === 'pending').length,
+          hold: list.filter((s: any) => s.status === 'hold').length,
+          dropout: list.filter((s: any) => s.status === 'dropout').length,
+        });
+      }
     } catch (error) {
     } finally {
       setLoading(false);
@@ -304,16 +323,32 @@ export function StudentsPanel() {
           {/* Status summary pill */}
           <div className="hidden md:flex items-center gap-2 bg-muted/40 px-3 py-1.5 rounded-xl border text-xs">
             <span className="font-semibold text-slate-700 dark:text-slate-200">
-              Total: <strong className="font-bold text-primary">{students.length}</strong>
+              Total: <strong className="font-bold text-primary">{statusCounts.total || students.length}</strong>
             </span>
             <span className="h-3 w-px bg-border" />
             <span className="text-emerald-700 dark:text-emerald-300 font-medium">
-              Active: <strong>{students.filter(s => s.status === 'active').length}</strong>
+              Active: <strong>{statusCounts.active}</strong>
             </span>
             <span className="h-3 w-px bg-border" />
             <span className="text-amber-700 dark:text-amber-300 font-medium">
-              Pending: <strong>{students.filter(s => s.status === 'pending').length}</strong>
+              Pending: <strong>{statusCounts.pending}</strong>
             </span>
+            {statusCounts.hold > 0 && (
+              <>
+                <span className="h-3 w-px bg-border" />
+                <span className="text-indigo-700 dark:text-indigo-300 font-medium">
+                  Hold: <strong>{statusCounts.hold}</strong>
+                </span>
+              </>
+            )}
+            {statusCounts.dropout > 0 && (
+              <>
+                <span className="h-3 w-px bg-border" />
+                <span className="text-rose-700 dark:text-rose-300 font-medium">
+                  Dropout: <strong>{statusCounts.dropout}</strong>
+                </span>
+              </>
+            )}
           </div>
 
           {canWrite && (
@@ -383,6 +418,8 @@ export function StudentsPanel() {
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="hold">Hold</SelectItem>
+                      <SelectItem value="dropout">Dropout</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
@@ -402,10 +439,11 @@ export function StudentsPanel() {
       <div className="flex gap-2 flex-wrap mb-4 items-center justify-between">
         <div className="flex gap-2 flex-wrap items-center">
           {[
-            { key: '', label: 'All', count: students.length },
-            { key: 'active', label: 'Active', count: students.filter(s => s.status === 'active').length },
-            { key: 'hold', label: 'Hold', count: students.filter(s => s.status === 'hold').length },
-            { key: 'dropout', label: 'Dropout', count: students.filter(s => s.status === 'dropout').length }
+            { key: '', label: 'All', count: statusCounts.total || students.length, dot: 'bg-primary' },
+            { key: 'active', label: 'Active', count: statusCounts.active, dot: 'bg-emerald-500' },
+            { key: 'pending', label: 'Pending', count: statusCounts.pending, dot: 'bg-amber-500' },
+            { key: 'hold', label: 'Hold', count: statusCounts.hold, dot: 'bg-indigo-500' },
+            { key: 'dropout', label: 'Dropout', count: statusCounts.dropout, dot: 'bg-rose-500' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -417,6 +455,7 @@ export function StudentsPanel() {
                   : 'bg-muted/60 text-muted-foreground border-border hover:border-primary/40'
               )}
             >
+              <span className={cn('w-1.5 h-1.5 rounded-full', tab.dot, filters.status === tab.key ? 'bg-white' : '')} />
               <span>{tab.label}</span>
               <span className={cn(
                 'text-[10px] px-1.5 py-0.2 rounded-full font-bold',
@@ -569,17 +608,43 @@ export function StudentsPanel() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className={cn(
+                      <Badge className={cn(
                         "capitalize text-xs font-semibold",
-                        student.status === 'active' ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+                        student.status === 'active' ? "bg-emerald-600 hover:bg-emerald-700 text-white" :
+                        student.status === 'pending' ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60 hover:bg-amber-500/25" :
+                        student.status === 'hold' ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-700/60 hover:bg-indigo-500/25" :
+                        student.status === 'dropout' ? "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-700/60 hover:bg-rose-500/25" :
+                        "bg-muted text-muted-foreground"
                       )}>
-                        {student.status}
+                        {student.status || 'N/A'}
                       </Badge>
+
+                      {canWrite && student.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await api.put(`/students/${studentId}`, { status: 'active' });
+                              toast.success(`Student ${student.name} activated successfully`);
+                              fetchStudents();
+                            } catch (err: any) {
+                              toast.error(err.response?.data?.message || 'Failed to activate student');
+                            }
+                          }}
+                          className="h-8 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 gap-1 px-2.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Activate
+                        </Button>
+                      )}
+
                       {canWrite && (
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(student)} className="h-8 w-8 p-0"><Edit className="w-4 h-4 text-muted-foreground hover:text-foreground" /></Button>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEdit(student); }} className="h-8 w-8 p-0"><Edit className="w-4 h-4 text-muted-foreground hover:text-foreground" /></Button>
                       )}
                       {canDelete && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(studentId)} className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(studentId); }} className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                       )}
                     </div>
                   </div>
@@ -620,6 +685,25 @@ export function StudentsPanel() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {canWrite && selectedStudent.status === 'pending' && (
+                      <Button 
+                        size="sm" 
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        onClick={async () => {
+                          try {
+                            await api.put(`/students/${selectedStudent.id || selectedStudent.id}`, { status: 'active' });
+                            toast.success(`Student ${selectedStudent.name} activated successfully`);
+                            setSelectedStudent({ ...selectedStudent, status: 'active' });
+                            fetchStudents();
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.message || 'Failed to activate student');
+                          }
+                        }}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                        Activate Student
+                      </Button>
+                    )}
                     {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
                       <Button size="sm" variant="outline" onClick={() => {
                         const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
