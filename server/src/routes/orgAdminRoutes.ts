@@ -3,7 +3,7 @@ import express from 'express';
 import {
   createCeoPanel, getCeoPanels, getCeoPanel, updateCeoPanel, deleteCeoPanel,
   createCustomDepartment, getCustomDepartments,
-  getOrgHierarchy, assignHierarchy,
+  getOrgHierarchy, assignHierarchy, syncHierarchyReporting,
   getDesignations, createDesignation, updateDesignation, deleteDesignation,
   assignUserToDesignation, unassignUserFromDesignation,
 } from '../controllers/orgAdminController.js';
@@ -36,6 +36,7 @@ router.route('/departments/custom').get(getCustomDepartments).post(createCustomD
 // Hierarchy routes
 router.get('/hierarchy', getOrgHierarchy);
 router.patch('/hierarchy/assign', assignHierarchy);
+router.post('/hierarchy/sync', syncHierarchyReporting);
 
 // Designation routes
 router.route('/designations').get(getDesignations).post(createDesignation);

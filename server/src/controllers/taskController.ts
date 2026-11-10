@@ -21,8 +21,8 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
 
   if (!user) return [];
 
-  // Superiors at top of the company can assign to anyone
-  if (['superadmin', 'org_admin', 'ceo'].includes(user.role)) {
+  // Superiors at top of the company (Main Office) can assign to anyone
+  if (['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(user.role)) {
     const allUsers = await prisma.user.findMany({
       where: { organizationId, status: { not: 'deleted' } },
       select: { id: true }
@@ -40,11 +40,11 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
     }),
     prisma.designation.findMany({
       where: { organizationId, status: { not: 'deleted' } },
-      select: { id: true, parentDesignationId: true }
+      select: { id: true, parentDesignationId: true, branchId: true, departmentId: true }
     }),
     prisma.department.findMany({
       where: { organizationId, status: { not: 'deleted' } },
-      select: { id: true, parentDepartmentId: true, managerId: true, type: true }
+      select: { id: true, parentDepartmentId: true, managerId: true, type: true, branchId: true }
     })
   ]);
 
@@ -77,8 +77,11 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
     }
     if (childDesigIds.size > 0) {
       for (const u of allUsers) {
-        if (u.designationId && childDesigIds.has(u.designationId)) {
-          subordinateIds.add(u.id);
+        if (u.designationId && childDesigIds.has(u.designationId) && u.id !== userId) {
+          // If the caller has a branch, restrict to same branch unless either has no branch
+          if (!user.branchId || !u.branchId || u.branchId === user.branchId) {
+            subordinateIds.add(u.id);
+          }
         }
       }
     }
@@ -99,33 +102,44 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
     }
     for (const u of allUsers) {
       if (u.departmentId && managedDeptIds.has(u.departmentId) && u.id !== userId) {
-        subordinateIds.add(u.id);
+        if (!user.branchId || !u.branchId || u.branchId === user.branchId) {
+          subordinateIds.add(u.id);
+        }
       }
     }
   }
 
-  // 4. Branch Management (Manager of branch)
-  if (user.managedBranch?.id) {
+  // 4. Branch Management (Manager of branch or branch_manager role)
+  const branchId = user.managedBranch?.id || (user.role === 'branch_manager' ? user.branchId : null);
+  if (branchId) {
     for (const u of allUsers) {
-      if (u.branchId === user.managedBranch.id && u.id !== userId) {
+      if (u.branchId === branchId && u.id !== userId) {
         subordinateIds.add(u.id);
       }
     }
   }
 
-  // 5. Department Admin Roles (hr_admin, sales_admin, ops_admin, finance_admin)
-  const roleDeptTypeMap: Record<string, string> = {
-    hr_admin: 'hr',
-    sales_admin: 'sales',
-    ops_admin: 'operations',
-    finance_admin: 'finance'
-  };
-  if (roleDeptTypeMap[user.role]) {
-    const targetType = roleDeptTypeMap[user.role];
+  // 5. Central Department Admin Roles: ONLY hr_admin and finance_admin
+  // "except hr and finance" -> Central HR and Finance admins can see company-wide department members
+  if (['hr_admin', 'finance_admin'].includes(user.role)) {
+    const targetType = user.role === 'hr_admin' ? 'hr' : 'finance';
     const matchingDeptIds = new Set(allDepartments.filter(d => d.type === targetType).map(d => d.id));
     for (const u of allUsers) {
       if (u.departmentId && matchingDeptIds.has(u.departmentId) && u.id !== userId) {
         subordinateIds.add(u.id);
+      }
+    }
+  }
+
+  // 6. Fallback for branch department admins (ops_admin, sales_admin) if no designation assigned yet
+  // If an ops_admin or sales_admin has no designation or no subordinates resolved yet,
+  // limit them ONLY to their own department in their own branch
+  if (['ops_admin', 'sales_admin'].includes(user.role) && subordinateIds.size === 0 && user.departmentId) {
+    for (const u of allUsers) {
+      if (u.departmentId === user.departmentId && u.id !== userId) {
+        if (!user.branchId || !u.branchId || u.branchId === user.branchId) {
+          subordinateIds.add(u.id);
+        }
       }
     }
   }
@@ -316,11 +330,11 @@ export const getAssignableUsers = asyncHandler(async (req: AuthRequest, res: Res
   const currentUserId = req.user.id;
   const userRole = req.user.role;
 
-  // Top administrators can assign to all active users
-  if (['superadmin', 'org_admin', 'ceo'].includes(userRole)) {
+  // Top administrators (Main Office) can assign to all active users
+  if (['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(userRole)) {
     const users = await prisma.user.findMany({
       where: { organizationId: orgId, status: 'active' as any },
-      select: { id: true, name: true, email: true, designation: true, role: true, departmentId: true },
+      select: { id: true, name: true, email: true, designation: true, role: true, departmentId: true, branchId: true },
       orderBy: { name: 'asc' }
     });
     res.status(200).json({ success: true, count: users.length, data: users });
@@ -339,7 +353,7 @@ export const getAssignableUsers = asyncHandler(async (req: AuthRequest, res: Res
       organizationId: orgId,
       status: 'active' as any
     },
-    select: { id: true, name: true, email: true, designation: true, role: true, departmentId: true },
+    select: { id: true, name: true, email: true, designation: true, role: true, departmentId: true, branchId: true },
     orderBy: { name: 'asc' }
   });
 
@@ -360,7 +374,7 @@ export const createTask = asyncHandler(async (req: AuthRequest, res: Response) =
   const cleanDepartmentId = departmentId === 'null' || !departmentId ? null : departmentId;
 
   // Validate hierarchy: Only superiors can assign to subordinates (or self-assignment)
-  if (cleanAssignedTo !== currentUserId && !['superadmin', 'org_admin', 'ceo'].includes(req.user.role)) {
+  if (cleanAssignedTo !== currentUserId && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
     const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
     if (!subordinateIds.includes(cleanAssignedTo)) {
       res.status(403).json({
@@ -422,7 +436,7 @@ export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) =
 
   // If reassigning, validate hierarchy
   if (assignedTo && assignedTo !== 'null' && assignedTo !== existingTask.assignedTo && assignedTo !== currentUserId) {
-    if (!['superadmin', 'org_admin', 'ceo'].includes(req.user.role)) {
+    if (!['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
       const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
       if (!subordinateIds.includes(assignedTo)) {
         res.status(403).json({

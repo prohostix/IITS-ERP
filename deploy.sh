@@ -39,7 +39,7 @@ cd ..
 echo "📦 Packaging deployment files..."
 rm -f "$DEPLOY_ARCHIVE"
 # Package the dist folders, package files, and prisma files
-tar -czvf "$DEPLOY_ARCHIVE" client/dist server/dist server/package.json server/package-lock.json server/prisma server/prisma.config.ts 2>/dev/null || tar -czvf "$DEPLOY_ARCHIVE" client/dist server/dist server/package.json server/package-lock.json server/prisma
+tar -czvf "$DEPLOY_ARCHIVE" client/dist server/dist server/package.json server/package-lock.json server/prisma server/prisma.config.ts server/scripts 2>/dev/null || tar -czvf "$DEPLOY_ARCHIVE" client/dist server/dist server/package.json server/package-lock.json server/prisma server/scripts
 
 # 4. Upload to EC2
 echo "☁️ Uploading to EC2..."
@@ -91,6 +91,9 @@ npm install --production
 echo "🔄 Running Prisma Database Sync..."
 npx prisma generate
 npx prisma db push --accept-data-loss || true
+
+echo "🔄 Synchronizing Org Hierarchy reportingTo chain..."
+node scripts/sync-reporting-chain.cjs || true
 
 echo "🔄 Restarting Backend with PM2..."
 # Kill any incorrectly placed PM2 process (like ~/app/server)

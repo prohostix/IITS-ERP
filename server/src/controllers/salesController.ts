@@ -479,9 +479,204 @@ export const regenerateInvite = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ success: true, data: invite });
 });
 
+// Helper to resolve sales team members for the caller based on role & hierarchy
+async function resolveSalesTeamUsers(user: any, organizationId: string) {
+  const isGlobal = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(user.role);
+
+  if (isGlobal) {
+    return prisma.user.findMany({
+      where: {
+        organizationId,
+        status: 'active',
+        id: { not: user.id },
+        OR: [
+          { role: { in: ['sales', 'sales_admin', 'bda', 'counselor'] } },
+          { department: { type: 'sales' } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        designation: true,
+        role: true,
+        branchId: true,
+        designationRef: { select: { title: true, name: true } }
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  // Branch Manager
+  if (user.role === 'branch_manager' || user.managedBranch?.id) {
+    const scope = await getBranchScope(user);
+    const branchStaff = await prisma.user.findMany({
+      where: {
+        id: { in: scope.staffIds.filter((id: string) => id !== user.id) },
+        status: 'active',
+        organizationId
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        designation: true,
+        role: true,
+        branchId: true,
+        department: { select: { type: true } },
+        designationRef: { select: { title: true, name: true } }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Filter to sales department or sales roles, fallback to all branch staff if none specific
+    const salesStaff = branchStaff.filter(
+      u => ['sales', 'sales_admin', 'bda', 'counselor'].includes(u.role) || u.department?.type === 'sales'
+    );
+    return salesStaff.length > 0 ? salesStaff : branchStaff;
+  }
+
+  // Hierarchy downline resolution for Sales Admins, Managers, TLs, etc.
+  const [allUsers, allDesignations] = await Promise.all([
+    prisma.user.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        reportingTo: true,
+        designationId: true,
+        departmentId: true,
+        branchId: true,
+        role: true,
+        designation: true,
+        department: { select: { type: true } },
+        designationRef: { select: { title: true, name: true } }
+      }
+    }),
+    prisma.designation.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: { id: true, parentDesignationId: true }
+    })
+  ]);
+
+  const subordinateIds = new Set<string>();
+
+  // 1. Direct & recursive reportingTo
+  const queue = [user.id];
+  const visited = new Set<string>([user.id]);
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    for (const u of allUsers) {
+      if (u.reportingTo === currId && !visited.has(u.id)) {
+        visited.add(u.id);
+        subordinateIds.add(u.id);
+        queue.push(u.id);
+      }
+    }
+  }
+
+  // 2. Designation hierarchy downline
+  if (user.designationId) {
+    const childDesigIds = new Set<string>();
+    const desigQueue = [user.designationId];
+    while (desigQueue.length > 0) {
+      const currDesigId = desigQueue.shift()!;
+      for (const d of allDesignations) {
+        if (d.parentDesignationId === currDesigId && !childDesigIds.has(d.id)) {
+          childDesigIds.add(d.id);
+          desigQueue.push(d.id);
+        }
+      }
+    }
+    for (const u of allUsers) {
+      if (u.designationId && childDesigIds.has(u.designationId) && u.id !== user.id) {
+        if (!user.branchId || !u.branchId || u.branchId === user.branchId) {
+          subordinateIds.add(u.id);
+        }
+      }
+    }
+  }
+
+  // 3. Fallback for branch sales admin with no designation hierarchy resolved
+  if (subordinateIds.size === 0 && user.departmentId) {
+    for (const u of allUsers) {
+      if (u.departmentId === user.departmentId && u.id !== user.id) {
+        if (!user.branchId || !u.branchId || u.branchId === user.branchId) {
+          subordinateIds.add(u.id);
+        }
+      }
+    }
+  }
+
+  return allUsers.filter(u => subordinateIds.has(u.id) && u.status === 'active');
+}
+
 // Performance
 export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: [] });
+  const orgId = req.user.organizationId;
+  const teamUsers = await resolveSalesTeamUsers(req.user, orgId);
+
+  if (teamUsers.length === 0) {
+    res.json({ success: true, count: 0, data: [] });
+    return;
+  }
+
+  const userIds = teamUsers.map(u => u.id);
+
+  const [leads, targets] = await Promise.all([
+    prisma.lead.findMany({
+      where: { organizationId: orgId, referredBy: { in: userIds } },
+      select: { referredBy: true, status: true }
+    }),
+    prisma.target.findMany({
+      where: { organizationId: orgId, employeeId: { in: userIds } },
+      select: { employeeId: true, target: true, achieved: true, status: true }
+    })
+  ]);
+
+  const teamMembers = teamUsers.map(u => {
+    const userLeads = leads.filter(l => l.referredBy === u.id);
+    const leadCount = userLeads.length;
+    const convertedCount = userLeads.filter(l => l.status === 'converted').length;
+    const conversionRate = leadCount > 0 ? Math.round((convertedCount / leadCount) * 100) : 0;
+
+    const userTargets = targets.filter(t => t.employeeId === u.id);
+    const targetCount = userTargets.length;
+    const targetTotal = userTargets.reduce((sum, t) => sum + (t.target || 0), 0);
+    const targetAchieved = userTargets.reduce((sum, t) => sum + (t.achieved || 0), 0);
+    const targetProgress = targetTotal > 0 ? Math.round((targetAchieved / targetTotal) * 100) : 0;
+
+    let score = 0;
+    if (targetTotal > 0) {
+      score = Math.round(targetProgress * 0.6 + conversionRate * 0.4);
+    } else if (leadCount > 0) {
+      score = conversionRate;
+    }
+    score = Math.min(100, Math.max(0, score));
+
+    const desigTitle = u.designation || u.designationRef?.title || u.designationRef?.name || (u.role ? u.role.replace(/_/g, ' ') : 'Team Member');
+
+    return {
+      id: u.id,
+      name: u.name,
+      designation: desigTitle,
+      status: u.status || 'active',
+      leads: leadCount,
+      converted: convertedCount,
+      conversionRate,
+      targetCount,
+      targetAchieved,
+      targetTotal,
+      targetProgress,
+      score
+    };
+  });
+
+  // Sort by score desc, then converted desc, then leads desc, then name asc
+  teamMembers.sort((a, b) => b.score - a.score || b.converted - a.converted || b.leads - a.leads || a.name.localeCompare(b.name));
+
+  res.json({ success: true, count: teamMembers.length, data: teamMembers });
 });
 
 // Recursive helper to get all subordinate user IDs
