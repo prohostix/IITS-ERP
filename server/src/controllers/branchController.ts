@@ -182,9 +182,19 @@ export const updateBranchDepartments = asyncHandler(async (req: AuthRequest, res
 });
 
 export const getMyBranch = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const branch: any = await prisma.branch.findUnique({
-    where: { id: req.user.branchId || '' },
-    include: { salesDept: true, operationsDept: true, additionalDepts: true }
-  });
-  res.json({ success: true, data: { ...branch, additionalDeptIds: branch?.additionalDepts || [] } });
+  let branch: any = null;
+  if (req.user.branchId) {
+    branch = await prisma.branch.findUnique({
+      where: { id: req.user.branchId },
+      include: { salesDept: true, operationsDept: true, additionalDepts: true }
+    });
+  }
+  if (!branch) {
+    branch = await prisma.branch.findFirst({
+      where: { branchManagerId: req.user.id },
+      include: { salesDept: true, operationsDept: true, additionalDepts: true }
+    });
+  }
+  res.json({ success: true, data: branch ? { ...branch, additionalDeptIds: branch?.additionalDepts || [] } : null });
 });
+

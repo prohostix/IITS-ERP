@@ -215,11 +215,33 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
     ? parseFloat(incentive)
     : null;
 
-  const cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
-  const cleanDeptId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
+  let cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  let cleanDeptId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
   const cleanCenterId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
   const cleanUniId = (universityId && universityId !== 'none' && universityId !== 'null' && universityId !== 'all') ? universityId : null;
   const cleanSessionId = (sessionId && sessionId !== 'none' && sessionId !== 'null' && sessionId !== 'all') ? sessionId : null;
+
+  // Branch Manager scoping & validation
+  if (req.user.role === 'branch_manager') {
+    const { branch, users: branchSalesStaff } = await getBranchSalesUsersHelper(req.user);
+    const branchStaffIds = branchSalesStaff.map(u => u.id);
+
+    // If an employee is targeted, ensure they belong to this branch's sales staff
+    if (cleanEmpId && !branchStaffIds.includes(cleanEmpId)) {
+      res.status(403).json({ success: false, message: 'Selected employee is not a sales user in your branch' });
+      return;
+    }
+
+    // Auto-fill branch sales dept if not provided
+    if (!cleanDeptId && branch?.salesDeptId) {
+      cleanDeptId = branch.salesDeptId;
+    }
+  } else if (cleanEmpId && !cleanDeptId) {
+    const emp = await prisma.user.findUnique({ where: { id: cleanEmpId }, select: { departmentId: true } });
+    if (emp?.departmentId) {
+      cleanDeptId = emp.departmentId;
+    }
+  }
 
   const newTarget = await prisma.target.create({
     data: {
@@ -610,51 +632,206 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
   });
 });
 
+// Helper to resolve sales users for a branch manager
+export async function getBranchSalesUsersHelper(user: any) {
+  let branch = null;
+  if (user.branchId) {
+    branch = await prisma.branch.findUnique({
+      where: { id: user.branchId },
+      include: { salesDept: true, operationsDept: true }
+    });
+  }
+  if (!branch) {
+    branch = await prisma.branch.findFirst({
+      where: { branchManagerId: user.id },
+      include: { salesDept: true, operationsDept: true }
+    });
+  }
+
+  if (!branch) return { branch: null, users: [] };
+
+  const salesDeptId = branch.salesDeptId;
+  const opsDeptId = branch.operationsDeptId;
+
+  const users = await prisma.user.findMany({
+    where: {
+      organizationId: user.organizationId,
+      status: { notIn: ['resigned', 'terminated'] },
+      role: { notIn: ['student', 'center_admin', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin'] },
+      AND: [
+        opsDeptId ? { departmentId: { not: opsDeptId } } : {},
+        {
+          OR: [
+            ...(salesDeptId ? [
+              { departmentId: salesDeptId },
+              { subDepartment: { parentDeptId: salesDeptId } }
+            ] : []),
+            {
+              branchId: branch.id,
+              OR: [
+                { department: { type: 'sales' } },
+                { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
+                { role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'counselor', 'telecaller', 'employee'] } }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      designation: true,
+      departmentId: true,
+      branchId: true,
+      department: {
+        select: {
+          id: true,
+          name: true,
+          type: true
+        }
+      }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  return { branch, users };
+}
+
+// Sales users list for target assignment and management
+export const getSalesUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+
+  if (req.user.role === 'branch_manager') {
+    const { branch, users } = await getBranchSalesUsersHelper(req.user);
+    res.json({
+      success: true,
+      count: users.length,
+      data: users,
+      branch: branch ? { id: branch.id, name: branch.name, salesDeptId: branch.salesDeptId } : null
+    });
+    return;
+  }
+
+  if (isGlobalAuth) {
+    const users = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        status: { notIn: ['resigned', 'terminated'] },
+        role: { notIn: ['student', 'center_admin', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin'] },
+        OR: [
+          { department: { type: 'sales' } },
+          { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
+          { role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'counselor', 'telecaller'] } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        designation: true,
+        departmentId: true,
+        branchId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+            type: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({ success: true, count: users.length, data: users });
+    return;
+  }
+
+  // Other sales roles: subordinates or same sales dept
+  const subordinateIds = await getAllSubordinateIds(req.user.id);
+  const users = await prisma.user.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: { notIn: ['resigned', 'terminated'] },
+      role: { notIn: ['student', 'center_admin', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin'] },
+      OR: [
+        { id: { in: [req.user.id, ...subordinateIds] } },
+        ...(req.user.departmentId ? [{ departmentId: req.user.departmentId }] : [])
+      ]
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      designation: true,
+      departmentId: true,
+      branchId: true,
+      department: {
+        select: {
+          id: true,
+          name: true,
+          type: true
+        }
+      }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  res.json({ success: true, count: users.length, data: users });
+});
+
 export const getTeamMembers = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let users;
   if (req.user.role === 'branch_manager') {
-    const scope = await getBranchScope(req.user);
-    users = await prisma.user.findMany({
-      where: {
-        organizationId: req.user.organizationId,
-        id: { in: scope.staffIds }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true
-      }
-    });
+    const { users: branchSalesStaff } = await getBranchSalesUsersHelper(req.user);
+    users = branchSalesStaff;
   } else if (isAuth) {
     users = await prisma.user.findMany({
       where: {
         organizationId: req.user.organizationId,
-        role: { in: ['sales_admin', 'bde', 'employee'] }
+        status: { notIn: ['resigned', 'terminated'] },
+        role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'counselor', 'employee'] },
+        OR: [
+          { department: { type: 'sales' } },
+          { department: { name: { contains: 'Sales', mode: 'insensitive' } } }
+        ]
       },
       select: {
         id: true,
         name: true,
         email: true,
-        role: true
-      }
+        role: true,
+        designation: true,
+        departmentId: true,
+        department: { select: { id: true, name: true, type: true } }
+      },
+      orderBy: { name: 'asc' }
     });
   } else {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     users = await prisma.user.findMany({
       where: {
-        id: { in: subordinateIds }
+        id: { in: subordinateIds },
+        status: { notIn: ['resigned', 'terminated'] }
       },
       select: {
         id: true,
         name: true,
         email: true,
-        role: true
-      }
+        role: true,
+        designation: true,
+        departmentId: true,
+        department: { select: { id: true, name: true, type: true } }
+      },
+      orderBy: { name: 'asc' }
     });
   }
-  res.json({ success: true, data: users });
+  res.json({ success: true, count: users.length, data: users });
 });
 
 export const reassignCenter = asyncHandler(async (req: AuthRequest, res: Response) => {

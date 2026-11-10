@@ -45,6 +45,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [branchSalesDeptId, setBranchSalesDeptId] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'failed'>('all');
@@ -89,18 +90,57 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
 
   const fetchMeta = useCallback(async () => {
     try {
+      const isSalesEndpoint = endpoint.startsWith('/sales') || endpoint.includes('sales');
+      const usersEndpoint = isSalesEndpoint ? '/sales/sales-users' : (endpoint.includes('finance') ? '/finance/sales-users' : '/users');
+
       const [uRes, dRes, uniRes, sessRes] = await Promise.allSettled([
-        api.get('/users'),
+        api.get(usersEndpoint),
         api.get('/departments'),
         api.get('/operations/universities'),
         api.get('/operations/sessions')
       ]);
 
+      let salesUsers: any[] = [];
+      let branchInfo: any = null;
+
       if (uRes.status === 'fulfilled') {
-        setEmployees(uRes.value.data.data?.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)) || []);
+        const resData = uRes.value.data;
+        salesUsers = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+        branchInfo = resData?.branch || null;
+      } else if (isSalesEndpoint) {
+        try {
+          const fallbackRes = await api.get('/users');
+          salesUsers = fallbackRes.data?.data || [];
+        } catch (e) {
+          console.error('Fallback user fetch failed', e);
+        }
       }
+
+      if (branchInfo?.salesDeptId) {
+        setBranchSalesDeptId(branchInfo.salesDeptId);
+      }
+
+      // Filter employees: for branch manager, ensure only branch sales users appear
+      let filteredEmployees = salesUsers;
+      if (user?.role === 'branch_manager' && branchInfo?.salesDeptId) {
+        filteredEmployees = salesUsers.filter((u: any) =>
+          u.departmentId === branchInfo.salesDeptId ||
+          u.branchId === branchInfo.id ||
+          u.department?.id === branchInfo.salesDeptId
+        );
+      }
+      setEmployees(filteredEmployees.filter((u: any) => !['ceo', 'superadmin', 'org_admin', 'center_admin', 'student'].includes(u.role)));
+
       if (dRes.status === 'fulfilled') {
-        setDepartments(dRes.value.data.data || []);
+        let allDepts = dRes.value.data.data || [];
+        if (user?.role === 'branch_manager' && branchInfo?.salesDeptId) {
+          // For branch manager, prioritize and only show the branch's sales department
+          const branchDept = allDepts.filter((d: any) => d.id === branchInfo.salesDeptId);
+          allDepts = branchDept.length > 0 ? branchDept : allDepts.filter((d: any) => d.type === 'sales');
+        } else if (isSalesEndpoint) {
+          allDepts = allDepts.filter((d: any) => d.type === 'sales' || d.name?.toLowerCase().includes('sales'));
+        }
+        setDepartments(allDepts);
       }
       if (uniRes.status === 'fulfilled') {
         setUniversities(uniRes.value.data.data || []);
@@ -111,7 +151,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     } catch (err) {
       console.error('Failed to load metadata', err);
     }
-  }, []);
+  }, [endpoint, user]);
 
   useEffect(() => {
     fetchTargets();
@@ -295,7 +335,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     setEditingId(null);
     setFormData({
       employeeId: 'none',
-      departmentId: 'none',
+      departmentId: branchSalesDeptId || 'none',
       universityId: 'none',
       sessionId: 'none',
       target: '',
@@ -328,13 +368,25 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Employee (Sales User)</Label>
-                  <Select value={formData.employeeId} onValueChange={(v) => setFormData({ ...formData, employeeId: v })}>
+                  <Select 
+                    value={formData.employeeId} 
+                    onValueChange={(v) => {
+                      const emp = employees.find(e => e.id === v);
+                      setFormData({ 
+                        ...formData, 
+                        employeeId: v,
+                        departmentId: emp?.departmentId || formData.departmentId || branchSalesDeptId || 'none'
+                      });
+                    }}
+                  >
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select employee" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None / Organization-wide</SelectItem>
+                      <SelectItem value="none">
+                        {user?.role === 'branch_manager' ? 'None / Branch-wide' : 'None / Organization-wide'}
+                      </SelectItem>
                       {employees.filter(e => e && e.id).map((e) => (
                         <SelectItem key={e.id} value={e.id}>
-                          {e.name || e.email} {e.role ? `(${e.role})` : ''}
+                          {e.name || e.email} {e.designation ? `(${e.designation})` : (e.role ? `(${e.role})` : '')}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -525,7 +577,9 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                 <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Staff / Users</SelectItem>
+                <SelectItem value="all">
+                  {user?.role === 'branch_manager' ? 'All Branch Sales Staff' : 'All Staff / Users'}
+                </SelectItem>
                 {employees.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
                 ))}

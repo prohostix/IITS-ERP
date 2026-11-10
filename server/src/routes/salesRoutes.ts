@@ -21,6 +21,7 @@ import {
   getMyCenterDetail,
   getProgramsByUniversity,
   getTeamMembers,
+  getSalesUsers,
   reassignCenter,
   getSalesStaffAdmissionReport,
 } from '../controllers/salesController.js';
@@ -43,6 +44,9 @@ router.put('/leads/:id/convert', convertLead);
 // Target routes
 router.route('/targets').get(getTargets).post(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), createTarget);
 router.route('/targets/:id').get(getTarget).put(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), updateTarget).delete(authorize('sales_admin', 'ceo', 'superadmin', 'org_admin', 'branch_manager'), deleteTarget);
+
+// Sales users (for target assignment & scoping)
+router.get('/sales-users', getSalesUsers);
 
 // Invite routes — available to all sales department employees
 router.route('/invites').get(listMyInvites).post(generateInvite);
