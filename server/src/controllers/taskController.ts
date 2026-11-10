@@ -269,18 +269,31 @@ export const getNextSuperior = async (
 
 // ─── GET TASKS ────────────────────────────────────────────────────────────────
 export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const where: any = { organizationId: req.user.organizationId };
-  if (req.query.assignedTo) where.assignedTo = req.query.assignedTo as string;
+  const orgId = req.user.organizationId;
+  const where: any = { organizationId: orgId };
   if (req.query.status) where.status = req.query.status as string;
 
-  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'sales_sub_admin'].includes(req.user.role);
-  if (!isAdmin) {
-    const subordinateIds = await getSubordinateUserIds(req.user.id, req.user.organizationId);
-    where.OR = [
-      { assignedTo: req.user.id },
-      { createdBy: req.user.id },
-      { assignedTo: { in: subordinateIds } }
-    ];
+  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  if (!isGlobalAdmin) {
+    const subordinateIds = await getSubordinateUserIds(req.user.id, orgId);
+    const allowedUserIds = [req.user.id, ...subordinateIds];
+
+    if (req.query.assignedTo) {
+      const requestedUser = req.query.assignedTo as string;
+      if (allowedUserIds.includes(requestedUser)) {
+        where.assignedTo = requestedUser;
+      } else {
+        res.status(200).json({ success: true, count: 0, data: [] });
+        return;
+      }
+    } else {
+      where.OR = [
+        { assignedTo: { in: allowedUserIds } },
+        { createdBy: { in: allowedUserIds } }
+      ];
+    }
+  } else if (req.query.assignedTo) {
+    where.assignedTo = req.query.assignedTo as string;
   }
 
   const tasks = await prisma.task.findMany({
@@ -297,15 +310,15 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 // ─── GET SINGLE TASK ──────────────────────────────────────────────────────────
 export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isAdmin = ['superadmin', 'org_admin', 'ceo', 'hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin', 'ops_sub_admin', 'sales_admin', 'sales_sub_admin'].includes(req.user.role);
+  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
   
   const where: any = { id: req.params.id, organizationId: req.user.organizationId };
-  if (!isAdmin) {
+  if (!isGlobalAdmin) {
     const subordinateIds = await getSubordinateUserIds(req.user.id, req.user.organizationId);
+    const allowedUserIds = [req.user.id, ...subordinateIds];
     where.OR = [
-      { assignedTo: req.user.id },
-      { createdBy: req.user.id },
-      { assignedTo: { in: subordinateIds } }
+      { assignedTo: { in: allowedUserIds } },
+      { createdBy: { in: allowedUserIds } }
     ];
   }
 
@@ -318,7 +331,7 @@ export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
     }
   });
   if (!task) {
-    res.status(404).json({ success: false, message: 'Task not found' });
+    res.status(404).json({ success: false, message: 'Task not found or access restricted' });
     return;
   }
   res.status(200).json({ success: true, data: task });
