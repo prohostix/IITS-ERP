@@ -11,6 +11,7 @@ export interface MultiSelectOption {
   value: string;
   label: string;
   code?: string;
+  subtitle?: string;
   count?: number;
 }
 
@@ -48,6 +49,7 @@ export function MultiSelectFilter({
       opt =>
         opt.label?.toLowerCase().includes(q) ||
         opt.code?.toLowerCase().includes(q) ||
+        opt.subtitle?.toLowerCase().includes(q) ||
         opt.value?.toLowerCase().includes(q)
     );
   }, [options, search]);
@@ -77,7 +79,10 @@ export function MultiSelectFilter({
     if (allSelected) return `All ${title}`;
     if (activeSelected.length === 1) {
       const match = options.find(o => o.value === activeSelected[0]);
-      return match ? match.label : activeSelected[0];
+      if (match) {
+        return match.code ? `${match.label} (${match.code})` : match.label;
+      }
+      return activeSelected[0];
     }
     return `${activeSelected.length} ${title}`;
   }, [isNoneSelected, allSelected, activeSelected, options, placeholder, title]);
@@ -112,7 +117,7 @@ export function MultiSelectFilter({
           <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 shrink-0 ml-1" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} className="w-64 p-2 shadow-xl border rounded-xl" sideOffset={5}>
+      <PopoverContent align={align} className="w-72 sm:w-80 p-2 shadow-xl border rounded-xl" sideOffset={5}>
         <div className="space-y-2">
           {/* Header & Quick Actions */}
           <div className="flex items-center justify-between pb-1.5 border-b px-1">
@@ -171,16 +176,30 @@ export function MultiSelectFilter({
                     <Checkbox
                       checked={isChecked}
                       onCheckedChange={() => handleToggle(option.value)}
-                      className="size-3.5 rounded border-slate-300 dark:border-slate-600 data-[state=checked]:bg-primary"
+                      className="size-3.5 rounded border-slate-300 dark:border-slate-600 data-[state=checked]:bg-primary shrink-0"
                     />
-                    <span className="flex-1 truncate" title={option.label}>
-                      {option.label}
-                    </span>
-                    {option.count !== undefined && (
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        ({option.count})
-                      </span>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="truncate font-medium text-xs text-foreground" title={option.label}>
+                          {option.label}
+                        </span>
+                        {option.code && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary font-semibold shrink-0 uppercase tracking-wide">
+                            {option.code}
+                          </span>
+                        )}
+                        {option.count !== undefined && (
+                          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                            ({option.count})
+                          </span>
+                        )}
+                      </div>
+                      {option.subtitle && (
+                        <div className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5 font-normal" title={option.subtitle}>
+                          {option.subtitle}
+                        </div>
+                      )}
+                    </div>
                   </label>
                 );
               })

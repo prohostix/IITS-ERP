@@ -428,7 +428,12 @@ export function FinanceReregPaymentReportPanel() {
             <MultiSelectFilter
               title="Sessions"
               placeholder="All Sessions"
-              options={allSessions.map(s => ({ label: s.name, value: s.id }))}
+              options={allSessions.map(s => ({
+                label: s.name,
+                value: s.id,
+                code: s.university?.code,
+                subtitle: s.university?.name
+              }))}
               selectedValues={filters.sessions}
               onChange={vals => setField('sessions', vals)}
             />

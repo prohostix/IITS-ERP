@@ -605,11 +605,24 @@ export const getAdmissionSessions = asyncHandler(async (req: AuthRequest, res: R
     where,
     include: {
       university: { select: { id: true, name: true, code: true } },
-      program: { select: { id: true, name: true, code: true } }
+      program: { 
+        select: { 
+          id: true, 
+          name: true, 
+          code: true,
+          university: { select: { id: true, name: true, code: true } }
+        } 
+      }
     },
     orderBy: { createdAt: 'desc' }
   });
-  res.json({ success: true, count: sessions.length, data: sessions });
+
+  const resolved = sessions.map((s: any) => ({
+    ...s,
+    university: s.university || s.program?.university || null
+  }));
+
+  res.json({ success: true, count: resolved.length, data: resolved });
 });
 
 export const getAdmissionSession = asyncHandler(async (req: AuthRequest, res: Response) => {

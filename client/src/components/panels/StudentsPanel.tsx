@@ -472,7 +472,29 @@ export function StudentsPanel() {
           <MultiSelectFilter
             title="Sessions"
             placeholder="All Sessions"
-            options={sessions.map(s => ({ label: s.name, value: s.id }))}
+            options={(() => {
+              const hasUniFilter = filters.universities && filters.universities.length > 0;
+              const mapped = sessions.map(s => {
+                const uniName = s.university?.name || '';
+                const uniCode = s.university?.code || '';
+                const isMatch = hasUniFilter && (
+                  filters.universities.includes(s.universityId) ||
+                  (s.university?.id && filters.universities.includes(s.university.id))
+                );
+                return {
+                  label: s.name,
+                  value: s.id,
+                  code: uniCode || (uniName ? uniName.slice(0, 6).toUpperCase() : undefined),
+                  subtitle: uniName || 'University not assigned',
+                  _match: isMatch ? 1 : 0
+                };
+              });
+
+              if (hasUniFilter) {
+                return mapped.sort((a, b) => b._match - a._match);
+              }
+              return mapped;
+            })()}
             selectedValues={filters.sessions}
             onChange={(values) => setField('sessions', values)}
           />

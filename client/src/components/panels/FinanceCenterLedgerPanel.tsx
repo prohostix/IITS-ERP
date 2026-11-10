@@ -674,7 +674,12 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
               title="Sessions"
               selected={filters.sessions}
               onChange={(s) => setField('sessions', s)}
-              options={sessions.map(s => ({ label: s.name, value: s.id }))}
+              options={sessions.map(s => ({
+                label: s.name,
+                value: s.id,
+                code: s.university?.code,
+                subtitle: s.university?.name
+              }))}
               placeholder="All Sessions"
             />
             {isFiltered && (
