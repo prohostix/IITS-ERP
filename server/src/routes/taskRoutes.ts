@@ -8,6 +8,7 @@ import {
   completeTask,
   deleteTask,
   getAssignableUsers,
+  getTaskContextEntities,
   getPendingExplanationTask,
   submitTaskExplanation,
   resolveTaskEscalation,
@@ -20,6 +21,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/assignable-users', getAssignableUsers);
+router.get('/context-entities', getTaskContextEntities);
 router.get('/pending-explanation', getPendingExplanationTask);
 router.post('/:id/explanation', upload.array('evidence', 5), submitTaskExplanation);
 router.post('/:id/resolve-escalation', resolveTaskEscalation);

@@ -293,6 +293,11 @@ model Task {
   gracePeriodEnd         DateTime?
   explanationPendingFrom String?
   explanations           Json             @default("[]")
+  relatedCategory        String?
+  relatedEntityType      String?
+  relatedEntityId        String?
+  relatedEntityName      String?
+  issueType              String?
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
   escalations            Escalation[]
@@ -306,6 +311,7 @@ model Task {
   @@index([organizationId, departmentId])
   @@index([deadline, status])
   @@index([explanationPendingFrom])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 model Attendance {

@@ -365,64 +365,277 @@ export const getAssignableUsers = asyncHandler(async (req: AuthRequest, res: Res
   });
 });
 
-// ─── CREATE TASK (HIERARCHY VALIDATED) ─────────────────────────────────────────
+// ─── GET CONTEXT ENTITIES (STUDENTS, CENTERS, UNIVERSITIES, LEADS, EMPLOYEES) ───
+export const getTaskContextEntities = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orgId = req.user.organizationId;
+  const type = (req.query.type as string || '').toLowerCase();
+  const search = (req.query.search as string || req.query.q as string || '').trim();
+
+  if (!type) {
+    res.status(400).json({ success: false, message: 'Entity type is required (student, center, university, lead, employee)' });
+    return;
+  }
+
+  if (type === 'student') {
+    const where: any = { organizationId: orgId, status: { not: 'deleted' } };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { enrollmentNo: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    const students = await prisma.student.findMany({
+      where,
+      select: { id: true, name: true, enrollmentNo: true, phone: true },
+      take: 25,
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({
+      success: true,
+      data: students.map(s => ({
+        id: s.id,
+        label: s.name,
+        subLabel: s.enrollmentNo ? `Reg: ${s.enrollmentNo}${s.phone ? ` • ${s.phone}` : ''}` : s.phone || 'Student'
+      }))
+    });
+    return;
+  }
+
+  if (type === 'center') {
+    const where: any = { organizationId: orgId, status: { not: 'deleted' } };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    const centers = await prisma.studyCenter.findMany({
+      where,
+      select: { id: true, name: true, code: true, city: true },
+      take: 25,
+      orderBy: { name: 'asc' }
+    });
+    res.json({
+      success: true,
+      data: centers.map(c => ({
+        id: c.id,
+        label: c.name,
+        subLabel: c.code ? `Code: ${c.code}${c.city ? ` • ${c.city}` : ''}` : c.city || 'Center'
+      }))
+    });
+    return;
+  }
+
+  if (type === 'university') {
+    const where: any = { organizationId: orgId, status: 'active' };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    const universities = await prisma.university.findMany({
+      where,
+      select: { id: true, name: true, code: true },
+      take: 25,
+      orderBy: { name: 'asc' }
+    });
+    res.json({
+      success: true,
+      data: universities.map(u => ({
+        id: u.id,
+        label: u.name,
+        subLabel: u.code ? `Code: ${u.code}` : 'University'
+      }))
+    });
+    return;
+  }
+
+  if (type === 'lead') {
+    const where: any = { organizationId: orgId };
+    if (search) {
+      where.OR = [
+        { centerName: { contains: search, mode: 'insensitive' } },
+        { contactName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    const leads = await prisma.lead.findMany({
+      where,
+      select: { id: true, centerName: true, contactName: true, phone: true, status: true },
+      take: 25,
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({
+      success: true,
+      data: leads.map(l => ({
+        id: l.id,
+        label: l.contactName || l.centerName || 'Lead',
+        subLabel: `${l.phone || ''} (${l.status || 'new'})`.trim()
+      }))
+    });
+    return;
+  }
+
+  if (type === 'employee') {
+    const where: any = { organizationId: orgId, status: 'active' };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { designation: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    const employees = await prisma.user.findMany({
+      where,
+      select: { id: true, name: true, designation: true, role: true, department: { select: { name: true } } },
+      take: 25,
+      orderBy: { name: 'asc' }
+    });
+    res.json({
+      success: true,
+      data: employees.map(e => ({
+        id: e.id,
+        label: e.name,
+        subLabel: e.designation || e.department?.name || e.role || 'Staff'
+      }))
+    });
+    return;
+  }
+
+  res.status(400).json({ success: false, message: `Unsupported entity type: ${type}` });
+});
+
+// ─── CREATE TASK (HIERARCHY VALIDATED & MULTI-USER CAPABLE) ───────────────────
 export const createTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { title, description, assignedTo, deadline, priority, departmentId } = req.body;
+  const {
+    title,
+    description,
+    assignedTo,
+    assignedToIds,
+    deadline,
+    priority,
+    departmentId,
+    relatedCategory,
+    relatedEntityType,
+    relatedEntityId,
+    relatedEntityName,
+    issueType
+  } = req.body;
+
   const orgId = req.user.organizationId;
   const currentUserId = req.user.id;
-  const cleanAssignedTo = assignedTo === 'null' || !assignedTo ? currentUserId : assignedTo;
   const cleanDepartmentId = departmentId === 'null' || !departmentId ? null : departmentId;
 
+  // Resolve list of target user IDs (support single string, array, or assignedToIds alias)
+  let rawAssignees: string[] = [];
+  if (Array.isArray(assignedToIds) && assignedToIds.length > 0) {
+    rawAssignees = assignedToIds;
+  } else if (Array.isArray(assignedTo)) {
+    rawAssignees = assignedTo;
+  } else if (assignedTo && assignedTo !== 'null') {
+    rawAssignees = [assignedTo];
+  } else {
+    rawAssignees = [currentUserId];
+  }
+
+  const assignees = Array.from(new Set(rawAssignees.map(id => String(id).trim()).filter(Boolean)));
+  if (assignees.length === 0) assignees.push(currentUserId);
+
   // Validate hierarchy: Only superiors can assign to subordinates (or self-assignment)
-  if (cleanAssignedTo !== currentUserId && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
-    const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
-    if (!subordinateIds.includes(cleanAssignedTo)) {
-      res.status(403).json({
-        success: false,
-        message: 'Cannot assign task: In accordance with the organizational chart hierarchy, superiors can only assign tasks to team members who report below them.'
-      });
-      return;
-    }
-  }
-
-  const task = await prisma.task.create({
-    data: {
-      title,
-      description,
-      status: 'pending' as any,
-      priority: priority || 'medium',
-      deadline: deadline ? new Date(deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      organization: { connect: { id: orgId } },
-      assignee: { connect: { id: cleanAssignedTo } },
-      assigner: { connect: { id: currentUserId } },
-      department: cleanDepartmentId ? { connect: { id: cleanDepartmentId } } : undefined
-    },
-    include: {
-      assignee: { select: { id: true, name: true, email: true, designation: true } },
-      assigner: { select: { id: true, name: true, email: true, designation: true } },
-    }
-  });
-
-  // Notify assignee
-  if (cleanAssignedTo !== currentUserId) {
-    await prisma.notification.create({
-      data: {
-        userId: cleanAssignedTo,
-        organizationId: orgId,
-        title: 'New Task Assigned',
-        message: `${req.user.name} assigned you a new task: "${title}". Due by ${new Date(task.deadline).toLocaleDateString()}`,
-        type: 'task',
-        link: '/tasks'
+  if (!['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
+    const nonSelfAssignees = assignees.filter(id => id !== currentUserId);
+    if (nonSelfAssignees.length > 0) {
+      const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
+      const invalidAssignees = nonSelfAssignees.filter(id => !subordinateIds.includes(id));
+      if (invalidAssignees.length > 0) {
+        res.status(403).json({
+          success: false,
+          message: 'Cannot assign task: In accordance with the organizational chart hierarchy, superiors can only assign tasks to team members who report below them.'
+        });
+        return;
       }
-    }).catch(() => {});
+    }
   }
 
-  res.status(201).json({ success: true, data: { ...task, _id: task.id } });
+  // Create tasks for each assigned user
+  const createdTasks = await Promise.all(
+    assignees.map(async (targetUserId) => {
+      let targetDeptId = cleanDepartmentId;
+      if (!targetDeptId) {
+        const u = await prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: { departmentId: true }
+        });
+        targetDeptId = u?.departmentId || null;
+      }
+
+      const task = await prisma.task.create({
+        data: {
+          title,
+          description,
+          status: 'pending' as any,
+          priority: priority || 'medium',
+          deadline: deadline ? new Date(deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          relatedCategory: relatedCategory || null,
+          relatedEntityType: relatedEntityType || null,
+          relatedEntityId: relatedEntityId || null,
+          relatedEntityName: relatedEntityName || null,
+          issueType: issueType || null,
+          organization: { connect: { id: orgId } },
+          assignee: { connect: { id: targetUserId } },
+          assigner: { connect: { id: currentUserId } },
+          department: targetDeptId ? { connect: { id: targetDeptId } } : undefined
+        },
+        include: {
+          assignee: { select: { id: true, name: true, email: true, designation: true } },
+          assigner: { select: { id: true, name: true, email: true, designation: true } },
+          department: { select: { id: true, name: true } }
+        }
+      });
+
+      if (targetUserId !== currentUserId) {
+        await prisma.notification.create({
+          data: {
+            userId: targetUserId,
+            organizationId: orgId,
+            title: 'New Task Assigned',
+            message: `${req.user.name} assigned you a new task: "${title}". Due by ${new Date(task.deadline).toLocaleDateString()}`,
+            type: 'task',
+            link: '/tasks'
+          }
+        }).catch(() => {});
+      }
+
+      return { ...task, _id: task.id };
+    })
+  );
+
+  res.status(201).json({
+    success: true,
+    count: createdTasks.length,
+    data: createdTasks.length === 1 ? createdTasks[0] : createdTasks
+  });
 });
 
 // ─── UPDATE TASK ──────────────────────────────────────────────────────────────
 export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { title, description, assignedTo, deadline, status, priority, departmentId } = req.body;
+  const {
+    title,
+    description,
+    assignedTo,
+    deadline,
+    status,
+    priority,
+    departmentId,
+    relatedCategory,
+    relatedEntityType,
+    relatedEntityId,
+    relatedEntityName,
+    issueType
+  } = req.body;
   const orgId = req.user.organizationId;
   const currentUserId = req.user.id;
 
@@ -449,17 +662,27 @@ export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) =
   }
 
   const updateData: any = {};
-  if (title) updateData.title = title;
-  if (description) updateData.description = description;
-  if (assignedTo) updateData.assignedTo = assignedTo === 'null' ? null : assignedTo;
-  if (deadline) updateData.deadline = new Date(deadline);
-  if (status) updateData.status = status;
-  if (priority) updateData.priority = priority;
-  if (departmentId) updateData.departmentId = departmentId === 'null' ? null : departmentId;
+  if (title !== undefined) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+  if (assignedTo !== undefined) updateData.assignedTo = assignedTo === 'null' ? null : assignedTo;
+  if (deadline !== undefined) updateData.deadline = new Date(deadline);
+  if (status !== undefined) updateData.status = status;
+  if (priority !== undefined) updateData.priority = priority;
+  if (departmentId !== undefined) updateData.departmentId = departmentId === 'null' ? null : departmentId;
+  if (relatedCategory !== undefined) updateData.relatedCategory = relatedCategory || null;
+  if (relatedEntityType !== undefined) updateData.relatedEntityType = relatedEntityType || null;
+  if (relatedEntityId !== undefined) updateData.relatedEntityId = relatedEntityId || null;
+  if (relatedEntityName !== undefined) updateData.relatedEntityName = relatedEntityName || null;
+  if (issueType !== undefined) updateData.issueType = issueType || null;
 
   const task = await prisma.task.update({
     where: { id: req.params.id },
-    data: updateData
+    data: updateData,
+    include: {
+      assignee: { select: { id: true, name: true, email: true, designation: true } },
+      assigner: { select: { id: true, name: true, email: true, designation: true } },
+      department: { select: { id: true, name: true } }
+    }
   });
   res.status(200).json({ success: true, data: { ...task, _id: task.id } });
 });
