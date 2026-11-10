@@ -746,7 +746,9 @@ export function StudyCenterEnrollmentsPanel() {
                 >
                   <option value="">Select Session</option>
                   {availableSessions.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.university?.code ? `(${s.university.code})` : s.university?.name ? `(${s.university.name})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>

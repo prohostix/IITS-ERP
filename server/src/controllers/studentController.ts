@@ -60,10 +60,13 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   }
   if (req.query.universityId && req.query.universityId !== 'all') {
     const uids = String(req.query.universityId).split(',').map(u => u.trim()).filter(Boolean);
-    if (uids.length === 1) {
-      where.program = { ...where.program, universityId: uids[0] };
-    } else if (uids.length > 1) {
-      where.program = { ...where.program, universityId: { in: uids } };
+    if (uids.length > 0) {
+      andConditions.push({
+        OR: [
+          { program: { universityId: { in: uids } } },
+          { enrollments: { some: { program: { universityId: { in: uids } } } } }
+        ]
+      });
     }
   }
   if (req.query.programId && req.query.programId !== 'all') {
@@ -76,10 +79,13 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   }
   if (req.query.sessionId && req.query.sessionId !== 'all') {
     const sids = String(req.query.sessionId).split(',').map(s => s.trim()).filter(Boolean);
-    if (sids.length === 1) {
-      where.enrollments = { some: { ...where.enrollments?.some, sessionId: sids[0] } };
-    } else if (sids.length > 1) {
-      where.enrollments = { some: { ...where.enrollments?.some, sessionId: { in: sids } } };
+    if (sids.length > 0) {
+      andConditions.push({
+        OR: [
+          { sessionId: { in: sids } },
+          { enrollments: { some: { sessionId: { in: sids } } } }
+        ]
+      });
     }
   }
   if (req.query.search) {
@@ -114,12 +120,16 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     include: { 
       enrollments: {
         include: {
+          session: {
+            select: { id: true, name: true, university: { select: { id: true, name: true, code: true } } }
+          },
           studentFeeReceipts: {
             orderBy: { receiptDate: 'desc' }
           },
           program: {
             include: {
-              programFeeStructure: true
+              programFeeStructure: true,
+              university: true
             }
           }
         }
@@ -157,12 +167,16 @@ export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) =
     include: { 
       enrollments: {
         include: {
+          session: {
+            select: { id: true, name: true, university: { select: { id: true, name: true, code: true } } }
+          },
           studentFeeReceipts: {
             orderBy: { receiptDate: 'desc' }
           },
           program: {
             include: {
-              programFeeStructure: true
+              programFeeStructure: true,
+              university: true
             }
           }
         }

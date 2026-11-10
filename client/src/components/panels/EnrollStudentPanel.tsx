@@ -1069,7 +1069,7 @@ export function EnrollStudentPanel({ onNavigate }: { onNavigate?: (tab: string) 
                       <option value="">-- Select Intake Session --</option>
                       {availableSessions.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.name}
+                          {s.name} {s.university?.code ? `(${s.university.code})` : s.university?.name ? `(${s.university.name})` : ''}
                         </option>
                       ))}
                     </select>

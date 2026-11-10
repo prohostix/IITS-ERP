@@ -512,7 +512,12 @@ export function StudentsPanel() {
           <MultiSelectFilter
             title="Programs"
             placeholder="All Programs"
-            options={programs.filter(p => p && p.id).map(prog => ({ label: prog.name, value: prog.id.toString() }))}
+            options={programs.filter(p => p && p.id).map(prog => ({
+              label: prog.name,
+              value: prog.id.toString(),
+              code: prog.code || prog.university?.code,
+              subtitle: prog.university?.name
+            }))}
             selectedValues={filters.programs}
             onChange={(values) => setField('programs', values)}
           />
@@ -575,6 +580,9 @@ export function StudentsPanel() {
                 const centerName = typeof student.centerId === 'object' ? student.centerId?.name : '';
                 const programName = typeof student.programId === 'object' ? student.programId?.name : '';
                 const photoUrl = getStudentPhotoUrl(student);
+                const uniName = student.program?.university?.name || student.enrollments?.[0]?.program?.university?.name;
+                const uniCode = student.program?.university?.code || student.enrollments?.[0]?.program?.university?.code;
+                const sessionName = student.enrollments?.[0]?.session?.name;
 
                 return (
                   <div key={studentId} className="flex items-center justify-between p-3.5 border rounded-xl hover:bg-muted/40 transition-all hover:border-primary/40 group bg-card">
@@ -622,6 +630,20 @@ export function StudentsPanel() {
                           )}
                           {programName ? ` • ${programName}` : ''}{centerName ? ` • ${centerName}` : ''}
                         </div>
+                        {(uniName || sessionName) && (
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            {uniName && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                🏛️ {uniCode || uniName}
+                              </span>
+                            )}
+                            {sessionName && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                📅 {sessionName}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1 truncate"><Mail className="w-3 h-3 shrink-0" /> {student.email}</span>
                           {student.phone && <span className="flex items-center gap-1 shrink-0"><Phone className="w-3 h-3" /> {student.phone}</span>}
@@ -827,6 +849,18 @@ export function StudentsPanel() {
                     <GraduationCap className="w-4 h-4 text-primary" /> Program & Session Info
                   </h4>
                   <div className="bg-muted/10 p-4 rounded-xl border text-sm space-y-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground block">University</span>
+                      <span className="font-semibold text-primary">
+                        {selectedStudent.program?.university?.name ? `${selectedStudent.program.university.name} (${selectedStudent.program.university.code || ''})` : (selectedStudent.enrollments?.[0]?.program?.university?.name || 'N/A')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground block">Admission Session</span>
+                      <span className="font-semibold text-foreground">
+                        {selectedStudent.enrollments?.[0]?.session?.name || 'N/A'}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-xs text-muted-foreground block">Program</span>
                       <span className="font-semibold">{selectedStudent.program?.name || 'N/A'} ({selectedStudent.program?.code || ''})</span>
