@@ -44,7 +44,7 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
     }),
     prisma.department.findMany({
       where: { organizationId, status: { not: 'deleted' } },
-      select: { id: true, parentDepartmentId: true, managerId: true, type: true, branchId: true }
+      select: { id: true, parentDepartmentId: true, managerId: true, type: true }
     })
   ]);
 

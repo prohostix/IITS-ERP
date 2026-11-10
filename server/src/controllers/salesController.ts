@@ -501,7 +501,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         designation: true,
         role: true,
         branchId: true,
-        designationRef: { select: { title: true, name: true } }
+        designationRef: { select: { title: true } }
       },
       orderBy: { name: 'asc' }
     });
@@ -524,7 +524,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         role: true,
         branchId: true,
         department: { select: { type: true } },
-        designationRef: { select: { title: true, name: true } }
+        designationRef: { select: { title: true } }
       },
       orderBy: { name: 'asc' }
     });
@@ -551,7 +551,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         role: true,
         designation: true,
         department: { select: { type: true } },
-        designationRef: { select: { title: true, name: true } }
+        designationRef: { select: { title: true } }
       }
     }),
     prisma.designation.findMany({
@@ -655,7 +655,7 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
     }
     score = Math.min(100, Math.max(0, score));
 
-    const desigTitle = u.designation || u.designationRef?.title || u.designationRef?.name || (u.role ? u.role.replace(/_/g, ' ') : 'Team Member');
+    const desigTitle = u.designation || u.designationRef?.title || (u.role ? u.role.replace(/_/g, ' ') : 'Team Member');
 
     return {
       id: u.id,
