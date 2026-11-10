@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import * as XLSX from 'xlsx';
+import { cn } from '@/lib/utils';
 
 export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: string) => void } = {}) {
   const { user } = useAuth();
@@ -370,9 +371,52 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
     [...new Set(centers.map((c: any) => getEffectiveBranch(c)).filter(Boolean))]
   , [centers]);
 
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem('erp_persist_filters_study_centers_panel');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed.status || 'all';
+      }
+    } catch (e) {}
+    return 'all';
+  });
+
+  const setStatus = (val: string) => {
+    setStatusFilter(val);
+    try {
+      const raw = localStorage.getItem('erp_persist_filters_study_centers_panel');
+      const existing = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('erp_persist_filters_study_centers_panel', JSON.stringify({ ...existing, status: val }));
+    } catch (e) {}
+  };
+
+  const centerStatusCounts = useMemo(() => {
+    let act = 0;
+    let pen = 0;
+    let deact = 0;
+    centers.forEach((c: any) => {
+      const st = (c.status || '').toLowerCase();
+      if (st === 'active') act++;
+      else if (['pending', 'pending_verification', 'pending_payment'].includes(st)) pen++;
+      else if (['inactive', 'suspended', 'deactive', 'rejected'].includes(st)) deact++;
+    });
+    return { total: centers.length, active: act, pending: pen, deactive: deact };
+  }, [centers]);
+
   // Group centers by branchName
   const branchGroups = useMemo(() => {
     const filtered = centers.filter((c: any) => {
+      const st = (c.status || '').toLowerCase();
+      if (statusFilter === 'active' && st !== 'active') return false;
+      if (statusFilter === 'pending' && !['pending', 'pending_verification', 'pending_payment'].includes(st)) return false;
+      if (statusFilter === 'deactive' && !['inactive', 'suspended', 'deactive', 'rejected'].includes(st)) return false;
+
+      if (universityFilter && universityFilter !== 'all') {
+        const uIds = Array.isArray(c.universityIds) ? c.universityIds : [];
+        if (!uIds.includes(universityFilter)) return false;
+      }
+
       const q = searchQuery.toLowerCase();
       const effBranch = getEffectiveBranch(c);
       return !q || c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q) ||
@@ -386,7 +430,7 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
       groups[key].push(c);
     });
     return groups;
-  }, [centers, searchQuery]);
+  }, [centers, searchQuery, statusFilter, universityFilter]);
 
 
 
@@ -549,6 +593,36 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
           <Button onClick={() => setShowCreds(false)} className="w-full">Done</Button>
         </DialogContent>
       </Dialog>
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-2 flex-wrap items-center">
+        {[
+          { key: 'all', label: 'All Centers', count: centerStatusCounts.total, dot: 'bg-primary' },
+          { key: 'active', label: 'Active', count: centerStatusCounts.active, dot: 'bg-emerald-500' },
+          { key: 'pending', label: 'Verification Pending', count: centerStatusCounts.pending, dot: 'bg-amber-500' },
+          { key: 'deactive', label: 'Deactive / Inactive', count: centerStatusCounts.deactive, dot: 'bg-rose-500' }
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setStatus(tab.key)}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer",
+              statusFilter === tab.key 
+                ? "bg-primary text-primary-foreground border-primary shadow-xs" 
+                : "bg-background/80 hover:bg-muted text-muted-foreground border-border/70"
+            )}
+          >
+            <span className={cn("w-2 h-2 rounded-full", tab.dot, statusFilter === tab.key && "ring-2 ring-white/50")} />
+            <span>{tab.label}</span>
+            <span className={cn(
+              "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+              statusFilter === tab.key ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+            )}>
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
 
       {/* Branch-Grouped Center List */}
       <Card>

@@ -212,11 +212,14 @@ export function SessionReportPanel() {
                   <SelectValue placeholder="Select Session" />
                 </SelectTrigger>
                 <SelectContent>
-                  {data.availableSessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.status === 'active' ? '(Active)' : ''}
-                    </SelectItem>
-                  ))}
+                  {data.availableSessions.map(s => {
+                    const uniLabel = s.university?.code || s.university?.name;
+                    return (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} {uniLabel ? `• ${uniLabel}` : ''} {s.status === 'active' ? '(Active)' : ''}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

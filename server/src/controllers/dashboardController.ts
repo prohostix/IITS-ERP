@@ -41,6 +41,26 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
       hold: sHold,
       dropout: sDropout
     };
+
+    const [cTotal, cActive, cPending, cDeactive] = await Promise.all([
+      prisma.studyCenter.count(),
+      prisma.studyCenter.count({ where: { status: 'active' as any } }),
+      prisma.studyCenter.count({ where: { status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
+      prisma.studyCenter.count({ where: { status: { in: ['inactive', 'suspended', 'deactive', 'rejected'] } as any } })
+    ]);
+    metrics.totalCenters = cTotal;
+    metrics.activeCenters = cActive;
+    metrics.centersActive = cActive;
+    metrics.pendingCenters = cPending;
+    metrics.centersPending = cPending;
+    metrics.deactiveCenters = cDeactive;
+    metrics.centersDeactive = cDeactive;
+    metrics.centerCounts = {
+      total: cTotal,
+      active: cActive,
+      pending: cPending,
+      deactive: cDeactive
+    };
   }
 
   if (role !== 'superadmin') {
@@ -88,8 +108,27 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
       hold: studentsHold,
       dropout: studentsDropout
     };
-    metrics.totalCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId } });
-    metrics.activeCenters = await prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } });
+
+    const [totalCenters, centersActive, centersPending, centersDeactive] = await Promise.all([
+      prisma.studyCenter.count({ where: { organizationId: organizationId } }),
+      prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } }),
+      prisma.studyCenter.count({ where: { organizationId: organizationId, status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
+      prisma.studyCenter.count({ where: { organizationId: organizationId, status: { in: ['inactive', 'suspended', 'deactive', 'rejected'] } as any } })
+    ]);
+    metrics.totalCenters = totalCenters;
+    metrics.activeCenters = centersActive;
+    metrics.centersActive = centersActive;
+    metrics.pendingCenters = centersPending;
+    metrics.centersPending = centersPending;
+    metrics.deactiveCenters = centersDeactive;
+    metrics.centersDeactive = centersDeactive;
+    metrics.centerCounts = {
+      total: totalCenters,
+      active: centersActive,
+      pending: centersPending,
+      deactive: centersDeactive
+    };
+
     metrics.totalDepartments = await prisma.department.count({ where: { organizationId: organizationId } });
     metrics.totalPrograms = await prisma.program.count({ where: { organizationId: organizationId } });
     metrics.totalOrganizations = await prisma.university.count({ where: { organizationId: organizationId } });
@@ -107,11 +146,6 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     });
     metrics.rejectedApplications = await prisma.enrollment.count({
       where: { ...enrollmentWhere, status: 'rejected' as any }
-    });
-
-    // Centers pending verification
-    metrics.pendingCenters = await prisma.studyCenter.count({
-      where: { organizationId: organizationId, status: { in: ['pending_verification', 'pending'] } as any }
     });
 
     // Urgent actions for Operations and Admins

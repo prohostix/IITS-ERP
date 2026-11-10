@@ -240,8 +240,10 @@ export function UniversityStudentsPanel() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sessions</SelectItem>
-            {sessions.map(s => (
-              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            {sessions.map((s: any) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name} {s.university?.name ? `(${s.university.name})` : ''}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>

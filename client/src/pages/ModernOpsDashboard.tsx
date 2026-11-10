@@ -218,7 +218,10 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
   }, [selectedSessionId, metrics]);
 
   const activeSession = sessions.find(s => s.id === selectedSessionId);
-  const sessionDisplayName = activeSession ? activeSession.name : 'All Sessions';
+  const activeUni = activeSession?.university?.code || activeSession?.university?.name || activeSession?.program?.university?.code;
+  const sessionDisplayName = activeSession 
+    ? (activeUni ? `${activeSession.name} (${activeUni})` : activeSession.name) 
+    : 'All Sessions';
   const currentData = sessionMetrics || metrics || {};
 
   const navigateToStudentStatus = (statusKey: string) => {
@@ -228,6 +231,19 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
       localStorage.setItem('erp_persist_filters_students_panel', JSON.stringify({ ...existing, status: statusKey }));
     } catch (e) {}
     onNavigate('students');
+  };
+
+  const navigateToCenterStatus = (statusKey: string) => {
+    if (statusKey === 'pending') {
+      onNavigate('pending_verification');
+      return;
+    }
+    try {
+      const raw = localStorage.getItem('erp_persist_filters_study_centers_panel');
+      const existing = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('erp_persist_filters_study_centers_panel', JSON.stringify({ ...existing, status: statusKey }));
+    } catch (e) {}
+    onNavigate('centers');
   };
 
   return (
@@ -240,8 +256,8 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         stats={[
           { label: 'Total Students', value: currentData.totalStudents || 0, icon: GraduationCap },
           { label: 'Active Students', value: currentData.studentsActive ?? 0, icon: CheckCircle2 },
-          { label: 'Pending Review', value: currentData.studentsPending ?? currentData.pendingApplications ?? 0, icon: Clock },
-          { label: 'Affiliated Centers', value: metrics.totalCenters || 0, icon: Building2 },
+          { label: 'Total Centers', value: metrics.totalCenters || 0, icon: Building2 },
+          { label: 'Active Centers', value: metrics.centersActive ?? metrics.activeCenters ?? 0, icon: MapPin },
         ]}
         primaryAction={{
           label: 'View Students',
@@ -272,16 +288,59 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="text-xs font-semibold text-muted-foreground shrink-0">Session:</span>
             <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
-              <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-[160px] focus:ring-0">
-                <SelectValue placeholder="All Sessions" />
+              <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-auto min-w-[200px] max-w-[340px] focus:ring-0">
+                <SelectValue placeholder="All Sessions">
+                  {activeSession ? (
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span>{activeSession.name}</span>
+                      {(activeSession.university?.code || activeSession.university?.name) && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
+                          {activeSession.university?.code || activeSession.university?.name}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    'All Sessions'
+                  )}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Sessions</SelectItem>
-                {sessions.map(s => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} {s.status === 'active' ? '(Active)' : ''}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-w-[420px]">
+                <SelectItem value="all">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs">All Sessions</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">(All Universities)</span>
+                  </div>
+                </SelectItem>
+                {sessions.map(s => {
+                  const uniName = s.university?.name || s.program?.university?.name;
+                  const uniCode = s.university?.code || s.program?.university?.code;
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center justify-between gap-3 w-full py-0.5">
+                        <div className="flex flex-col text-left min-w-0">
+                          <span className="font-semibold text-xs text-foreground truncate">{s.name}</span>
+                          {uniName && (
+                            <span className="text-[10px] text-muted-foreground truncate leading-tight">
+                              {uniName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          {uniCode && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-muted/60 text-muted-foreground font-mono">
+                              {uniCode}
+                            </Badge>
+                          )}
+                          {s.status === 'active' && (
+                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -371,6 +430,54 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           subtext="Verified institutions"
           onClick={() => onNavigate('centers')}
           colorClass="from-emerald-500/20 to-emerald-500/5 border-emerald-500/20"
+          extraContent={
+            <div className="mt-3 pt-2.5 border-t border-border/50 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
+                <span>By Status</span>
+                <span className="text-[10px] text-muted-foreground/80 font-normal">All Branches</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigateToCenterStatus('active'); }}
+                  className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs transition-all hover:scale-[1.02]"
+                  title="Filter Active Centers"
+                >
+                  <span className="flex items-center gap-1 text-[10px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active
+                  </span>
+                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersActive ?? metrics.activeCenters ?? 0}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigateToCenterStatus('pending'); }}
+                  className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs transition-all hover:scale-[1.02]"
+                  title="Review Pending Verification Centers"
+                >
+                  <span className="flex items-center gap-1 text-[10px] font-medium truncate max-w-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                    Pending
+                  </span>
+                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersPending ?? metrics.pendingCenters ?? 0}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigateToCenterStatus('deactive'); }}
+                  className="flex flex-col items-center justify-center p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/20 text-xs transition-all hover:scale-[1.02]"
+                  title="Filter Deactive / Inactive Centers"
+                >
+                  <span className="flex items-center gap-1 text-[10px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                    Deactive
+                  </span>
+                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersDeactive ?? metrics.deactiveCenters ?? 0}</span>
+                </button>
+              </div>
+            </div>
+          }
         />
         <OpsMetricCard 
           title="Active Programs" 
@@ -390,187 +497,339 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         />
       </div>
 
-      {/* Student Enrollment Status Distribution (Active / Pending / Hold / Dropout) */}
-      <div className="p-4 sm:p-5 rounded-2xl glass-card border border-border/70 shadow-xs space-y-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <GraduationCap className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm font-bold text-foreground">Student Status Overview</h4>
-                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25 font-bold">
-                  {currentData.totalStudents || 0} Total Enrolled
-                </Badge>
+      {/* Student & Study Center Status Distribution Row */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {/* Left: Student Enrollment Status Distribution (Active / Pending / Hold / Dropout) */}
+        <div className="p-4 sm:p-5 rounded-2xl glass-card border border-border/70 shadow-xs space-y-3.5 flex flex-col justify-between">
+          <div className="space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground">Student Status Overview</h4>
+                    <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25 font-bold">
+                      {currentData.totalStudents || 0} Total Enrolled
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Active, Pending, Hold, and Dropout counts for <strong className="font-semibold text-foreground">{sessionDisplayName}</strong>.
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Active, Pending, Hold, and Dropout counts for <strong className="font-semibold text-foreground">{sessionDisplayName}</strong>. Click any status to view and filter records.
-              </p>
+              <Badge variant="outline" className="bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-mono text-xs w-fit">
+                Viewing: {sessionDisplayName}
+              </Badge>
             </div>
+
+            {/* Visual Multi-Segment Proportion Bar for Students */}
+            {(() => {
+              const tot = currentData.totalStudents || 0;
+              const act = currentData.studentsActive ?? 0;
+              const pnd = currentData.studentsPending ?? 0;
+              const hld = currentData.studentsHold ?? 0;
+              const drp = currentData.studentsDropout ?? 0;
+
+              const actPct = tot > 0 ? Math.round((act / tot) * 100) : 0;
+              const pndPct = tot > 0 ? Math.round((pnd / tot) * 100) : 0;
+              const hldPct = tot > 0 ? Math.round((hld / tot) * 100) : 0;
+              const drpPct = tot > 0 ? Math.round((drp / tot) * 100) : 0;
+
+              return (
+                <div className="space-y-3">
+                  <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden flex shadow-inner p-0.5 gap-0.5">
+                    {tot > 0 ? (
+                      <>
+                        {act > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((act / tot) * 100, 2)}%` }} 
+                            className="bg-emerald-500 rounded-sm transition-all duration-500" 
+                            title={`Active: ${act} (${actPct}%)`}
+                          />
+                        )}
+                        {pnd > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((pnd / tot) * 100, 2)}%` }} 
+                            className="bg-amber-500 rounded-sm transition-all duration-500" 
+                            title={`Pending: ${pnd} (${pndPct}%)`}
+                          />
+                        )}
+                        {hld > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((hld / tot) * 100, 2)}%` }} 
+                            className="bg-indigo-500 rounded-sm transition-all duration-500" 
+                            title={`Hold: ${hld} (${hldPct}%)`}
+                          />
+                        )}
+                        {drp > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((drp / tot) * 100, 2)}%` }} 
+                            className="bg-rose-500 rounded-sm transition-all duration-500" 
+                            title={`Dropout: ${drp} (${drpPct}%)`}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full bg-muted rounded-sm" />
+                    )}
+                  </div>
+
+                  {/* 4 Status Breakdown Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {/* 1. Active */}
+                    <div 
+                      onClick={() => navigateToStudentStatus('active')}
+                      className="group cursor-pointer p-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Active</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
+                          {actPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-emerald-700 dark:text-emerald-400 font-display">{act}</span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Pending */}
+                    <div 
+                      onClick={() => navigateToStudentStatus('pending')}
+                      className="group cursor-pointer p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                            <span className="text-xs font-bold text-amber-800 dark:text-amber-300">Pending</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
+                          {pndPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-amber-700 dark:text-amber-400 font-display">{pnd}</span>
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Hold */}
+                    <div 
+                      onClick={() => navigateToStudentStatus('hold')}
+                      className="group cursor-pointer p-3 rounded-xl border border-indigo-500/25 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="text-xs font-bold text-indigo-800 dark:text-indigo-300">Hold</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 text-[10px] font-bold">
+                          {hldPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-indigo-700 dark:text-indigo-400 font-display">{hld}</span>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 4. Dropout */}
+                    <div 
+                      onClick={() => navigateToStudentStatus('dropout')}
+                      className="group cursor-pointer p-3 rounded-xl border border-rose-500/25 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span className="text-xs font-bold text-rose-800 dark:text-rose-300">Dropout</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold">
+                          {drpPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-rose-700 dark:text-rose-400 font-display">{drp}</span>
+                        <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
-          <Badge variant="outline" className="bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-mono text-xs w-fit">
-            Viewing: {sessionDisplayName}
-          </Badge>
         </div>
 
-        {/* Visual Multi-Segment Proportion Bar */}
-        {(() => {
-          const tot = currentData.totalStudents || 0;
-          const act = currentData.studentsActive ?? 0;
-          const pnd = currentData.studentsPending ?? 0;
-          const hld = currentData.studentsHold ?? 0;
-          const drp = currentData.studentsDropout ?? 0;
-
-          const actPct = tot > 0 ? Math.round((act / tot) * 100) : 0;
-          const pndPct = tot > 0 ? Math.round((pnd / tot) * 100) : 0;
-          const hldPct = tot > 0 ? Math.round((hld / tot) * 100) : 0;
-          const drpPct = tot > 0 ? Math.round((drp / tot) * 100) : 0;
-
-          return (
-            <div className="space-y-3">
-              <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden flex shadow-inner p-0.5 gap-0.5">
-                {tot > 0 ? (
-                  <>
-                    {act > 0 && (
-                      <div 
-                        style={{ width: `${Math.max((act / tot) * 100, 2)}%` }} 
-                        className="bg-emerald-500 rounded-sm transition-all duration-500" 
-                        title={`Active: ${act} (${actPct}%)`}
-                      />
-                    )}
-                    {pnd > 0 && (
-                      <div 
-                        style={{ width: `${Math.max((pnd / tot) * 100, 2)}%` }} 
-                        className="bg-amber-500 rounded-sm transition-all duration-500" 
-                        title={`Pending: ${pnd} (${pndPct}%)`}
-                      />
-                    )}
-                    {hld > 0 && (
-                      <div 
-                        style={{ width: `${Math.max((hld / tot) * 100, 2)}%` }} 
-                        className="bg-indigo-500 rounded-sm transition-all duration-500" 
-                        title={`Hold: ${hld} (${hldPct}%)`}
-                      />
-                    )}
-                    {drp > 0 && (
-                      <div 
-                        style={{ width: `${Math.max((drp / tot) * 100, 2)}%` }} 
-                        className="bg-rose-500 rounded-sm transition-all duration-500" 
-                        title={`Dropout: ${drp} (${drpPct}%)`}
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full bg-muted rounded-sm" />
-                )}
-              </div>
-
-              {/* 4 Status Breakdown Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* 1. Active */}
-                <div 
-                  onClick={() => navigateToStudentStatus('active')}
-                  className="group cursor-pointer p-3.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Active Students</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Enrolled & regular</p>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
-                      {actPct}%
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 font-display">{act}</span>
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      View Students <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
+        {/* Right: Study Center Status Distribution (Active / Pending Verification / Deactive) */}
+        <div className="p-4 sm:p-5 rounded-2xl glass-card border border-border/70 shadow-xs space-y-3.5 flex flex-col justify-between">
+          <div className="space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <MapPin className="w-4 h-4" />
                 </div>
-
-                {/* 2. Pending */}
-                <div 
-                  onClick={() => navigateToStudentStatus('pending')}
-                  className="group cursor-pointer p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-500" />
-                        <span className="text-xs font-bold text-amber-800 dark:text-amber-300">Pending Students</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Awaiting activation</p>
-                    </div>
-                    <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
-                      {pndPct}%
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground">Study Centers Overview</h4>
+                    <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 font-bold">
+                      {metrics.totalCenters || 0} Total Centers
                     </Badge>
                   </div>
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <span className="text-2xl font-black text-amber-700 dark:text-amber-400 font-display">{pnd}</span>
-                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      View Students <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3. Hold */}
-                <div 
-                  onClick={() => navigateToStudentStatus('hold')}
-                  className="group cursor-pointer p-3.5 rounded-xl border border-indigo-500/25 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                        <span className="text-xs font-bold text-indigo-800 dark:text-indigo-300">On Hold</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Temporarily paused</p>
-                    </div>
-                    <Badge variant="outline" className="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 text-[10px] font-bold">
-                      {hldPct}%
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <span className="text-2xl font-black text-indigo-700 dark:text-indigo-400 font-display">{hld}</span>
-                    <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      View Students <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-
-                {/* 4. Dropout */}
-                <div 
-                  onClick={() => navigateToStudentStatus('dropout')}
-                  className="group cursor-pointer p-3.5 rounded-xl border border-rose-500/25 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                        <span className="text-xs font-bold text-rose-800 dark:text-rose-300">Dropout</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Discontinued</p>
-                    </div>
-                    <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold">
-                      {drpPct}%
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <span className="text-2xl font-black text-rose-700 dark:text-rose-400 font-display">{drp}</span>
-                    <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      View Students <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Active, pending verification, and deactivated study center branches across all locations.
+                  </p>
                 </div>
               </div>
+              <Badge variant="outline" className="bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-mono text-xs w-fit">
+                All Branches
+              </Badge>
             </div>
-          );
-        })()}
+
+            {/* Visual Multi-Segment Proportion Bar for Centers */}
+            {(() => {
+              const cTot = metrics.totalCenters || 0;
+              const cAct = metrics.centersActive ?? metrics.activeCenters ?? 0;
+              const cPnd = metrics.centersPending ?? metrics.pendingCenters ?? 0;
+              const cDeact = metrics.centersDeactive ?? metrics.deactiveCenters ?? 0;
+
+              const cActPct = cTot > 0 ? Math.round((cAct / cTot) * 100) : 0;
+              const cPndPct = cTot > 0 ? Math.round((cPnd / cTot) * 100) : 0;
+              const cDeactPct = cTot > 0 ? Math.round((cDeact / cTot) * 100) : 0;
+
+              return (
+                <div className="space-y-3">
+                  <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden flex shadow-inner p-0.5 gap-0.5">
+                    {cTot > 0 ? (
+                      <>
+                        {cAct > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((cAct / cTot) * 100, 2)}%` }} 
+                            className="bg-emerald-500 rounded-sm transition-all duration-500" 
+                            title={`Active Centers: ${cAct} (${cActPct}%)`}
+                          />
+                        )}
+                        {cPnd > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((cPnd / cTot) * 100, 2)}%` }} 
+                            className="bg-amber-500 rounded-sm transition-all duration-500" 
+                            title={`Verification Pending: ${cPnd} (${cPndPct}%)`}
+                          />
+                        )}
+                        {cDeact > 0 && (
+                          <div 
+                            style={{ width: `${Math.max((cDeact / cTot) * 100, 2)}%` }} 
+                            className="bg-rose-500 rounded-sm transition-all duration-500" 
+                            title={`Deactive: ${cDeact} (${cDeactPct}%)`}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full bg-muted rounded-sm" />
+                    )}
+                  </div>
+
+                  {/* 3 Status Breakdown Interactive Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* 1. Active Centers */}
+                    <div 
+                      onClick={() => navigateToCenterStatus('active')}
+                      className="group cursor-pointer p-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Active</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Verified</p>
+                        </div>
+                        <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
+                          {cActPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-emerald-700 dark:text-emerald-400 font-display">{cAct}</span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Verification Pending */}
+                    <div 
+                      onClick={() => navigateToCenterStatus('pending')}
+                      className="group cursor-pointer p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                            <span className="text-xs font-bold text-amber-800 dark:text-amber-300">Pending</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Verification</p>
+                        </div>
+                        <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
+                          {cPndPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-amber-700 dark:text-amber-400 font-display">{cPnd}</span>
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          Review <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Deactive / Inactive */}
+                    <div 
+                      onClick={() => navigateToCenterStatus('deactive')}
+                      className="group cursor-pointer p-3 rounded-xl border border-rose-500/25 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span className="text-xs font-bold text-rose-800 dark:text-rose-300">Deactive</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Suspended</p>
+                        </div>
+                        <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold">
+                          {cDeactPct}%
+                        </Badge>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xl font-black text-rose-700 dark:text-rose-400 font-display">{cDeact}</span>
+                        <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          View <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
 
       {/* Financial & Session Reports Hub (Required Feature) */}

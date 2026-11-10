@@ -861,7 +861,10 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
       name: true,
       startDate: true,
       endDate: true,
-      status: true
+      status: true,
+      university: {
+        select: { id: true, name: true, code: true }
+      }
     },
     orderBy: { createdAt: 'desc' }
   });
