@@ -40,6 +40,7 @@ import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel'
 import { AdmissionHierarchyReportPanel } from '@/components/panels/AdmissionHierarchyReportPanel';
 import { TargetVsAchievementReportPanel } from '@/components/panels/TargetVsAchievementReportPanel';
 import { SessionReportPanel } from '@/components/panels/SessionReportPanel';
+import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 
 export function getBranchManagerNavItems() {
   return [
@@ -60,6 +61,7 @@ export function getBranchManagerNavItems() {
     { id: 'enrollment_review', label: 'Enrollment Review' },
     { id: 'sessions', label: 'Admission Sessions' },
     { id: '__reports_section', label: 'Reports', isSection: true },
+    { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
     { id: 'admission_report', label: 'Admission Report (Hierarchy)' },
     { id: 'target_achievement_report', label: 'Target vs. Achievement' },
     { id: 'session_report', label: 'Session Report' },
@@ -113,9 +115,14 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
     fetchAll();
   }, []);
 
+  const handleNavigate = (tab: string) => {
+    setActiveTab(tab);
+    onNavigate?.(tab);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'overview': return <BranchOverview branch={branch} metrics={metrics} leads={leads} targets={targets} loading={loading} onNavigate={setActiveTab} />;
+      case 'overview': return <BranchOverview branch={branch} metrics={metrics} leads={leads} targets={targets} loading={loading} onNavigate={handleNavigate} />;
       // Sales
       case 'leads': return <LeadsPanel />;
       case 'targets': return <TargetsPanel endpoint="/sales/targets" title="Branch Targets" />;
@@ -131,6 +138,8 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'enrollment_review': return <DeptEnrollmentReviewPanel />;
       case 'sessions': return <AdmissionSessionsPanel />;
       // Reports
+      case 'sales_admission_report':
+      case 'sales-admission-report': return <SalesStaffAdmissionReportPanel />;
       case 'admission_report': return <AdmissionHierarchyReportPanel />;
       case 'target_achievement_report': return <TargetVsAchievementReportPanel />;
       case 'session_report': return <SessionReportPanel />;

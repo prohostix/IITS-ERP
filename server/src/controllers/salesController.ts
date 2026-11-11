@@ -1111,25 +1111,34 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     organizationId,
     status: 'active',
     OR: [
-      { role: { in: ['sales_admin', 'sales_sub_admin', 'bde'] } },
-      { department: { type: 'sales' } }
+      { role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'branch_manager', 'team_leader'] } },
+      { department: { type: 'sales' } },
+      { subDepartment: { parentDept: { type: 'sales' } } },
+      { designationRef: { department: { type: 'sales' } } },
+      { designationRef: { subDepartment: { parentDept: { type: 'sales' } } } }
     ]
   };
 
+  let allowedStaffIds: string[] | null = null;
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
-    staffWhere.id = { in: scope.staffIds };
+    allowedStaffIds = scope.staffIds;
   } else if (!isGlobalAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
-    const visibleUserIds = [req.user.id, ...subordinateIds];
-    staffWhere.id = { in: visibleUserIds };
+    allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
-  if (staffIdFilter) {
+  if (allowedStaffIds !== null) {
+    if (staffIdFilter) {
+      staffWhere.id = allowedStaffIds.includes(staffIdFilter) ? staffIdFilter : '__none__';
+    } else {
+      staffWhere.id = { in: allowedStaffIds };
+    }
+  } else if (staffIdFilter) {
     staffWhere.id = staffIdFilter;
   }
 
-  const salesStaff = await prisma.user.findMany({
+  const rawSalesStaff = await prisma.user.findMany({
     where: staffWhere,
     select: {
       id: true,
@@ -1139,10 +1148,24 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
       role: true,
       designation: true,
       branch: { select: { id: true, name: true } },
-      department: { select: { id: true, name: true } }
+      department: { select: { id: true, name: true } },
+      designationRef: {
+        select: {
+          title: true,
+          branch: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } }
+        }
+      }
     },
     orderBy: { name: 'asc' }
   });
+
+  const salesStaff = rawSalesStaff.map(({ designationRef, ...s }) => ({
+    ...s,
+    designation: s.designation || designationRef?.title || null,
+    branch: s.branch || designationRef?.branch || null,
+    department: s.department || designationRef?.department || null
+  }));
 
   const staffIds = salesStaff.map(s => s.id);
 

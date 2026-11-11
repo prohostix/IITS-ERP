@@ -79,15 +79,41 @@ export async function getBranchScope(user: any): Promise<BranchScope> {
       organizationId: user.organizationId,
       OR: [
         { branchId: branch.id },
+        { designationRef: { branchId: branch.id } },
+        { reportingTo: user.id },
         ...(deptIds.length > 0 ? [
           { departmentId: { in: deptIds } },
-          { subDepartment: { parentDeptId: { in: deptIds } } }
+          { subDepartment: { parentDeptId: { in: deptIds } } },
+          { designationRef: { departmentId: { in: deptIds } } },
+          { designationRef: { subDepartment: { parentDeptId: { in: deptIds } } } }
         ] : [])
       ]
     },
     select: { id: true }
   });
-  const staffIds = Array.from(new Set([user.id, ...staff.map(s => s.id)]));
+  const staffIdSet = new Set<string>([user.id, ...staff.map(s => s.id)]);
+
+  // Also include any transitive subordinates reporting to branch staff
+  let frontier = Array.from(staffIdSet);
+  for (let depth = 0; depth < 4 && frontier.length > 0; depth++) {
+    const subs = await prisma.user.findMany({
+      where: {
+        organizationId: user.organizationId,
+        reportingTo: { in: frontier }
+      },
+      select: { id: true }
+    });
+    const nextFrontier: string[] = [];
+    for (const s of subs) {
+      if (!staffIdSet.has(s.id)) {
+        staffIdSet.add(s.id);
+        nextFrontier.push(s.id);
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  const staffIds = Array.from(staffIdSet);
 
   const branchInvites = await prisma.studyCenterInvite.findMany({
     where: { organizationId: user.organizationId, branchId: branch.id },
