@@ -520,7 +520,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         } else if (att.status === 'absent') {
           absentDays += 1;
         }
-      } else if (matchingLeave) {
+      } else if (matchingLeave && dayStr <= todayStr) {
         if (matchingLeave.type === 'unpaid') {
           unpaidLeaveDays += 1;
           absentDays += 1;
@@ -532,24 +532,12 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
           paidLeaveDays += 1;
         }
       } else {
-        // Scheduled working day with neither punch nor approved leave
-        if (dayStr <= todayStr) {
-          // Elapsed / past day = unexcused absence
-          absentDays += 1;
-        } else {
-          // Future day in ongoing month
-          if (!hasAnyPunchesOrLeaves) {
-            // Employee has zero attendance in the entire month -> marked absent
-            absentDays += 1;
-          } else {
-            // Active employee with punches this month -> project scheduled future day as present
-            presentDays += 1;
-          }
-        }
+        // Scheduled working day with neither punch nor approved leave (or future unworked day)
+        absentDays += 1;
       }
     }
 
-    // Determine payable days & Loss of Pay (LOP)
+    // Determine payable days & Loss of Pay (LOP) strictly from actual days attended + approved paid leave so far
     let payableDays = 0;
     let lopDeduction = 0;
 
@@ -559,8 +547,10 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       absentDays = totalDaysInMonth;
       lopDeduction = fixedMonthlyGross;
     } else {
-      payableDays = Math.max(0, parseFloat((totalDaysInMonth - absentDays).toFixed(1)));
-      lopDeduction = Math.min(fixedMonthlyGross, Math.round(perDaySalary * absentDays));
+      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((presentDays + paidLeaveDays).toFixed(1))));
+      absentDays = Math.max(0, parseFloat((totalDaysInMonth - payableDays).toFixed(1)));
+      const earnedGross = Math.round(perDaySalary * payableDays);
+      lopDeduction = Math.max(0, Math.min(fixedMonthlyGross, fixedMonthlyGross - earnedGross));
     }
 
     // Build final deductions object/array
@@ -660,6 +650,30 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       errors.push(`Failed to generate for ${user.name}: ${err.message}`);
     }
   }
+
+  // Sync totalAmount on any existing non-completed PayrollBatches for this month
+  try {
+    const batches = await prisma.payrollBatch.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        month: month,
+        status: { not: 'completed' }
+      }
+    });
+    for (const batch of batches) {
+      if (batch.payrollIds && batch.payrollIds.length > 0) {
+        const batchPayrolls = await prisma.payroll.findMany({
+          where: { id: { in: batch.payrollIds } },
+          select: { netSalary: true }
+        });
+        const newTotal = batchPayrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0);
+        await prisma.payrollBatch.update({
+          where: { id: batch.id },
+          data: { totalAmount: newTotal }
+        });
+      }
+    }
+  } catch (_ignored) {}
 
   return { generated, errors };
 }
