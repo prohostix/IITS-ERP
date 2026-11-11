@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock, CheckCircle, Eye, Download, ChevronDown, Table as TableIcon, LayoutList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -15,6 +15,297 @@ import { toast } from 'sonner';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import { RotateCcw } from 'lucide-react';
+
+export interface StudentDisplayField {
+  key: string;
+  label: string;
+  isDefault?: boolean;
+}
+
+export const STUDENT_DISPLAY_FIELDS: StudentDisplayField[] = [
+  { key: 'sl_no', label: 'SL NO', isDefault: true },
+  { key: 'admission_number', label: 'Admission Number', isDefault: true },
+  { key: 'enrollment_number', label: 'Enrollment Number', isDefault: true },
+  { key: 'reference_number', label: 'Reference Number' },
+  { key: 'student_name', label: 'Student Name', isDefault: true },
+  { key: 'course_type', label: 'Course Type' },
+  { key: 'admission_mode', label: 'Admission Mode' },
+  { key: 'university_board', label: 'University/Board', isDefault: true },
+  { key: 'course_applied', label: 'Course Applied', isDefault: true },
+  { key: 'specialization', label: 'Specialization' },
+  { key: 'parent_name', label: 'Parent Name' },
+  { key: 'mother_name', label: 'Mother Name' },
+  { key: 'sex', label: 'Sex' },
+  { key: 'dob', label: 'Date of Birth' },
+  { key: 'mobile', label: 'Mobile', isDefault: true },
+  { key: 'email', label: 'Email', isDefault: true },
+  { key: 'present_address', label: 'Present Address' },
+  { key: 'total_fee', label: 'Total Fee', isDefault: true },
+  { key: 'discount', label: 'Discount' },
+  { key: 'remitted_fee', label: 'Remitted Fee', isDefault: true },
+  { key: 'balance_fee', label: 'Balance Fee', isDefault: true },
+  { key: 'university_fee', label: 'University Fee' },
+  { key: 'uni_fee_remitted', label: 'Uni Fee Remitted' },
+  { key: 'uni_fee_balance', label: 'Uni Fee Balance' },
+  { key: 'batch', label: 'Batch', isDefault: true },
+  { key: 'class_duration', label: 'Class Duration' },
+  { key: 'passout_year', label: 'Passout Year' },
+  { key: 'passout_month', label: 'Passout Month' },
+  { key: 'second_language', label: 'Second Language' },
+  { key: 'place_subcenter', label: 'Place/Subcenter', isDefault: true },
+  { key: 'date_of_join', label: 'Date of Join', isDefault: true },
+  { key: 'valid_upto', label: 'Valid Upto' },
+  { key: 'center_status', label: 'Center Status' },
+  { key: 'status', label: 'Status', isDefault: true },
+];
+
+export const DEFAULT_DISPLAY_FIELD_KEYS = STUDENT_DISPLAY_FIELDS.filter(f => f.isDefault).map(f => f.key);
+export const ALL_DISPLAY_FIELD_KEYS = STUDENT_DISPLAY_FIELDS.map(f => f.key);
+
+const formatDateVal = (val: any): string => {
+  if (!val) return '-';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+export const getStudentDisplayFieldValue = (student: any, index: number, fieldKey: string): string => {
+  const enrollment = student?.enrollments?.[0] || {};
+  const program = student?.program || enrollment?.program || {};
+  const university = program?.university || {};
+  const center = student?.center || {};
+  const session = enrollment?.session || {};
+
+  // Resolve matching ProgramFeeStructure (same priority as financeLedgerReportsController)
+  const pfsList: any[] = Array.isArray(program?.programFeeStructure)
+    ? program.programFeeStructure
+    : Array.isArray(program?.programFeeStructures)
+      ? program.programFeeStructures
+      : [];
+  const sessionId = enrollment?.sessionId || student?.sessionId || session?.id;
+  const spec = student?.specialisation || enrollment?.specialisation;
+  const feeStruct =
+    pfsList.find((f) => f.admissionSessionId === sessionId && f.specialisation === spec) ||
+    pfsList.find((f) => !f.admissionSessionId && f.specialisation === spec) ||
+    pfsList.find((f) => f.admissionSessionId === sessionId && !f.specialisation) ||
+    pfsList.find((f) => !f.admissionSessionId && !f.specialisation) ||
+    pfsList[0];
+
+  // Parse feeBreakdown blocks for student's payment method
+  let breakdowns: any[] = [];
+  if (typeof feeStruct?.feeBreakdown === 'string') {
+    try {
+      breakdowns = JSON.parse(feeStruct.feeBreakdown);
+    } catch (_e) {
+      breakdowns = [];
+    }
+  } else if (Array.isArray(feeStruct?.feeBreakdown)) {
+    breakdowns = feeStruct.feeBreakdown;
+  }
+
+  const payMethod = enrollment?.paymentMethod || enrollment?.paymentType;
+  const hasTagged = breakdowns.some((b) => b?.installmentType === 'year' || b?.installmentType === 'semester');
+  const filteredBlocks = hasTagged
+    ? payMethod === 'semester'
+      ? breakdowns.filter((b) => b?.installmentType === 'semester').length > 0
+        ? breakdowns.filter((b) => b?.installmentType === 'semester')
+        : breakdowns.filter((b) => b?.installmentType === 'year')
+      : breakdowns.filter((b) => b?.installmentType === 'year').length > 0
+        ? breakdowns.filter((b) => b?.installmentType === 'year')
+        : breakdowns.filter((b) => b?.installmentType === 'semester')
+    : breakdowns;
+
+  // Calculate Student Fees & Discount (aligned with Finance Student Ledger)
+  let fullProgramCalculated = 0;
+  if (payMethod === 'full_payment' || enrollment?.paymentType === 'full_payment') {
+    fullProgramCalculated = Number(feeStruct?.fullProgramFee || 0);
+  }
+  if (fullProgramCalculated <= 0 && filteredBlocks.length > 0) {
+    fullProgramCalculated = filteredBlocks.reduce((sum: number, b: any) => {
+      const addFee = Array.isArray(b?.additionalFees)
+        ? b.additionalFees.reduce((s: number, f: any) => s + Number(f?.amount || 0), 0)
+        : 0;
+      return sum + Number(b?.baseFee || b?.tuitionFee || 0) + Number(b?.examFee || 0) + addFee;
+    }, 0);
+  }
+
+  const extraFeesList: any[] = Array.isArray(enrollment?.extraFees) ? enrollment.extraFees : [];
+  const positiveExtraFees = extraFeesList
+    .filter((f) => Number(f?.amount || 0) > 0 && String(f?.type || '').toLowerCase() !== 'discount')
+    .reduce((s, f) => s + Number(f?.amount || 0), 0);
+  const extraDiscounts = extraFeesList
+    .filter((f) => Number(f?.amount || 0) < 0 || String(f?.type || '').toLowerCase() === 'discount')
+    .reduce((s, f) => s + Math.abs(Number(f?.amount || 0)), 0);
+
+  const baseProgramFee =
+    fullProgramCalculated > 0
+      ? fullProgramCalculated
+      : Number(feeStruct?.baseFee || enrollment?.totalFee || 0);
+  const totalFee = baseProgramFee + positiveExtraFees;
+
+  const receipts = Array.isArray(enrollment?.studentFeeReceipts) ? enrollment.studentFeeReceipts : [];
+  const receiptsDiscount = receipts.reduce((sum: number, r: any) => sum + Number(r?.discount || 0), 0);
+  const manualReceiptsPaid = receipts.reduce(
+    (sum: number, r: any) => sum + Number(r?.amount ?? r?.amountPaid ?? 0),
+    0
+  );
+  const walletPayment =
+    enrollment?.paymentType === 'direct_to_university'
+      ? 0
+      : Number(enrollment?.payment?.amount ?? enrollment?.totalFee ?? 0);
+  const remittedFee = manualReceiptsPaid + walletPayment;
+  const discount = receiptsDiscount + extraDiscounts;
+  const balanceFee = Math.max(0, totalFee - discount - remittedFee);
+
+  // Calculate University Fees
+  const uniPayments = Array.isArray(student?.universityFeePayments) ? student.universityFeePayments : [];
+  const uniPaymentsTotal = uniPayments.reduce((sum: number, p: any) => sum + Number(p?.amount || 0), 0);
+  const uniFeeRemitted = uniPayments
+    .filter((p: any) => ['paid', 'completed', 'approved', 'success'].includes(String(p?.status || '').toLowerCase()))
+    .reduce((sum: number, p: any) => sum + Number(p?.amount || 0), 0);
+
+  let structUniFee = 0;
+  if ((payMethod === 'full_payment' || enrollment?.paymentType === 'full_payment') && Number(feeStruct?.oneTimeUniversityFee || 0) > 0) {
+    structUniFee = Number(feeStruct.oneTimeUniversityFee);
+  } else if (filteredBlocks.length > 0) {
+    structUniFee = filteredBlocks.reduce((sum: number, b: any) => sum + Number(b?.universityFee || 0), 0);
+  }
+  if (structUniFee <= 0) {
+    structUniFee = Number(feeStruct?.universityFee || program?.feeStructure?.universityFee || 0);
+  }
+  const universityFee = Math.max(structUniFee, uniPaymentsTotal, uniFeeRemitted);
+  const uniFeeBalance = Math.max(0, universityFee - uniFeeRemitted);
+
+  // Duration / Passout / Valid Upto calculations (Program.duration in schema is stored in months, e.g. 24, 36)
+  const joinRaw = student?.joinDate || enrollment?.admissionDate || enrollment?.createdAt || student?.createdAt;
+  const joinDateObj = joinRaw ? new Date(joinRaw) : null;
+  const rawDuration = program?.duration;
+  const durNum = Number(rawDuration);
+  const durationMonths = !isNaN(durNum) && durNum > 0 ? (durNum >= 6 ? durNum : durNum * 12) : 0;
+
+  let formattedDuration = '-';
+  if (!isNaN(durNum) && durNum > 0) {
+    if (durNum >= 6) {
+      const yrs = durNum / 12;
+      const yrsLabel = Number.isInteger(yrs) ? `${yrs} ${yrs === 1 ? 'Year' : 'Years'}` : `${yrs.toFixed(1)} Years`;
+      formattedDuration = `${durNum} Months (${yrsLabel})`;
+    } else {
+      formattedDuration = `${durNum} ${durNum === 1 ? 'Year' : 'Years'}`;
+    }
+  } else if (rawDuration) {
+    formattedDuration = String(rawDuration);
+  }
+
+  let validUptoDate: Date | null = null;
+  if (session?.endDate) {
+    const ed = new Date(session.endDate);
+    if (!isNaN(ed.getTime())) validUptoDate = ed;
+  } else if (joinDateObj && !isNaN(joinDateObj.getTime()) && durationMonths > 0) {
+    validUptoDate = new Date(joinDateObj);
+    validUptoDate.setMonth(validUptoDate.getMonth() + durationMonths);
+  }
+
+  const formatAdmissionMode = (val: string | undefined): string => {
+    if (!val) return 'Regular';
+    const map: Record<string, string> = {
+      full_payment: 'Full Payment',
+      semester: 'Semester',
+      yearly: 'Yearly',
+      installment: 'Installment',
+      wallet: 'Wallet',
+      emi: 'EMI',
+      direct_to_university: 'Direct to University',
+    };
+    return map[val] || val.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  switch (fieldKey) {
+    case 'sl_no':
+      return String(index + 1);
+    case 'admission_number':
+      return student?.enrollmentNo || enrollment?.enrollmentNumber || '-';
+    case 'enrollment_number':
+      return student?.uniEnrollmentNumber || enrollment?.uniEnrollmentNumber || '-';
+    case 'reference_number':
+      return (
+        student?.abcId ||
+        enrollment?.abcId ||
+        student?.debId ||
+        enrollment?.debId ||
+        receipts[0]?.referenceNo ||
+        '-'
+      );
+    case 'student_name':
+      return student?.name || enrollment?.studentName || '-';
+    case 'course_type':
+      return program?.courseType ? String(program.courseType).replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase() : '-';
+    case 'admission_mode':
+      return formatAdmissionMode(enrollment?.paymentMethod || enrollment?.paymentType);
+    case 'university_board':
+      return university?.name || session?.university?.name || '-';
+    case 'course_applied':
+      return program?.name || '-';
+    case 'specialization':
+      return student?.specialisation || enrollment?.specialisation || '-';
+    case 'parent_name':
+      return student?.fatherName || enrollment?.fatherName || '-';
+    case 'mother_name':
+      return student?.motherName || enrollment?.motherName || '-';
+    case 'sex':
+      return student?.gender || enrollment?.gender || '-';
+    case 'dob':
+      return formatDateVal(student?.dob || enrollment?.dob);
+    case 'mobile':
+      return student?.phone || enrollment?.studentPhone || '-';
+    case 'email':
+      return student?.email || enrollment?.studentEmail || '-';
+    case 'present_address': {
+      const addrParts = [
+        student?.address || enrollment?.studentAddress || enrollment?.address,
+        student?.city || enrollment?.city,
+        student?.state || enrollment?.state,
+        student?.pincode || enrollment?.pincode,
+      ].filter(Boolean);
+      return addrParts.length > 0 ? addrParts.join(', ') : '-';
+    }
+    case 'total_fee':
+      return `₹${totalFee.toLocaleString('en-IN')}`;
+    case 'discount':
+      return `₹${discount.toLocaleString('en-IN')}`;
+    case 'remitted_fee':
+      return `₹${remittedFee.toLocaleString('en-IN')}`;
+    case 'balance_fee':
+      return `₹${balanceFee.toLocaleString('en-IN')}`;
+    case 'university_fee':
+      return `₹${universityFee.toLocaleString('en-IN')}`;
+    case 'uni_fee_remitted':
+      return `₹${uniFeeRemitted.toLocaleString('en-IN')}`;
+    case 'uni_fee_balance':
+      return `₹${uniFeeBalance.toLocaleString('en-IN')}`;
+    case 'batch':
+      return session?.name || '-';
+    case 'class_duration':
+      return formattedDuration;
+    case 'passout_year':
+      return validUptoDate ? String(validUptoDate.getFullYear()) : '-';
+    case 'passout_month':
+      return validUptoDate ? validUptoDate.toLocaleString('en-US', { month: 'long' }) : '-';
+    case 'second_language':
+      return student?.secondLanguage || enrollment?.secondLanguage || '-';
+    case 'place_subcenter':
+      return center?.name ? `${center.name}${center.city ? ` (${center.city})` : ''}` : '-';
+    case 'date_of_join':
+      return formatDateVal(joinRaw);
+    case 'valid_upto':
+      return validUptoDate ? formatDateVal(validUptoDate) : '-';
+    case 'center_status':
+      return center?.status ? String(center.status).replace(/_/g, ' ').toUpperCase() : 'ACTIVE';
+    case 'status':
+      return student?.status ? String(student.status).toUpperCase() : '-';
+    default:
+      return '-';
+  }
+};
 
 export const getStudentPhotoUrl = (student: any): string | null => {
   if (!student) return null;
@@ -94,6 +385,75 @@ export function StudentsPanel() {
   const [requestedStatus, setRequestedStatus] = useState<'hold' | 'dropout'>('hold');
   const [statusReason, setStatusReason] = useState('');
   const [submittingStatusReq, setSubmittingStatusReq] = useState(false);
+
+  // Select Student Display Field & Report state
+  const [displayFieldsOpen, setDisplayFieldsOpen] = useState(false);
+  const [selectedDisplayFields, setSelectedDisplayFields] = useState<string[]>(DEFAULT_DISPLAY_FIELD_KEYS);
+  const [reportViewMode, setReportViewMode] = useState<'directory' | 'report'>('directory');
+
+  const isAllDisplayFieldsChecked = selectedDisplayFields.length === ALL_DISPLAY_FIELD_KEYS.length;
+  const isDefaultDisplayFieldsChecked =
+    selectedDisplayFields.length === DEFAULT_DISPLAY_FIELD_KEYS.length &&
+    DEFAULT_DISPLAY_FIELD_KEYS.every((k) => selectedDisplayFields.includes(k));
+
+  const toggleDisplayField = (key: string) => {
+    setSelectedDisplayFields((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleCheckAllDisplayFields = (checked: boolean) => {
+    setSelectedDisplayFields(checked ? [...ALL_DISPLAY_FIELD_KEYS] : []);
+  };
+
+  const handleCheckDefaultDisplayFields = (checked: boolean) => {
+    setSelectedDisplayFields(checked ? [...DEFAULT_DISPLAY_FIELD_KEYS] : []);
+  };
+
+  const orderedSelectedFields = STUDENT_DISPLAY_FIELDS.filter((f) =>
+    selectedDisplayFields.includes(f.key)
+  );
+
+  const handleGenerateStudentReport = () => {
+    if (orderedSelectedFields.length === 0) {
+      toast.error('Please select at least one display field to generate the report');
+      return;
+    }
+    setReportViewMode('report');
+    setDisplayFieldsOpen(false);
+    toast.success(`Report generated with ${orderedSelectedFields.length} fields for ${students.length} students`);
+  };
+
+  const handleExportStudentReportCsv = () => {
+    if (orderedSelectedFields.length === 0) {
+      toast.error('Please select at least one display field to export');
+      return;
+    }
+    if (students.length === 0) {
+      toast.error('No students available to export');
+      return;
+    }
+    const headers = orderedSelectedFields.map((f) => `"${f.label.replace(/"/g, '""')}"`);
+    const rows = students.map((student, idx) =>
+      orderedSelectedFields
+        .map((f) => {
+          const val = getStudentDisplayFieldValue(student, idx, f.key).replace(/^₹/, 'Rs. ');
+          return `"${String(val).replace(/"/g, '""')}"`;
+        })
+        .join(',')
+    );
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `student-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${students.length} students with ${orderedSelectedFields.length} columns`);
+  };
 
   const handleRequestStatusChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -533,6 +893,35 @@ export function StudentsPanel() {
             />
           )}
 
+          {/* Select Student Display Field Filter Dropdown Trigger */}
+          <Button
+            type="button"
+            variant={displayFieldsOpen ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDisplayFieldsOpen((prev) => !prev)}
+            className={cn(
+              'h-9 px-3 text-xs font-semibold gap-1.5 shadow-xs transition-all',
+              displayFieldsOpen
+                ? 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600'
+                : 'border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40'
+            )}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Select Student Display Field</span>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'ml-0.5 px-1.5 py-0 text-[10px] font-bold rounded-full',
+                displayFieldsOpen
+                  ? 'bg-white/20 text-white'
+                  : 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200'
+              )}
+            >
+              {selectedDisplayFields.length}/{STUDENT_DISPLAY_FIELDS.length}
+            </Badge>
+            <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', displayFieldsOpen && 'rotate-180')} />
+          </Button>
+
           {/* Clear Filters Button */}
           {isFiltered && (
             <Button
@@ -548,23 +937,154 @@ export function StudentsPanel() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      {/* Select Student Display Field Collapsible Dropdown Panel */}
+      {displayFieldsOpen && (
+        <div className="rounded-xl overflow-hidden border border-sky-300 dark:border-sky-800 shadow-sm mb-4">
+          <div className="bg-[#00a6fb] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-semibold text-sm">
+              <Eye className="w-4 h-4" />
+              <span>Select Student Display Field</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleGenerateStudentReport}
+                className="h-7 px-3 text-xs font-semibold bg-white text-sky-700 hover:bg-sky-50 shadow-xs gap-1.5"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                Generate Report
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleExportStudentReportCsv}
+                className="h-7 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export CSV Report
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-[#dfeccb] dark:bg-slate-900/90 p-4 space-y-4 text-slate-800 dark:text-slate-200">
+            {/* Check All & Check Default */}
+            <div className="flex flex-wrap items-center gap-6 pb-2 border-b border-slate-400/30">
+              <label className="inline-flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isAllDisplayFieldsChecked}
+                  onChange={(e) => handleCheckAllDisplayFields(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-400 text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
+                />
+                <span>Check All</span>
+              </label>
+
+              <label className="inline-flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isDefaultDisplayFieldsChecked}
+                  onChange={(e) => handleCheckDefaultDisplayFields(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-slate-400 text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
+                />
+                <span>Check Default</span>
+              </label>
+
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 ml-auto">
+                {selectedDisplayFields.length} of {STUDENT_DISPLAY_FIELDS.length} fields selected
+              </span>
+            </div>
+
+            {/* 6-Column Grid of 34 Display Fields */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2.5">
+              {STUDENT_DISPLAY_FIELDS.map((field) => {
+                const checked = selectedDisplayFields.includes(field.key);
+                return (
+                  <label
+                    key={field.key}
+                    className="inline-flex items-center gap-2 text-xs font-medium cursor-pointer select-none hover:text-sky-800 dark:hover:text-sky-300 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleDisplayField(field.key)}
+                      className="w-3.5 h-3.5 rounded border-slate-400 text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600 shrink-0"
+                    />
+                    <span className="truncate" title={field.label}>
+                      {field.label}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <Input 
           placeholder="Search by name, email, or admission no..." 
           value={filters.search}
           onChange={(e) => setField('search', e.target.value)}
           className="max-w-md h-9 text-xs"
         />
+
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+            <button
+              type="button"
+              onClick={() => setReportViewMode('directory')}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
+                reportViewMode === 'directory'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              Directory
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportViewMode('report')}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
+                reportViewMode === 'report'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <TableIcon className="w-3.5 h-3.5" />
+              Report Table ({orderedSelectedFields.length} Cols)
+            </button>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportStudentReportCsv}
+            className="h-8 px-3 text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       <Card className="border shadow-sm">
         <CardHeader className="py-4 border-b bg-muted/20">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <span>Student Directory</span>
+              <span>{reportViewMode === 'report' ? 'Generated Student Report' : 'Student Directory'}</span>
               <Badge variant="outline" className="text-xs font-mono font-semibold bg-background">
                 {students.length} {students.length === 1 ? 'student' : 'students'}
               </Badge>
+              {reportViewMode === 'report' && (
+                <Badge variant="secondary" className="text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
+                  {orderedSelectedFields.length} Columns
+                </Badge>
+              )}
             </CardTitle>
           </div>
         </CardHeader>
@@ -573,6 +1093,44 @@ export function StudentsPanel() {
             <div className="text-center py-8 text-muted-foreground">Loading students...</div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No students found</div>
+          ) : reportViewMode === 'report' ? (
+            orderedSelectedFields.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No display fields selected. Click <strong>Select Student Display Field</strong> above to choose columns.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800/80 border-b text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider">
+                      {orderedSelectedFields.map((field) => (
+                        <th key={field.key} className="px-3 py-2.5 whitespace-nowrap border-r last:border-r-0">
+                          {field.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {students.filter(s => s && s.id).map((student, index) => (
+                      <tr
+                        key={student.id}
+                        onClick={() => setSelectedStudent(student)}
+                        className="hover:bg-muted/50 cursor-pointer transition-colors odd:bg-background even:bg-muted/10"
+                      >
+                        {orderedSelectedFields.map((field) => (
+                          <td
+                            key={field.key}
+                            className="px-3 py-2 whitespace-nowrap border-r last:border-r-0 text-slate-700 dark:text-slate-300"
+                          >
+                            {getStudentDisplayFieldValue(student, index, field.key)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           ) : (
             <div className="space-y-2.5">
               {students.filter(s => s && (s.id || s.id)).map((student, index) => {

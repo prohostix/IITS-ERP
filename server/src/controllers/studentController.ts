@@ -121,21 +121,31 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
       enrollments: {
         include: {
           session: {
-            select: { id: true, name: true, university: { select: { id: true, name: true, code: true } } }
+            select: {
+              id: true,
+              name: true,
+              startDate: true,
+              endDate: true,
+              university: { select: { id: true, name: true, code: true } }
+            }
           },
           studentFeeReceipts: {
             orderBy: { receiptDate: 'desc' }
           },
+          payment: true,
           program: {
             include: {
               programFeeStructure: true,
+              feeStructure: true,
               university: true
             }
           }
         }
       },
+      universityFeePayments: true,
+      invoices: true,
       center: true,
-      program: { include: { university: true } }
+      program: { include: { university: true, feeStructure: true, programFeeStructure: true } }
     },
     orderBy: { createdAt: 'desc' }
   });
