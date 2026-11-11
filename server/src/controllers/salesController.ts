@@ -1104,7 +1104,15 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   const selectedMonth = req.query.month ? (req.query.month === 'all' ? 'all' : parseInt(req.query.month as string, 10)) : 'all';
   const staffIdFilter = req.query.staffId && req.query.staffId !== 'all' ? (req.query.staffId as string) : null;
   const statusFilter = req.query.status && req.query.status !== 'all' ? (req.query.status as string) : null;
+  const sessionIdFilter = req.query.sessionId && req.query.sessionId !== 'all' ? (req.query.sessionId as string) : null;
+  const universityIdFilter = req.query.universityId && req.query.universityId !== 'all' ? (req.query.universityId as string) : null;
+  const startDateFilter = req.query.startDate ? (req.query.startDate as string).trim() : '';
+  const endDateFilter = req.query.endDate ? (req.query.endDate as string).trim() : '';
   const search = req.query.search ? (req.query.search as string).trim().toLowerCase() : '';
+
+  const startDateObj = startDateFilter ? new Date(`${startDateFilter}T00:00:00.000Z`) : null;
+  const endDateObj = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999Z`) : null;
+  const hasDateRange = Boolean(startDateObj || endDateObj);
 
   // Determine allowed sales staff IDs
   let staffWhere: any = {
@@ -1208,31 +1216,44 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     enrollmentWhere.status = statusFilter;
   }
 
-  const allEnrollments = await prisma.enrollment.findMany({
-    where: enrollmentWhere,
-    include: {
-      program: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          university: { select: { id: true, name: true, code: true } }
-        }
+  const [allEnrollments, availableSessions, availableUniversities] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: enrollmentWhere,
+      include: {
+        program: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            universityId: true,
+            university: { select: { id: true, name: true, code: true } }
+          }
+        },
+        studyCenter: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            referredBy: true
+          }
+        },
+        session: { select: { id: true, name: true } },
+        salesUser: { select: { id: true, name: true, email: true } },
+        student: { select: { id: true, name: true, email: true, referredBy: true } }
       },
-      studyCenter: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          referredBy: true
-        }
-      },
-      session: { select: { id: true, name: true } },
-      salesUser: { select: { id: true, name: true, email: true } },
-      student: { select: { id: true, name: true, email: true, referredBy: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.admissionSession.findMany({
+      where: { organizationId },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.university.findMany({
+      where: { organizationId },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: 'asc' }
+    })
+  ]);
 
   // Calculate year bounds for availableYears
   const yearsSet = new Set<number>();
@@ -1280,14 +1301,33 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
 
     if (!staffId || !staffMetricsMap.has(staffId)) continue;
 
+    // Apply Session filter
+    if (sessionIdFilter) {
+      const eSessionId = e.sessionId || e.session?.id || '';
+      if (eSessionId !== sessionIdFilter) continue;
+    }
+
+    // Apply University filter
+    if (universityIdFilter) {
+      const eUniversityId = e.program?.universityId || e.program?.university?.id || '';
+      if (eUniversityId !== universityIdFilter) continue;
+    }
+
     const dateVal = e.admissionDate || e.enrolledAt || e.createdAt;
     const admissionDate = new Date(dateVal);
     const admissionYear = admissionDate.getFullYear();
     const admissionMonth = admissionDate.getMonth() + 1; // 1-12
 
-    // Apply Year and Month filters for stats aggregation and list
-    const matchesYear = selectedYear === 'all' || admissionYear === selectedYear;
-    const matchesMonth = selectedMonth === 'all' || admissionMonth === selectedMonth;
+    // Apply Date Range (From / To) or Year & Month filters
+    let matchesDate = true;
+    if (hasDateRange) {
+      if (startDateObj && admissionDate < startDateObj) matchesDate = false;
+      if (endDateObj && admissionDate > endDateObj) matchesDate = false;
+    } else {
+      const matchesYear = selectedYear === 'all' || admissionYear === selectedYear;
+      const matchesMonth = selectedMonth === 'all' || admissionMonth === selectedMonth;
+      matchesDate = matchesYear && matchesMonth;
+    }
 
     // Monthly trend is tracked for the selected year (or current year if 'all')
     const trendYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
@@ -1296,7 +1336,7 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
       metrics.monthlyTrend[admissionMonth - 1] += 1;
     }
 
-    if (matchesYear && matchesMonth) {
+    if (matchesDate) {
       const metrics = staffMetricsMap.get(staffId)!;
       metrics.totalAdmissions += 1;
 
@@ -1321,6 +1361,7 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
         programName: e.program?.name || 'N/A',
         programCode: e.program?.code || '',
         universityName: e.program?.university?.name || 'N/A',
+        sessionName: e.session?.name || 'N/A',
         studyCenterName: e.studyCenter?.name || 'Direct',
         studyCenterCode: e.studyCenter?.code || '',
         status: e.status,
@@ -1341,6 +1382,8 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
           admissionItem.enrollmentNumber.toLowerCase().includes(search) ||
           admissionItem.studyCenterName.toLowerCase().includes(search) ||
           admissionItem.programName.toLowerCase().includes(search) ||
+          admissionItem.universityName.toLowerCase().includes(search) ||
+          admissionItem.sessionName.toLowerCase().includes(search) ||
           admissionItem.salesStaff.name.toLowerCase().includes(search);
         if (!matchesSearch) continue;
       }
@@ -1390,11 +1433,17 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
       overallSummary,
       admissions: filteredAdmissionsList,
       availableYears,
+      availableSessions,
+      availableUniversities,
       filters: {
         year: selectedYear,
         month: selectedMonth,
         staffId: staffIdFilter,
-        status: statusFilter
+        status: statusFilter,
+        sessionId: sessionIdFilter,
+        universityId: universityIdFilter,
+        startDate: startDateFilter || null,
+        endDate: endDateFilter || null
       }
     }
   });

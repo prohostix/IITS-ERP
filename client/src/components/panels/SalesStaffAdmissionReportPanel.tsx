@@ -60,6 +60,7 @@ interface AdmissionItem {
   programName: string;
   programCode: string;
   universityName: string;
+  sessionName?: string;
   studyCenterName: string;
   studyCenterCode: string;
   status: string;
@@ -149,10 +150,16 @@ export function SalesStaffAdmissionReportPanel() {
     avgConversionRate: 0,
   });
   const [availableYears, setAvailableYears] = useState<number[]>([new Date().getFullYear()]);
+  const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string }[]>([]);
+  const [availableUniversities, setAvailableUniversities] = useState<{ id: string; name: string; code?: string }[]>([]);
 
   // Filters
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
+  const [selectedUniversityId, setSelectedUniversityId] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -168,6 +175,10 @@ export function SalesStaffAdmissionReportPanel() {
       const params = new URLSearchParams();
       if (selectedYear) params.append('year', selectedYear);
       if (selectedMonth) params.append('month', selectedMonth);
+      if (selectedSessionId && selectedSessionId !== 'all') params.append('sessionId', selectedSessionId);
+      if (selectedUniversityId && selectedUniversityId !== 'all') params.append('universityId', selectedUniversityId);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       if (selectedStaffId && selectedStaffId !== 'all') params.append('staffId', selectedStaffId);
       if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
@@ -188,6 +199,12 @@ export function SalesStaffAdmissionReportPanel() {
         if (res.data.data.availableYears?.length) {
           setAvailableYears(res.data.data.availableYears);
         }
+        if (res.data.data.availableSessions) {
+          setAvailableSessions(res.data.data.availableSessions);
+        }
+        if (res.data.data.availableUniversities) {
+          setAvailableUniversities(res.data.data.availableUniversities);
+        }
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to load Sales Staff Admission Report');
@@ -199,7 +216,7 @@ export function SalesStaffAdmissionReportPanel() {
   useEffect(() => {
     fetchReport();
     setPage(1);
-  }, [selectedYear, selectedMonth, selectedStaffId, selectedStatus]);
+  }, [selectedYear, selectedMonth, selectedSessionId, selectedUniversityId, startDate, endDate, selectedStaffId, selectedStatus]);
 
   // Debounced search trigger
   useEffect(() => {
@@ -213,6 +230,10 @@ export function SalesStaffAdmissionReportPanel() {
   const handleResetFilters = () => {
     setSelectedYear(new Date().getFullYear().toString());
     setSelectedMonth('all');
+    setSelectedSessionId('all');
+    setSelectedUniversityId('all');
+    setStartDate('');
+    setEndDate('');
     setSelectedStaffId('all');
     setSelectedStatus('all');
     setSearchQuery('');
@@ -239,6 +260,7 @@ export function SalesStaffAdmissionReportPanel() {
       'Program',
       'Program Code',
       'University',
+      'Session',
       'Study Center',
       'Sales Representative',
       'Representative Role',
@@ -255,6 +277,7 @@ export function SalesStaffAdmissionReportPanel() {
       `"${a.programName || ''}"`,
       `"${a.programCode || ''}"`,
       `"${a.universityName || ''}"`,
+      `"${a.sessionName || ''}"`,
       `"${a.studyCenterName || ''}"`,
       `"${a.salesStaff?.name || ''}"`,
       `"${a.salesStaff?.role || ''}"`,
@@ -327,7 +350,69 @@ export function SalesStaffAdmissionReportPanel() {
       {/* Modern Filter Card */}
       <Card className="border border-border/60 shadow-sm bg-card/60 backdrop-blur-md">
         <CardContent className="p-4 sm:p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-end">
+            {/* Session Filter */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-primary" /> Session
+              </label>
+              <select
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              >
+                <option value="all">All Sessions</option>
+                {availableSessions.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* University Filter */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-primary" /> University
+              </label>
+              <select
+                value={selectedUniversityId}
+                onChange={(e) => setSelectedUniversityId(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              >
+                <option value="all">All Universities</option>
+                {availableUniversities.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}{u.code ? ` (${u.code})` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date From Filter */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-primary" /> Date From
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full h-9 text-sm font-medium"
+              />
+            </div>
+
+            {/* Date To Filter */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-primary" /> Date To
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full h-9 text-sm font-medium"
+              />
+            </div>
+
             {/* Year Filter */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -336,7 +421,8 @@ export function SalesStaffAdmissionReportPanel() {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                disabled={Boolean(startDate || endDate)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition disabled:opacity-50"
               >
                 <option value="all">All Years</option>
                 {availableYears.map(yr => (
@@ -353,7 +439,8 @@ export function SalesStaffAdmissionReportPanel() {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                disabled={Boolean(startDate || endDate)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition disabled:opacity-50"
               >
                 {MONTHS.map(m => (
                   <option key={m.value} value={m.value}>{m.label}</option>
@@ -398,14 +485,14 @@ export function SalesStaffAdmissionReportPanel() {
             </div>
 
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative sm:col-span-2 lg:col-span-1 xl:col-span-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <Search className="w-3.5 h-3.5 text-primary" /> Search
               </label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Student, Center, Program..."
+                  placeholder="Student, Center, Program, University..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8 h-9 text-sm"
@@ -415,13 +502,31 @@ export function SalesStaffAdmissionReportPanel() {
           </div>
 
           {/* Active Filter Indicator & Reset */}
-          {(selectedYear !== new Date().getFullYear().toString() || selectedMonth !== 'all' || selectedStaffId !== 'all' || selectedStatus !== 'all' || searchQuery) && (
-            <div className="mt-3.5 pt-3 border-t border-border/40 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
+          {(selectedYear !== new Date().getFullYear().toString() || selectedMonth !== 'all' || selectedSessionId !== 'all' || selectedUniversityId !== 'all' || startDate || endDate || selectedStaffId !== 'all' || selectedStatus !== 'all' || searchQuery) && (
+            <div className="mt-3.5 pt-3 border-t border-border/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
                 <span className="font-semibold text-foreground">Active Filter:</span>
-                <span>Year: <strong className="text-primary">{selectedYear}</strong></span>
-                <span>·</span>
-                <span>Month: <strong className="text-primary">{selectedMonth === 'all' ? 'All Months' : MONTHS.find(m => m.value === selectedMonth)?.label}</strong></span>
+                {startDate || endDate ? (
+                  <span>Date Range: <strong className="text-primary">{startDate || 'Start'} → {endDate || 'Now'}</strong></span>
+                ) : (
+                  <>
+                    <span>Year: <strong className="text-primary">{selectedYear}</strong></span>
+                    <span>·</span>
+                    <span>Month: <strong className="text-primary">{selectedMonth === 'all' ? 'All Months' : MONTHS.find(m => m.value === selectedMonth)?.label}</strong></span>
+                  </>
+                )}
+                {selectedSessionId !== 'all' && (
+                  <>
+                    <span>·</span>
+                    <span>Session: <strong className="text-primary">{availableSessions.find(s => s.id === selectedSessionId)?.name || selectedSessionId}</strong></span>
+                  </>
+                )}
+                {selectedUniversityId !== 'all' && (
+                  <>
+                    <span>·</span>
+                    <span>University: <strong className="text-primary">{availableUniversities.find(u => u.id === selectedUniversityId)?.name || selectedUniversityId}</strong></span>
+                  </>
+                )}
                 {selectedStaffId !== 'all' && (
                   <>
                     <span>·</span>
@@ -790,9 +895,12 @@ export function SalesStaffAdmissionReportPanel() {
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="font-medium text-foreground">{adm.programName}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
                             <span className="inline-block px-1.5 py-0.2 rounded bg-muted text-[10px] font-semibold">{adm.programCode}</span>
                             <span>{adm.universityName}</span>
+                            {adm.sessionName && adm.sessionName !== 'N/A' && (
+                              <span className="inline-block px-1.5 py-0.2 rounded bg-primary/10 text-primary text-[10px] font-semibold">{adm.sessionName}</span>
+                            )}
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
