@@ -65,6 +65,7 @@ const navItems: NavItem[] = [
     children: [
       { id: 'org-list', label: 'All Organizations', icon: Building, roles: ['superadmin'] },
       { id: 'licenses', label: 'Licenses', icon: Key, roles: ['superadmin'] },
+      { id: 'billing', label: 'Billing', icon: Receipt, roles: ['superadmin'] },
     ],
   },
   {

@@ -175,6 +175,7 @@ export function PrismaLayout({
       case 'payslips':
       case 'center_commission':
       case 'wallet_topups':
+      case 'billing':
       case 'center_wallet': return <Wallet className={iconClass} />;
       case 'attendance':
       case 'attendance-calendar':

@@ -38,6 +38,7 @@ import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUs
 import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
 import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { SuperadminBillingPanel } from '@/components/panels/SuperadminBillingPanel';
 
 const globalActivity = [
   { time: '00:00', requests: 120, latency: 45 },
@@ -100,6 +101,7 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
           <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="subdepartments">Sub-Departments</TabsTrigger>
           <TabsTrigger value="licenses">Licenses</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="center_admissions">Admissions</TabsTrigger>
           <TabsTrigger value="sales_admission_report">Sales Admissions Report</TabsTrigger>
           <TabsTrigger value="sales_users_report">Sales Users Report</TabsTrigger>
@@ -130,6 +132,9 @@ export function ModernSuperadminDashboard({ initialTab, onNavigate: _onNavigate 
 
         <TabsContent value="licenses">
           <LicensesPanel />
+        </TabsContent>
+        <TabsContent value="billing">
+          <SuperadminBillingPanel />
         </TabsContent>
         <TabsContent value="center_admissions">
           <CentersAdmissionsPanel />

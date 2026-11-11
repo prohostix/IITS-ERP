@@ -39,6 +39,7 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Superadmin
   organizations: 'organizations',
   licenses: 'licenses',
+  billing: 'billing',
   // Org Admin
   hierarchy: 'hierarchy',
   branches: 'branches',
@@ -297,6 +298,7 @@ function App() {
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'organizations', label: 'Organizations' },
         { id: 'licenses', label: 'Licenses' },
+        { id: 'billing', label: 'Billing' },
         { id: '__sys_users', label: 'Access Control', isSection: true },
         { id: 'users', label: 'Users' },
         { id: 'departments', label: 'Departments' },

@@ -7,6 +7,8 @@ import {
   updateOrganization,
   deleteOrganization,
   assignLicense,
+  getSuperadminBilling,
+  updateSuperadminBillingConfig,
 } from '../controllers/organizationController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { auditLog } from '../middleware/auditLog.js';
@@ -14,6 +16,9 @@ import { auditLog } from '../middleware/auditLog.js';
 const router = express.Router();
 
 router.use(protect);
+
+router.get('/superadmin-billing', authorize('superadmin'), getSuperadminBilling);
+router.put('/superadmin-billing/config', authorize('superadmin'), updateSuperadminBillingConfig);
 
 router
   .route('/')
