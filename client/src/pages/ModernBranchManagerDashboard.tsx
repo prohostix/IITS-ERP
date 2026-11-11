@@ -127,6 +127,7 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'leads': return <LeadsPanel />;
       case 'targets': return <TargetsPanel endpoint="/sales/targets" title="Branch Targets" />;
       case 'invite_links': return <SalesInvitePanel />;
+      case 'team':
       case 'my_team': return <TeamPerformancePanel />;
       case 'branch_centers_sales': return <SalesCentersPanel />;
       // Ops
@@ -136,6 +137,7 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'centers': return <StudyCentersPanel />;
       case 'pending_verification': return <OpsCenterVerificationPanel />;
       case 'enrollment_review': return <DeptEnrollmentReviewPanel />;
+      case 'admission_sessions':
       case 'sessions': return <AdmissionSessionsPanel />;
       // Reports
       case 'sales_admission_report':

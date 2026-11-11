@@ -524,14 +524,26 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         role: true,
         branchId: true,
         department: { select: { type: true } },
-        designationRef: { select: { title: true } }
+        subDepartment: { select: { parentDept: { select: { type: true } } } },
+        designationRef: {
+          select: {
+            title: true,
+            department: { select: { type: true } },
+            subDepartment: { select: { parentDept: { select: { type: true } } } }
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });
 
     // Filter to sales department or sales roles, fallback to all branch staff if none specific
     const salesStaff = branchStaff.filter(
-      u => ['sales', 'sales_admin', 'bda', 'counselor'].includes(u.role) || u.department?.type === 'sales'
+      u =>
+        ['sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'counselor'].includes(u.role) ||
+        u.department?.type === 'sales' ||
+        u.subDepartment?.parentDept?.type === 'sales' ||
+        u.designationRef?.department?.type === 'sales' ||
+        u.designationRef?.subDepartment?.parentDept?.type === 'sales'
     );
     return salesStaff.length > 0 ? salesStaff : branchStaff;
   }
