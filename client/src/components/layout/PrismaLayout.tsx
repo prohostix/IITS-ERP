@@ -401,29 +401,6 @@ export function PrismaLayout({
                     <div className="p-1">
                       <button
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors text-left"
-                        onClick={() => { onTableChange('att-settings'); setIsSettingsOpen(false); }}
-                      >
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        Attendance Settings
-                      </button>
-                      <button
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors text-left"
-                        onClick={() => { onTableChange('salary-config'); setIsSettingsOpen(false); }}
-                      >
-                        <Settings className="w-4 h-4 text-muted-foreground" />
-                        Salary Config
-                      </button>
-                      <button
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors text-left"
-                        onClick={() => { onTableChange('leave-alloc'); setIsSettingsOpen(false); }}
-                      >
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        Leave Allocation
-                      </button>
-                    </div>
-                    <div className="p-1 border-t border-border">
-                      <button
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition-colors text-left"
                         onClick={() => { toggleTheme(); setIsSettingsOpen(false); }}
                       >
                         {isDarkMode ? <Sun className="w-4 h-4 text-muted-foreground" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
