@@ -21,7 +21,7 @@ const mapLeaveRequest = (leave: any) => ({
 });
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
   const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
   const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || isAssignedDeptManager || Boolean(req.user.subDepartmentId);
   const whereClause: any = { organizationId: req.user.organizationId };
@@ -269,7 +269,7 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
   }
 
   // Prevent self-approval: department managers cannot approve their own leaves
-  const isGodMode = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isGodMode = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
   if (!isGodMode && existing.userId === req.user.id) {
     res.status(403).json({ 
       success: false, 

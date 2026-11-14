@@ -91,7 +91,7 @@ export function ProgramDetailPanel({
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const canManage = ['ops_admin', 'ops_sub_admin', 'org_admin', 'superadmin', 'employee'].includes(user?.role || '');
+  const canManage = ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'org_admin', 'superadmin', 'employee'].includes(user?.role || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [program, setProgram] = useState<Program | null>(null);

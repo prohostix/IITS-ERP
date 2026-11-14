@@ -159,8 +159,9 @@ function App() {
   const getDefaultTable = (role?: string) => {
     switch (role) {
       case 'superadmin': return 'organizations';
-      case 'ceo':
-      case 'general_manager': return 'dashboard';
+      case 'ceo': return 'dashboard';
+      case 'general_manager':
+      case 'project_manager':
       case 'center_admin':
       case 'branch_manager': return 'overview';
       case 'ops_admin':
@@ -194,7 +195,7 @@ function App() {
       activeTable = 'dashboard';
       activeTab = undefined;
     } else {
-      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'];
+      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'];
       const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
       const isEmployeeRole = user?.role === 'employee';
       const isBranchManager = user?.role === 'branch_manager' || Boolean((user as any)?.managedBranch);
@@ -377,7 +378,7 @@ function App() {
       return getBranchManagerNavItems();
     }
 
-    if (user.role === 'ops_admin' || user.role === 'ops_sub_admin') {
+    if (user.role === 'ops_admin' || user.role === 'ops_sub_admin' || user.role === 'general_manager' || user.role === 'project_manager') {
       const isSubDeptManager = Boolean((user as any)?.subDepartmentId);
       const items = getOpsNavItems(isSubDeptManager, true);
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
@@ -561,7 +562,11 @@ function App() {
         data = data.map((user: any) => ({
           ...user,
           name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
-          role: user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'N/A',
+          role: user.role
+            ? (user.role === 'general_manager' || user.role === 'project_manager'
+                ? 'Project Manager'
+                : user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()))
+            : 'N/A',
           department: typeof user.departmentId === 'object' && user.departmentId?.name 
             ? user.departmentId.name 
             : (user.departmentId || 'N/A'),

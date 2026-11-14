@@ -29,13 +29,16 @@ export function FinanceUniversityFeeReportPanel() {
   const [payments, setPayments] = useState<any[]>([]);
 
   // Filter lists
+  const [allBranches, setAllBranches] = useState<any[]>([]);
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [allCenters, setAllCenters] = useState<any[]>([]);
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [allSessions, setAllSessions] = useState<any[]>([]);
 
   // Active persistent filters
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('univ_fee_report_panel', {
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('univ_fee_report_panel_v2', {
+    branches: [] as string[],
     sessions: [] as string[],
     universities: [] as string[],
     centers: [] as string[],
@@ -59,20 +62,22 @@ export function FinanceUniversityFeeReportPanel() {
 
   useEffect(() => {
     fetchReport();
-  }, [filters.sessions, filters.universities, filters.centers, filters.programs, filters.statuses, filters.dateFrom, filters.dateTo]);
+  }, [filters.branches, filters.sessions, filters.universities, filters.centers, filters.programs, filters.statuses, filters.dateFrom, filters.dateTo]);
 
   const fetchFilterOptions = async () => {
     try {
-      const [uRes, cRes, pRes, sRes] = await Promise.all([
+      const [uRes, cRes, pRes, sRes, bRes] = await Promise.all([
         api.get('/operations/universities'),
         api.get('/operations/centers'),
         api.get('/operations/programs'),
-        api.get('/operations/sessions')
+        api.get('/operations/sessions'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
       ]);
       setAllUniversities(uRes.data.data || []);
       setAllCenters(cRes.data.data || []);
       setAllPrograms(pRes.data.data || []);
       setAllSessions(sRes.data.data || []);
+      setAllBranches(bRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -80,6 +85,7 @@ export function FinanceUniversityFeeReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (filters.branches && filters.branches.length > 0) q.append('branchId', filters.branches.join(','));
       if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
       if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
@@ -394,6 +400,14 @@ export function FinanceUniversityFeeReportPanel() {
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <MultiSelectFilter
+              title="Branches"
+              selected={filters.branches || []}
+              onChange={(b) => setField('branches', b)}
+              options={allBranches.map(b => ({ label: b.name, value: b.id, code: b.code }))}
+              placeholder="All Branches"
+            />
+
+            <MultiSelectFilter
               title="Sessions"
               selected={filters.sessions}
               onChange={(s) => setField('sessions', s)}
@@ -441,6 +455,17 @@ export function FinanceUniversityFeeReportPanel() {
               ]}
               placeholder="All Statuses"
             />
+
+            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Sort: Latest First</SelectItem>
+                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+              </SelectContent>
+            </Select>
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">From:</span>
@@ -718,7 +743,11 @@ export function FinanceUniversityFeeReportPanel() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {payments.map(item => (
+                      {[...payments].sort((a, b) => {
+                        if (branchSort === 'branch_asc') return (a.branchName || 'Unassigned').localeCompare(b.branchName || 'Unassigned');
+                        if (branchSort === 'branch_desc') return (b.branchName || 'Unassigned').localeCompare(a.branchName || 'Unassigned');
+                        return 0;
+                      }).map(item => (
                         <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>
@@ -735,9 +764,16 @@ export function FinanceUniversityFeeReportPanel() {
                           </td>
                           <td className="px-4 py-3 text-slate-600">
                             <div>{item.centerName}</div>
-                            {item.centerCode && (
-                              <span className="text-[10px] text-slate-400 font-mono">({item.centerCode})</span>
-                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {item.centerCode && (
+                                <span className="text-[10px] text-slate-400 font-mono">({item.centerCode})</span>
+                              )}
+                              {item.branchName && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-blue-200 text-blue-700 bg-blue-50/50">
+                                  🏢 {item.branchName}
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <Badge variant="outline" className="font-semibold text-xs text-slate-700 bg-slate-50">

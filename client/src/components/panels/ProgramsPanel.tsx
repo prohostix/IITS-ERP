@@ -54,7 +54,7 @@ function formatDuration(months: number) {
 
 export function ProgramsPanel() {
   const { user } = useAuth();
-  const canManagePrograms = ['org_admin', 'superadmin', 'ops_admin'].includes(user?.role || '') || 
+  const canManagePrograms = ['org_admin', 'superadmin', 'ops_admin', 'general_manager', 'project_manager'].includes(user?.role || '') || 
     (user as any)?.canAddPrograms === true ||
     (user?.role === 'ops_sub_admin' && (
       (user as any)?.canAddPrograms === true ||

@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface Center { id: string; name: string; code: string; }
+interface Center { id: string; name: string; code: string; resolvedBranchId?: string | null; resolvedBranchName?: string; branchName?: string; }
 interface Program { id: string; name: string; code: string; courseType?: string; }
 interface University { id: string; name: string; code: string; }
 interface Allocation { id: string; programId: string; program: Program; allocatedAt: string; }
@@ -17,6 +17,9 @@ interface UniAllocation { id: string; universityId: string; university: Universi
 
 export function OpsProgramAllocationPanel() {
   const [centers, setCenters] = useState<Center[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchSort, setBranchSort] = useState<'name_asc' | 'branch_asc' | 'branch_desc'>('name_asc');
   const [selectedCenter, setSelectedCenter] = useState('');
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [uniAllocations, setUniAllocations] = useState<UniAllocation[]>([]);
@@ -32,6 +35,7 @@ export function OpsProgramAllocationPanel() {
 
   useEffect(() => {
     api.get('/operations/centers?status=active').then(r => setCenters(r.data.data || [])).catch(() => {});
+    api.get('/org/branches').then(r => setBranches(r.data.data || [])).catch(() => {});
     api.get('/operations/programs').then(r => setPrograms(r.data.data || [])).catch(() => {});
     api.get('/operations/universities?status=active').then(r => setUniversities(r.data.data || [])).catch(() => {});
   }, []);
@@ -110,6 +114,33 @@ export function OpsProgramAllocationPanel() {
     }
   };
 
+  const getCenterBranchName = (c: Center) => {
+    if (c.resolvedBranchName) return c.resolvedBranchName;
+    if (c.branchName) return c.branchName;
+    const b = branches.find(br => (br.centerIds || []).includes(c.id));
+    return b?.name || 'Unassigned';
+  };
+
+  const getCenterBranchId = (c: Center) => {
+    if (c.resolvedBranchId) return c.resolvedBranchId;
+    const b = branches.find(br => (br.centerIds || []).includes(c.id));
+    return b?.id || 'unassigned';
+  };
+
+  const filteredCenters = centers
+    .filter(c => {
+      if (branchFilter === 'all') return true;
+      const bId = getCenterBranchId(c);
+      const bName = getCenterBranchName(c);
+      if (branchFilter === 'unassigned') return bId === 'unassigned' || bName === 'Unassigned';
+      return bId === branchFilter || bName === branchFilter;
+    })
+    .sort((a, b) => {
+      if (branchSort === 'branch_asc') return getCenterBranchName(a).localeCompare(getCenterBranchName(b));
+      if (branchSort === 'branch_desc') return getCenterBranchName(b).localeCompare(getCenterBranchName(a));
+      return a.name.localeCompare(b.name);
+    });
+
   const allocatedProgramIds = allocations.map(a => a.programId);
   const availablePrograms = programs.filter(p => !allocatedProgramIds.includes(p.id));
 
@@ -123,14 +154,36 @@ export function OpsProgramAllocationPanel() {
         <p className="text-muted-foreground text-sm mt-1">Manage which programs and universities each active study center is allocated to enroll students in.</p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={branchFilter} onValueChange={v => { setBranchFilter(v); setSelectedCenter(''); }}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="All Branches" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Branches</SelectItem>
+            {branches.map(b => (
+              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+            ))}
+            <SelectItem value="unassigned">Unassigned Branch</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Sort Centers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name_asc">Sort: Center (A → Z)</SelectItem>
+            <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+            <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={selectedCenter} onValueChange={handleCenterChange}>
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-80">
             <SelectValue placeholder="Select a study center" />
           </SelectTrigger>
           <SelectContent>
-            {centers.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
+            {filteredCenters.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name} ({c.code}) — 🏢 {getCenterBranchName(c)}</SelectItem>
             ))}
           </SelectContent>
         </Select>

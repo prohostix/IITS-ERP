@@ -152,8 +152,11 @@ export function SalesStaffAdmissionReportPanel() {
   const [availableYears, setAvailableYears] = useState<number[]>([new Date().getFullYear()]);
   const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string }[]>([]);
   const [availableUniversities, setAvailableUniversities] = useState<{ id: string; name: string; code?: string }[]>([]);
+  const [availableBranches, setAvailableBranches] = useState<{ id: string; name: string }[]>([]);
 
   // Filters
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+  const [branchSort, setBranchSort] = useState<'default' | 'branch_asc' | 'branch_desc'>('default');
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
@@ -169,10 +172,17 @@ export function SalesStaffAdmissionReportPanel() {
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
+  useEffect(() => {
+    api.get('/org/branches').then(res => {
+      if (res.data?.data) setAvailableBranches(res.data.data);
+    }).catch(() => {});
+  }, []);
+
   const fetchReport = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (selectedBranchId && selectedBranchId !== 'all') params.append('branchId', selectedBranchId);
       if (selectedYear) params.append('year', selectedYear);
       if (selectedMonth) params.append('month', selectedMonth);
       if (selectedSessionId && selectedSessionId !== 'all') params.append('sessionId', selectedSessionId);
@@ -216,7 +226,7 @@ export function SalesStaffAdmissionReportPanel() {
   useEffect(() => {
     fetchReport();
     setPage(1);
-  }, [selectedYear, selectedMonth, selectedSessionId, selectedUniversityId, startDate, endDate, selectedStaffId, selectedStatus]);
+  }, [selectedBranchId, selectedYear, selectedMonth, selectedSessionId, selectedUniversityId, startDate, endDate, selectedStaffId, selectedStatus]);
 
   // Debounced search trigger
   useEffect(() => {
@@ -228,6 +238,8 @@ export function SalesStaffAdmissionReportPanel() {
   }, [searchQuery]);
 
   const handleResetFilters = () => {
+    setSelectedBranchId('all');
+    setBranchSort('default');
     setSelectedYear(new Date().getFullYear().toString());
     setSelectedMonth('all');
     setSelectedSessionId('all');
@@ -298,6 +310,15 @@ export function SalesStaffAdmissionReportPanel() {
     toast.success(`Exported ${admissions.length} admission records to CSV`);
   };
 
+  const sortedStaffSummary = useMemo(() => {
+    if (branchSort === 'default') return staffSummary;
+    return [...staffSummary].sort((a, b) => {
+      const bA = a.staff.branch?.name || 'Unassigned';
+      const bB = b.staff.branch?.name || 'Unassigned';
+      return branchSort === 'branch_asc' ? bA.localeCompare(bB) : bB.localeCompare(bA);
+    });
+  }, [staffSummary, branchSort]);
+
   // Pagination for admissions table
   const paginatedAdmissions = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -351,6 +372,39 @@ export function SalesStaffAdmissionReportPanel() {
       <Card className="border border-border/60 shadow-sm bg-card/60 backdrop-blur-md">
         <CardContent className="p-4 sm:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-end">
+            {/* Branch Filter */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-primary" /> Branch
+              </label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              >
+                <option value="all">All Branches</option>
+                {availableBranches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort By Branch */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <ArrowUpDown className="w-3.5 h-3.5 text-primary" /> Sort Branches
+              </label>
+              <select
+                value={branchSort}
+                onChange={(e) => setBranchSort(e.target.value as any)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              >
+                <option value="default">Sort: By Admissions Rank</option>
+                <option value="branch_asc">Sort: Branch (A → Z)</option>
+                <option value="branch_desc">Sort: Branch (Z → A)</option>
+              </select>
+            </div>
+
             {/* Session Filter */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -708,7 +762,7 @@ export function SalesStaffAdmissionReportPanel() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {staffSummary.map((item, index) => {
+                    {sortedStaffSummary.map((item, index) => {
                       const maxTrendVal = Math.max(...item.monthlyTrend, 1);
                       return (
                         <tr 

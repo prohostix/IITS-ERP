@@ -236,7 +236,7 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
       else if (user.role === 'finance_sub_admin' && item.roles.includes('finance_admin' as any)) hasRoleAccess = true;
       else if (user.role === 'sales_sub_admin' && item.roles.includes('sales_admin' as any)) hasRoleAccess = true;
       else if (user.role === 'ops_sub_admin' && item.roles.includes('ops_admin' as any)) hasRoleAccess = true;
-      else if (user.role === 'general_manager' && item.roles.includes('ceo' as any)) hasRoleAccess = true;
+      else if ((user.role === 'general_manager' || user.role === 'project_manager') && (item.roles.includes('ops_admin' as any) || item.roles.includes('ceo' as any))) hasRoleAccess = true;
     }
 
     if (!hasRoleAccess) return false;
@@ -314,7 +314,7 @@ export function Sidebar({ isCollapsed, onToggle, activeModule, onModuleChange }:
         {!isCollapsed && (
           <div className="mb-4 px-2">
             <p className="text-sm font-medium text-white">{user.name}</p>
-            <p className="text-xs text-slate-400 capitalize">{user.role.replace('_', ' ')}</p>
+            <p className="text-xs text-slate-400 capitalize">{user.role === 'general_manager' || user.role === 'project_manager' ? 'Project Manager' : user.role.replace('_', ' ')}</p>
           </div>
         )}
         <Button
@@ -355,7 +355,7 @@ function NavItemComponent({ item, isCollapsed, isActive, activeChild, onClick, l
       else if (user.role === 'finance_sub_admin' && child.roles.includes('finance_admin' as any)) hasRoleAccess = true;
       else if (user.role === 'sales_sub_admin' && child.roles.includes('sales_admin' as any)) hasRoleAccess = true;
       else if (user.role === 'ops_sub_admin' && child.roles.includes('ops_admin' as any)) hasRoleAccess = true;
-      else if (user.role === 'general_manager' && child.roles.includes('ceo' as any)) hasRoleAccess = true;
+      else if ((user.role === 'general_manager' || user.role === 'project_manager') && (child.roles.includes('ops_admin' as any) || child.roles.includes('ceo' as any))) hasRoleAccess = true;
       else if (['org_admin', 'superadmin'].includes(user.role)) hasRoleAccess = true;
       else if (child.id === 'leave-approvals') {
         const isAssignedDeptManager = Boolean((user as any)?.department?.managerId && (user as any).department.managerId === user.id) ||

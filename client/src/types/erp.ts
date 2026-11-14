@@ -5,6 +5,7 @@ export type UserRole =
   | 'org_admin' 
   | 'ceo' 
   | 'general_manager'
+  | 'project_manager'
   | 'ops_admin' 
   | 'ops_sub_admin' 
   | 'finance_admin' 

@@ -36,10 +36,13 @@ interface DesignationNode {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  org_admin: '#7c3aed', ceo: '#2563eb', ops_admin: '#ea580c',
+  org_admin: '#7c3aed', ceo: '#2563eb', general_manager: '#2563eb', project_manager: '#2563eb', ops_admin: '#ea580c',
   finance_admin: '#16a34a', hr_admin: '#db2777', sales_admin: '#ca8a04',
   center_admin: '#0d9488', ops_sub_admin: '#f97316', employee: '#6b7280', staff: '#94a3b8',
 };
+
+const formatRoleLabel = (role: string) =>
+  role === 'general_manager' || role === 'project_manager' ? 'Project Manager' : role.replace(/_/g, ' ');
 
 // ─── HR Org Node (view + assign only, no edit/delete/add-child) ───────────────
 function HROrgNode({
@@ -118,7 +121,7 @@ function HROrgNode({
                   </div>
                   <span className="text-xs text-foreground truncate flex-1 text-left">{u.name}</span>
                   <span className="text-[9px] text-muted-foreground capitalize hidden group-hover/person:inline">
-                    {u.role.replace(/_/g, ' ')}
+                    {formatRoleLabel(u.role)}
                   </span>
                   <button
                     onClick={() => onUnassign(node, u.id)}
@@ -433,7 +436,7 @@ export function HROrgChartPanel() {
                   {u.name.charAt(0)}
                 </span>
                 {u.name}
-                <span className="text-gray-400">({u.role.replace(/_/g, ' ')})</span>
+                <span className="text-gray-400">({formatRoleLabel(u.role)})</span>
               </span>
             ))}
           </div>
@@ -505,7 +508,7 @@ export function HROrgChartPanel() {
                             {u.name.charAt(0)}
                           </span>
                           <span>{u.name}</span>
-                          <span className="text-xs text-muted-foreground">— {u.role.replace(/_/g, ' ')}</span>
+                          <span className="text-xs text-muted-foreground">— {formatRoleLabel(u.role)}</span>
                         </div>
                       </SelectItem>
                     ))
@@ -528,7 +531,7 @@ export function HROrgChartPanel() {
                   </div>
                   <div>
                     <p className="font-semibold text-sm">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email} · {u.role.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground">{u.email} · {formatRoleLabel(u.role)}</p>
                   </div>
                 </div>
               );

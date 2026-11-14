@@ -5,7 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
 import { mapFrontendToPrismaCourseType, mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
-import { getBranchScope, resetBranchScope } from '../utils/branchScope.js';
+import { getBranchScope, resetBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 
 // Universities
 export const getUniversities = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -250,33 +250,46 @@ export const getStudyCenters = asyncHandler(async (req: AuthRequest, res: Respon
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.id = { in: scope.centerIds };
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, req.query.branchId as string);
+    where.id = { in: scope.centerIds };
   }
   if (req.query.universityId) {
     where.universityIds = { has: req.query.universityId as string };
   }
-  const centers = await prisma.studyCenter.findMany({
-    where,
-    include: {
-      referrer: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          branch: { select: { id: true, name: true } },
-          designationRef: {
-            include: {
-              branch: { select: { id: true, name: true } }
+  const [centers, allBranchesScope] = await Promise.all([
+    prisma.studyCenter.findMany({
+      where,
+      include: {
+        referrer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            branch: { select: { id: true, name: true } },
+            designationRef: {
+              include: {
+                branch: { select: { id: true, name: true } }
+              }
             }
           }
         }
       }
-    }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+  const mapped = centers.map(c => {
+    const resolvedBranch = allBranchesScope.centerBranchMap[c.id] || (c.referredBy ? allBranchesScope.staffBranchMap[c.referredBy] : null);
+    const fallbackName = c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
+    return {
+      ...c,
+      _id: c.id,
+      resolvedBranchId: resolvedBranch?.branchId || c.referrer?.branch?.id || c.referrer?.designationRef?.branch?.id || null,
+      resolvedBranchName: resolvedBranch?.branchName || fallbackName || null,
+      branchName: c.branchName || resolvedBranch?.branchName || fallbackName || null
+    };
   });
-  const mapped = centers.map(c => ({
-    ...c,
-    _id: c.id
-  }));
   res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getStudyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -785,8 +798,42 @@ export const duplicateSession = asyncHandler(async (req: AuthRequest, res: Respo
 
 // Internal Marks
 export const getInternalMarks = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const marks = await prisma.internalMark.findMany({ where: { organizationId: req.user.organizationId }, include: { student: true } });
-  res.json({ success: true, count: marks.length, data: marks });
+  const { branchId } = req.query;
+  const orgId = req.user.organizationId;
+  const where: any = { organizationId: orgId };
+  if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    where.student = { centerId: { in: branchCenterIds } };
+  }
+  const [marks, allBranchesScope] = await Promise.all([
+    prisma.internalMark.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            center: { select: { id: true, name: true, code: true, branchName: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(orgId)
+  ]);
+  const mapped = marks.map((m: any) => {
+    const cid = m.student?.center?.id || m.student?.centerId || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
+    const branchName = resolvedBranch?.branchName || m.student?.center?.branchName || 'Unassigned';
+    return {
+      ...m,
+      branchId: resolvedBranch?.branchId || null,
+      branchName,
+      studentId: m.student ? { ...m.student, id: m.student.id } : m.studentId,
+      studyCenterId: m.student?.center ? { ...m.student.center } : m.studyCenterId
+    };
+  });
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const createInternalMark = asyncHandler(async (req: AuthRequest, res: Response) => {
   const mark = await prisma.internalMark.create({ data: { ...req.body, organizationId: req.user.organizationId, enteredBy: req.user.id } });
@@ -832,14 +879,45 @@ export const getPendingVerificationCenters = asyncHandler(async (req: AuthReques
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.id = { in: scope.centerIds };
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, req.query.branchId as string);
+    where.id = { in: scope.centerIds };
   }
-  const centers = await prisma.studyCenter.findMany({
-    include: {
-      referrer: { select: { id: true, name: true, email: true } }
-    },
-    orderBy: { createdAt: 'desc' }
+  const [centers, allBranchesScope] = await Promise.all([
+    prisma.studyCenter.findMany({
+      where,
+      include: {
+        referrer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            branch: { select: { id: true, name: true } },
+            designationRef: {
+              include: {
+                branch: { select: { id: true, name: true } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+  const mapped = centers.map(c => {
+    const resolvedBranch = allBranchesScope.centerBranchMap[c.id] || (c.referredBy ? allBranchesScope.staffBranchMap[c.referredBy] : null);
+    const fallbackName = c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
+    return {
+      ...c,
+      _id: c.id,
+      resolvedBranchId: resolvedBranch?.branchId || c.referrer?.branch?.id || c.referrer?.designationRef?.branch?.id || null,
+      resolvedBranchName: resolvedBranch?.branchName || fallbackName || null,
+      branchName: c.branchName || resolvedBranch?.branchName || fallbackName || null
+    };
   });
-  res.json({ success: true, data: centers });
+  res.json({ success: true, data: mapped });
 });
 export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;

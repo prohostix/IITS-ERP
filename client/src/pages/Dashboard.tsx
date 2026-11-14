@@ -140,7 +140,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernSuperadminDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (user?.role === 'ceo' || user?.role === 'general_manager') {
+  if (user?.role === 'ceo') {
     return <ModernCEODashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
@@ -152,7 +152,7 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
     return <ModernFinanceDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
-  if (['ops_admin', 'ops_sub_admin'].includes(user?.role || '')) {
+  if (['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager'].includes(user?.role || '')) {
     return <ModernOpsDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 

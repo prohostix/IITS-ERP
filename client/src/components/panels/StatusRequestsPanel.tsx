@@ -15,6 +15,9 @@ interface StatusRequestsPanelProps {
 
 export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
   const [requests, setRequests] = useState<any[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [actionType, setActionType] = useState<'verify' | 'confirm' | 'reject'>('verify');
@@ -25,8 +28,12 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/students/status-requests');
+      const [response, bRes] = await Promise.all([
+        api.get('/students/status-requests'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+      ]);
       setRequests(response.data.data || []);
+      setBranches(bRes.data.data || []);
     } catch (e: any) {
       toast.error('Failed to load status change requests');
     } finally {
@@ -73,14 +80,46 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
     }
   };
 
-  // Filter requests based on panel type and target status
+  const getBranchName = (req: any) => {
+    if (req.branchName) return req.branchName;
+    if (req.student?.branchName) return req.student.branchName;
+    if (req.student?.center?.branchName) return req.student.center.branchName;
+    const cid = req.student?.center?.id || req.student?.centerId;
+    const b = branches.find(br => (br.centerIds || []).includes(cid));
+    return b?.name || 'Unassigned';
+  };
+
+  const getBranchId = (req: any) => {
+    if (req.branchId) return req.branchId;
+    if (req.student?.branchId) return req.student.branchId;
+    if (req.student?.center?.branchId) return req.student.center.branchId;
+    const cid = req.student?.center?.id || req.student?.centerId;
+    const b = branches.find(br => (br.centerIds || []).includes(cid));
+    return b?.id || 'unassigned';
+  };
+
+  // Filter requests based on panel type, branch, and sort
   // Operations review target: pending_operations
   // Finance confirmation target: pending_finance
   const targetStatus = type === 'operations' ? 'pending_operations' : 'pending_finance';
 
-  const holdRequests = requests.filter(r => r.requestedStatus === 'hold' && r.status === targetStatus);
-  const dropoutRequests = requests.filter(r => r.requestedStatus === 'dropout' && r.status === targetStatus);
-  const historyRequests = requests.filter(r => r.status !== targetStatus);
+  const branchFilteredRequests = requests
+    .filter(r => {
+      if (branchFilter === 'all') return true;
+      const bId = getBranchId(r);
+      const bName = getBranchName(r);
+      if (branchFilter === 'unassigned') return bId === 'unassigned' || bName === 'Unassigned';
+      return bId === branchFilter || bName === branchFilter;
+    })
+    .sort((a, b) => {
+      if (branchSort === 'branch_asc') return getBranchName(a).localeCompare(getBranchName(b));
+      if (branchSort === 'branch_desc') return getBranchName(b).localeCompare(getBranchName(a));
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+  const holdRequests = branchFilteredRequests.filter(r => r.requestedStatus === 'hold' && r.status === targetStatus);
+  const dropoutRequests = branchFilteredRequests.filter(r => r.requestedStatus === 'dropout' && r.status === targetStatus);
+  const historyRequests = branchFilteredRequests.filter(r => r.status !== targetStatus);
 
   const renderRequestTable = (list: any[], showActions: boolean) => {
     if (list.length === 0) {
@@ -105,6 +144,9 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
                   </Badge>
                   <Badge variant="secondary" className="text-xs">
                     Current: {req.student?.status}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                    🏢 {getBranchName(req)}
                   </Badge>
                 </div>
                 
@@ -176,7 +218,7 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Student Status Requests</h2>
           <p className="text-muted-foreground text-sm mt-1">
@@ -185,9 +227,29 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
               : 'Confirm and execute pending student status change requests.'}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchRequests} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            value={branchFilter}
+            onChange={e => setBranchFilter(e.target.value)}
+          >
+            <option value="all">All Branches</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            <option value="unassigned">Unassigned Branch</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            value={branchSort}
+            onChange={e => setBranchSort(e.target.value as any)}
+          >
+            <option value="latest">Sort: Latest First</option>
+            <option value="branch_asc">Sort: Branch (A → Z)</option>
+            <option value="branch_desc">Sort: Branch (Z → A)</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={fetchRequests} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="hold" className="w-full">

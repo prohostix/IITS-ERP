@@ -352,6 +352,7 @@ export function StudentsPanel() {
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -478,10 +479,12 @@ export function StudentsPanel() {
 
   const [filters, , clearFilters, isFiltered, setField] = usePersistentFilters('students_panel', {
     status: '',
+    branches: [] as string[],
     sessions: [] as string[],
     universities: [] as string[],
     programs: [] as string[],
     centers: [] as string[],
+    sortBy: 'latest',
     search: '',
   });
 
@@ -490,6 +493,7 @@ export function StudentsPanel() {
     try {
       const query = new URLSearchParams();
       if (filters.status && filters.status !== 'all') query.append('status', filters.status);
+      if (filters.branches && filters.branches.length > 0) query.append('branchId', filters.branches.join(','));
       if (filters.universities && filters.universities.length > 0) query.append('universityId', filters.universities.join(','));
       if (filters.centers && filters.centers.length > 0) query.append('centerId', filters.centers.join(','));
       if (filters.programs && filters.programs.length > 0) query.append('programId', filters.programs.join(','));
@@ -548,13 +552,22 @@ export function StudentsPanel() {
     }
   }, []);
 
+  const fetchBranches = useCallback(async () => {
+    try {
+      const response = await api.get('/org/branches');
+      setBranches(response.data.data || []);
+    } catch (error) {
+    }
+  }, []);
+
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
     fetchCenters();
     fetchUniversities();
     fetchSessions();
-  }, [fetchStudents, fetchPrograms, fetchCenters, fetchUniversities, fetchSessions]);
+    fetchBranches();
+  }, [fetchStudents, fetchPrograms, fetchCenters, fetchUniversities, fetchSessions, fetchBranches]);
 
   const fetchInstallments = async (studentId: string) => {
     setFetchingInstallments(true);
@@ -828,6 +841,32 @@ export function StudentsPanel() {
         </div>
 
         <div className="flex gap-2 flex-wrap items-center ml-auto">
+          {/* Branches Multi-Select */}
+          {user?.role !== 'center_admin' && user?.role !== 'branch_manager' && branches.length > 0 && (
+            <MultiSelectFilter
+              title="Branches"
+              placeholder="All Branches"
+              options={branches.map(b => ({ label: b.name, value: b.id, code: b.code }))}
+              selectedValues={filters.branches || []}
+              onChange={(values) => setField('branches', values)}
+            />
+          )}
+
+          {/* Sort By Selector */}
+          {user?.role !== 'center_admin' && (
+            <Select value={filters.sortBy || 'latest'} onValueChange={(v) => setField('sortBy', v)}>
+              <SelectTrigger className="h-9 w-[165px] text-xs font-semibold">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Sort: Latest First</SelectItem>
+                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+                <SelectItem value="name_asc">Sort: Name (A → Z)</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           {/* Sessions Multi-Select */}
           <MultiSelectFilter
             title="Sessions"
@@ -1111,7 +1150,23 @@ export function StudentsPanel() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {students.filter(s => s && s.id).map((student, index) => (
+                    {[...students].filter(s => s && s.id).sort((a, b) => {
+                      const sortMode = filters.sortBy || 'latest';
+                      if (sortMode === 'branch_asc') {
+                        const ba = a.branchName || (typeof a.centerId === 'object' ? a.centerId?.branchName : '') || 'ZZZ';
+                        const bb = b.branchName || (typeof b.centerId === 'object' ? b.centerId?.branchName : '') || 'ZZZ';
+                        return ba.localeCompare(bb);
+                      }
+                      if (sortMode === 'branch_desc') {
+                        const ba = a.branchName || (typeof a.centerId === 'object' ? a.centerId?.branchName : '') || '';
+                        const bb = b.branchName || (typeof b.centerId === 'object' ? b.centerId?.branchName : '') || '';
+                        return bb.localeCompare(ba);
+                      }
+                      if (sortMode === 'name_asc') {
+                        return (a.name || '').localeCompare(b.name || '');
+                      }
+                      return 0;
+                    }).map((student, index) => (
                       <tr
                         key={student.id}
                         onClick={() => setSelectedStudent(student)}
@@ -1133,9 +1188,26 @@ export function StudentsPanel() {
             )
           ) : (
             <div className="space-y-2.5">
-              {students.filter(s => s && (s.id || s.id)).map((student, index) => {
+              {[...students].filter(s => s && (s.id || s.id)).sort((a, b) => {
+                const sortMode = filters.sortBy || 'latest';
+                if (sortMode === 'branch_asc') {
+                  const ba = a.branchName || (typeof a.centerId === 'object' ? a.centerId?.branchName : '') || 'ZZZ';
+                  const bb = b.branchName || (typeof b.centerId === 'object' ? b.centerId?.branchName : '') || 'ZZZ';
+                  return ba.localeCompare(bb);
+                }
+                if (sortMode === 'branch_desc') {
+                  const ba = a.branchName || (typeof a.centerId === 'object' ? a.centerId?.branchName : '') || '';
+                  const bb = b.branchName || (typeof b.centerId === 'object' ? b.centerId?.branchName : '') || '';
+                  return bb.localeCompare(ba);
+                }
+                if (sortMode === 'name_asc') {
+                  return (a.name || '').localeCompare(b.name || '');
+                }
+                return 0;
+              }).map((student, index) => {
                 const studentId = student.id || student.id;
                 const centerName = typeof student.centerId === 'object' ? student.centerId?.name : '';
+                const branchName = student.branchName || (typeof student.centerId === 'object' ? student.centerId?.branchName : '') || '';
                 const programName = typeof student.programId === 'object' ? student.programId?.name : '';
                 const photoUrl = getStudentPhotoUrl(student);
                 const uniName = student.program?.university?.name || student.enrollments?.[0]?.program?.university?.name;
@@ -1188,8 +1260,13 @@ export function StudentsPanel() {
                           )}
                           {programName ? ` • ${programName}` : ''}{centerName ? ` • ${centerName}` : ''}
                         </div>
-                        {(uniName || sessionName) && (
+                        {(uniName || sessionName || branchName) && (
                           <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            {branchName && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                🏢 {branchName}
+                              </span>
+                            )}
                             {uniName && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                                 🏛️ {uniCode || uniName}
@@ -1306,7 +1383,7 @@ export function StudentsPanel() {
                         Activate Student
                       </Button>
                     )}
-                    {['ops_admin', 'ops_sub_admin', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
+                    {['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
                       <Button size="sm" variant="outline" onClick={() => {
                         const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
                         if (uniEnr !== null) {

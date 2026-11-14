@@ -40,7 +40,9 @@ interface Enrollment {
   alternativePhone?: string;
   admissionDate?: string;
   program?: { name: string; code: string; university?: { id: string; name: string } };
-  studyCenter?: { id: string; name: string };
+  studyCenter?: { id: string; name: string; branchId?: string | null; branchName?: string };
+  branchId?: string | null;
+  branchName?: string;
   session?: { name: string };
   documents?: { name: string; url: string; status?: string; remarks?: string }[];
   educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
@@ -66,6 +68,9 @@ export function DeptEnrollmentReviewPanel() {
   const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
+  const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
   const [universityFilter, setUniversityFilter] = useState('all');
   const [centerFilter, setCenterFilter] = useState('all');
   const [programFilter, setProgramFilter] = useState('all');
@@ -73,8 +78,12 @@ export function DeptEnrollmentReviewPanel() {
   const fetch = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/enrollment/review?history=${activeTab === 'history'}`);
+      const [res, bRes] = await Promise.all([
+        api.get(`/enrollment/review?history=${activeTab === 'history'}`),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+      ]);
       setEnrollments(res.data.data || []);
+      setBranches(bRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load');
     } finally {
@@ -136,13 +145,37 @@ export function DeptEnrollmentReviewPanel() {
       ? e.studyCenter.name
       : (typeof e.studyCenterId === 'object' ? (e.studyCenterId as any).name : e.studyCenterId);
 
+  const getBranchName = (e: Enrollment) => {
+    if (e.branchName) return e.branchName;
+    if (e.studyCenter?.branchName) return e.studyCenter.branchName;
+    const cid = e.studyCenter?.id || e.studyCenterId;
+    const b = branches.find(br => (br.centerIds || []).includes(cid));
+    return b?.name || 'Unassigned';
+  };
+
+  const getBranchId = (e: Enrollment) => {
+    if (e.branchId) return e.branchId;
+    if (e.studyCenter?.branchId) return e.studyCenter.branchId;
+    const cid = e.studyCenter?.id || e.studyCenterId;
+    const b = branches.find(br => (br.centerIds || []).includes(cid));
+    return b?.id || 'unassigned';
+  };
+
   const uniqueUniversities = Array.from(new Set(enrollments.filter(e => e.program?.university).map(e => JSON.stringify({ id: e.program!.university!.id, name: e.program!.university!.name })))).map(s => JSON.parse(s));
   const uniqueCenters = Array.from(new Set(enrollments.filter(e => e.studyCenter).map(e => JSON.stringify({ id: e.studyCenter!.id, name: e.studyCenter!.name })))).map(s => JSON.parse(s));
   const uniquePrograms = Array.from(new Set(enrollments.filter(e => e.program).map(e => JSON.stringify({ id: e.programId, name: `${e.program!.name} (${e.program!.code})` })))).map(s => JSON.parse(s));
 
   const filteredEnrollments = enrollments
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .filter(e => {
+      if (branchFilter !== 'all') {
+        const bId = getBranchId(e);
+        const bName = getBranchName(e);
+        if (branchFilter === 'unassigned') {
+          if (bId !== 'unassigned' && bName !== 'Unassigned') return false;
+        } else if (bId !== branchFilter && bName !== branchFilter) {
+          return false;
+        }
+      }
       if (universityFilter !== 'all' && e.program?.university?.id !== universityFilter) return false;
       if (centerFilter !== 'all' && (e.studyCenter?.id !== centerFilter && e.studyCenterId !== centerFilter)) return false;
       if (programFilter !== 'all' && e.programId !== programFilter) return false;
@@ -156,6 +189,15 @@ export function DeptEnrollmentReviewPanel() {
         );
       }
       return true;
+    })
+    .sort((a, b) => {
+      if (branchSort === 'branch_asc') {
+        return getBranchName(a).localeCompare(getBranchName(b));
+      }
+      if (branchSort === 'branch_desc') {
+        return getBranchName(b).localeCompare(getBranchName(a));
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
   return (
@@ -176,15 +218,33 @@ export function DeptEnrollmentReviewPanel() {
           <TabsTrigger value="history">Review History</TabsTrigger>
         </TabsList>
 
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <Input 
             placeholder="Search name, email, or enrollment no..." 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="md:w-1/4"
+            className="w-full"
           />
           <select 
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            value={branchFilter}
+            onChange={e => setBranchFilter(e.target.value)}
+          >
+            <option value="all">All Branches</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            <option value="unassigned">Unassigned Branch</option>
+          </select>
+          <select 
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            value={branchSort}
+            onChange={e => setBranchSort(e.target.value as any)}
+          >
+            <option value="latest">Sort: Latest First</option>
+            <option value="branch_asc">Sort: Branch (A → Z)</option>
+            <option value="branch_desc">Sort: Branch (Z → A)</option>
+          </select>
+          <select 
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             value={universityFilter}
             onChange={e => setUniversityFilter(e.target.value)}
           >
@@ -192,7 +252,7 @@ export function DeptEnrollmentReviewPanel() {
             {uniqueUniversities.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
           <select 
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             value={centerFilter}
             onChange={e => setCenterFilter(e.target.value)}
           >
@@ -200,7 +260,7 @@ export function DeptEnrollmentReviewPanel() {
             {uniqueCenters.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select 
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:w-1/4"
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             value={programFilter}
             onChange={e => setProgramFilter(e.target.value)}
           >
@@ -223,6 +283,9 @@ export function DeptEnrollmentReviewPanel() {
                       <div className="flex items-center gap-2 mb-1">
                         <Badge className="bg-warning/10 text-warning text-[10px] uppercase font-bold">
                           {e.status.replace(/_/g, ' ')}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                          🏢 {getBranchName(e)}
                         </Badge>
                         {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
                       </div>
@@ -266,6 +329,9 @@ export function DeptEnrollmentReviewPanel() {
                       <div className="flex items-center gap-2 mb-1">
                         <Badge className={cn('text-[10px] uppercase font-bold', STATUS_COLOR[e.status] || 'bg-muted text-muted-foreground')}>
                           {e.status.replace(/_/g, ' ')}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                          🏢 {getBranchName(e)}
                         </Badge>
                         {e.enrollmentNumber && <span className="text-xs text-muted-foreground">{e.enrollmentNumber}</span>}
                       </div>

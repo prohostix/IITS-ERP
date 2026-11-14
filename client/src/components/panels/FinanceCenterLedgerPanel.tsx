@@ -34,10 +34,13 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
   // Centers list mode
   const [centers, setCenters] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchSort, setBranchSort] = useState<'name_asc' | 'branch_asc' | 'branch_desc' | 'balance_desc'>('name_asc');
   const [summary, setSummary] = useState<any>({});
 
   // Active persistent filters
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('center_ledger_panel', {
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('center_ledger_panel_v2', {
+    branches: [] as string[],
     sessions: [] as string[],
     search: '',
   });
@@ -57,7 +60,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
   useEffect(() => {
     fetchCenterList();
-  }, [filters.sessions]);
+  }, [filters.branches, filters.sessions]);
 
   useEffect(() => {
     if (selectedCenterId) {
@@ -67,8 +70,12 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
   const fetchSessions = async () => {
     try {
-      const res = await api.get('/operations/sessions');
-      setSessions(res.data.data || []);
+      const [sRes, bRes] = await Promise.all([
+        api.get('/operations/sessions'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+      ]);
+      setSessions(sRes.data.data || []);
+      setBranches(bRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -76,6 +83,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (filters.branches && filters.branches.length > 0) q.append('branchId', filters.branches.join(','));
       if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (filters.search) q.append('search', filters.search);
 
@@ -671,6 +679,13 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
               Study Centers Directory ({centers.length})
             </div>
             <MultiSelectFilter
+              title="Branches"
+              selected={filters.branches || []}
+              onChange={(b) => setField('branches', b)}
+              options={branches.map(b => ({ label: b.name, value: b.id, code: b.code }))}
+              placeholder="All Branches"
+            />
+            <MultiSelectFilter
               title="Sessions"
               selected={filters.sessions}
               onChange={(s) => setField('sessions', s)}
@@ -682,6 +697,17 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
               }))}
               placeholder="All Sessions"
             />
+            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name_asc">Sort: Center (A → Z)</SelectItem>
+                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+                <SelectItem value="balance_desc">Sort: Highest Balance</SelectItem>
+              </SelectContent>
+            </Select>
             {isFiltered && (
               <Button
                 variant="ghost"
@@ -738,7 +764,12 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {centers.map(c => (
+                  {[...centers].sort((a, b) => {
+                    if (branchSort === 'branch_asc') return (a.branchName || 'Unassigned').localeCompare(b.branchName || 'Unassigned');
+                    if (branchSort === 'branch_desc') return (b.branchName || 'Unassigned').localeCompare(a.branchName || 'Unassigned');
+                    if (branchSort === 'balance_desc') return (b.walletBalance || 0) - (a.walletBalance || 0);
+                    return (a.centerName || '').localeCompare(b.centerName || '');
+                  }).map(c => (
                     <tr key={c.centerId} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-4 py-3.5 font-medium text-slate-900">
                         <div className="flex items-center gap-2.5">
@@ -746,7 +777,14 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
                             <Building2 className="w-4 h-4" />
                           </div>
                           <div>
-                            <div>{c.centerName}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{c.centerName}</span>
+                              {c.branchName && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-emerald-200 text-emerald-700 bg-emerald-50/50">
+                                  🏢 {c.branchName}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-[11px] text-slate-400 font-mono">{c.code}</div>
                           </div>
                         </div>

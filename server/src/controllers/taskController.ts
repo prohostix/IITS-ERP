@@ -22,7 +22,7 @@ export const getSubordinateUserIds = async (userId: string, organizationId: stri
   if (!user) return [];
 
   // Superiors at top of the company (Main Office) can assign to anyone
-  if (['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(user.role)) {
+  if (['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(user.role)) {
     const allUsers = await prisma.user.findMany({
       where: { organizationId, status: { not: 'deleted' } },
       select: { id: true }
@@ -273,7 +273,7 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
   const where: any = { organizationId: orgId };
   if (req.query.status) where.status = req.query.status as string;
 
-  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
   if (!isGlobalAdmin) {
     const subordinateIds = await getSubordinateUserIds(req.user.id, orgId);
     const allowedUserIds = [req.user.id, ...subordinateIds];
@@ -310,7 +310,7 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 // ─── GET SINGLE TASK ──────────────────────────────────────────────────────────
 export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isGlobalAdmin = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
   
   const where: any = { id: req.params.id, organizationId: req.user.organizationId };
   if (!isGlobalAdmin) {
@@ -344,7 +344,7 @@ export const getAssignableUsers = asyncHandler(async (req: AuthRequest, res: Res
   const userRole = req.user.role;
 
   // Top administrators (Main Office) can assign to all active users
-  if (['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(userRole)) {
+  if (['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(userRole)) {
     const users = await prisma.user.findMany({
       where: { organizationId: orgId, status: 'active' as any },
       select: { id: true, name: true, email: true, designation: true, role: true, departmentId: true, branchId: true },
@@ -558,7 +558,7 @@ export const createTask = asyncHandler(async (req: AuthRequest, res: Response) =
   if (assignees.length === 0) assignees.push(currentUserId);
 
   // Validate hierarchy: Only superiors can assign to subordinates (or self-assignment)
-  if (!['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
+  if (!['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role)) {
     const nonSelfAssignees = assignees.filter(id => id !== currentUserId);
     if (nonSelfAssignees.length > 0) {
       const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
@@ -662,7 +662,7 @@ export const updateTask = asyncHandler(async (req: AuthRequest, res: Response) =
 
   // If reassigning, validate hierarchy
   if (assignedTo && assignedTo !== 'null' && assignedTo !== existingTask.assignedTo && assignedTo !== currentUserId) {
-    if (!['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role)) {
+    if (!['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role)) {
       const subordinateIds = await getSubordinateUserIds(currentUserId, orgId);
       if (!subordinateIds.includes(assignedTo)) {
         res.status(403).json({

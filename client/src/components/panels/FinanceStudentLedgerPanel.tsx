@@ -39,7 +39,8 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   const [summary, setSummary] = useState<any>({});
 
   // Active persistent filters
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('student_ledger_panel', {
+  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('student_ledger_panel_v2', {
+    branches: [] as string[],
     sessions: [] as string[],
     centers: [] as string[],
     universities: [] as string[],
@@ -48,6 +49,8 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   });
 
   // Filter options
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -81,7 +84,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   useEffect(() => {
     fetchStudentList();
-  }, [filters.sessions, filters.centers, filters.universities, filters.statuses]);
+  }, [filters.branches, filters.sessions, filters.centers, filters.universities, filters.statuses]);
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -91,14 +94,16 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   const fetchFilterOptions = async () => {
     try {
-      const [cRes, uRes, sRes] = await Promise.all([
+      const [cRes, uRes, sRes, bRes] = await Promise.all([
         api.get('/operations/centers'),
         api.get('/operations/universities'),
-        api.get('/operations/sessions')
+        api.get('/operations/sessions'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
       ]);
       setCenters(cRes.data.data || []);
       setUniversities(uRes.data.data || []);
       setSessions(sRes.data.data || []);
+      setBranches(bRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -106,6 +111,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (filters.branches && filters.branches.length > 0) q.append('branchId', filters.branches.join(','));
       if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
       if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
@@ -1003,6 +1009,14 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <MultiSelectFilter
+              title="Branches"
+              selected={filters.branches || []}
+              onChange={(b) => setField('branches', b)}
+              options={branches.map(b => ({ label: b.name, value: b.id, code: b.code }))}
+              placeholder="All Branches"
+            />
+
+            <MultiSelectFilter
               title="Sessions"
               selected={filters.sessions}
               onChange={(s) => setField('sessions', s)}
@@ -1043,6 +1057,17 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
               ]}
               placeholder="All Statuses"
             />
+
+            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Sort: Latest First</SelectItem>
+                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+              </SelectContent>
+            </Select>
 
             {isFiltered && (
               <Button
@@ -1103,7 +1128,11 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {students.map(s => (
+                  {[...students].sort((a, b) => {
+                    if (branchSort === 'branch_asc') return (a.branchName || 'Unassigned').localeCompare(b.branchName || 'Unassigned');
+                    if (branchSort === 'branch_desc') return (b.branchName || 'Unassigned').localeCompare(a.branchName || 'Unassigned');
+                    return 0;
+                  }).map(s => (
                     <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-4 py-3.5 font-medium text-slate-900">
                         <div className="flex items-center gap-2.5">
@@ -1133,9 +1162,16 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-600">
                         <div>{s.studyCenterName}</div>
-                        {s.studyCenterCode && (
-                          <span className="text-[10px] text-slate-400 font-mono">({s.studyCenterCode})</span>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {s.studyCenterCode && (
+                            <span className="text-[10px] text-slate-400 font-mono">({s.studyCenterCode})</span>
+                          )}
+                          {s.branchName && (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-indigo-200 text-indigo-700 bg-indigo-50/50">
+                              🏢 {s.branchName}
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-900 whitespace-nowrap">
                         ₹{s.totalFee.toLocaleString('en-IN')}

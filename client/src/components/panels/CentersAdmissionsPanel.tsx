@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +16,8 @@ interface Enrollment {
   studentName: string;
   studentEmail: string;
   studentPhone: string;
+  branchId?: string | null;
+  branchName?: string | null;
   program: { 
     name: string; 
     code: string;
@@ -23,6 +26,7 @@ interface Enrollment {
   studyCenter: {
     name: string;
     code: string;
+    branchName?: string | null;
   };
   status: string;
   createdAt: string;
@@ -42,15 +46,22 @@ const STATUS_COLOR: Record<string, string> = {
 export function CentersAdmissionsPanel() {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
 
   const fetch = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/enrollment/all');
+      const [res, branchRes] = await Promise.all([
+        api.get('/enrollment/all'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } }))
+      ]);
       setEnrollments(res.data.data || []);
+      setBranches(branchRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load admissions');
     } finally {
@@ -61,15 +72,30 @@ export function CentersAdmissionsPanel() {
   useEffect(() => { fetch(); }, []);
 
   const filtered = enrollments.filter(e => {
+    const eBranchName = e.branchName || e.studyCenter?.branchName || '';
     const matchesSearch = 
       e.studentName.toLowerCase().includes(search.toLowerCase()) ||
       e.enrollmentNumber?.toLowerCase().includes(search.toLowerCase()) ||
       e.studyCenter.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.program.name.toLowerCase().includes(search.toLowerCase());
+      e.program.name.toLowerCase().includes(search.toLowerCase()) ||
+      eBranchName.toLowerCase().includes(search.toLowerCase());
     
     const matchesStatus = !statusFilter || e.status === statusFilter;
+    const matchesBranch = branchFilter === 'all' || e.branchId === branchFilter || eBranchName === branchFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesBranch;
+  }).sort((a, b) => {
+    if (sortBy === 'branch_asc') {
+      const ba = a.branchName || a.studyCenter?.branchName || 'ZZZ';
+      const bb = b.branchName || b.studyCenter?.branchName || 'ZZZ';
+      return ba.localeCompare(bb);
+    }
+    if (sortBy === 'branch_desc') {
+      const ba = a.branchName || a.studyCenter?.branchName || '';
+      const bb = b.branchName || b.studyCenter?.branchName || '';
+      return bb.localeCompare(ba);
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   const STATUSES = ['', 'pending_doc_review', 'document_review', 'payment_pending', 'dept_review', 'pending_finance_review', 'finance_review', 'enrolled', 'rejected'];
@@ -90,30 +116,53 @@ export function CentersAdmissionsPanel() {
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Search student, center, program or enrollment ID..." 
+            placeholder="Search student, center, branch, program or enrollment ID..." 
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {STATUSES.map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
-                statusFilter === s ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/40'
-              )}
-            >
-              {s ? s.replace(/_/g, ' ').toUpperCase() : 'ALL'}
-            </button>
-          ))}
-        </div>
+        {user?.role !== 'branch_manager' && branches.length > 0 && (
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All Branches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              {branches.map((b: any) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="latest">Sort: Latest First</SelectItem>
+            <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+            <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {STATUSES.map(s => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+              statusFilter === s ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary/40'
+            )}
+          >
+            {s ? s.replace(/_/g, ' ').toUpperCase() : 'ALL'}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -154,10 +203,15 @@ export function CentersAdmissionsPanel() {
                     </div>
 
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
                         <Building2 className="w-4 h-4" />
                         <span className="text-sm font-medium">{e.studyCenter.name}</span>
                         <Badge variant="outline" className="text-[10px]">{e.studyCenter.code}</Badge>
+                        {(e.branchName || e.studyCenter?.branchName) && (
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200">
+                            🏢 {e.branchName || e.studyCenter?.branchName}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

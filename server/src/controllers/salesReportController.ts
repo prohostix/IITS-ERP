@@ -6,7 +6,7 @@ import type { AuthRequest } from '../middleware/auth.js';
 import { getBranchScope } from '../utils/branchScope.js';
 import { calculateAndSyncTargets } from '../utils/targetHelper.js';
 
-const GLOBAL_AUTH_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin'];
+const GLOBAL_AUTH_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin'];
 
 /**
  * Recursive helper to fetch all subordinate IDs for a manager

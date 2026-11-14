@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { getBranchScope } from '../utils/branchScope.js';
+import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 
 export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isHistory = req.query.history === 'true';
@@ -14,6 +14,9 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.studyCenterId = { in: scope.centerIds };
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, String(req.query.branchId));
+    where.studyCenterId = { in: scope.centerIds };
   }
 
   if (isHistory) {
@@ -22,11 +25,26 @@ export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Resp
     where.status = 'pending_doc_review';
   }
 
-  const enrollments = await prisma.enrollment.findMany({
-    where,
-    include: { program: { include: { university: true } }, studyCenter: true, session: true }
+  const [enrollments, allBranchesScope] = await Promise.all([
+    prisma.enrollment.findMany({
+      where,
+      include: { program: { include: { university: true } }, studyCenter: true, session: true }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+  const mapped = enrollments.map((e: any) => {
+    const cid = e.studyCenterId || e.studyCenter?.id || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || (e.studyCenter?.referredBy ? allBranchesScope.staffBranchMap[e.studyCenter.referredBy] : null);
+    const branchName = resolvedBranch?.branchName || e.studyCenter?.branchName || null;
+    const branchId = resolvedBranch?.branchId || null;
+    return {
+      ...e,
+      branchId,
+      branchName,
+      studyCenter: e.studyCenter ? { ...e.studyCenter, branchName: e.studyCenter.branchName || branchName, branchId } : e.studyCenter
+    };
   });
-  res.json({ success: true, count: enrollments.length, data: enrollments });
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -34,9 +52,27 @@ export const getDeptReviewEnrollments = asyncHandler(async (req: AuthRequest, re
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.studyCenterId = { in: scope.centerIds };
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, String(req.query.branchId));
+    where.studyCenterId = { in: scope.centerIds };
   }
-  const enrollments = await prisma.enrollment.findMany({ where, include: { program: { include: { university: true } }, studyCenter: true, session: true } });
-  res.json({ success: true, count: enrollments.length, data: enrollments });
+  const [enrollments, allBranchesScope] = await Promise.all([
+    prisma.enrollment.findMany({ where, include: { program: { include: { university: true } }, studyCenter: true, session: true } }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+  const mapped = enrollments.map((e: any) => {
+    const cid = e.studyCenterId || e.studyCenter?.id || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || (e.studyCenter?.referredBy ? allBranchesScope.staffBranchMap[e.studyCenter.referredBy] : null);
+    const branchName = resolvedBranch?.branchName || e.studyCenter?.branchName || null;
+    const branchId = resolvedBranch?.branchId || null;
+    return {
+      ...e,
+      branchId,
+      branchName,
+      studyCenter: e.studyCenter ? { ...e.studyCenter, branchName: e.studyCenter.branchName || branchName, branchId } : e.studyCenter
+    };
+  });
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const updateDocumentStatus = asyncHandler(async (req: AuthRequest, res: Response) => {

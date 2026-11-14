@@ -18,6 +18,9 @@ export function InternalMarksPanel() {
 
   const [marks, setMarks] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,6 +35,7 @@ export function InternalMarksPanel() {
   useEffect(() => {
     fetchMarks();
     fetchStudents();
+    api.get('/org/branches').then(r => setBranches(r.data.data || [])).catch(() => {});
   }, []);
 
   const fetchMarks = async () => {
@@ -217,11 +221,37 @@ export function InternalMarksPanel() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Marks Records</CardTitle>
-          <CardDescription>
-            {isReadOnly ? 'Submitted by study centers' : 'Your entered marks'}
-          </CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle>Marks Records</CardTitle>
+            <CardDescription>
+              {isReadOnly ? 'Submitted by study centers across branches' : 'Your entered marks'}
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-44 h-9 text-xs">
+                <SelectValue placeholder="All Branches" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(b => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+                <SelectItem value="unassigned">Unassigned Branch</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+              <SelectTrigger className="w-44 h-9 text-xs">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Sort: Latest First</SelectItem>
+                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -234,11 +264,26 @@ export function InternalMarksPanel() {
             </div>
           ) : (
             <div className="space-y-2">
-              {marks.filter(m => m && (m.id || m.id)).map((m) => {
+              {marks
+                .filter(m => m && (m.id || m.id))
+                .filter(m => {
+                  if (branchFilter === 'all') return true;
+                  const bId = m.branchId || 'unassigned';
+                  const bName = m.branchName || 'Unassigned';
+                  if (branchFilter === 'unassigned') return bId === 'unassigned' || bName === 'Unassigned';
+                  return bId === branchFilter || bName === branchFilter;
+                })
+                .sort((a, b) => {
+                  if (branchSort === 'branch_asc') return (a.branchName || 'Unassigned').localeCompare(b.branchName || 'Unassigned');
+                  if (branchSort === 'branch_desc') return (b.branchName || 'Unassigned').localeCompare(a.branchName || 'Unassigned');
+                  return 0;
+                })
+                .map((m) => {
                 const mid = m.id || m.id;
-                const studentName = typeof m.studentId === 'object' ? m.studentId?.name : 'Unknown Student';
-                const enrollNo = typeof m.studentId === 'object' ? m.studentId?.enrollmentNo : null;
-                const centerName = typeof m.studyCenterId === 'object' ? m.studyCenterId?.name : null;
+                const studentName = m.student?.name || (typeof m.studentId === 'object' ? m.studentId?.name : 'Unknown Student');
+                const enrollNo = m.student?.enrollmentNo || (typeof m.studentId === 'object' ? m.studentId?.enrollmentNo : null);
+                const centerName = m.student?.center?.name || (typeof m.studyCenterId === 'object' ? m.studyCenterId?.name : null);
+                const branchName = m.branchName || m.student?.center?.branchName || null;
                 const pct = m.maxMarks ? ((m.marks / m.maxMarks) * 100).toFixed(1) : 0;
                 return (
                   <div key={mid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -247,9 +292,14 @@ export function InternalMarksPanel() {
                         <FileText className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <div className="font-medium text-sm">
-                          {studentName}
-                          {enrollNo && <span className="text-muted-foreground text-xs ml-2">({enrollNo})</span>}
+                        <div className="font-medium text-sm flex items-center gap-2 flex-wrap">
+                          <span>{studentName}</span>
+                          {enrollNo && <span className="text-muted-foreground text-xs">({enrollNo})</span>}
+                          {branchName && (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary">
+                              🏢 {branchName}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {m.subjectName || 'N/A'} • <span className="capitalize">{m.examType}</span> • {m.marks}/{m.maxMarks} ({pct}%)

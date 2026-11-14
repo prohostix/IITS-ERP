@@ -24,7 +24,7 @@ export function UniversitiesPanel() {
   const { user } = useAuth();
   const isOrgAdmin = ['org_admin', 'superadmin'].includes(user?.role || '');
   const canAddPrograms = isOrgAdmin || 
-    ['ops_admin', 'ops_sub_admin'].includes(user?.role || '') || 
+    ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager'].includes(user?.role || '') || 
     (user as any)?.canAddPrograms === true || 
     (Array.isArray((user as any)?.permissions) && (user as any).permissions.includes('programs'));
 

@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
-import { getBranchScope } from '../utils/branchScope.js';
+import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 import bcrypt from 'bcryptjs';
 import { createNotification, broadcastNotification } from './notificationController.js';
 
@@ -28,6 +28,20 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
       OR: [
         { centerId: { in: scope.centerIds } },
         { enrollments: { some: { studyCenterId: { in: scope.centerIds } } } }
+      ]
+    });
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const branchIds = String(req.query.branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const branchCenterIds = new Set<string>();
+    for (const bId of branchIds) {
+      const scope = await getBranchScopeByBranchId(req.user.organizationId, bId);
+      scope.centerIds.forEach(cid => branchCenterIds.add(cid));
+    }
+    const cids = Array.from(branchCenterIds);
+    andConditions.push({
+      OR: [
+        { centerId: { in: cids } },
+        { enrollments: { some: { studyCenterId: { in: cids } } } }
       ]
     });
   }
@@ -115,47 +129,60 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     prisma.student.count({ where: { ...countWhere, status: 'dropout' } })
   ]);
 
-  const students = await prisma.student.findMany({
-    where,
-    include: { 
-      enrollments: {
-        include: {
-          session: {
-            select: {
-              id: true,
-              name: true,
-              startDate: true,
-              endDate: true,
-              university: { select: { id: true, name: true, code: true } }
-            }
-          },
-          studentFeeReceipts: {
-            orderBy: { receiptDate: 'desc' }
-          },
-          payment: true,
-          program: {
-            include: {
-              programFeeStructure: true,
-              feeStructure: true,
-              university: true
+  const [students, allBranchesScope] = await Promise.all([
+    prisma.student.findMany({
+      where,
+      include: { 
+        enrollments: {
+          include: {
+            session: {
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                university: { select: { id: true, name: true, code: true } }
+              }
+            },
+            studentFeeReceipts: {
+              orderBy: { receiptDate: 'desc' }
+            },
+            payment: true,
+            program: {
+              include: {
+                programFeeStructure: true,
+                feeStructure: true,
+                university: true
+              }
             }
           }
-        }
+        },
+        universityFeePayments: true,
+        invoices: true,
+        center: true,
+        program: { include: { university: true, feeStructure: true, programFeeStructure: true } }
       },
-      universityFeePayments: true,
-      invoices: true,
-      center: true,
-      program: { include: { university: true, feeStructure: true, programFeeStructure: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
 
-  // Map center/program to centerId/programId for frontend object checks compatibility
-  const mappedStudents = students.map((s) => ({
-    ...s,
-    centerId: s.center,
-    programId: s.program
-  }));
+  // Map center/program to centerId/programId for frontend object checks compatibility + attach branch info
+  const mappedStudents = students.map((s) => {
+    const cid = s.center?.id || s.centerId || s.enrollments?.[0]?.studyCenterId || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
+    const branchName = resolvedBranch?.branchName || s.center?.branchName || null;
+    const branchId = resolvedBranch?.branchId || null;
+    const enrichedCenter = s.center ? { ...s.center, branchName: s.center.branchName || branchName, branchId } : s.center;
+    return {
+      ...s,
+      branchId,
+      branchName,
+      center: enrichedCenter,
+      centerId: enrichedCenter,
+      programId: s.program
+    };
+  });
 
   res.status(200).json({ 
     success: true, 
@@ -911,18 +938,24 @@ export const submitStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     'system',
     'New Status Change Request',
     `A request has been submitted to mark student ${student.name} as ${requestedStatus.toUpperCase()}.`,
-    ['ops_admin', 'ops_sub_admin', 'employee']
+    ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'employee']
   );
 
   res.status(201).json({ success: true, data: statusRequest });
 });
 
 export const getStatusChangeRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { requestedStatus, status } = req.query;
+  const { requestedStatus, status, branchId } = req.query;
   const where: any = { organizationId: req.user.organizationId };
 
   if (req.user.role === 'center_admin') {
     where.student = { centerId: req.user.studyCenterId || '' };
+  } else if (req.user.role === 'branch_manager') {
+    const scope = await getBranchScope(req.user);
+    where.student = { centerId: { in: scope.centerIds } };
+  } else if (branchId && branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, String(branchId));
+    where.student = { centerId: { in: scope.centerIds } };
   }
 
   if (requestedStatus) {
@@ -933,20 +966,39 @@ export const getStatusChangeRequests = asyncHandler(async (req: AuthRequest, res
     where.status = status as string;
   }
 
-  const requests = await prisma.studentStatusRequest.findMany({
-    where,
-    include: {
-      student: {
-        include: {
-          program: true,
-          center: true
+  const [requests, allBranchesScope] = await Promise.all([
+    prisma.studentStatusRequest.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            program: true,
+            center: true
+          }
         }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+
+  const mapped = requests.map((r: any) => {
+    const cid = r.student?.center?.id || r.student?.centerId || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
+    const branchName = resolvedBranch?.branchName || r.student?.center?.branchName || null;
+    return {
+      ...r,
+      branchId: resolvedBranch?.branchId || null,
+      branchName,
+      student: r.student ? {
+        ...r.student,
+        branchName,
+        center: r.student.center ? { ...r.student.center, branchName: r.student.center.branchName || branchName } : r.student.center
+      } : r.student
+    };
   });
 
-  res.status(200).json({ success: true, count: requests.length, data: requests });
+  res.status(200).json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, res: Response) => {

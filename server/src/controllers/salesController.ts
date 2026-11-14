@@ -4,7 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { mapPrismaToFrontendCourseType } from '../utils/courseTypeHelper.js';
-import { getBranchScope } from '../utils/branchScope.js';
+import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 import { calculateAndSyncTargets, filterTargets } from '../utils/targetHelper.js';
 
 // Leads
@@ -481,7 +481,7 @@ export const regenerateInvite = asyncHandler(async (req: AuthRequest, res: Respo
 
 // Helper to resolve sales team members for the caller based on role & hierarchy
 async function resolveSalesTeamUsers(user: any, organizationId: string) {
-  const isGlobal = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(user.role);
+  const isGlobal = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(user.role);
 
   if (isGlobal) {
     return prisma.user.findMany({
@@ -909,7 +909,7 @@ export async function getBranchSalesUsersHelper(user: any) {
 
 // Sales users list for target assignment and management
 export const getSalesUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(req.user.role);
+  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
 
   if (req.user.role === 'branch_manager') {
     const { branch, users } = await getBranchSalesUsersHelper(req.user);
@@ -1110,11 +1110,12 @@ export const getProgramsByUniversity = asyncHandler(async (req: AuthRequest, res
 // Sales Staff Admission Report
 export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest, res: Response) => {
   const organizationId = req.user.organizationId;
-  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'ops_admin', 'ops_sub_admin'].includes(req.user.role);
+  const isGlobalAuth = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin'].includes(req.user.role);
 
   const selectedYear = req.query.year ? (req.query.year === 'all' ? 'all' : parseInt(req.query.year as string, 10)) : new Date().getFullYear();
   const selectedMonth = req.query.month ? (req.query.month === 'all' ? 'all' : parseInt(req.query.month as string, 10)) : 'all';
   const staffIdFilter = req.query.staffId && req.query.staffId !== 'all' ? (req.query.staffId as string) : null;
+  const branchIdFilter = req.query.branchId && req.query.branchId !== 'all' ? (req.query.branchId as string) : null;
   const statusFilter = req.query.status && req.query.status !== 'all' ? (req.query.status as string) : null;
   const sessionIdFilter = req.query.sessionId && req.query.sessionId !== 'all' ? (req.query.sessionId as string) : null;
   const universityIdFilter = req.query.universityId && req.query.universityId !== 'all' ? (req.query.universityId as string) : null;
@@ -1143,6 +1144,9 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     allowedStaffIds = scope.staffIds;
+  } else if (branchIdFilter) {
+    const scope = await getBranchScopeByBranchId(organizationId, branchIdFilter);
+    allowedStaffIds = scope.staffIds;
   } else if (!isGlobalAuth) {
     const subordinateIds = await getAllSubordinateIds(req.user.id);
     allowedStaffIds = [req.user.id, ...subordinateIds];
@@ -1158,34 +1162,40 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     staffWhere.id = staffIdFilter;
   }
 
-  const rawSalesStaff = await prisma.user.findMany({
-    where: staffWhere,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      designation: true,
-      branch: { select: { id: true, name: true } },
-      department: { select: { id: true, name: true } },
-      designationRef: {
-        select: {
-          title: true,
-          branch: { select: { id: true, name: true } },
-          department: { select: { id: true, name: true } }
+  const [rawSalesStaff, allBranchesScope] = await Promise.all([
+    prisma.user.findMany({
+      where: staffWhere,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        designation: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+        designationRef: {
+          select: {
+            title: true,
+            branch: { select: { id: true, name: true } },
+            department: { select: { id: true, name: true } }
+          }
         }
-      }
-    },
-    orderBy: { name: 'asc' }
-  });
+      },
+      orderBy: { name: 'asc' }
+    }),
+    getAllBranchesScope(organizationId)
+  ]);
 
-  const salesStaff = rawSalesStaff.map(({ designationRef, ...s }) => ({
-    ...s,
-    designation: s.designation || designationRef?.title || null,
-    branch: s.branch || designationRef?.branch || null,
-    department: s.department || designationRef?.department || null
-  }));
+  const salesStaff = rawSalesStaff.map(({ designationRef, ...s }) => {
+    const resolvedBranch = allBranchesScope.staffBranchMap[s.id];
+    return {
+      ...s,
+      designation: s.designation || designationRef?.title || null,
+      branch: s.branch || designationRef?.branch || (resolvedBranch ? { id: resolvedBranch.branchId, name: resolvedBranch.branchName } : null),
+      department: s.department || designationRef?.department || null
+    };
+  });
 
   const staffIds = salesStaff.map(s => s.id);
 

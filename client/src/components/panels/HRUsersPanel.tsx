@@ -191,7 +191,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
       const allUsers = response.data.data || response.data || [];
       // Exclude top-level admin roles, centers and students — everyone else is headcount
       const staffUsers = allUsers.filter((user: User) =>
-        !['ceo', 'general_manager', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(user.role)
+        !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(user.role)
       );
       setUsers(staffUsers);
     } catch (_error) {
@@ -507,6 +507,8 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
     const map: Record<string, string> = {
       employee: 'bg-blue-100 text-blue-800',
       staff: 'bg-green-100 text-green-800',
+      general_manager: 'bg-indigo-100 text-indigo-800',
+      project_manager: 'bg-indigo-100 text-indigo-800',
       hr_admin: 'bg-orange-100 text-orange-800',
       finance_admin: 'bg-emerald-100 text-emerald-800',
       ops_admin: 'bg-indigo-100 text-indigo-800',
@@ -742,7 +744,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                     <SelectItem value="hod">HOD (Head of Department)</SelectItem>
                     <SelectItem value="employee">Employee</SelectItem>
                     <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="general_manager">General Manager</SelectItem>
+                    <SelectItem value="general_manager">Project Manager</SelectItem>
                     <SelectItem value="hr_admin">HR Admin</SelectItem>
                     <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
                     <SelectItem value="finance_admin">Finance Admin</SelectItem>
@@ -1066,7 +1068,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                 <SelectItem value="sales_admin">Sales Admin</SelectItem>
                 <SelectItem value="sales_sub_admin">Sales Sub-Admin</SelectItem>
                 <SelectItem value="branch_manager">Branch Manager</SelectItem>
-                <SelectItem value="general_manager">General Manager</SelectItem>
+                <SelectItem value="general_manager">Project Manager</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1232,7 +1234,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-base">{user.name}</h3>
                         <Badge className={getRoleBadgeColor(user.role)}>
-                          {user.role}
+                          {user.role === 'general_manager' || user.role === 'project_manager' ? 'Project Manager' : user.role}
                         </Badge>
                         {isSuspended && (
                           <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-semibold flex items-center gap-1">

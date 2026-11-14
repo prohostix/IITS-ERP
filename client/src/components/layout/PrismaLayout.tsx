@@ -332,7 +332,9 @@ export function PrismaLayout({
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName || 'Unknown User'}</p>
-              <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">{userDesignation || userRole?.replace(/_/g, ' ')}</span>
+              <span className="text-[10px] text-sidebar-foreground/50 font-medium truncate capitalize">
+                {userDesignation || (userRole === 'general_manager' || userRole === 'project_manager' ? 'Project Manager' : userRole?.replace(/_/g, ' '))}
+              </span>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

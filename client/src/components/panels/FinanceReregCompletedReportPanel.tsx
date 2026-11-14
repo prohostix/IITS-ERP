@@ -75,14 +75,16 @@ export function FinanceReregCompletedReportPanel() {
 
   // Filter state
   const [search, setSearch] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [centerId, setCenterId] = useState('');
   const [universityId, setUniversityId] = useState('');
   const [programId, setProgramId] = useState('');
   
   // Sorting state
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'branch_asc' | 'branch_desc' | null>(null);
 
   // Dropdown data
+  const [branches, setBranches] = useState<any[]>([]);
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
@@ -92,6 +94,7 @@ export function FinanceReregCompletedReportPanel() {
   // Load dropdown data
   useEffect(() => {
     if (!isCenterUser) {
+      api.get('/org/branches').then(r => setBranches(r.data.data || [])).catch(() => {});
       api.get('/operations/centers').then(r => setCenters(r.data.data || [])).catch(() => {});
     }
     api.get('/operations/universities').then(r => setUniversities(r.data.data || [])).catch(() => {});
@@ -102,6 +105,7 @@ export function FinanceReregCompletedReportPanel() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (branchId) params.set('branchId', branchId);
       if (centerId) params.set('centerId', centerId);
       if (universityId) params.set('universityId', universityId);
       if (programId) params.set('programId', programId);
@@ -113,18 +117,19 @@ export function FinanceReregCompletedReportPanel() {
     } finally {
       setLoading(false);
     }
-  }, [centerId, universityId, programId, search]);
+  }, [branchId, centerId, universityId, programId, search]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
   const handleReset = () => {
     setSearch('');
+    setBranchId('');
     setCenterId('');
     setUniversityId('');
     setProgramId('');
   };
 
-  const hasFilters = search || centerId || universityId || programId;
+  const hasFilters = search || branchId || centerId || universityId || programId;
 
   // Filtered programs based on selected university
   const filteredPrograms = universityId
@@ -134,6 +139,8 @@ export function FinanceReregCompletedReportPanel() {
   // Sorted rows
   const sortedRows = [...rows].sort((a, b) => {
     if (sortOrder === null) return 0;
+    if (sortOrder === 'branch_asc') return (a.branchName || '').localeCompare(b.branchName || '');
+    if (sortOrder === 'branch_desc') return (b.branchName || '').localeCompare(a.branchName || '');
     const aTime = new Date(a.paidDate).getTime();
     const bTime = new Date(b.paidDate).getTime();
     if (sortOrder === 'asc') return aTime - bTime;
@@ -211,6 +218,22 @@ export function FinanceReregCompletedReportPanel() {
               />
             </div>
 
+            {/* Branch filter */}
+            {!isCenterUser && branches.length > 0 && (
+              <Select value={branchId || 'all'} onValueChange={v => setBranchId(v === 'all' ? '' : v)}>
+                <SelectTrigger className="h-9 text-sm gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name} {b.code ? `(${b.code})` : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             {/* Center filter */}
             {!isCenterUser && (
               <Select value={centerId || 'all'} onValueChange={v => setCenterId(v === 'all' ? '' : v)}>
@@ -252,6 +275,20 @@ export function FinanceReregCompletedReportPanel() {
                 {filteredPrograms.map((p: any) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            {/* Sort filter */}
+            <Select value={sortOrder || 'default'} onValueChange={v => setSortOrder(v === 'default' ? null : (v as any))}>
+              <SelectTrigger className="h-9 text-sm gap-2">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default Sort</SelectItem>
+                <SelectItem value="desc">Paid Date (Newest)</SelectItem>
+                <SelectItem value="asc">Paid Date (Oldest)</SelectItem>
+                <SelectItem value="branch_asc">Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Branch (Z → A)</SelectItem>
               </SelectContent>
             </Select>
           </div>

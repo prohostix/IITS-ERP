@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { getBranchScope } from '../utils/branchScope.js';
+import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 import bcrypt from 'bcryptjs';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -617,19 +617,40 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
   } else if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.studyCenterId = { in: scope.centerIds };
+  } else if (req.query.branchId && req.query.branchId !== 'all') {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, String(req.query.branchId));
+    where.studyCenterId = { in: scope.centerIds };
   }
 
-  const enrollments = await prisma.enrollment.findMany({
-    where,
-    include: {
-      studyCenter: { select: { name: true, code: true, referredBy: true } },
-      program: {
-        include: { university: { select: { name: true, code: true } } }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
+  const [enrollments, allBranchesScope] = await Promise.all([
+    prisma.enrollment.findMany({
+      where,
+      include: {
+        studyCenter: { select: { id: true, name: true, code: true, referredBy: true, branchName: true } },
+        program: {
+          include: { university: { select: { name: true, code: true } } }
+        },
+        session: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(req.user.organizationId)
+  ]);
+
+  const mapped = enrollments.map((e: any) => {
+    const cid = e.studyCenterId || e.studyCenter?.id || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || (e.studyCenter?.referredBy ? allBranchesScope.staffBranchMap[e.studyCenter.referredBy] : null);
+    const branchName = resolvedBranch?.branchName || e.studyCenter?.branchName || null;
+    const branchId = resolvedBranch?.branchId || null;
+    return {
+      ...e,
+      branchId,
+      branchName,
+      studyCenter: e.studyCenter ? { ...e.studyCenter, branchName: e.studyCenter.branchName || branchName, branchId } : e.studyCenter
+    };
   });
-  res.json({ success: true, count: enrollments.length, data: enrollments });
+
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 
 export const getActiveSessions = asyncHandler(async (req: AuthRequest, res: Response) => {

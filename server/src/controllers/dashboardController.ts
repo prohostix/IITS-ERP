@@ -3,11 +3,13 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 
 export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Response) => {
   const organizationId = req.user.organizationId;
   const role = req.user.role;
   const sessionId = req.query.sessionId as string | undefined;
+  const branchId = req.query.branchId as string | undefined;
 
   const metrics: any = {};
 
@@ -74,12 +76,43 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
 
     const studentWhere: any = { organizationId: organizationId };
     const enrollmentWhere: any = { organizationId: organizationId };
+    const centerWhere: any = { organizationId: organizationId };
+    const studentAnd: any[] = [];
+
     if (sessionId && sessionId !== 'all') {
-      studentWhere.OR = [
-        { sessionId: sessionId },
-        { enrollments: { some: { sessionId: sessionId } } }
-      ];
+      studentAnd.push({
+        OR: [
+          { sessionId: sessionId },
+          { enrollments: { some: { sessionId: sessionId } } }
+        ]
+      });
       enrollmentWhere.sessionId = sessionId;
+    }
+
+    if (role === 'branch_manager') {
+      const scope = await getBranchScope(req.user);
+      studentAnd.push({
+        OR: [
+          { centerId: { in: scope.centerIds } },
+          { enrollments: { some: { studyCenterId: { in: scope.centerIds } } } }
+        ]
+      });
+      enrollmentWhere.studyCenterId = { in: scope.centerIds };
+      centerWhere.id = { in: scope.centerIds };
+    } else if (branchId && branchId !== 'all') {
+      const scope = await getBranchScopeByBranchId(organizationId, branchId);
+      studentAnd.push({
+        OR: [
+          { centerId: { in: scope.centerIds } },
+          { enrollments: { some: { studyCenterId: { in: scope.centerIds } } } }
+        ]
+      });
+      enrollmentWhere.studyCenterId = { in: scope.centerIds };
+      centerWhere.id = { in: scope.centerIds };
+    }
+
+    if (studentAnd.length > 0) {
+      studentWhere.AND = studentAnd;
     }
 
     const [
@@ -110,10 +143,10 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     };
 
     const [totalCenters, centersActive, centersPending, centersDeactive] = await Promise.all([
-      prisma.studyCenter.count({ where: { organizationId: organizationId } }),
-      prisma.studyCenter.count({ where: { organizationId: organizationId, status: 'active' as any } }),
-      prisma.studyCenter.count({ where: { organizationId: organizationId, status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
-      prisma.studyCenter.count({ where: { organizationId: organizationId, status: { in: ['inactive', 'suspended', 'deactive', 'rejected'] } as any } })
+      prisma.studyCenter.count({ where: centerWhere }),
+      prisma.studyCenter.count({ where: { ...centerWhere, status: 'active' as any } }),
+      prisma.studyCenter.count({ where: { ...centerWhere, status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
+      prisma.studyCenter.count({ where: { ...centerWhere, status: { in: ['inactive', 'suspended', 'deactive', 'rejected'] } as any } })
     ]);
     metrics.totalCenters = totalCenters;
     metrics.activeCenters = centersActive;
@@ -147,6 +180,63 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.rejectedApplications = await prisma.enrollment.count({
       where: { ...enrollmentWhere, status: 'rejected' as any }
     });
+
+    // Compute per-branch breakdown for Project Manager / Operations Admin / CEO
+    if (['general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'ceo', 'org_admin'].includes(role)) {
+      const allBranches = await getAllBranchesScope(organizationId);
+      const branchBreakdown = await Promise.all(allBranches.branches.map(async (b: any) => {
+        const bScope = allBranches.branchScopes[b.id];
+        const cIds = bScope?.centerIds || [];
+        const bStudentAnd: any[] = [{
+          OR: [
+            { centerId: { in: cIds } },
+            { enrollments: { some: { studyCenterId: { in: cIds } } } }
+          ]
+        }];
+        const bEnrollmentWhere: any = { organizationId, studyCenterId: { in: cIds } };
+        if (sessionId && sessionId !== 'all') {
+          bStudentAnd.push({
+            OR: [
+              { sessionId },
+              { enrollments: { some: { sessionId } } }
+            ]
+          });
+          bEnrollmentWhere.sessionId = sessionId;
+        }
+        const bStudentWhere = { organizationId, AND: bStudentAnd };
+        const bCenterWhere = { organizationId, id: { in: cIds } };
+
+        const [bTotalStudents, bActiveStudents, bPendingStudents, bHoldStudents, bDropoutStudents, bTotalCenters, bActiveCenters, bPendingCenters, bPendingReviews, bEnrolled] = await Promise.all([
+          prisma.student.count({ where: bStudentWhere }),
+          prisma.student.count({ where: { ...bStudentWhere, status: 'active' } }),
+          prisma.student.count({ where: { ...bStudentWhere, status: 'pending' } }),
+          prisma.student.count({ where: { ...bStudentWhere, status: 'hold' } }),
+          prisma.student.count({ where: { ...bStudentWhere, status: 'dropout' } }),
+          prisma.studyCenter.count({ where: bCenterWhere }),
+          prisma.studyCenter.count({ where: { ...bCenterWhere, status: 'active' as any } }),
+          prisma.studyCenter.count({ where: { ...bCenterWhere, status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
+          prisma.enrollment.count({ where: { ...bEnrollmentWhere, status: { in: ['pending_doc_review', 'document_review', 'submitted'] } as any } }),
+          prisma.enrollment.count({ where: { ...bEnrollmentWhere, status: { in: ['enrolled', 'confirmed'] } as any } })
+        ]);
+
+        return {
+          branchId: b.id,
+          branchName: b.name,
+          branchCode: b.code,
+          totalStudents: bTotalStudents,
+          activeStudents: bActiveStudents,
+          pendingStudents: bPendingStudents,
+          holdStudents: bHoldStudents,
+          dropoutStudents: bDropoutStudents,
+          totalCenters: bTotalCenters,
+          activeCenters: bActiveCenters,
+          pendingCenters: bPendingCenters,
+          pendingReviews: bPendingReviews,
+          enrolledStudents: bEnrolled
+        };
+      }));
+      metrics.branchBreakdown = branchBreakdown;
+    }
 
     // Urgent actions for Operations and Admins
     const urgentActions = [];

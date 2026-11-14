@@ -78,10 +78,14 @@ export const authorize = (...roles: string[]) => {
       return;
     }
 
-    const effectiveRole = req.user.role === 'general_manager' ? 'ceo' : req.user.role;
+    const isProjectManager = req.user.role === 'general_manager' || req.user.role === 'project_manager';
 
-    if (roles.includes(effectiveRole)) {
-      req.user.role = effectiveRole; // Overwrite so downstream controllers treat them as the aliased role
+    if (roles.includes(req.user.role)) {
+      return next();
+    }
+
+    // Project Manager (general_manager / project_manager) has full access to all Operations Department & global routes
+    if (isProjectManager && roles.some(r => ['general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'ceo'].includes(r))) {
       return next();
     }
     
@@ -123,7 +127,7 @@ export const authorize = (...roles: string[]) => {
       return next();
     }
 
-    if (isProgramWrite && (req.user.canAddPrograms || req.user.role === 'ops_admin' || (req.user.role === 'ops_sub_admin' && Array.isArray(req.user.permissions) && req.user.permissions.includes('programs')))) {
+    if (isProgramWrite && (req.user.canAddPrograms || ['ops_admin', 'general_manager', 'project_manager'].includes(req.user.role) || (req.user.role === 'ops_sub_admin' && Array.isArray(req.user.permissions) && req.user.permissions.includes('programs')))) {
       return next();
     }
 

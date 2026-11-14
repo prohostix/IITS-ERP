@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
+import { getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 1. COMMISSION REPORT AGAINST UNIVERSITY
@@ -222,7 +223,7 @@ export const getCommissionAgainstUniversityReport = asyncHandler(async (req: Aut
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { status, universityId, centerId, programId, search, dateFrom, dateTo, sessionId } = req.query;
+  const { status, universityId, centerId, programId, search, dateFrom, dateTo, sessionId, branchId } = req.query;
   const orgId = req.user.organizationId;
 
   const whereClause: any = { organizationId: orgId };
@@ -247,6 +248,11 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
   if (centerId && centerId !== 'all') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     studentConditions.centerId = cids.length === 1 ? cids[0] : { in: cids };
+  } else if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    studentConditions.centerId = { in: branchCenterIds };
   }
   if (programId && programId !== 'all') {
     const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
@@ -279,28 +285,31 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
     whereClause.student = studentConditions;
   }
 
-  const rawPayments = await prisma.universityFeePayment.findMany({
-    where: whereClause,
-    include: {
-      student: {
-        include: {
-          program: {
-            include: {
-              university: { select: { id: true, name: true, code: true } }
-            }
-          },
-          center: { select: { id: true, name: true, code: true } },
-          enrollments: {
-            select: {
-              sessionId: true,
-              session: { select: { id: true, name: true } }
+  const [rawPayments, allBranchesScope] = await Promise.all([
+    prisma.universityFeePayment.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          include: {
+            program: {
+              include: {
+                university: { select: { id: true, name: true, code: true } }
+              }
+            },
+            center: { select: { id: true, name: true, code: true, branchName: true } },
+            enrollments: {
+              select: {
+                sessionId: true,
+                session: { select: { id: true, name: true } }
+              }
             }
           }
         }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(orgId)
+  ]);
 
   // Calculate summaries
   let totalPayable = 0;
@@ -399,6 +408,10 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
       sessionSummaryMap[sId].pendingCount += 1;
     }
 
+    const cid = p.student?.centerId || p.student?.center?.id || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
+    const branchName = resolvedBranch?.branchName || p.student?.center?.branchName || 'Unassigned';
+
     return {
       id: p.id,
       studentId: p.studentId,
@@ -416,6 +429,8 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
       centerId: p.student?.centerId,
       centerName: p.student?.center?.name || 'N/A',
       centerCode: p.student?.center?.code || '',
+      branchId: resolvedBranch?.branchId || null,
+      branchName,
       semesterOrYear: p.semesterOrYear,
       amount: amt,
       status: p.status,
@@ -478,8 +493,16 @@ export const getUniversityFeePaymentReport = asyncHandler(async (req: AuthReques
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { universityId, centerId, programId, search, status, dateFrom, dateTo, sessionId } = req.query;
+  const { universityId, centerId, programId, search, status, dateFrom, dateTo, sessionId, branchId } = req.query;
   const orgId = req.user.organizationId;
+  const allBranchesScope = await getAllBranchesScope(orgId);
+
+  let branchCenterIds: string[] | null = null;
+  if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+  }
 
   // 1. Fetch completed re-registration invoices
   const invoiceWhere: any = {
@@ -491,6 +514,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
   if (centerId && centerId !== 'all') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     invoiceWhere.centerId = cids.length === 1 ? cids[0] : { in: cids };
+  } else if (branchCenterIds) {
+    invoiceWhere.centerId = { in: branchCenterIds };
   }
 
   if (dateFrom || dateTo) {
@@ -576,6 +601,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
 
         const sessId = inv.student?.enrollments?.[0]?.sessionId || inv.student?.sessionId || 'unknown';
         const sessName = inv.student?.enrollments?.[0]?.session?.name || 'General Session';
+        const cid = inv.centerId || inv.student?.center?.id || '';
+        const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
 
         completedRecords.push({
           id: `${inv.id}-${item.id || Math.random()}`,
@@ -595,7 +622,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           programName: inv.student?.program?.name || 'N/A',
           centerId: inv.centerId,
           centerName: inv.student?.center?.name || 'N/A',
-          branchName: inv.student?.center?.branchName || '',
+          branchId: resolvedBranch?.branchId || null,
+          branchName: resolvedBranch?.branchName || inv.student?.center?.branchName || 'Unassigned',
           installment: installmentName,
           amount: itemAmount,
           status: 'completed',
@@ -620,6 +648,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       } : {}),
       ...(centerId && centerId !== 'all' ? {
         studyCenterId: String(centerId).includes(',') ? { in: String(centerId).split(',').filter(Boolean) } : (centerId as string)
+      } : branchCenterIds ? {
+        studyCenterId: { in: branchCenterIds }
       } : {}),
       ...(programId && programId !== 'all' ? {
         programId: String(programId).includes(',') ? { in: String(programId).split(',').filter(Boolean) } : (programId as string)
@@ -688,6 +718,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       );
 
       const semFee = Number(b.baseFee || b.tuitionFee || 0) + Number(b.examFee || 0);
+      const enrResolvedBranch = (enr.studyCenterId && allBranchesScope.centerBranchMap[enr.studyCenterId]) || null;
+      const enrBranchName = enrResolvedBranch?.branchName || enr.studyCenter?.branchName || 'Unassigned';
 
       if (matchingReceipt && !alreadyPaidInInvoices) {
         completedRecords.push({
@@ -708,7 +740,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           programName: enr.program?.name || 'N/A',
           centerId: enr.studyCenterId,
           centerName: enr.studyCenter?.name || 'N/A',
-          branchName: enr.studyCenter?.branchName || '',
+          branchId: enrResolvedBranch?.branchId || null,
+          branchName: enrBranchName,
           installment: semLabel,
           amount: Number(matchingReceipt.amount || semFee),
           status: 'completed',
@@ -737,7 +770,8 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           programName: enr.program?.name || 'N/A',
           centerId: enr.studyCenterId,
           centerName: enr.studyCenter?.name || 'N/A',
-          branchName: enr.studyCenter?.branchName || '',
+          branchId: enrResolvedBranch?.branchId || null,
+          branchName: enrBranchName,
           installment: semLabel,
           amount: semFee,
           status: 'pending',
@@ -914,7 +948,7 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { search, universityId, centerId, programId, status, sessionId } = req.query;
+  const { search, universityId, centerId, programId, status, sessionId, branchId } = req.query;
   const orgId = req.user.organizationId;
 
   const where: any = { organizationId: orgId };
@@ -928,6 +962,11 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
   } else if (centerId && centerId !== 'all') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     where.studyCenterId = cids.length === 1 ? cids[0] : { in: cids };
+  } else if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    where.studyCenterId = { in: branchCenterIds };
   }
   if (programId && programId !== 'all') {
     const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
@@ -948,22 +987,25 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
     ];
   }
 
-  const enrollments = await prisma.enrollment.findMany({
-    where,
-    include: {
-      program: {
-        include: {
-          university: { select: { id: true, name: true } },
-          programFeeStructure: true
-        }
+  const [enrollments, allBranchesScope] = await Promise.all([
+    prisma.enrollment.findMany({
+      where,
+      include: {
+        program: {
+          include: {
+            university: { select: { id: true, name: true } },
+            programFeeStructure: true
+          }
+        },
+        studyCenter: { select: { id: true, name: true, code: true, branchName: true } },
+        session: { select: { id: true, name: true } },
+        studentFeeReceipts: true,
+        payment: true
       },
-      studyCenter: { select: { id: true, name: true, code: true } },
-      session: { select: { id: true, name: true } },
-      studentFeeReceipts: true,
-      payment: true
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+      orderBy: { createdAt: 'desc' }
+    }),
+    getAllBranchesScope(orgId)
+  ]);
 
   const studentsList = enrollments.map(enr => {
     const pfs = (enr.program?.programFeeStructure || (enr.program as any)?.programFeeStructures || []) as any[];
@@ -1007,6 +1049,10 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
     else if (balance === 0) paymentStatus = 'paid';
     else if (totalCredited > 0) paymentStatus = 'partial';
 
+    const cid = enr.studyCenter?.id || enr.studyCenterId || '';
+    const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
+    const branchName = resolvedBranch?.branchName || enr.studyCenter?.branchName || 'Unassigned';
+
     return {
       id: enr.id,
       studentId: enr.studentId,
@@ -1021,6 +1067,8 @@ export const getStudentLedgerList = asyncHandler(async (req: AuthRequest, res: R
       programName: enr.program?.name || 'N/A',
       studyCenterName: enr.studyCenter?.name || 'N/A',
       studyCenterCode: enr.studyCenter?.code || '',
+      branchId: resolvedBranch?.branchId || null,
+      branchName,
       totalFee: totalDebited,
       totalPaid: totalCredited,
       balance,
@@ -1378,10 +1426,16 @@ export const getStudentLedgerDetails = asyncHandler(async (req: AuthRequest, res
 // ══════════════════════════════════════════════════════════════════════════════
 
 export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { search, sessionId } = req.query;
+  const { search, sessionId, branchId } = req.query;
   const orgId = req.user.organizationId;
 
   const where: any = { organizationId: orgId };
+  if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    where.id = { in: branchCenterIds };
+  }
   if (search) {
     const s = String(search).trim();
     where.OR = [
@@ -1401,30 +1455,36 @@ export const getCenterLedgerList = asyncHandler(async (req: AuthRequest, res: Re
     ? { where: { status: 'paid', commissionIn: { enrollment: { sessionId: sids.length === 1 ? sids[0] : { in: sids } } } } }
     : { where: { status: 'paid' } };
 
-  const centers = await prisma.studyCenter.findMany({
-    where,
-    include: {
-      wallet: true,
-      walletTopUps: {
-        where: { status: 'approved' }
+  const [centers, allBranchesScope] = await Promise.all([
+    prisma.studyCenter.findMany({
+      where,
+      include: {
+        wallet: true,
+        walletTopUps: {
+          where: { status: 'approved' }
+        },
+        enrollmentPayments: enrollmentPaymentsWhere,
+        commissionOuts: commissionOutsWhere
       },
-      enrollmentPayments: enrollmentPaymentsWhere,
-      commissionOuts: commissionOutsWhere
-    },
-    orderBy: { name: 'asc' }
-  });
+      orderBy: { name: 'asc' }
+    }),
+    getAllBranchesScope(orgId)
+  ]);
 
   const centerList = centers.map(c => {
     const walletBalance = Number(c.wallet?.balance || 0);
     const totalTopUps = (c.walletTopUps || []).reduce((s, t) => s + Number(t.amount || 0), 0);
     const totalEnrollmentDebits = (c.enrollmentPayments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
     const totalCommissionsEarned = (c.commissionOuts || []).reduce((s, co) => s + Number(co.netAmount || co.amount || 0), 0);
+    const resolvedBranch = allBranchesScope.centerBranchMap[c.id] || null;
+    const branchName = resolvedBranch?.branchName || c.branchName || 'Unassigned';
 
     return {
       centerId: c.id,
       centerName: c.name,
       code: c.code || 'N/A',
-      branchName: c.branchName || '',
+      branchId: resolvedBranch?.branchId || null,
+      branchName,
       city: c.city || '',
       state: c.state || '',
       coordinatorName: c.coordinatorName || '',

@@ -14,7 +14,7 @@ import type { AuthRequest } from '../middleware/auth.js';
  *  - Students / enrollments / leads / targets that hang off the above.
  */
 
-const GLOBAL_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager'];
+const GLOBAL_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'];
 
 /**
  * Normalises a user loaded with `managedBranch` so anyone assigned as a branch's
@@ -147,6 +147,147 @@ export async function getBranchScope(user: any): Promise<BranchScope> {
 /** Clears the cached scope (e.g. after creating a new center in the same request). */
 export function resetBranchScope(user: any) {
   if (user) delete user._branchScope;
+}
+
+/**
+ * Resolves the BranchScope (deptIds, staffIds, centerIds) for any specific branchId (or branch name)
+ * within an organization. Used by Project Manager / Operations Admin / CEO branch filtering.
+ */
+export async function getBranchScopeByBranchId(organizationId: string, branchIdOrName: string): Promise<BranchScope> {
+  const empty: BranchScope = { branchId: null, branchName: null, deptIds: [], staffIds: [], centerIds: [] };
+  if (!organizationId || !branchIdOrName || branchIdOrName === 'all') return empty;
+
+  const branch = await prisma.branch.findFirst({
+    where: {
+      organizationId,
+      OR: [
+        { id: branchIdOrName },
+        { name: { equals: branchIdOrName, mode: 'insensitive' } }
+      ]
+    },
+    include: { additionalDepts: { select: { id: true } } }
+  });
+
+  if (!branch) return empty;
+
+  const deptIds = [
+    branch.salesDeptId,
+    branch.operationsDeptId,
+    ...(branch.additionalDepts || []).map((d: any) => d.id)
+  ].filter(Boolean) as string[];
+
+  const orClauses: any[] = [
+    { branchId: branch.id },
+    { designationRef: { branchId: branch.id } },
+  ];
+  if (branch.branchManagerId) {
+    orClauses.push({ id: branch.branchManagerId });
+    orClauses.push({ reportingTo: branch.branchManagerId });
+  }
+  if (deptIds.length > 0) {
+    orClauses.push(
+      { departmentId: { in: deptIds } },
+      { subDepartment: { parentDeptId: { in: deptIds } } },
+      { designationRef: { departmentId: { in: deptIds } } },
+      { designationRef: { subDepartment: { parentDeptId: { in: deptIds } } } }
+    );
+  }
+
+  const staff = await prisma.user.findMany({
+    where: {
+      organizationId,
+      OR: orClauses
+    },
+    select: { id: true }
+  });
+  const staffIdSet = new Set<string>(staff.map(s => s.id));
+  if (branch.branchManagerId) staffIdSet.add(branch.branchManagerId);
+
+  let frontier = Array.from(staffIdSet);
+  for (let depth = 0; depth < 4 && frontier.length > 0; depth++) {
+    const subs = await prisma.user.findMany({
+      where: {
+        organizationId,
+        reportingTo: { in: frontier }
+      },
+      select: { id: true }
+    });
+    const nextFrontier: string[] = [];
+    for (const s of subs) {
+      if (!staffIdSet.has(s.id)) {
+        staffIdSet.add(s.id);
+        nextFrontier.push(s.id);
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  const staffIds = Array.from(staffIdSet);
+
+  const branchInvites = await prisma.studyCenterInvite.findMany({
+    where: { organizationId, branchId: branch.id },
+    select: { token: true }
+  });
+  const inviteTokens = branchInvites.map(i => i.token);
+
+  const centerOr: any[] = [
+    { branchName: { equals: branch.name, mode: 'insensitive' } }
+  ];
+  if (staffIds.length > 0) {
+    centerOr.push({ referredBy: { in: staffIds } });
+  }
+  if (inviteTokens.length > 0) {
+    centerOr.push({ inviteToken: { in: inviteTokens } });
+  }
+
+  const centers = await prisma.studyCenter.findMany({
+    where: {
+      organizationId,
+      OR: centerOr
+    },
+    select: { id: true }
+  });
+
+  return {
+    branchId: branch.id,
+    branchName: branch.name,
+    deptIds,
+    staffIds,
+    centerIds: centers.map(c => c.id)
+  };
+}
+
+/**
+ * Resolves all branches in an organization along with their centerIds, staffIds,
+ * and lookup maps (centerId -> branch, staffId -> branch).
+ */
+export async function getAllBranchesScope(organizationId: string) {
+  const branches = await prisma.branch.findMany({
+    where: { organizationId },
+    include: { additionalDepts: { select: { id: true } } },
+    orderBy: { createdAt: 'asc' }
+  });
+
+  const centerBranchMap: Record<string, { branchId: string; branchName: string }> = {};
+  const staffBranchMap: Record<string, { branchId: string; branchName: string }> = {};
+  const branchScopes: Record<string, BranchScope> = {};
+
+  for (const b of branches) {
+    const scope = await getBranchScopeByBranchId(organizationId, b.id);
+    branchScopes[b.id] = scope;
+    for (const sId of scope.staffIds) {
+      if (!staffBranchMap[sId]) {
+        staffBranchMap[sId] = { branchId: b.id, branchName: b.name };
+      }
+    }
+    for (const cId of scope.centerIds) {
+      if (!centerBranchMap[cId]) {
+        centerBranchMap[cId] = { branchId: b.id, branchName: b.name };
+      }
+    }
+  }
+
+  return { branches, branchScopes, centerBranchMap, staffBranchMap };
 }
 
 /**

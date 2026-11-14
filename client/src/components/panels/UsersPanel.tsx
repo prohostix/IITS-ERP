@@ -180,7 +180,7 @@ export function UsersPanel() {
           if (!u.role) {
             errors.push({ row: rowNum, message: 'Role is missing' });
           } else {
-            const validRoles = ['org_admin', 'ceo', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin', 'center_admin', 'employee'];
+            const validRoles = ['org_admin', 'ceo', 'general_manager', 'project_manager', 'hr_admin', 'finance_admin', 'ops_admin', 'sales_admin', 'center_admin', 'employee'];
             if (!validRoles.includes(u.role.toLowerCase())) {
               errors.push({ row: rowNum, message: `Invalid role: ${u.role}. Must be one of: ${validRoles.join(', ')}` });
             }
@@ -298,6 +298,8 @@ export function UsersPanel() {
       superadmin: 'bg-purple-500',
       org_admin: 'bg-blue-500',
       ceo: 'bg-indigo-500',
+      general_manager: 'bg-indigo-500',
+      project_manager: 'bg-indigo-500',
       hr_admin: 'bg-orange-500',
       finance_admin: 'bg-green-500',
       ops_admin: 'bg-cyan-500',
@@ -379,7 +381,7 @@ export function UsersPanel() {
                   <div>
                     <CardTitle className="text-lg">{user.name}</CardTitle>
                     <Badge className={`mt-1 ${getRoleBadgeColor(user.role)} text-white border-none`}>
-                      {user.role.replace('_', ' ')}
+                      {user.role === 'general_manager' || user.role === 'project_manager' ? 'Project Manager' : user.role.replace('_', ' ')}
                     </Badge>
                   </div>
                 </div>
@@ -551,7 +553,7 @@ export function UsersPanel() {
                   <SelectContent>
                     <SelectItem value="org_admin">Organization Admin</SelectItem>
                     <SelectItem value="ceo">CEO</SelectItem>
-                    <SelectItem value="general_manager">General Manager</SelectItem>
+                    <SelectItem value="general_manager">Project Manager</SelectItem>
                     <SelectItem value="hr_admin">HR Admin</SelectItem>
                     <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
                     <SelectItem value="finance_admin">Finance Admin</SelectItem>

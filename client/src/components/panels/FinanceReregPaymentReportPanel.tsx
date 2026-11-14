@@ -27,13 +27,16 @@ export function FinanceReregPaymentReportPanel() {
   const [pendingRecords, setPendingRecords] = useState<any[]>([]);
 
   // Filter options
+  const [allBranches, setAllBranches] = useState<any[]>([]);
   const [allUniversities, setAllUniversities] = useState<any[]>([]);
   const [allCenters, setAllCenters] = useState<any[]>([]);
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [allSessions, setAllSessions] = useState<any[]>([]);
+  const [branchSort, setBranchSort] = useState<'default' | 'branch_asc' | 'branch_desc'>('default');
 
   // Persistent multi-select filters
   const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('rereg_report_panel', {
+    branches: [] as string[],
     sessions: [] as string[],
     universities: [] as string[],
     centers: [] as string[],
@@ -53,12 +56,14 @@ export function FinanceReregPaymentReportPanel() {
 
   const fetchFilterOptions = async () => {
     try {
-      const [uRes, cRes, pRes, sRes] = await Promise.all([
+      const [bRes, uRes, cRes, pRes, sRes] = await Promise.all([
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
         api.get('/operations/universities'),
         api.get('/operations/centers'),
         api.get('/operations/programs'),
         api.get('/operations/sessions')
       ]);
+      setAllBranches(bRes.data.data || []);
       setAllUniversities(uRes.data.data || []);
       setAllCenters(cRes.data.data || []);
       setAllPrograms(pRes.data.data || []);
@@ -70,6 +75,7 @@ export function FinanceReregPaymentReportPanel() {
     setLoading(true);
     try {
       const q = new URLSearchParams();
+      if (filters.branches && filters.branches.length > 0) q.append('branchId', filters.branches.join(','));
       if (filters.sessions && filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (filters.universities && filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
       if (filters.centers && filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
@@ -229,7 +235,7 @@ export function FinanceReregPaymentReportPanel() {
           </div>
           <div class="meta-area">
             <div><strong>Date of Issue:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            <div><strong>Filter Scope:</strong> ${selectedUniversity === 'all' ? 'All Partner Universities' : 'Filtered University'} | ${selectedCenter === 'all' ? 'All Centers' : 'Filtered Center'}</div>
+            <div><strong>Filter Scope:</strong> ${filters.branches?.length ? 'Filtered Branch' : 'All Branches'} | ${filters.universities?.length ? 'Filtered University' : 'All Partner Universities'} | ${filters.centers?.length ? 'Filtered Center' : 'All Centers'}</div>
           </div>
         </div>
 
@@ -424,6 +430,17 @@ export function FinanceReregPaymentReportPanel() {
       <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Branches */}
+            {allBranches.length > 0 && (
+              <MultiSelectFilter
+                title="Branches"
+                placeholder="All Branches"
+                options={allBranches.map(b => ({ label: b.name, value: b.id, code: b.code }))}
+                selectedValues={filters.branches || []}
+                onChange={vals => setField('branches', vals)}
+              />
+            )}
+
             {/* Sessions */}
             <MultiSelectFilter
               title="Sessions"
@@ -481,6 +498,17 @@ export function FinanceReregPaymentReportPanel() {
                 className="w-[125px] text-xs h-7 px-1.5 bg-background"
               />
             </div>
+
+            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+              <SelectTrigger className="w-[145px] h-9 text-xs">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Sort: Default</SelectItem>
+                <SelectItem value="branch_asc">Branch (A → Z)</SelectItem>
+                <SelectItem value="branch_desc">Branch (Z → A)</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Clear Filters Button */}
             {isFiltered && (
@@ -747,7 +775,11 @@ export function FinanceReregPaymentReportPanel() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {completedRecords.map(item => (
+                      {[...completedRecords].sort((a, b) => {
+                        if (branchSort === 'branch_asc') return (a.branchName || '').localeCompare(b.branchName || '');
+                        if (branchSort === 'branch_desc') return (b.branchName || '').localeCompare(a.branchName || '');
+                        return 0;
+                      }).map(item => (
                         <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>
@@ -831,7 +863,11 @@ export function FinanceReregPaymentReportPanel() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {pendingRecords.map(item => (
+                      {[...pendingRecords].sort((a, b) => {
+                        if (branchSort === 'branch_asc') return (a.branchName || '').localeCompare(b.branchName || '');
+                        if (branchSort === 'branch_desc') return (b.branchName || '').localeCompare(a.branchName || '');
+                        return 0;
+                      }).map(item => (
                         <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 py-3 font-medium text-slate-900">
                             <div>{item.studentName}</div>

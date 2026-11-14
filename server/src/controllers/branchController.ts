@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getBranchScopeByBranchId } from '../utils/branchScope.js';
 
 export const getBranches = asyncHandler(async (req: AuthRequest, res: Response) => {
   const branches = await prisma.branch.findMany({
@@ -18,11 +19,16 @@ export const getBranches = asyncHandler(async (req: AuthRequest, res: Response) 
     orderBy: { name: 'asc' }
   });
 
-  // Map additionalDepts to additionalDeptIds for frontend compatibility
-  const mapped = branches.map((b: any) => ({
-    ...b,
-    additionalDeptIds: b.additionalDepts,
-    branchManagerId: b.branchManager
+  // Map additionalDepts to additionalDeptIds and attach centerIds / staffIds for branch filtering
+  const mapped = await Promise.all(branches.map(async (b: any) => {
+    const scope = await getBranchScopeByBranchId(req.user.organizationId, b.id);
+    return {
+      ...b,
+      additionalDeptIds: b.additionalDepts,
+      branchManagerId: b.branchManager,
+      centerIds: scope.centerIds,
+      staffIds: scope.staffIds,
+    };
   }));
 
   res.json({ success: true, count: mapped.length, data: mapped });
@@ -91,7 +97,7 @@ export const createBranch = asyncHandler(async (req: AuthRequest, res: Response)
 
   if (branchManagerId) {
     const mgrUser = await prisma.user.findUnique({ where: { id: branchManagerId } });
-    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(mgrUser.role)) {
+    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(mgrUser.role)) {
       await prisma.user.update({
         where: { id: branchManagerId },
         data: { role: 'branch_manager', branchId: branch.id }
@@ -137,7 +143,7 @@ export const assignBranchManager = asyncHandler(async (req: AuthRequest, res: Re
 
   if (userId) {
     const mgrUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager'].includes(mgrUser.role)) {
+    if (mgrUser && !['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'].includes(mgrUser.role)) {
       await prisma.user.update({
         where: { id: userId },
         data: { role: 'branch_manager', branchId: branch.id }

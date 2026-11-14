@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
 import { calculateAndSyncTargets, filterTargets } from '../utils/targetHelper.js';
+import { getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 
 // Invoices
 export const getInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -1588,8 +1589,9 @@ export const getTotalReport = asyncHandler(async (req: AuthRequest, res: Respons
 
 // ─── Re-Reg Pending Report ────────────────────────────────────────────────────
 export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { centerId, universityId, programId, search, dueDate } = req.query as any;
+  const { centerId, universityId, programId, search, dueDate, branchId } = req.query as any;
   const orgId = req.user.organizationId;
+  const allBranchesScope = await getAllBranchesScope(orgId);
   
   let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
@@ -1598,6 +1600,11 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
   } else if (centerId && centerId !== '__all__') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     centerCondition = { studyCenterId: cids.length === 1 ? cids[0] : { in: cids } };
+  } else if (branchId && branchId !== '__all__' && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    centerCondition = { studyCenterId: { in: branchCenterIds } };
   }
 
   // Build program filter
@@ -1743,6 +1750,7 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
 
       const closingDate = nextUnpaidDate.toISOString();
       const sessionStr = e.session?.name ? `${e.session.name} - ${nextUnpaidName}` : nextUnpaidName;
+      const resolvedBranch = (e.studyCenterId && allBranchesScope.centerBranchMap[e.studyCenterId]) || null;
       rows.push({
         id: e.id,
         studentName: e.studentName,
@@ -1752,7 +1760,8 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
         program: e.program?.name || '',
         university: (e.program as any)?.university?.name || '',
         center: e.studyCenter?.name || '',
-        branchName: e.studyCenter?.branchName || '',
+        branchId: resolvedBranch?.branchId || null,
+        branchName: resolvedBranch?.branchName || e.studyCenter?.branchName || 'Unassigned',
         session: sessionStr,
         reregClosingDate: closingDate,
         reregPaymentStatus: 'Pending',
@@ -1767,8 +1776,9 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
 
 // ─── Re-Reg Completed Report ──────────────────────────────────────────────────
 export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { centerId, universityId, programId, search } = req.query as any;
+  const { centerId, universityId, programId, search, branchId } = req.query as any;
   const orgId = req.user.organizationId;
+  const allBranchesScope = await getAllBranchesScope(orgId);
   
   let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
@@ -1777,6 +1787,11 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
   } else if (centerId && centerId !== '__all__') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     centerCondition = { studyCenterId: cids.length === 1 ? cids[0] : { in: cids } };
+  } else if (branchId && branchId !== '__all__' && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    centerCondition = { studyCenterId: { in: branchCenterIds } };
   }
 
   // Build program filter
@@ -1860,6 +1875,7 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
           // Try to extract just the "Semester X" or "Year X" part
           const match = item.description?.match(/(Semester|Year)\s+\d+/i);
           const installmentName = match ? match[0] : item.description;
+          const resolvedBranch = (e.studyCenterId && allBranchesScope.centerBranchMap[e.studyCenterId]) || null;
 
           rows.push({
             id: `${e.id}-${inv.id}-${item.id || Math.random()}`,
@@ -1870,7 +1886,8 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
             program: e.program?.name || '',
             university: (e.program as any)?.university?.name || '',
             center: e.studyCenter?.name || '',
-            branchName: e.studyCenter?.branchName || '',
+            branchId: resolvedBranch?.branchId || null,
+            branchName: resolvedBranch?.branchName || e.studyCenter?.branchName || 'Unassigned',
             session: e.session?.name || '',
             completedInstallment: installmentName,
             paidDate: inv.createdAt,

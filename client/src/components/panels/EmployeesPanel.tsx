@@ -261,7 +261,7 @@ export function EmployeesPanel() {
                       <SelectItem value="hod">HOD (Head of Department)</SelectItem>
                       <SelectItem value="employee">Employee</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
-                      <SelectItem value="general_manager">General Manager</SelectItem>
+                      <SelectItem value="general_manager">Project Manager</SelectItem>
                       <SelectItem value="hr_admin">HR Admin</SelectItem>
                       <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
                       <SelectItem value="finance_admin">Finance Admin</SelectItem>
@@ -463,6 +463,7 @@ export function EmployeesPanel() {
                   <SelectItem value="ops_admin">Ops Admin</SelectItem>
                   <SelectItem value="sales_admin">Sales Admin</SelectItem>
                   <SelectItem value="branch_manager">Branch Manager</SelectItem>
+                  <SelectItem value="general_manager">Project Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -541,7 +542,7 @@ export function EmployeesPanel() {
                       <div className="flex-1">
                         <div className="font-medium">{employee.name || 'Unknown'}</div>
                         <div className="text-sm text-muted-foreground">
-                          {employee.role}{employee.designation ? ` · ${employee.designation}` : ''} • {employee.department?.name || (typeof employee.departmentId === 'object' ? employee.departmentId?.name : '')}
+                          {employee.role === 'general_manager' || employee.role === 'project_manager' ? 'Project Manager' : employee.role}{employee.designation ? ` · ${employee.designation}` : ''} • {employee.department?.name || (typeof employee.departmentId === 'object' ? employee.departmentId?.name : '')}
                           {employee.branchId && (
                             <span className="ml-1 text-primary text-xs">
                               · {typeof employee.branchId === 'object' ? employee.branchId?.name : 'Branch Manager'}

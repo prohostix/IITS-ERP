@@ -184,7 +184,10 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
 
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
   const [sessions, setSessions] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+  const [branchSortBy, setBranchSortBy] = useState<'name' | 'students' | 'activeStudents' | 'centers' | 'pendingReviews'>('students');
   const [sessionMetrics, setSessionMetrics] = useState<any>(metrics);
   const [loadingSession, setLoadingSession] = useState(false);
 
@@ -199,15 +202,23 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         setSessions(sList);
       })
       .catch(() => {});
+    api.get('/org/branches')
+      .then(res => {
+        setBranches(res.data.data || []);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (selectedSessionId === 'all') {
+    if (selectedSessionId === 'all' && selectedBranchId === 'all') {
       setSessionMetrics(metrics);
       return;
     }
     setLoadingSession(true);
-    api.get(`/dashboard/metrics?sessionId=${selectedSessionId}`)
+    const params = new URLSearchParams();
+    if (selectedSessionId !== 'all') params.set('sessionId', selectedSessionId);
+    if (selectedBranchId !== 'all') params.set('branchId', selectedBranchId);
+    api.get(`/dashboard/metrics?${params.toString()}`)
       .then(res => {
         if (res.data.data) {
           setSessionMetrics({ ...metrics, ...res.data.data });
@@ -215,14 +226,24 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
       })
       .catch(() => {})
       .finally(() => setLoadingSession(false));
-  }, [selectedSessionId, metrics]);
+  }, [selectedSessionId, selectedBranchId, metrics]);
 
   const activeSession = sessions.find(s => s.id === selectedSessionId);
+  const activeBranch = branches.find(b => b.id === selectedBranchId);
   const activeUni = activeSession?.university?.code || activeSession?.university?.name || activeSession?.program?.university?.code;
   const sessionDisplayName = activeSession 
     ? (activeUni ? `${activeSession.name} (${activeUni})` : activeSession.name) 
     : 'All Sessions';
+  const branchDisplayName = activeBranch ? activeBranch.name : 'All Branches';
   const currentData = sessionMetrics || metrics || {};
+  const branchBreakdown: any[] = currentData.branchBreakdown || metrics.branchBreakdown || [];
+  const sortedBranchBreakdown = [...branchBreakdown].sort((a, b) => {
+    if (branchSortBy === 'name') return (a.branchName || '').localeCompare(b.branchName || '');
+    if (branchSortBy === 'activeStudents') return (b.activeStudents || 0) - (a.activeStudents || 0);
+    if (branchSortBy === 'centers') return (b.totalCenters || 0) - (a.totalCenters || 0);
+    if (branchSortBy === 'pendingReviews') return (b.pendingReviews || 0) - (a.pendingReviews || 0);
+    return (b.totalStudents || 0) - (a.totalStudents || 0);
+  });
 
   const navigateToStudentStatus = (statusKey: string) => {
     try {
@@ -256,8 +277,8 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         stats={[
           { label: 'Total Students', value: currentData.totalStudents || 0, icon: GraduationCap },
           { label: 'Active Students', value: currentData.studentsActive ?? 0, icon: CheckCircle2 },
-          { label: 'Total Centers', value: metrics.totalCenters || 0, icon: Building2 },
-          { label: 'Active Centers', value: metrics.centersActive ?? metrics.activeCenters ?? 0, icon: MapPin },
+          { label: 'Total Centers', value: currentData.totalCenters ?? metrics.totalCenters ?? 0, icon: Building2 },
+          { label: 'Active Centers', value: currentData.centersActive ?? currentData.activeCenters ?? metrics.centersActive ?? metrics.activeCenters ?? 0, icon: MapPin },
         ]}
         primaryAction={{
           label: 'View Students',
@@ -284,6 +305,32 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Branch Filter */}
+          <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
+            <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-muted-foreground shrink-0">Branch:</span>
+            <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+              <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-auto min-w-[150px] max-w-[260px] focus:ring-0">
+                <SelectValue placeholder="All Branches">
+                  {activeBranch ? `${activeBranch.name}${activeBranch.code ? ` (${activeBranch.code})` : ''}` : 'All Branches'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <span className="font-semibold text-xs">All Branches</span>
+                </SelectItem>
+                {branches.map((b: any) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs">{b.name}</span>
+                      {b.code && <span className="text-[10px] text-muted-foreground font-mono">({b.code})</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
             <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
             <span className="text-xs font-semibold text-muted-foreground shrink-0">Session:</span>
@@ -425,16 +472,16 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         />
         <OpsMetricCard 
           title="Study Centers" 
-          value={metrics.totalCenters || 0} 
+          value={currentData.totalCenters ?? metrics.totalCenters ?? 0} 
           icon={<MapPin className="w-5 h-5 text-emerald-500" />}
-          subtext="Verified institutions"
+          subtext={`In ${branchDisplayName}`}
           onClick={() => onNavigate('centers')}
           colorClass="from-emerald-500/20 to-emerald-500/5 border-emerald-500/20"
           extraContent={
             <div className="mt-3 pt-2.5 border-t border-border/50 space-y-2">
               <div className="flex items-center justify-between text-[11px] text-muted-foreground font-semibold">
                 <span>By Status</span>
-                <span className="text-[10px] text-muted-foreground/80 font-normal">All Branches</span>
+                <span className="text-[10px] text-muted-foreground/80 font-normal truncate max-w-[110px]">{branchDisplayName}</span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
@@ -447,7 +494,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Active
                   </span>
-                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersActive ?? metrics.activeCenters ?? 0}</span>
+                  <span className="font-black text-xs font-display mt-0.5">{currentData.centersActive ?? currentData.activeCenters ?? metrics.centersActive ?? metrics.activeCenters ?? 0}</span>
                 </button>
 
                 <button
@@ -460,7 +507,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                     Pending
                   </span>
-                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersPending ?? metrics.pendingCenters ?? 0}</span>
+                  <span className="font-black text-xs font-display mt-0.5">{currentData.centersPending ?? currentData.pendingCenters ?? metrics.centersPending ?? metrics.pendingCenters ?? 0}</span>
                 </button>
 
                 <button
@@ -473,7 +520,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                     Deactive
                   </span>
-                  <span className="font-black text-xs font-display mt-0.5">{metrics.centersDeactive ?? metrics.deactiveCenters ?? 0}</span>
+                  <span className="font-black text-xs font-display mt-0.5">{currentData.centersDeactive ?? currentData.deactiveCenters ?? metrics.centersDeactive ?? metrics.deactiveCenters ?? 0}</span>
                 </button>
               </div>
             </div>
@@ -496,6 +543,106 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
           colorClass="from-orange-500/20 to-orange-500/5 border-orange-500/20"
         />
       </div>
+
+      {/* Branch-wise Operations Breakdown & Sorting */}
+      {sortedBranchBreakdown.length > 0 && (
+        <Card className="glass-card border-border/70">
+          <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold font-display">Branch-wise Operations Breakdown</CardTitle>
+                  <CardDescription className="text-xs">
+                    Compare and sort operational metrics across all branches ({sessionDisplayName}). Click a branch to scope the dashboard.
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground">Sort Branches By:</span>
+                <Select value={branchSortBy} onValueChange={(v: any) => setBranchSortBy(v)}>
+                  <SelectTrigger className="h-8 w-[210px] text-xs font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="students">Total Students (High → Low)</SelectItem>
+                    <SelectItem value="activeStudents">Active Students (High → Low)</SelectItem>
+                    <SelectItem value="centers">Study Centers (High → Low)</SelectItem>
+                    <SelectItem value="pendingReviews">Pending Reviews (High → Low)</SelectItem>
+                    <SelectItem value="name">Branch Name (A → Z)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedBranchId !== 'all' && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedBranchId('all')} className="h-8 text-xs">
+                    Show All Branches
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {sortedBranchBreakdown.map((b: any) => {
+                const isSelected = selectedBranchId === b.branchId;
+                return (
+                  <button
+                    key={b.branchId}
+                    type="button"
+                    onClick={() => setSelectedBranchId(isSelected ? 'all' : b.branchId)}
+                    className={cn(
+                      'text-left p-4 rounded-xl border transition-all hover:shadow-md',
+                      isSelected
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-border/60 bg-background/60 hover:border-primary/40'
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className={cn('w-4 h-4 shrink-0', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                        <span className="font-bold text-sm truncate">{b.branchName}</span>
+                        {b.branchCode && (
+                          <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-4 shrink-0">
+                            {b.branchCode}
+                          </Badge>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <Badge className="text-[10px] px-1.5 py-0 h-4 bg-primary text-primary-foreground">
+                          Selected
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <p className="text-[10px] text-muted-foreground font-medium">Students</p>
+                        <p className="text-sm font-black text-blue-600 dark:text-blue-400">{b.totalStudents || 0}</p>
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">{b.activeStudents || 0} active</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-[10px] text-muted-foreground font-medium">Centers</p>
+                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{b.totalCenters || 0}</p>
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">{b.activeCenters || 0} active</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <p className="text-[10px] text-muted-foreground font-medium">Reviews</p>
+                        <p className="text-sm font-black text-amber-600 dark:text-amber-400">{b.pendingReviews || 0}</p>
+                        <p className="text-[9px] text-muted-foreground">pending</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <p className="text-[10px] text-muted-foreground font-medium">Enrolled</p>
+                        <p className="text-sm font-black text-purple-600 dark:text-purple-400">{b.enrolledStudents || 0}</p>
+                        <p className="text-[9px] text-muted-foreground">verified</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Student & Study Center Status Distribution Row */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

@@ -22,11 +22,17 @@ interface Center {
   associatedUniversityIds: University[];
   pendingDocuments: { name: string; url: string }[];
   referredBy?: { name: string; email: string };
+  resolvedBranchId?: string | null;
+  resolvedBranchName?: string;
+  branchName?: string;
   createdAt: string;
 }
 
 export function OpsCenterVerificationPanel() {
   const [centers, setCenters] = useState<Center[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [loading, setLoading] = useState(false);
   const [dialog, setDialog] = useState<{ center: Center; action: 'approve' | 'reject' } | null>(null);
   const [remarks, setRemarks] = useState('');
@@ -35,8 +41,12 @@ export function OpsCenterVerificationPanel() {
   const fetch = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/operations/centers/pending-verification');
+      const [res, bRes] = await Promise.all([
+        api.get('/operations/centers/pending-verification'),
+        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+      ]);
       setCenters(res.data.data || []);
+      setBranches(bRes.data.data || []);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load centers');
     } finally {
@@ -69,35 +79,85 @@ export function OpsCenterVerificationPanel() {
     }
   };
 
+  const getBranchName = (c: Center) => {
+    if (c.resolvedBranchName) return c.resolvedBranchName;
+    if (c.branchName) return c.branchName;
+    const b = branches.find(br => (br.centerIds || []).includes(c.id));
+    return b?.name || 'Unassigned';
+  };
+
+  const getBranchId = (c: Center) => {
+    if (c.resolvedBranchId) return c.resolvedBranchId;
+    const b = branches.find(br => (br.centerIds || []).includes(c.id));
+    return b?.id || 'unassigned';
+  };
+
+  const filteredCenters = centers
+    .filter(c => {
+      if (branchFilter === 'all') return true;
+      const bId = getBranchId(c);
+      const bName = getBranchName(c);
+      if (branchFilter === 'unassigned') return bId === 'unassigned' || bName === 'Unassigned';
+      return bId === branchFilter || bName === branchFilter;
+    })
+    .sort((a, b) => {
+      if (branchSort === 'branch_asc') return getBranchName(a).localeCompare(getBranchName(b));
+      if (branchSort === 'branch_desc') return getBranchName(b).localeCompare(getBranchName(a));
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Pending Verification</h2>
-          <p className="text-muted-foreground text-sm mt-1">Review and verify study center documents.</p>
+          <p className="text-muted-foreground text-sm mt-1">Review and verify study center documents across branches.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetch} disabled={loading}>
-          <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            value={branchFilter}
+            onChange={e => setBranchFilter(e.target.value)}
+          >
+            <option value="all">All Branches</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            <option value="unassigned">Unassigned Branch</option>
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            value={branchSort}
+            onChange={e => setBranchSort(e.target.value as any)}
+          >
+            <option value="latest">Sort: Latest First</option>
+            <option value="branch_asc">Sort: Branch (A → Z)</option>
+            <option value="branch_desc">Sort: Branch (Z → A)</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={fetch} disabled={loading}>
+            <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />Refresh
+          </Button>
+        </div>
       </div>
 
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}</div>
-      ) : centers.length === 0 ? (
+      ) : filteredCenters.length === 0 ? (
         <Card><CardContent className="py-16 text-center text-muted-foreground">
           <CheckCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>No centers pending verification.</p>
         </CardContent></Card>
       ) : (
         <div className="space-y-4">
-          {centers.map(c => (
+          {filteredCenters.map(c => (
             <Card key={c.id} className="hover:border-primary/30 transition-colors">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h4 className="font-semibold">{c.name}</h4>
                       <Badge variant="outline" className="text-[10px]">{c.code}</Badge>
+                      <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                        🏢 {getBranchName(c)}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{c.email} · {c.contact}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{c.address}</p>

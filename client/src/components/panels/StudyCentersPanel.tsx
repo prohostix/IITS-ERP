@@ -363,13 +363,16 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
 
   // Helper to get center's effective branch name
   const getEffectiveBranch = (c: any) => {
-    return c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
+    return c.resolvedBranchName || c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
   };
 
-  // Derive unique branch names for datalist autocomplete
+  // Derive unique branch names for datalist autocomplete & branch filter
   const existingBranchNames = useMemo(() =>
-    [...new Set(centers.map((c: any) => getEffectiveBranch(c)).filter(Boolean))]
+    [...new Set(centers.map((c: any) => getEffectiveBranch(c)).filter(Boolean))].sort((a, b) => a.localeCompare(b))
   , [centers]);
+
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [branchSort, setBranchSort] = useState<'name_asc' | 'name_desc' | 'count_desc' | 'count_asc'>('name_asc');
 
   const [statusFilter, setStatusFilter] = useState<string>(() => {
     try {
@@ -417,8 +420,13 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
         if (!uIds.includes(universityFilter)) return false;
       }
 
-      const q = searchQuery.toLowerCase();
       const effBranch = getEffectiveBranch(c);
+      if (branchFilter && branchFilter !== 'all') {
+        if (branchFilter === '__unassigned__' && effBranch) return false;
+        if (branchFilter !== '__unassigned__' && effBranch !== branchFilter) return false;
+      }
+
+      const q = searchQuery.toLowerCase();
       return !q || c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q) || c.address?.toLowerCase().includes(q) ||
         effBranch.toLowerCase().includes(q) || c.referrer?.name?.toLowerCase().includes(q);
@@ -430,7 +438,7 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
       groups[key].push(c);
     });
     return groups;
-  }, [centers, searchQuery, statusFilter, universityFilter]);
+  }, [centers, searchQuery, statusFilter, universityFilter, branchFilter]);
 
 
 
@@ -631,9 +639,32 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
             <CardTitle>
               Study Centers ({centers.length} total · {Object.keys(branchGroups).filter(k => k !== '__unassigned__').length} branches)
             </CardTitle>
-            <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="w-[175px] h-9 text-xs font-medium">
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {existingBranchNames.map((bName) => (
+                    <SelectItem key={bName} value={bName}>{bName}</SelectItem>
+                  ))}
+                  <SelectItem value="__unassigned__">Unassigned Centers</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+                <SelectTrigger className="w-[180px] h-9 text-xs font-medium">
+                  <SelectValue placeholder="Sort Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name_asc">Sort: Branch (A → Z)</SelectItem>
+                  <SelectItem value="name_desc">Sort: Branch (Z → A)</SelectItem>
+                  <SelectItem value="count_desc">Sort: Most Centers</SelectItem>
+                  <SelectItem value="count_asc">Sort: Least Centers</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={universityFilter} onValueChange={setUniversityFilter}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-[180px] h-9 text-xs font-medium">
                   <SelectValue placeholder="All Universities" />
                 </SelectTrigger>
                 <SelectContent>
@@ -643,7 +674,7 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
                   ))}
                 </SelectContent>
               </Select>
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search centers or branches…"
@@ -665,7 +696,14 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
           ) : (
             <div className="space-y-3">
               {Object.entries(branchGroups)
-                .sort(([a], [b]) => a === '__unassigned__' ? 1 : b === '__unassigned__' ? -1 : a.localeCompare(b))
+                .sort(([a, listA], [b, listB]) => {
+                  if (a === '__unassigned__') return 1;
+                  if (b === '__unassigned__') return -1;
+                  if (branchSort === 'name_desc') return b.localeCompare(a);
+                  if (branchSort === 'count_desc') return listB.length - listA.length;
+                  if (branchSort === 'count_asc') return listA.length - listB.length;
+                  return a.localeCompare(b);
+                })
                 .map(([branchKey, branchCenters]) => {
                   const isUnassigned = branchKey === '__unassigned__';
                   const isExpanded = expandedBranches[branchKey] !== false; // default expanded
