@@ -95,6 +95,7 @@ import {
   getStudentLedgerDetails,
   getCenterLedgerList,
   getCenterLedgerDetails,
+  getRefundReport,
 } from '../controllers/financeLedgerReportsController.js';
 import { protect, authorize } from '../middleware/auth.js';
 

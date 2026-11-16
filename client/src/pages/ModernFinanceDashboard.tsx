@@ -56,6 +56,7 @@ import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceRereg
 import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
 import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
+import { FinanceRefundReportPanel } from '@/components/panels/FinanceRefundReportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
@@ -179,6 +180,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'university_fee_report': return <FinanceUniversityFeeReportPanel />;
       case 'rereg_payment_report': return <FinanceReregPaymentReportPanel />;
       case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
+      case 'refund_report': return <FinanceRefundReportPanel />;
       default: return (
         <OverviewContent
           metrics={metrics} invoices={invoices} expenses={expenses}
@@ -230,6 +232,7 @@ export function getFinanceNavItems(isManager: boolean = true) {
     { id: 'tasks', label: 'Tasks' },
     { id: 'escalations', label: 'Escalations' },
     { id: '__reports_section', label: 'Reports & Analytics', isSection: true },
+    { id: 'refund_report', label: 'Refund Report' },
     { id: 'sales_users_report', label: 'Sales User Report' },
     { id: 'commission_university_report', label: 'Commission Report (Univ)' },
     { id: 'university_fee_report', label: 'University Fee Payment Report' },

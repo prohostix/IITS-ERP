@@ -1672,6 +1672,64 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
     });
   });
 
+  // 5. Enrollment Refunds (Wallet Credit & Cash Payouts)
+  const refunds = await prisma.enrollment.findMany({
+    where: {
+      organizationId: orgId,
+      studyCenterId: centerId,
+      OR: [
+        { refundStatus: 'processed' },
+        { status: 'refunded' }
+      ],
+      ...(sids.length > 0 ? { sessionId: sids.length === 1 ? sids[0] : { in: sids } } : {})
+    },
+    include: {
+      program: { select: { name: true, code: true } },
+      session: { select: { id: true, name: true } },
+      financeReviewer: { select: { name: true } }
+    },
+    orderBy: { updatedAt: 'asc' }
+  });
+
+  refunds.forEach(ref => {
+    const hist = Array.isArray(ref.statusHistory) ? (ref.statusHistory as any[]) : [];
+    const entry = hist.slice().reverse().find(h => h.action === 'refund') || {};
+    const method = entry.refundMethod || 'wallet';
+    const amount = Number(ref.refundAmount || entry.refundAmount || 0);
+
+    if (amount > 0) {
+      if (method === 'wallet') {
+        rawList.push({
+          id: `refund-${ref.id}`,
+          date: entry.processedAt || ref.updatedAt || ref.createdAt,
+          type: 'credit',
+          category: 'Enrollment Refund (Wallet Credit)',
+          description: `Fee Refund: ${ref.studentName} (${ref.program?.name || 'Program'})`,
+          reference: entry.referenceNo || (ref.enrollmentNumber ? `REF-${ref.enrollmentNumber}` : `REF-${ref.id.slice(0, 8)}`),
+          amount: amount,
+          method: 'wallet_refund',
+          verifiedBy: entry.processedByName || ref.financeReviewer?.name || 'Finance Admin',
+          remarks: entry.remarks || ref.financeRemarks || 'Enrollment fee refunded to center wallet',
+          receiptUrl: entry.receiptUrl || null
+        });
+      } else {
+        rawList.push({
+          id: `refund-cash-${ref.id}`,
+          date: entry.processedAt || ref.updatedAt || ref.createdAt,
+          type: 'info',
+          category: 'Enrollment Refund (Cash / Direct)',
+          description: `Cash Refund: ${ref.studentName} (${ref.program?.name || 'Program'})`,
+          reference: entry.referenceNo || (ref.enrollmentNumber ? `CASH-REF-${ref.enrollmentNumber}` : `CASH-REF-${ref.id.slice(0, 8)}`),
+          amount: amount,
+          method: 'cash_payout',
+          verifiedBy: entry.processedByName || ref.financeReviewer?.name || 'Finance Admin',
+          remarks: entry.remarks || ref.financeRemarks || 'Fee refunded directly via cash/bank payout',
+          receiptUrl: entry.receiptUrl || null
+        });
+      }
+    }
+  });
+
   // Sort strictly ascending by date to compute exact running balance
   rawList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -1688,7 +1746,7 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
       credit = amt;
       totalCredits += amt;
       runningBalance += amt;
-    } else {
+    } else if (item.type === 'debit') {
       debit = amt;
       totalDebits += amt;
       runningBalance -= amt;
@@ -1754,6 +1812,159 @@ export const getCenterLedgerDetails = asyncHandler(async (req: AuthRequest, res:
         filteredCount: displayLedger.length
       },
       ledger: displayLedger
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. REFUND REPORT (FINANCE ENROLLMENT REFUNDS)
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const getRefundReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { search, universityId, programId, centerId, sessionId, branchId, refundMethod, refundStatus, dateFrom, dateTo } = req.query;
+  const orgId = req.user.organizationId;
+
+  const where: any = {
+    organizationId: orgId,
+    OR: [
+      { refundStatus: { not: null } },
+      { status: 'refunded' }
+    ]
+  };
+
+  if (sessionId && sessionId !== 'all') {
+    const sids = String(sessionId).split(',').map(s => s.trim()).filter(Boolean);
+    where.sessionId = sids.length === 1 ? sids[0] : { in: sids };
+  }
+  if (req.user.role === 'center_admin' && req.user.studyCenterId) {
+    where.studyCenterId = req.user.studyCenterId;
+  } else if (centerId && centerId !== 'all') {
+    const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
+    where.studyCenterId = cids.length === 1 ? cids[0] : { in: cids };
+  } else if (branchId && branchId !== 'all') {
+    const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
+    const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
+    const branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
+    where.studyCenterId = { in: branchCenterIds };
+  }
+  if (programId && programId !== 'all') {
+    const pids = String(programId).split(',').map(p => p.trim()).filter(Boolean);
+    where.programId = pids.length === 1 ? pids[0] : { in: pids };
+  }
+  if (universityId && universityId !== 'all') {
+    const uids = String(universityId).split(',').map(u => u.trim()).filter(Boolean);
+    where.program = { universityId: uids.length === 1 ? uids[0] : { in: uids } };
+  }
+  if (refundStatus && refundStatus !== 'all') {
+    where.refundStatus = refundStatus;
+  }
+  if (dateFrom || dateTo) {
+    where.updatedAt = {};
+    if (dateFrom) where.updatedAt.gte = new Date(String(dateFrom));
+    if (dateTo) where.updatedAt.lte = new Date(String(dateTo) + 'T23:59:59.999Z');
+  }
+  if (search) {
+    const s = String(search).trim();
+    where.AND = [
+      {
+        OR: [
+          { studentName: { contains: s, mode: 'insensitive' } },
+          { enrollmentNumber: { contains: s, mode: 'insensitive' } },
+          { studentEmail: { contains: s, mode: 'insensitive' } },
+          { studentPhone: { contains: s, mode: 'insensitive' } },
+          { financeRemarks: { contains: s, mode: 'insensitive' } }
+        ]
+      }
+    ];
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where,
+    include: {
+      program: {
+        include: {
+          university: { select: { id: true, name: true, code: true } }
+        }
+      },
+      studyCenter: { select: { id: true, name: true, code: true, branchName: true } },
+      session: { select: { id: true, name: true } },
+      payment: true,
+      financeReviewer: { select: { id: true, name: true } }
+    },
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  let totalRefunded = 0;
+  let walletRefunded = 0;
+  let cashRefunded = 0;
+  let walletCount = 0;
+  let cashCount = 0;
+  let processedCount = 0;
+  let processingCount = 0;
+  let failedCount = 0;
+
+  const refunds = enrollments.map(enr => {
+    const hist = Array.isArray(enr.statusHistory) ? (enr.statusHistory as any[]) : [];
+    const entry = hist.slice().reverse().find(h => h.action === 'refund') || {};
+    const method = entry.refundMethod || 'wallet';
+    const amount = Number(enr.refundAmount || entry.refundAmount || 0);
+    const status = enr.refundStatus || 'processed';
+
+    totalRefunded += amount;
+    if (method === 'wallet') {
+      walletRefunded += amount;
+      walletCount++;
+    } else {
+      cashRefunded += amount;
+      cashCount++;
+    }
+
+    if (status === 'processed') processedCount++;
+    else if (status === 'processing') processingCount++;
+    else if (status === 'failed') failedCount++;
+
+    return {
+      id: enr.id,
+      studentName: enr.studentName,
+      enrollmentNumber: enr.enrollmentNumber,
+      studentEmail: enr.studentEmail,
+      studentPhone: enr.studentPhone,
+      studyCenter: enr.studyCenter,
+      program: enr.program,
+      session: enr.session,
+      originalFee: enr.totalFee || enr.payment?.amount || 0,
+      refundAmount: amount,
+      refundMethod: method,
+      refundStatus: status,
+      receiptUrl: entry.receiptUrl || null,
+      referenceNo: entry.referenceNo || null,
+      remarks: entry.remarks || enr.financeRemarks || null,
+      processedByName: entry.processedByName || enr.financeReviewer?.name || 'Finance Admin',
+      processedAt: entry.processedAt || enr.updatedAt || enr.createdAt,
+      createdAt: enr.createdAt
+    };
+  });
+
+  // Filter by refundMethod in memory if requested
+  const filteredRefunds = refundMethod && refundMethod !== 'all'
+    ? refunds.filter(r => r.refundMethod === refundMethod)
+    : refunds;
+
+  res.json({
+    success: true,
+    data: {
+      summary: {
+        totalRefunded,
+        walletRefunded,
+        cashRefunded,
+        totalCount: refunds.length,
+        walletCount,
+        cashCount,
+        processedCount,
+        processingCount,
+        failedCount
+      },
+      refunds: filteredRefunds
     }
   });
 });

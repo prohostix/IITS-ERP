@@ -437,11 +437,26 @@ export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res
 
 export const processRefund = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { refundAmount, refundStatus } = req.body;
+  let {
+    refundAmount,
+    refundStatus = 'processed',
+    refundMethod = 'wallet', // 'wallet' | 'cash'
+    referenceNo,
+    remarks,
+    receiptUrl
+  } = req.body;
+
+  if (req.file) {
+    receiptUrl = `/uploads/${req.file.filename}`;
+  }
 
   const enrollment = await prisma.enrollment.findUnique({
     where: { id },
-    include: { payment: true }
+    include: {
+      payment: true,
+      studyCenter: true,
+      program: { include: { university: true } }
+    }
   });
 
   if (!enrollment) {
@@ -449,31 +464,101 @@ export const processRefund = asyncHandler(async (req: AuthRequest, res: Response
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    if (refundStatus === 'processed' && enrollment.paymentType === 'wallet') {
-      const amountToCredit = Number(refundAmount) || (enrollment.payment ? enrollment.payment.amount : 0);
-      
-      const wallet = await tx.studyCenterWallet.findUnique({
-        where: { studyCenterId: enrollment.studyCenterId }
-      });
+  const amountToRefund = Number(refundAmount) || (enrollment.payment ? enrollment.payment.amount : 0) || (enrollment.totalFee || 0);
 
-      if (wallet && amountToCredit > 0) {
-        await tx.studyCenterWallet.update({
-          where: { id: wallet.id },
-          data: { balance: { increment: amountToCredit } }
-        });
-      }
+  await prisma.$transaction(async (tx) => {
+    // 1. If refundStatus is 'processed' and refundMethod is 'wallet', credit the study center's wallet!
+    if (refundStatus === 'processed' && refundMethod === 'wallet' && amountToRefund > 0) {
+      await tx.studyCenterWallet.upsert({
+        where: { studyCenterId: enrollment.studyCenterId },
+        create: {
+          studyCenterId: enrollment.studyCenterId,
+          organizationId: req.user.organizationId,
+          balance: amountToRefund
+        },
+        update: {
+          balance: { increment: amountToRefund }
+        }
+      });
     }
 
+    // 2. Build refund history metadata
+    const existingHistory = Array.isArray(enrollment.statusHistory) ? (enrollment.statusHistory as any[]) : [];
+    const refundEntry = {
+      action: 'refund',
+      status: refundStatus === 'processed' ? 'refunded' : refundStatus,
+      refundAmount: amountToRefund,
+      refundMethod, // 'wallet' | 'cash'
+      referenceNo: referenceNo || null,
+      receiptUrl: receiptUrl || null,
+      remarks: remarks || null,
+      processedBy: req.user.id,
+      processedByName: req.user.name,
+      processedAt: new Date().toISOString()
+    };
+    const updatedHistory = [...existingHistory, refundEntry];
+
+    // 3. Attach receipt document if provided
+    const existingDocs = Array.isArray(enrollment.documents) ? (enrollment.documents as any[]) : [];
+    const updatedDocs = receiptUrl
+      ? [...existingDocs, { name: 'Refund Receipt', url: receiptUrl, type: 'refund_receipt', uploadedAt: new Date().toISOString() }]
+      : existingDocs;
+
+    // 4. Update Enrollment
     await tx.enrollment.update({
       where: { id },
       data: {
         status: refundStatus === 'processed' ? 'refunded' : enrollment.status,
         refundStatus,
-        refundAmount: Number(refundAmount) || null
+        refundAmount: amountToRefund,
+        financeRemarks: remarks || `Refund: ₹${amountToRefund.toLocaleString('en-IN')} via ${refundMethod.toUpperCase()}${referenceNo ? ` (Ref: ${referenceNo})` : ''}`,
+        financeReviewedBy: req.user.id,
+        financeReviewedAt: new Date(),
+        statusHistory: updatedHistory,
+        documents: updatedDocs
       }
     });
+
+    // 5. If linked student exists, log/update student status
+    if (enrollment.studentId && refundStatus === 'processed') {
+      try {
+        await tx.student.update({
+          where: { id: enrollment.studentId },
+          data: {
+            status: 'dropout'
+          }
+        });
+      } catch (_e) {}
+    }
   });
+
+  // 6. Broadcast notification
+  try {
+    const notifUsers = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        OR: [
+          { role: 'center_admin', studyCenterId: enrollment.studyCenterId },
+          { role: { in: ['finance_admin', 'finance', 'superadmin', 'org_admin'] } }
+        ]
+      },
+      select: { id: true }
+    });
+
+    if (notifUsers.length > 0) {
+      await prisma.notification.createMany({
+        data: notifUsers.map(u => ({
+          userId: u.id,
+          title: '💰 Enrollment Fee Refund Processed',
+          message: `Refund of ₹${amountToRefund.toLocaleString('en-IN')} for ${enrollment.studentName} (${enrollment.program?.name || 'Program'}) has been processed via ${refundMethod === 'wallet' ? 'Center Wallet Credit' : 'Cash / Direct Payout'}.`,
+          type: 'finance',
+          link: 'center_ledger'
+        }))
+      });
+    }
+  } catch (notifErr) {
+    console.error('Refund notification dispatch failed:', notifErr);
+  }
 
   res.json({ success: true, message: 'Refund processed successfully' });
 });

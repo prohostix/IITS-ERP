@@ -55,3 +55,4 @@ export function ActiveFilterBar({ filters, onClearAll, className = '' }: ActiveF
     </div>
   );
 }
+

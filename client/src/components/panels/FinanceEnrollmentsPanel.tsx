@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Search, GraduationCap, Clock, AlertCircle, Ban } from 'lucide-react';
+import { 
+  RefreshCw, CheckCircle, XCircle, Search, GraduationCap, Clock, AlertCircle, Ban,
+  Wallet, Banknote, Upload, FileText, Trash2, Eye, Receipt
+} from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -63,7 +67,29 @@ export function FinanceEnrollmentsPanel() {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
-  const [refundDialog, setRefundDialog] = useState<{ open: boolean; id: string, amount: string, status: string }>({ open: false, id: '', amount: '', status: 'processed' });
+  const [refundDialog, setRefundDialog] = useState<{
+    open: boolean;
+    enrollment: Enrollment | null;
+    amount: string;
+    method: 'wallet' | 'cash';
+    status: string;
+    referenceNo: string;
+    remarks: string;
+    receiptFile: File | null;
+    receiptPreview: string;
+    submitting: boolean;
+  }>({
+    open: false,
+    enrollment: null,
+    amount: '',
+    method: 'wallet',
+    status: 'processed',
+    referenceNo: '',
+    remarks: '',
+    receiptFile: null,
+    receiptPreview: '',
+    submitting: false,
+  });
   const [remarks, setRemarks] = useState('');
 
   const fetchData = async (status = statusFilter, q = search) => {
@@ -117,17 +143,76 @@ export function FinanceEnrollmentsPanel() {
     }
   };
 
+  const openRefundModal = (e: Enrollment) => {
+    const originalAmount = e.payment?.amount || e.totalFee || '';
+    setRefundDialog({
+      open: true,
+      enrollment: e,
+      amount: originalAmount ? String(originalAmount) : '',
+      method: 'wallet',
+      status: 'processed',
+      referenceNo: '',
+      remarks: '',
+      receiptFile: null,
+      receiptPreview: '',
+      submitting: false,
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be under 10MB');
+        return;
+      }
+      setRefundDialog(prev => ({
+        ...prev,
+        receiptFile: file,
+        receiptPreview: file.type.startsWith('image/') ? URL.createObjectURL(file) : '',
+      }));
+    }
+  };
+
   const handleRefund = async () => {
+    if (!refundDialog.enrollment) return;
+    const numAmount = Number(refundDialog.amount);
+    if (!numAmount || numAmount <= 0) {
+      toast.error('Please enter a valid refund amount');
+      return;
+    }
+    setRefundDialog(prev => ({ ...prev, submitting: true }));
     try {
-      await api.post(`/finance/enrollments/${refundDialog.id}/refund`, {
-        refundAmount: Number(refundDialog.amount),
-        refundStatus: refundDialog.status
+      const formData = new FormData();
+      formData.append('refundAmount', String(numAmount));
+      formData.append('refundMethod', refundDialog.method);
+      formData.append('refundStatus', refundDialog.status);
+      if (refundDialog.referenceNo) formData.append('referenceNo', refundDialog.referenceNo);
+      if (refundDialog.remarks) formData.append('remarks', refundDialog.remarks);
+      if (refundDialog.receiptFile) {
+        formData.append('receipt', refundDialog.receiptFile);
+      }
+
+      await api.post(`/finance/enrollments/${refundDialog.enrollment.id}/refund`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      toast.success('Refund processed successfully');
-      setRefundDialog({ open: false, id: '', amount: '', status: 'processed' });
+      toast.success(`Refund of ₹${numAmount.toLocaleString()} processed successfully via ${refundDialog.method === 'wallet' ? 'Wallet Credit' : 'Cash'}`);
+      setRefundDialog({
+        open: false,
+        enrollment: null,
+        amount: '',
+        method: 'wallet',
+        status: 'processed',
+        referenceNo: '',
+        remarks: '',
+        receiptFile: null,
+        receiptPreview: '',
+        submitting: false,
+      });
       fetchData();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to process refund');
+      setRefundDialog(prev => ({ ...prev, submitting: false }));
     }
   };
 
@@ -288,8 +373,8 @@ export function FinanceEnrollmentsPanel() {
                       )}
                       {e.status === 'enrolled' && (
                         <div className="flex gap-1.5 justify-end">
-                           <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" onClick={() => setRefundDialog({ open: true, id: e.id, amount: '', status: 'processed' })}>
-                             Refund
+                           <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30" onClick={() => openRefundModal(e)}>
+                             <Receipt className="w-3 h-3 mr-1" />Refund
                            </Button>
                         </div>
                       )}
@@ -318,26 +403,247 @@ export function FinanceEnrollmentsPanel() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={refundDialog.open} onOpenChange={open => !open && setRefundDialog({ ...refundDialog, open: false })}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Process Refund</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Refund Amount (Optional)</Label>
-              <Input type="number" value={refundDialog.amount} onChange={e => setRefundDialog({...refundDialog, amount: e.target.value})} placeholder="Amount to refund..." />
+      {/* Process Refund Dialog */}
+      <Dialog open={refundDialog.open} onOpenChange={open => !open && !refundDialog.submitting && setRefundDialog(d => ({ ...d, open: false }))}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Receipt className="w-5 h-5 text-orange-600" />
+              Process Enrollment Refund
+            </DialogTitle>
+            <DialogDescription>
+              Issue a refund to the study center wallet or record a direct cash/bank payout with proof.
+            </DialogDescription>
+          </DialogHeader>
+
+          {refundDialog.enrollment && (
+            <div className="space-y-4 py-1">
+              {/* Enrollment Info Card */}
+              <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-semibold text-foreground text-sm">{refundDialog.enrollment.studentName}</span>
+                    <span className="text-muted-foreground ml-2">
+                      ({refundDialog.enrollment.enrollmentNumber || refundDialog.enrollment.id.slice(-6)})
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300">
+                    Enrolled
+                  </span>
+                </div>
+                <div className="text-muted-foreground grid grid-cols-2 gap-1 pt-1 border-t border-border/50">
+                  <div><span className="font-medium text-foreground">Center:</span> {getCenterName(refundDialog.enrollment)}</div>
+                  <div><span className="font-medium text-foreground">Program:</span> {getProgramName(refundDialog.enrollment)}</div>
+                  <div><span className="font-medium text-foreground">Total Fee:</span> ₹{Number(refundDialog.enrollment.totalFee || 0).toLocaleString()}</div>
+                  <div><span className="font-medium text-foreground">Paid Amount:</span> ₹{Number(refundDialog.enrollment.payment?.amount || refundDialog.enrollment.totalFee || 0).toLocaleString()}</div>
+                </div>
+              </div>
+
+              {/* Refund Method Selection */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Refund Method</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRefundDialog(d => ({ ...d, method: 'wallet' }))}
+                    className={cn(
+                      'p-3 rounded-lg border text-left transition-all flex flex-col justify-between',
+                      refundDialog.method === 'wallet'
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20 text-foreground'
+                        : 'border-border hover:bg-muted/50 text-muted-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={cn('p-1.5 rounded-md', refundDialog.method === 'wallet' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                        <Wallet className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium text-xs text-foreground">Center Wallet</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Instant balance credit to study center & auto ledger entry.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRefundDialog(d => ({ ...d, method: 'cash' }))}
+                    className={cn(
+                      'p-3 rounded-lg border text-left transition-all flex flex-col justify-between',
+                      refundDialog.method === 'cash'
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20 text-foreground'
+                        : 'border-border hover:bg-muted/50 text-muted-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={cn('p-1.5 rounded-md', refundDialog.method === 'cash' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                        <Banknote className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium text-xs text-foreground">Cash / Direct</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Manual cash payout or bank transfer with attached receipt.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Refund Amount */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="refund-amount" className="text-xs font-semibold">Refund Amount (₹) *</Label>
+                  {refundDialog.enrollment.payment?.amount && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundDialog(d => ({ ...d, amount: String(refundDialog.enrollment?.payment?.amount || '') }))}
+                      className="text-[11px] text-primary hover:underline font-medium"
+                    >
+                      Use full paid (₹{Number(refundDialog.enrollment.payment?.amount).toLocaleString()})
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  min="1"
+                  step="any"
+                  value={refundDialog.amount}
+                  onChange={e => setRefundDialog(d => ({ ...d, amount: e.target.value }))}
+                  placeholder="Enter amount to refund..."
+                  className="font-medium"
+                />
+              </div>
+
+              {/* Reference / Voucher No & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="refund-ref" className="text-xs font-semibold">
+                    {refundDialog.method === 'cash' ? 'Voucher / Receipt / UTR #' : 'Reference # (Optional)'}
+                  </Label>
+                  <Input
+                    id="refund-ref"
+                    value={refundDialog.referenceNo}
+                    onChange={e => setRefundDialog(d => ({ ...d, referenceNo: e.target.value }))}
+                    placeholder={refundDialog.method === 'cash' ? 'e.g. CASH-1049, UTR#...' : 'e.g. REF-2026-01'}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="refund-status" className="text-xs font-semibold">Refund Status</Label>
+                  <select
+                    id="refund-status"
+                    className="w-full h-10 px-3 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={refundDialog.status}
+                    onChange={e => setRefundDialog(d => ({ ...d, status: e.target.value }))}
+                  >
+                    <option value="processed">Processed ({refundDialog.method === 'wallet' ? 'Credit Wallet' : 'Completed'})</option>
+                    <option value="processing">Processing (In Review / Pending)</option>
+                    <option value="failed">Failed / Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Receipt / Voucher Attachment */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center justify-between">
+                  <span>Attach Receipt / Payment Proof {refundDialog.method === 'cash' && <span className="text-orange-500 font-normal">(Recommended)</span>}</span>
+                  {refundDialog.receiptFile && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundDialog(d => ({ ...d, receiptFile: null, receiptPreview: '' }))}
+                      className="text-red-500 text-[11px] hover:underline flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Remove
+                    </button>
+                  )}
+                </Label>
+
+                {refundDialog.receiptFile ? (
+                  <div className="p-3 border rounded-lg bg-muted/30 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {refundDialog.receiptPreview ? (
+                        <img
+                          src={refundDialog.receiptPreview}
+                          alt="Receipt Preview"
+                          className="w-12 h-12 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{refundDialog.receiptFile.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {(refundDialog.receiptFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    {refundDialog.receiptPreview && (
+                      <a
+                        href={refundDialog.receiptPreview}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-border hover:border-primary/50 transition-colors rounded-lg p-3.5 flex flex-col items-center justify-center cursor-pointer bg-muted/10 hover:bg-muted/20">
+                    <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                    <span className="text-xs font-medium text-foreground">Click to upload receipt or voucher</span>
+                    <span className="text-[10px] text-muted-foreground">Supports PDF, PNG, JPG up to 10MB</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Remarks */}
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-remarks" className="text-xs font-semibold">Remarks / Reason</Label>
+                <Textarea
+                  id="refund-remarks"
+                  rows={2}
+                  value={refundDialog.remarks}
+                  onChange={e => setRefundDialog(d => ({ ...d, remarks: e.target.value }))}
+                  placeholder="e.g. Admission rejected by university, refunding full fee to center..."
+                  className="text-xs"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Refund Status</Label>
-              <select className="w-full p-2 border rounded-md" value={refundDialog.status} onChange={e => setRefundDialog({...refundDialog, status: e.target.value})}>
-                <option value="processing">Processing</option>
-                <option value="processed">Processed (Credit Wallet)</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRefundDialog({ ...refundDialog, open: false })}>Cancel</Button>
-            <Button onClick={handleRefund}>Submit Refund</Button>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setRefundDialog(d => ({ ...d, open: false }))}
+              disabled={refundDialog.submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRefund}
+              disabled={refundDialog.submitting || !refundDialog.amount}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {refundDialog.submitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Receipt className="w-4 h-4 mr-1.5" />
+                  Confirm & Process Refund
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -137,6 +137,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   'sales-admission-report': 'sales_admission_report',
   sales_users_report: 'sales_users_report',
   'sales-users-report': 'sales_users_report',
+  refund_report: 'refund_report',
+  'refund-report': 'refund_report',
   admission_report: 'admission_report',
   'admission-report': 'admission_report',
   target_achievement_report: 'target_achievement_report',

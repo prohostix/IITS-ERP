@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import {
 import {
   Wallet, RefreshCw, Download, Printer, Search, ArrowLeft,
   ArrowDownLeft, ArrowUpRight, Building2, Phone, Mail, MapPin,
-  CheckCircle2, Clock, AlertCircle, Eye, Filter, Landmark, RotateCcw
+  Eye, RotateCcw
 } from 'lucide-react';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
@@ -40,7 +40,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
   const [summary, setSummary] = useState<any>({});
 
   // Active persistent filters
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('center_ledger_panel_v2', {
+  const [filters, , clearFilters, isFiltered, setField] = usePersistentFilters('center_ledger_panel_v2', {
     branches: [] as string[],
     sessions: [] as string[],
     search: '',
@@ -145,7 +145,7 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
       `"${e.verifiedBy || ''}"`
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r: any) => r.join(','))].join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r: (string | number)[]) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -166,9 +166,9 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
 
     const { center, summary, ledger } = ledgerData;
     const rowsHtml = (ledger || []).map((e: any, idx: number) => {
-      const typeLabel = e.type === 'credit' ? 'CREDIT (+)' : 'DEBIT (-)';
-      const typeColor = e.type === 'credit' ? '#047857' : '#be123c';
-      const typeBg = e.type === 'credit' ? '#d1fae5' : '#ffe4e6';
+      const typeLabel = e.type === 'credit' ? 'CREDIT (+)' : e.type === 'debit' ? 'DEBIT (-)' : 'INFO (PAYOUT)';
+      const typeColor = e.type === 'credit' ? '#047857' : e.type === 'debit' ? '#be123c' : '#2563eb';
+      const typeBg = e.type === 'credit' ? '#d1fae5' : e.type === 'debit' ? '#ffe4e6' : '#dbeafe';
       const debitStr = e.debit > 0 ? `₹${Number(e.debit).toLocaleString('en-IN')}` : '-';
       const creditStr = e.credit > 0 ? `₹${Number(e.credit).toLocaleString('en-IN')}` : '-';
       const balStr = `₹${Number(e.runningBalance).toLocaleString('en-IN')}`;
@@ -540,10 +540,12 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
                                 className={
                                   e.type === 'debit'
                                     ? 'bg-rose-50 text-rose-700 border-rose-200 font-semibold text-[10px]'
-                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold text-[10px]'
+                                    : e.type === 'credit'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold text-[10px]'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200 font-semibold text-[10px]'
                                 }
                               >
-                                {e.type.toUpperCase()}
+                                {e.type === 'info' ? 'PAYOUT' : e.type.toUpperCase()}
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
