@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen, GraduationCap, Building2, Calendar } from 'lucide-react';
+import {
+  Plus, Pencil, Trash2, RefreshCw, IndianRupee, BookOpen,
+  GraduationCap, Building2, Calendar, Search, RotateCcw,
+  Layers, ChevronDown, ChevronUp, LayoutGrid
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -51,6 +54,9 @@ interface Program {
 interface AdmissionSession {
   id: string;
   name: string;
+  universityId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export function ProgramFeeStructurePanel() {
@@ -60,8 +66,12 @@ export function ProgramFeeStructurePanel() {
   const [sessions, setSessions] = useState<AdmissionSession[]>([]);
   const [selectedUniversityId, setSelectedUniversityId] = useState<string>('');
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
+  const [billingCycleFilter, setBillingCycleFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [groupByUniversity, setGroupByUniversity] = useState<boolean>(true);
+  const [expandedSpecIds, setExpandedSpecIds] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProgramFee | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'wizard'>('list');
   const [wizardStep, setWizardStep] = useState(1);
@@ -542,13 +552,12 @@ export function ProgramFeeStructurePanel() {
     }
   };
 
-  // Program creation handlers removed as per new UI flow
   // Filter programs based on selected university
-  const filteredPrograms = useMemo(() => {
-    if (!selectedUniversityId) return [];
+  const filteredProgramsForSelect = useMemo(() => {
+    if (!selectedUniversityId) return programs;
     return programs.filter(p => {
       const uId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
-      return uId === selectedUniversityId;
+      return String(uId) === String(selectedUniversityId);
     });
   }, [programs, selectedUniversityId]);
 
@@ -556,205 +565,640 @@ export function ProgramFeeStructurePanel() {
     let result = fees;
     if (selectedUniversityId) {
       result = result.filter(f => {
-         const uId = typeof f.universityId === 'object' ? f.universityId?.id : f.universityId;
-         return uId === selectedUniversityId;
+        const uId = typeof f.universityId === 'object' ? f.universityId?.id : f.universityId;
+        return String(uId) === String(selectedUniversityId);
       });
     }
     if (selectedProgramId) {
       result = result.filter(f => {
-         const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
-         return pId === selectedProgramId;
+        const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
+        return String(pId) === String(selectedProgramId);
+      });
+    }
+    if (billingCycleFilter && billingCycleFilter !== 'all') {
+      result = result.filter(f => {
+        if (billingCycleFilter === 'one_time') {
+          return f.billingCycle === 'one_time' || Number(f.fullProgramFee || 0) > 0;
+        }
+        return f.billingCycle === billingCycleFilter;
+      });
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(f => {
+        const pName = f.level === 'program'
+          ? (typeof f.programId === 'object' && f.programId ? `${f.programId.name} ${f.programId.code || ''}` : programs.find(p => p.id === f.programId)?.name || '')
+          : 'All Programs';
+        const uName = typeof f.universityId === 'object' && f.universityId
+          ? f.universityId.name
+          : universities.find(u => u.id === f.universityId)?.name || '';
+        const spec = f.specialisation || '';
+        return (
+          pName.toLowerCase().includes(q) ||
+          uName.toLowerCase().includes(q) ||
+          spec.toLowerCase().includes(q)
+        );
       });
     }
     return result;
-  }, [fees, selectedUniversityId, selectedProgramId]);
+  }, [fees, selectedUniversityId, selectedProgramId, billingCycleFilter, searchQuery, programs, universities]);
 
-  // Filter programs based on selected university in the dialog form
-  const dialogFilteredPrograms = programs.filter(p => {
-    const pUniId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
-    return !form.universityId || pUniId === form.universityId;
-  });
+  // Group filtered fees by University for structured organization
+  const groupedFeesByUni = useMemo(() => {
+    const groups: Record<string, { uniId: string; uniName: string; uniCode: string; items: ProgramFee[] }> = {};
+    filteredFees.forEach(fee => {
+      const uId = (typeof fee.universityId === 'object' && fee.universityId ? fee.universityId.id : String(fee.universityId || 'unknown'));
+      const uniObj = universities.find(u => String(u.id) === String(uId));
+      const uName = (typeof fee.universityId === 'object' && fee.universityId ? fee.universityId.name : uniObj?.name) || 'Other / Unassigned University';
+      const uCode = uniObj?.code || '';
+      if (!groups[uId]) {
+        groups[uId] = { uniId: uId, uniName: uName, uniCode: uCode, items: [] };
+      }
+      groups[uId].items.push(fee);
+    });
+    return Object.values(groups).sort((a, b) => a.uniName.localeCompare(b.uniName));
+  }, [filteredFees, universities]);
 
+  // Summary metrics
+  const summaryStats = useMemo(() => {
+    const uniSet = new Set<string>();
+    const progSet = new Set<string>();
+    let semCount = 0;
+    let yearCount = 0;
 
+    fees.forEach(f => {
+      const uId = typeof f.universityId === 'object' ? f.universityId?.id : f.universityId;
+      const pId = typeof f.programId === 'object' ? f.programId?.id : f.programId;
+      if (uId) uniSet.add(String(uId));
+      if (pId) progSet.add(String(pId));
+      if (f.billingCycle === 'per_semester' || f.billingCycle === 'both') semCount++;
+      if (f.billingCycle === 'per_year' || f.billingCycle === 'yearly' || f.billingCycle === 'both') yearCount++;
+    });
 
-  const getProgramName = (fee: ProgramFee) => {
-    if (fee.level === 'university') {
-      const uni = typeof fee.universityId === 'object' ? fee.universityId : universities.find(u => u.id === fee.universityId);
-      return uni ? `${uni.name} (University Level)` : 'Unknown University';
-    }
-    const prog = typeof fee.programId === 'object' ? fee.programId : programs.find(p => p.id === fee.programId);
-    return prog ? `${prog.name} (${prog.code})` : 'Unknown Program';
+    return {
+      totalStructures: fees.length,
+      universitiesCount: uniSet.size,
+      programsCount: progSet.size,
+      semCount,
+      yearCount,
+    };
+  }, [fees]);
+
+  const hasActiveFilters = Boolean(selectedUniversityId || selectedProgramId || billingCycleFilter !== 'all' || searchQuery.trim());
+
+  const clearAllFilters = () => {
+    setSelectedUniversityId('');
+    setSelectedProgramId('');
+    setBillingCycleFilter('all');
+    setSearchQuery('');
   };
 
-  const getProgramSpecialisations = (fee: ProgramFee) => {
-    if (fee.level === 'university') return [];
-    const prog = typeof fee.programId === 'object' ? fee.programId : programs.find(p => p.id === fee.programId);
-    return prog?.specialisations || [];
-  };
+  const renderFeeCard = (fee: ProgramFee) => {
+    const progObj = typeof fee.programId === 'object' && fee.programId
+      ? fee.programId
+      : programs.find(p => p.id === fee.programId);
+    const progName = fee.level === 'program'
+      ? (progObj?.name || 'Unknown Program')
+      : 'All University Programs';
+    const progCode = fee.level === 'program' ? (progObj?.code || '') : '';
+    const uniName = typeof fee.universityId === 'object' && fee.universityId
+      ? fee.universityId.name
+      : universities.find(u => u.id === fee.universityId)?.name || 'Unknown University';
+    const sess = (fee as any).admissionSession?.name
+      || (typeof fee.admissionSessionId === 'object' && fee.admissionSessionId ? fee.admissionSessionId.name : sessions.find(s => s.id === fee.admissionSessionId)?.name)
+      || '';
+    const specs: string[] = fee.level === 'program'
+      ? (Array.isArray(progObj?.specialisations) ? progObj.specialisations : [])
+      : [];
 
+    // Parse breakdown safely
+    const breakdownList = Array.isArray(fee.feeBreakdown) ? fee.feeBreakdown : [];
+    const semItems = breakdownList.filter((b: any) => b.installmentType === 'semester' || (fee.billingCycle === 'per_semester' && !b.installmentType));
+    const yearItems = breakdownList.filter((b: any) => b.installmentType === 'year' || ((fee.billingCycle === 'per_year' || fee.billingCycle === 'yearly') && !b.installmentType));
+    const activeBreakdown = semItems.length > 0 ? semItems : (yearItems.length > 0 ? yearItems : breakdownList);
+
+    const calcTuition = Number(fee.baseFee || 0) > 0
+      ? Number(fee.baseFee)
+      : activeBreakdown.reduce((sum: number, b: any) => sum + Number(b.baseFee || 0), 0);
+
+    const calcUniFee = Number(fee.universityFee || 0) > 0
+      ? Number(fee.universityFee)
+      : activeBreakdown.reduce((sum: number, b: any) => sum + Number(b.universityFee || 0), 0);
+
+    const calcExamFee = activeBreakdown.reduce((sum: number, b: any) => sum + Number(b.examFee || 0), 0);
+
+    const primaryDisplayFee = calcTuition > 0
+      ? calcTuition
+      : (Number(fee.fullProgramFee || 0) > 0 ? Number(fee.fullProgramFee) : 0);
+
+    const primaryFeeLabel = calcTuition > 0
+      ? 'Total Tuition Fee'
+      : (Number(fee.fullProgramFee || 0) > 0 ? 'One-Time Full Fee' : 'Total Program Fee');
+
+    const isSpecExpanded = Boolean(expandedSpecIds[fee.id]);
+    const visibleSpecs = isSpecExpanded ? specs : specs.slice(0, 2);
+    const hiddenSpecCount = Math.max(0, specs.length - 2);
+
+    const oneTimeAddFee = fee.additionalFees?.find((f: any) =>
+      ['one time payment', 'registration fee', 'admission fee'].includes(String(f.label || '').toLowerCase())
+    );
+
+    const renderBreakdownGrid = (items: any[], typeLabel: 'Semester' | 'Year', colorScheme: 'blue' | 'purple') => (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className={`text-[11px] font-bold uppercase tracking-wider ${colorScheme === 'blue' ? 'text-blue-700 dark:text-blue-400' : 'text-purple-700 dark:text-purple-400'}`}>
+            {typeLabel}-Wise Schedule ({items.length} {typeLabel}{items.length > 1 ? 's' : ''})
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {items.map((b: any, idx: number) => {
+            const periodNum = typeLabel === 'Semester' ? (b.semester || b.year || idx + 1) : (b.year || idx + 1);
+            return (
+              <div
+                key={idx}
+                className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 text-xs flex flex-col justify-between gap-1.5 hover:border-slate-300 transition-colors"
+              >
+                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-1">
+                  <span className={`font-bold text-xs ${colorScheme === 'blue' ? 'text-blue-700 dark:text-blue-400' : 'text-purple-700 dark:text-purple-400'}`}>
+                    {typeLabel} {periodNum}
+                  </span>
+                  {Number(b.commissionRate || 0) > 0 && (
+                    <span className="px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 font-semibold text-[10px]">
+                      Comm: {b.commissionRate}%
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tuition:</span>
+                    <span className="font-semibold text-foreground">₹{Number(b.baseFee || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Uni Fee:</span>
+                    <span className="font-semibold text-foreground">₹{Number(b.universityFee || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  {Number(b.examFee || 0) > 0 && (
+                    <div className="flex justify-between col-span-2 pt-0.5 border-t border-dashed border-slate-200/60 dark:border-slate-800">
+                      <span className="text-muted-foreground">Exam Fee:</span>
+                      <span className="font-medium text-amber-700 dark:text-amber-400">₹{Number(b.examFee).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                </div>
+
+                {(b.dueDate || (Array.isArray(b.additionalFees) && b.additionalFees.length > 0)) && (
+                  <div className="pt-1 border-t border-slate-200/60 dark:border-slate-800 space-y-0.5 text-[10px]">
+                    {b.dueDate && (
+                      <div className="text-blue-600 dark:text-blue-400 font-medium">
+                        Due: {new Date(b.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    )}
+                    {Array.isArray(b.additionalFees) && b.additionalFees.map((af: any, afi: number) => (
+                      <div key={afi} className="text-orange-600 dark:text-orange-400 truncate">
+                        + {af.label}: ₹{Number(af.amount || 0).toLocaleString('en-IN')}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+    return (
+      <Card key={fee.id} className="overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all rounded-2xl bg-card">
+        {/* Card Header */}
+        <CardHeader className="bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/80 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                fee.level === 'program'
+                  ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'
+                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
+              }`}>
+                {fee.level === 'program' ? <BookOpen className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CardTitle className="text-base font-bold text-foreground leading-snug">
+                    {progName}
+                  </CardTitle>
+                  {progCode && (
+                    <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-4 bg-background">
+                      {progCode}
+                    </Badge>
+                  )}
+                </div>
+                <CardDescription className="text-xs font-medium text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span>{uniName}</span>
+                  {sess && (
+                    <>
+                      <span>•</span>
+                      <span className="text-amber-700 dark:text-amber-400 font-semibold">{sess}</span>
+                    </>
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+
+            {/* Right: Total Fee + Edit/Delete Actions */}
+            <div className="flex items-start gap-3 shrink-0">
+              <div className="text-right">
+                <div className="text-lg font-extrabold text-foreground leading-none">
+                  ₹{primaryDisplayFee.toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] font-medium text-muted-foreground mt-1">
+                  {primaryFeeLabel}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 pl-2 border-l border-border/60">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openEdit(fee)}
+                  title="Edit Fee Structure"
+                  className="h-8 w-8 rounded-lg text-slate-600 hover:text-primary hover:bg-primary/10"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(fee.id)}
+                  title="Delete Fee Structure"
+                  className="h-8 w-8 rounded-lg text-slate-500 hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        {/* Card Content */}
+        <CardContent className="p-4 space-y-3.5">
+          {/* Badges & Specialisation Row */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant="outline" className="text-[10px] font-semibold bg-indigo-50/70 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300">
+                {fee.level.toUpperCase()}
+              </Badge>
+              {fee.billingCycle === 'both' ? (
+                <>
+                  <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200 font-medium">
+                    Yearly Schedule
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 font-medium">
+                    Semester Schedule
+                  </Badge>
+                </>
+              ) : (
+                <Badge variant="outline" className="text-[10px] capitalize font-medium">
+                  {fee.billingCycle?.replace('_', ' ') || 'Standard'}
+                </Badge>
+              )}
+              {Number(fee.fullProgramFee || 0) > 0 && (
+                <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">
+                  One-Time: ₹{Number(fee.fullProgramFee).toLocaleString('en-IN')}
+                </Badge>
+              )}
+              {fee.specialisation && (
+                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border-none text-[10px] gap-1">
+                  <GraduationCap className="w-3 h-3" /> {fee.specialisation}
+                </Badge>
+              )}
+            </div>
+
+            {/* Compact Collapsible Specialisations List */}
+            {specs.length > 0 && !fee.specialisation && (
+              <div className="flex items-center gap-1.5 flex-wrap bg-muted/40 p-2 rounded-lg border border-border/50">
+                <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1 mr-1">
+                  <GraduationCap className="w-3.5 h-3.5 text-primary shrink-0" />
+                  Applies to ({specs.length}):
+                </span>
+                {visibleSpecs.map((s: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className="text-[11px] px-2 py-0.5 bg-background border border-border/80 rounded-md text-foreground font-medium max-w-[260px] truncate"
+                    title={s}
+                  >
+                    {s}
+                  </span>
+                ))}
+                {hiddenSpecCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSpecIds(prev => ({ ...prev, [fee.id]: !prev[fee.id] }))}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors inline-flex items-center gap-0.5"
+                  >
+                    {isSpecExpanded ? (
+                      <>Show less <ChevronUp className="w-3 h-3" /></>
+                    ) : (
+                      <>+{hiddenSpecCount} more <ChevronDown className="w-3 h-3" /></>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Summary Totals Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/60">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Tuition</p>
+              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                ₹{calcTuition.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Uni Fee</p>
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-400 mt-0.5">
+                ₹{calcUniFee.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Exam Fee</p>
+              <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mt-0.5">
+                ₹{calcExamFee.toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                {Number(fee.oneTimeCommission || 0) > 0 ? 'One-Time Comm' : 'One-Time Fee'}
+              </p>
+              <p className="text-xs font-bold text-violet-700 dark:text-violet-400 mt-0.5">
+                {Number(fee.oneTimeCommission || 0) > 0
+                  ? `${fee.oneTimeCommission}%`
+                  : oneTimeAddFee
+                  ? `₹${Number(oneTimeAddFee.amount || 0).toLocaleString('en-IN')}`
+                  : Number(fee.fullProgramFee || 0) > 0
+                  ? `₹${Number(fee.fullProgramFee).toLocaleString('en-IN')}`
+                  : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Period Breakdown Grids */}
+          {semItems.length > 0 && yearItems.length > 0 ? (
+            <div className="space-y-3 pt-1">
+              {renderBreakdownGrid(semItems, 'Semester', 'blue')}
+              {renderBreakdownGrid(yearItems, 'Year', 'purple')}
+            </div>
+          ) : semItems.length > 0 ? (
+            renderBreakdownGrid(semItems, 'Semester', 'blue')
+          ) : yearItems.length > 0 ? (
+            renderBreakdownGrid(yearItems, 'Year', 'purple')
+          ) : breakdownList.length > 0 ? (
+            renderBreakdownGrid(breakdownList, fee.billingCycle === 'per_semester' ? 'Semester' : 'Year', 'blue')
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
       {viewMode === 'list' ? (
         <>
-          <div className="flex items-center justify-between">
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b">
             <div>
-              <h2 className="text-2xl font-bold">Program Fee Structures</h2>
-              <p className="text-muted-foreground">Manage fee structures for programs or entire universities</p>
-            </div>
-            <Button onClick={() => { resetForm(); setViewMode('wizard'); }}><Plus className="w-4 h-4 mr-2" />Add New</Button>
-          </div>
-
-          <div className="flex gap-4">
-            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={selectedUniversityId} onChange={(e) => setSelectedUniversityId(e.target.value)}>
-              <option value="">All Universities</option>
-              {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            <select className="border rounded-md px-3 py-2 text-sm bg-background" value={selectedProgramId} onChange={(e) => setSelectedProgramId(e.target.value)}>
-              <option value="">All Programs</option>
-              {programs.filter(p => !selectedUniversityId || p.universityId === selectedUniversityId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <Button variant="outline" size="icon" onClick={fetchAllData}><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {loading ? (
-              <div className="col-span-full text-center py-12 text-muted-foreground">Loading fee structures...</div>
-            ) : filteredFees.length === 0 ? (
-              <div className="col-span-full text-center py-12 bg-slate-50 border border-dashed rounded-lg text-muted-foreground">
-                <IndianRupee className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p>No fee structures found.</p>
-                <Button variant="link" onClick={() => setViewMode('wizard')} className="mt-2 text-indigo-600">Create the first one</Button>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-2xl font-bold tracking-tight">Program Fee Structures</h2>
+                <Badge variant="secondary" className="font-mono text-xs">
+                  {filteredFees.length} / {fees.length}
+                </Badge>
               </div>
-            ) : (
-              filteredFees.map(fee => {
-                const progName = fee.level === 'program' 
-                  ? (typeof fee.programId === 'object' && fee.programId ? fee.programId.name : programs.find(p => p.id === fee.programId)?.name || 'Unknown Program')
-                  : 'All Programs';
-                const uniName = typeof fee.universityId === 'object' && fee.universityId ? fee.universityId.name : universities.find(u => u.id === fee.universityId)?.name || 'Unknown University';
-                const sess = (fee as any).admissionSession?.name || (typeof fee.admissionSessionId === 'object' && fee.admissionSessionId ? fee.admissionSessionId.name : sessions.find(s => s.id === fee.admissionSessionId)?.name) || '';
-                const specs = fee.level === 'program' ? (typeof fee.programId === 'object' && fee.programId?.specialisations ? fee.programId.specialisations : programs.find(p => p.id === fee.programId)?.specialisations || []) : [];
-
-                return (
-                  <Card key={fee.id} className="overflow-hidden border-slate-200 hover:border-slate-300 transition-colors">
-                    <CardHeader className="bg-slate-50/50 pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            {fee.level === 'program' ? <BookOpen className="w-4 h-4 text-indigo-500" /> : <Building2 className="w-4 h-4 text-emerald-500" />}
-                            {progName}
-                          </CardTitle>
-                          <CardDescription className="mt-1">{uniName}</CardDescription>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-slate-900">{fee.currency || 'INR'} {(fee.fullProgramFee || 0).toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Total Program Fee</div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs bg-indigo-50">{fee.level.toUpperCase()}</Badge>
-                            {fee.billingCycle === 'both' ? (
-                              <>
-                                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200 font-medium">Yearly</Badge>
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 font-medium">Semester</Badge>
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">{fee.billingCycle?.replace('_', ' ')}</Badge>
-                            )}
-                            {Number(fee.fullProgramFee || 0) > 0 && (
-                              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">One-Time</Badge>
-                            )}
-                            {sess && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-none text-xs">{sess}</Badge>}
-                            {fee.specialisation && <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border-none text-xs">{fee.specialisation}</Badge>}
-                          </div>
-                          
-                          {specs.length > 0 && !fee.specialisation && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs text-muted-foreground font-medium flex items-center gap-0.5">
-                                <GraduationCap className="w-3 h-3 text-primary" /> Appies to:
-                              </span>
-                              {specs.map((s: string, idx: number) => (
-                                <span key={idx} className="text-xs px-1.5 py-0.2 bg-slate-100 rounded text-slate-700">{s}</span>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 shadow-sm font-medium px-2 py-0.5">
-                              {fee.currency || 'INR'} {fee.baseFee.toLocaleString()} Tuition
-                            </Badge>
-                            {fee.universityFee !== undefined && fee.universityFee > 0 && (
-                              <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 shadow-sm font-medium px-2 py-0.5">
-                                {fee.currency || 'INR'} {fee.universityFee.toLocaleString()} Uni Fee
-                              </Badge>
-                            )}
-                            {fee.oneTimeUniversityFee > 0 && (
-                              <Badge variant="secondary" className="bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200 shadow-sm font-medium px-2 py-0.5">
-                                {fee.currency || 'INR'} {fee.oneTimeUniversityFee.toLocaleString()} One-Time Uni
-                              </Badge>
-                            )}
-                            {fee.oneTimeCommission > 0 && (
-                              <Badge variant="secondary" className="bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200 shadow-sm font-medium px-2 py-0.5">
-                                {fee.oneTimeCommission}% One-Time Comm
-                              </Badge>
-                            )}
-                            {fee.additionalFees?.find((f: any) => ['one time payment', 'registration fee', 'admission fee'].includes(f.label.toLowerCase())) && (
-                              <Badge variant="secondary" className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 shadow-sm font-medium px-2 py-0.5">
-                                {fee.currency || 'INR'} {fee.additionalFees.find((f: any) => ['one time payment', 'registration fee', 'admission fee'].includes(f.label.toLowerCase()))?.amount.toLocaleString()} One Time
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          {fee.feeBreakdown && fee.feeBreakdown.length > 0 && (
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {fee.feeBreakdown.map((b: any, idx: number) => {
-                                const isSem = b.installmentType === 'semester' || (fee.billingCycle === 'per_semester' && !b.installmentType);
-                                return (
-                                  <div key={idx} className="p-2 bg-slate-50 border rounded-md text-xs">
-                                    <div className="font-semibold mb-1 flex items-center justify-between">
-                                      <span className={isSem ? 'text-blue-700 font-medium' : 'text-purple-700 font-medium'}>
-                                        {isSem ? `Semester ${b.year || b.semester || idx + 1}` : `Year ${b.year || idx + 1}`}
-                                      </span>
-                                    </div>
-                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-muted-foreground">
-                                    <span>Tui: {b.baseFee}</span>
-                                    <span>Uni: {b.universityFee}</span>
-                                    {b.examFee > 0 && <span>Exam: {b.examFee}</span>}
-                                    {b.commissionRate > 0 && <span>Comm: {b.commissionRate}%</span>}
-                                    {b.dueDate && <span className="col-span-2 text-blue-600">Due: {new Date(b.dueDate).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</span>}
-                                    {Array.isArray(b.additionalFees) && b.additionalFees.length > 0 && (
-                                      <div className="col-span-2 mt-1 border-t pt-1">
-                                        {b.additionalFees.map((af: any, afi: number) => (
-                                          <span key={afi} className="inline-block mr-2 text-orange-600">{af.label}: {af.amount}</span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2 self-end sm:self-center">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(fee)} className="hover:bg-primary/10">
-                            <Pencil className="w-4 h-4 text-primary" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(fee.id)} className="hover:bg-destructive/10">
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Configure and manage semester, annual, and one-time fee structures across universities and programs.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading} className="h-9">
+                <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button onClick={() => { resetForm(); setViewMode('wizard'); }} className="h-9">
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Fee Structure
+              </Button>
+            </div>
           </div>
+
+          {/* KPI Summary Strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card className="rounded-xl border shadow-xs">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total Fee Structures</p>
+                  <p className="text-2xl font-extrabold text-foreground mt-0.5">{summaryStats.totalStructures}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                  <IndianRupee className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-xl border shadow-xs">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Universities Covered</p>
+                  <p className="text-2xl font-extrabold text-foreground mt-0.5">{summaryStats.universitiesCount}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                  <Building2 className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-xl border shadow-xs">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Programs Configured</p>
+                  <p className="text-2xl font-extrabold text-foreground mt-0.5">{summaryStats.programsCount}</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-xl border shadow-xs">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Schedule Breakdown</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                      {summaryStats.semCount} Semester
+                    </Badge>
+                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                      {summaryStats.yearCount} Yearly
+                    </Badge>
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                  <Calendar className="w-5 h-5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <Card className="rounded-xl border shadow-xs">
+            <CardContent className="p-3.5 flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search program, university, code, or specialisation..."
+                  className="pl-9 h-9 text-sm"
+                />
+              </div>
+
+              {/* University Filter */}
+              <select
+                className="h-9 border border-input rounded-md px-3 text-xs font-medium bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[180px]"
+                value={selectedUniversityId}
+                onChange={e => {
+                  setSelectedUniversityId(e.target.value);
+                  setSelectedProgramId('');
+                }}
+              >
+                <option value="">All Universities ({universities.length})</option>
+                {universities.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}{u.code ? ` (${u.code})` : ''}
+                  </option>
+                ))}
+              </select>
+
+              {/* Program Filter (Scoped by University) */}
+              <select
+                className="h-9 border border-input rounded-md px-3 text-xs font-medium bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[180px] max-w-[260px]"
+                value={selectedProgramId}
+                onChange={e => setSelectedProgramId(e.target.value)}
+              >
+                <option value="">All Programs ({filteredProgramsForSelect.length})</option>
+                {filteredProgramsForSelect.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.code ? ` (${p.code})` : ''}
+                  </option>
+                ))}
+              </select>
+
+              {/* Billing Cycle Filter */}
+              <select
+                className="h-9 border border-input rounded-md px-3 text-xs font-medium bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                value={billingCycleFilter}
+                onChange={e => setBillingCycleFilter(e.target.value)}
+              >
+                <option value="all">All Billing Modes</option>
+                <option value="per_semester">Semester-Wise</option>
+                <option value="per_year">Year-Wise</option>
+                <option value="both">Both (Year & Sem)</option>
+                <option value="one_time">One-Time</option>
+              </select>
+
+              {/* Group by University Toggle */}
+              <div className="inline-flex rounded-lg border border-input p-0.5 bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => setGroupByUniversity(true)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+                    groupByUniversity ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  By University
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGroupByUniversity(false)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${
+                    !groupByUniversity ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Grid View
+                </button>
+              </div>
+
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="h-9 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                  Reset
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Fee Structures Content */}
+          {loading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-64 rounded-2xl bg-muted/50 animate-pulse border" />
+              ))}
+            </div>
+          ) : filteredFees.length === 0 ? (
+            <div className="text-center py-16 bg-card border border-dashed rounded-2xl text-muted-foreground">
+              <IndianRupee className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="font-medium text-foreground">No fee structures found</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {hasActiveFilters ? 'Try adjusting your filters or search query.' : 'Get started by creating your first program fee structure.'}
+              </p>
+              {hasActiveFilters ? (
+                <Button variant="outline" size="sm" onClick={clearAllFilters} className="mt-3">
+                  Clear Filters
+                </Button>
+              ) : (
+                <Button variant="default" size="sm" onClick={() => setViewMode('wizard')} className="mt-3">
+                  <Plus className="w-4 h-4 mr-1.5" /> Create Fee Structure
+                </Button>
+              )}
+            </div>
+          ) : groupByUniversity ? (
+            <div className="space-y-8">
+              {groupedFeesByUni.map(group => (
+                <div key={group.uniId} className="space-y-3">
+                  {/* University Section Header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <h3 className="font-bold text-sm sm:text-base text-foreground">{group.uniName}</h3>
+                      {group.uniCode && (
+                        <Badge variant="outline" className="text-[10px] font-mono bg-background">
+                          {group.uniCode}
+                        </Badge>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="text-xs font-semibold">
+                      {group.items.length} {group.items.length === 1 ? 'Program Fee' : 'Program Fees'}
+                    </Badge>
+                  </div>
+
+                  {/* University's Fee Cards Grid */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                    {group.items.map(fee => renderFeeCard(fee))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+              {filteredFees.map(fee => renderFeeCard(fee))}
+            </div>
+          )}
         </>
       ) : (
         <div className="bg-white rounded-lg border shadow-sm flex flex-col min-h-[600px]">
