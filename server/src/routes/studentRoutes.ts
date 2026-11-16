@@ -18,6 +18,10 @@ import {
   getStatusChangeRequests,
   verifyStatusChangeRequest,
   confirmStatusChangeRequest,
+  rejectStudentByUniversity,
+  requestUniversityChange,
+  approveUniversityChange,
+  rejectUniversityChange,
 } from '../controllers/studentController.js';
 import { getExamDetails, startExam, submitExam, getMyExamSubmissions } from '../controllers/examController.js';
 import { protect, authorize } from '../middleware/auth.js';
@@ -46,6 +50,12 @@ router.get('/status-requests', authorize('org_admin', 'superadmin', 'ops_admin',
 router.post('/:id/status-request', authorize('center_admin'), submitStatusChangeRequest);
 router.put('/status-requests/:requestId/verify', authorize('ops_admin', 'ops_sub_admin', 'branch_manager', 'employee'), verifyStatusChangeRequest);
 router.put('/status-requests/:requestId/confirm', authorize('finance_admin', 'finance', 'employee'), confirmStatusChangeRequest);
+
+// University rejection and transfer approval routes
+router.put('/:id/reject-by-university', authorize('ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'org_admin', 'superadmin'), rejectStudentByUniversity);
+router.post('/:id/request-university-change', authorize('ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'org_admin', 'superadmin'), requestUniversityChange);
+router.post('/:id/approve-university-change', authorize('center_admin', 'org_admin', 'superadmin'), approveUniversityChange);
+router.post('/:id/reject-university-change', authorize('center_admin', 'org_admin', 'superadmin'), rejectUniversityChange);
 
 // Student routes
 router.route('/').get(getStudents).post(authorize('org_admin', 'superadmin', 'center_admin', 'ops_admin', 'ops_sub_admin', 'branch_manager'), createStudent);

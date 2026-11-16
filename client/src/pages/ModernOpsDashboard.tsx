@@ -466,6 +466,19 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
                   </span>
                   <span className="font-black text-xs font-display">{currentData.studentsDropout ?? 0}</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigateToStudentStatus('rejected'); }}
+                  className="col-span-2 flex items-center justify-between px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/20 text-xs transition-all hover:scale-[1.02]"
+                  title="Filter Students Rejected by University"
+                >
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    Rejected by University
+                  </span>
+                  <span className="font-black text-xs font-display">{currentData.studentsRejected ?? 0}</span>
+                </button>
               </div>
             </div>
           }

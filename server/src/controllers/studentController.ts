@@ -48,10 +48,18 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   
   if (req.query.status && req.query.status !== 'all') {
     const statuses = String(req.query.status).split(',').map(s => s.trim()).filter(Boolean);
-    if (statuses.length === 1) {
-      where.status = statuses[0];
-    } else if (statuses.length > 1) {
-      where.status = { in: statuses };
+    const expandedStatuses: string[] = [];
+    for (const s of statuses) {
+      if (s === 'rejected') {
+        expandedStatuses.push('rejected', 'rejected_by_university');
+      } else {
+        expandedStatuses.push(s);
+      }
+    }
+    if (expandedStatuses.length === 1) {
+      where.status = expandedStatuses[0];
+    } else if (expandedStatuses.length > 1) {
+      where.status = { in: expandedStatuses };
     }
   }
   if (req.query.centerId && req.query.centerId !== 'all' && req.user.role !== 'center_admin') {
@@ -121,12 +129,13 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
   const countWhere = { ...where };
   delete countWhere.status;
 
-  const [totalCount, activeCount, pendingCount, holdCount, dropoutCount] = await Promise.all([
+  const [totalCount, activeCount, pendingCount, holdCount, dropoutCount, rejectedCount] = await Promise.all([
     prisma.student.count({ where: countWhere }),
     prisma.student.count({ where: { ...countWhere, status: 'active' } }),
     prisma.student.count({ where: { ...countWhere, status: 'pending' } }),
     prisma.student.count({ where: { ...countWhere, status: 'hold' } }),
-    prisma.student.count({ where: { ...countWhere, status: 'dropout' } })
+    prisma.student.count({ where: { ...countWhere, status: 'dropout' } }),
+    prisma.student.count({ where: { ...countWhere, status: { in: ['rejected', 'rejected_by_university'] } } })
   ]);
 
   const [students, allBranchesScope] = await Promise.all([
@@ -167,20 +176,26 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
     getAllBranchesScope(req.user.organizationId)
   ]);
 
-  // Map center/program to centerId/programId for frontend object checks compatibility + attach branch info
+  // Map center/program to centerId/programId for frontend object checks compatibility + attach branch info & university rejection/transfer metadata
   const mappedStudents = students.map((s) => {
     const cid = s.center?.id || s.centerId || s.enrollments?.[0]?.studyCenterId || '';
     const resolvedBranch = (cid && allBranchesScope.centerBranchMap[cid]) || null;
     const branchName = resolvedBranch?.branchName || s.center?.branchName || null;
     const branchId = resolvedBranch?.branchId || null;
     const enrichedCenter = s.center ? { ...s.center, branchName: s.center.branchName || branchName, branchId } : s.center;
+    const reregObj = (typeof s.reregStatus === 'object' && s.reregStatus !== null) ? (s.reregStatus as any) : {};
+    const universityRejection = reregObj.universityRejection || null;
+    const universityChangeRequest = reregObj.universityChangeRequest || null;
     return {
       ...s,
       branchId,
       branchName,
       center: enrichedCenter,
       centerId: enrichedCenter,
-      programId: s.program
+      programId: s.program,
+      universityRejection,
+      universityChangeRequest,
+      universityRejectionReason: universityRejection?.reason || null
     };
   });
 
@@ -192,7 +207,8 @@ export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) 
       active: activeCount,
       pending: pendingCount,
       hold: holdCount,
-      dropout: dropoutCount
+      dropout: dropoutCount,
+      rejected: rejectedCount
     },
     data: mappedStudents 
   });
@@ -237,10 +253,14 @@ export const getStudent = asyncHandler(async (req: AuthRequest, res: Response) =
     }
   }
 
+  const reregObj = (typeof student.reregStatus === 'object' && student.reregStatus !== null) ? (student.reregStatus as any) : {};
   const mappedStudent = {
     ...student,
     centerId: student.center,
-    programId: student.program
+    programId: student.program,
+    universityRejection: reregObj.universityRejection || null,
+    universityChangeRequest: reregObj.universityChangeRequest || null,
+    universityRejectionReason: reregObj.universityRejection?.reason || null
   };
 
   res.status(200).json({ success: true, data: mappedStudent });
@@ -1116,4 +1136,431 @@ export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, 
   }
 
   res.status(200).json({ success: true, data: result });
+});
+
+export const rejectStudentByUniversity = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { reason } = req.body;
+  if (!reason || !String(reason).trim()) {
+    res.status(400).json({ success: false, message: 'Rejection reason / university remarks are required' });
+    return;
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      center: true,
+      program: { include: { university: true } },
+      enrollments: { include: { session: true } }
+    }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  const currentUni = student.program?.university?.name || student.enrollments?.[0]?.program?.university?.name || 'Assigned University';
+  const currentProg = student.program?.name || 'Assigned Program';
+  const currentSession = student.enrollments?.[0]?.session?.name || 'Assigned Session';
+
+  const existingRereg = (typeof student.reregStatus === 'object' && student.reregStatus !== null) ? (student.reregStatus as any) : {};
+  const updatedRereg = {
+    ...existingRereg,
+    universityRejection: {
+      reason: String(reason).trim(),
+      rejectedBy: req.user.id,
+      rejectedByName: req.user.name,
+      rejectedAt: new Date().toISOString(),
+      previousUniversity: currentUni,
+      previousProgram: currentProg,
+      previousSession: currentSession
+    }
+  };
+
+  const updatedStudent = await prisma.student.update({
+    where: { id: student.id },
+    data: {
+      status: 'rejected',
+      reregStatus: updatedRereg
+    },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  // Update active enrollments for this student
+  await prisma.enrollment.updateMany({
+    where: { studentId: student.id, status: { not: 'rejected' } },
+    data: {
+      status: 'rejected',
+      departmentRemarks: `Rejected by University (${currentUni}): ${String(reason).trim()}`
+    }
+  });
+
+  // Notify Study Center Admin
+  try {
+    const centerAdmins = await prisma.user.findMany({
+      where: { organizationId: req.user.organizationId, studyCenterId: student.centerId, role: 'center_admin' },
+      select: { id: true }
+    });
+    for (const ca of centerAdmins) {
+      await createNotification(
+        req.user.organizationId,
+        ca.id,
+        'system',
+        '⚠️ Student Rejected by University',
+        `Student ${student.name} was marked as rejected by ${currentUni}. Reason: ${String(reason).trim()}`
+      );
+    }
+  } catch (err) {
+    console.error('Failed to notify study center of university rejection:', err);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Student ${student.name} marked as rejected by university`,
+    data: {
+      ...updatedStudent,
+      universityRejection: updatedRereg.universityRejection,
+      universityRejectionReason: updatedRereg.universityRejection.reason
+    }
+  });
+});
+
+export const requestUniversityChange = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { newUniversityId, newProgramId, newSessionId, specialisation, remarks } = req.body;
+
+  if (!newProgramId) {
+    res.status(400).json({ success: false, message: 'New program is required' });
+    return;
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  const newProgram = await prisma.program.findFirst({
+    where: { id: newProgramId, organizationId: req.user.organizationId },
+    include: { university: true }
+  });
+
+  if (!newProgram) {
+    res.status(400).json({ success: false, message: 'Selected program not found' });
+    return;
+  }
+
+  let sessionName = 'Default Session';
+  let targetSessionId = newSessionId || student.sessionId;
+  if (targetSessionId) {
+    const session = await prisma.admissionSession.findFirst({
+      where: { id: targetSessionId, organizationId: req.user.organizationId }
+    });
+    if (session) {
+      sessionName = session.name;
+      targetSessionId = session.id;
+    }
+  }
+
+  const newUniName = newProgram.university?.name || 'Selected University';
+  const newUniCode = newProgram.university?.code || '';
+
+  const existingRereg = (typeof student.reregStatus === 'object' && student.reregStatus !== null) ? (student.reregStatus as any) : {};
+  const changeRequest = {
+    status: 'pending_center_approval',
+    newUniversityId: newProgram.universityId || newUniversityId,
+    newUniversityName: newUniName,
+    newUniversityCode: newUniCode,
+    newProgramId: newProgram.id,
+    newProgramName: newProgram.name,
+    newProgramCode: newProgram.code || '',
+    newSessionId: targetSessionId,
+    newSessionName: sessionName,
+    specialisation: specialisation || null,
+    remarks: remarks || '',
+    requestedBy: req.user.id,
+    requestedByName: req.user.name,
+    requestedAt: new Date().toISOString()
+  };
+
+  const updatedRereg = {
+    ...existingRereg,
+    universityChangeRequest: changeRequest
+  };
+
+  const updatedStudent = await prisma.student.update({
+    where: { id: student.id },
+    data: {
+      reregStatus: updatedRereg
+    },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  // Create StudentStatusRequest record for tracking
+  try {
+    await prisma.studentStatusRequest.create({
+      data: {
+        studentId: student.id,
+        organizationId: req.user.organizationId,
+        requestedStatus: 'university_change',
+        reason: `Change university to ${newUniName} (${newProgram.name}). ${remarks || ''}`.trim(),
+        status: 'pending_center',
+        operationsRemarks: remarks || '',
+        createdBy: req.user.id
+      }
+    });
+  } catch (err) {
+    console.error('Failed to log student status request for uni change:', err);
+  }
+
+  // Notify Study Center Admin
+  try {
+    const centerAdmins = await prisma.user.findMany({
+      where: { organizationId: req.user.organizationId, studyCenterId: student.centerId, role: 'center_admin' },
+      select: { id: true }
+    });
+    for (const ca of centerAdmins) {
+      await createNotification(
+        req.user.organizationId,
+        ca.id,
+        'system',
+        '🎓 University Change Approval Needed',
+        `Operations proposed moving student ${student.name} to ${newUniName} (${newProgram.name}). Please review and approve.`
+      );
+    }
+  } catch (err) {
+    console.error('Failed to notify study center admin:', err);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `University change request submitted to ${student.center?.name || 'Study Center'} for approval`,
+    data: {
+      ...updatedStudent,
+      universityChangeRequest: changeRequest
+    }
+  });
+});
+
+export const approveUniversityChange = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  if (req.user.role === 'center_admin' && student.centerId !== req.user.studyCenterId) {
+    res.status(403).json({ success: false, message: 'Access denied: student does not belong to your study center' });
+    return;
+  }
+
+  const existingRereg = (typeof student.reregStatus === 'object' && student.reregStatus !== null) ? (student.reregStatus as any) : {};
+  const changeRequest = existingRereg.universityChangeRequest;
+
+  if (!changeRequest || changeRequest.status !== 'pending_center_approval') {
+    res.status(400).json({ success: false, message: 'No pending university change request found for this student' });
+    return;
+  }
+
+  const { centerRemarks } = req.body;
+  const approvedChangeRequest = {
+    ...changeRequest,
+    status: 'approved',
+    approvedBy: req.user.id,
+    approvedByName: req.user.name,
+    approvedAt: new Date().toISOString(),
+    centerRemarks: centerRemarks || 'Approved by Study Center'
+  };
+
+  const updatedRereg = {
+    ...existingRereg,
+    universityChangeRequest: approvedChangeRequest
+  };
+
+  const updatedStudent = await prisma.student.update({
+    where: { id: student.id },
+    data: {
+      programId: changeRequest.newProgramId,
+      sessionId: changeRequest.newSessionId,
+      specialisation: changeRequest.specialisation || student.specialisation,
+      status: 'active',
+      reregStatus: updatedRereg
+    },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  // Update or create active enrollment for new university
+  try {
+    const primaryEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId: student.id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (primaryEnrollment) {
+      const history = Array.isArray(primaryEnrollment.statusHistory) ? (primaryEnrollment.statusHistory as any[]) : [];
+      history.push({
+        status: 'university_change_approved',
+        newUniversity: changeRequest.newUniversityName,
+        newProgram: changeRequest.newProgramName,
+        newSession: changeRequest.newSessionName,
+        approvedByCenter: req.user.name,
+        at: new Date().toISOString(),
+        remarks: centerRemarks || ''
+      });
+
+      await prisma.enrollment.update({
+        where: { id: primaryEnrollment.id },
+        data: {
+          programId: changeRequest.newProgramId,
+          sessionId: changeRequest.newSessionId,
+          specialisation: changeRequest.specialisation || primaryEnrollment.specialisation,
+          status: 'enrolled',
+          departmentRemarks: `Transferred to ${changeRequest.newUniversityName} (${changeRequest.newProgramName}) with center approval. ${centerRemarks || ''}`.trim(),
+          statusHistory: history
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Failed to sync enrollment on university change approval:', err);
+  }
+
+  // Update StudentStatusRequest record if any
+  try {
+    await prisma.studentStatusRequest.updateMany({
+      where: { studentId: student.id, requestedStatus: 'university_change', status: 'pending_center' },
+      data: { status: 'approved', financeRemarks: centerRemarks || 'Approved by Study Center' }
+    });
+  } catch (err) {
+    console.error('Failed to update studentStatusRequest:', err);
+  }
+
+  // Broadcast to operations roles
+  try {
+    await broadcastNotification(
+      req.user.organizationId,
+      'system',
+      '✅ University Change Approved by Center',
+      `Study Center ${student.center?.name || ''} approved university change for ${student.name} to ${changeRequest.newUniversityName} (${changeRequest.newProgramName}). Student is now active.`,
+      ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'org_admin', 'superadmin']
+    );
+  } catch (err) {
+    console.error('Failed to broadcast uni change approval:', err);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `University change approved. Student ${student.name} is now enrolled in ${changeRequest.newUniversityName}`,
+    data: {
+      ...updatedStudent,
+      universityChangeRequest: approvedChangeRequest
+    }
+  });
+});
+
+export const rejectUniversityChange = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    include: {
+      center: true
+    }
+  });
+
+  if (!student) {
+    res.status(404).json({ success: false, message: 'Student not found' });
+    return;
+  }
+
+  if (req.user.role === 'center_admin' && student.centerId !== req.user.studyCenterId) {
+    res.status(403).json({ success: false, message: 'Access denied: student does not belong to your study center' });
+    return;
+  }
+
+  const existingRereg = (typeof student.reregStatus === 'object' && student.reregStatus !== null) ? (student.reregStatus as any) : {};
+  const changeRequest = existingRereg.universityChangeRequest;
+
+  if (!changeRequest || changeRequest.status !== 'pending_center_approval') {
+    res.status(400).json({ success: false, message: 'No pending university change request found for this student' });
+    return;
+  }
+
+  const { centerRemarks } = req.body;
+  const rejectedChangeRequest = {
+    ...changeRequest,
+    status: 'rejected_by_center',
+    rejectedBy: req.user.id,
+    rejectedByName: req.user.name,
+    rejectedAt: new Date().toISOString(),
+    centerRemarks: centerRemarks || 'Declined by Study Center'
+  };
+
+  const updatedRereg = {
+    ...existingRereg,
+    universityChangeRequest: rejectedChangeRequest
+  };
+
+  const updatedStudent = await prisma.student.update({
+    where: { id: student.id },
+    data: {
+      status: 'rejected',
+      reregStatus: updatedRereg
+    },
+    include: {
+      center: true,
+      program: { include: { university: true } }
+    }
+  });
+
+  // Update StudentStatusRequest record if any
+  try {
+    await prisma.studentStatusRequest.updateMany({
+      where: { studentId: student.id, requestedStatus: 'university_change', status: 'pending_center' },
+      data: { status: 'rejected', financeRemarks: centerRemarks || 'Declined by Study Center' }
+    });
+  } catch (err) {
+    console.error('Failed to update studentStatusRequest:', err);
+  }
+
+  // Broadcast to operations roles
+  try {
+    await broadcastNotification(
+      req.user.organizationId,
+      'system',
+      '❌ University Change Declined by Center',
+      `Study Center ${student.center?.name || ''} declined university change for ${student.name} to ${changeRequest.newUniversityName}. Reason: ${centerRemarks || 'Declined'}`,
+      ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager']
+    );
+  } catch (err) {
+    console.error('Failed to broadcast uni change rejection:', err);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'University change request declined',
+    data: {
+      ...updatedStudent,
+      universityChangeRequest: rejectedChangeRequest
+    }
+  });
 });

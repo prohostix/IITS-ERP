@@ -24,24 +24,27 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
         { enrollments: { some: { sessionId: sessionId } } }
       ];
     }
-    const [sTotal, sActive, sPending, sHold, sDropout] = await Promise.all([
+    const [sTotal, sActive, sPending, sHold, sDropout, sRejected] = await Promise.all([
       prisma.student.count({ where: superStudentWhere }),
       prisma.student.count({ where: { ...superStudentWhere, status: 'active' } }),
       prisma.student.count({ where: { ...superStudentWhere, status: 'pending' } }),
       prisma.student.count({ where: { ...superStudentWhere, status: 'hold' } }),
-      prisma.student.count({ where: { ...superStudentWhere, status: 'dropout' } })
+      prisma.student.count({ where: { ...superStudentWhere, status: 'dropout' } }),
+      prisma.student.count({ where: { ...superStudentWhere, status: { in: ['rejected', 'rejected_by_university'] } } })
     ]);
     metrics.totalStudents = sTotal;
     metrics.studentsActive = sActive;
     metrics.studentsPending = sPending;
     metrics.studentsHold = sHold;
     metrics.studentsDropout = sDropout;
+    metrics.studentsRejected = sRejected;
     metrics.studentCounts = {
       total: sTotal,
       active: sActive,
       pending: sPending,
       hold: sHold,
-      dropout: sDropout
+      dropout: sDropout,
+      rejected: sRejected
     };
 
     const [cTotal, cActive, cPending, cDeactive] = await Promise.all([
@@ -120,13 +123,15 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
       studentsActive,
       studentsPending,
       studentsHold,
-      studentsDropout
+      studentsDropout,
+      studentsRejected
     ] = await Promise.all([
       prisma.student.count({ where: studentWhere }),
       prisma.student.count({ where: { ...studentWhere, status: 'active' } }),
       prisma.student.count({ where: { ...studentWhere, status: 'pending' } }),
       prisma.student.count({ where: { ...studentWhere, status: 'hold' } }),
-      prisma.student.count({ where: { ...studentWhere, status: 'dropout' } })
+      prisma.student.count({ where: { ...studentWhere, status: 'dropout' } }),
+      prisma.student.count({ where: { ...studentWhere, status: { in: ['rejected', 'rejected_by_university'] } } })
     ]);
 
     metrics.totalStudents = totalStudents;
@@ -134,12 +139,14 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
     metrics.studentsPending = studentsPending;
     metrics.studentsHold = studentsHold;
     metrics.studentsDropout = studentsDropout;
+    metrics.studentsRejected = studentsRejected;
     metrics.studentCounts = {
       total: totalStudents,
       active: studentsActive,
       pending: studentsPending,
       hold: studentsHold,
-      dropout: studentsDropout
+      dropout: studentsDropout,
+      rejected: studentsRejected
     };
 
     const [totalCenters, centersActive, centersPending, centersDeactive] = await Promise.all([
@@ -206,12 +213,13 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
         const bStudentWhere = { organizationId, AND: bStudentAnd };
         const bCenterWhere = { organizationId, id: { in: cIds } };
 
-        const [bTotalStudents, bActiveStudents, bPendingStudents, bHoldStudents, bDropoutStudents, bTotalCenters, bActiveCenters, bPendingCenters, bPendingReviews, bEnrolled] = await Promise.all([
+        const [bTotalStudents, bActiveStudents, bPendingStudents, bHoldStudents, bDropoutStudents, bRejectedStudents, bTotalCenters, bActiveCenters, bPendingCenters, bPendingReviews, bEnrolled] = await Promise.all([
           prisma.student.count({ where: bStudentWhere }),
           prisma.student.count({ where: { ...bStudentWhere, status: 'active' } }),
           prisma.student.count({ where: { ...bStudentWhere, status: 'pending' } }),
           prisma.student.count({ where: { ...bStudentWhere, status: 'hold' } }),
           prisma.student.count({ where: { ...bStudentWhere, status: 'dropout' } }),
+          prisma.student.count({ where: { ...bStudentWhere, status: { in: ['rejected', 'rejected_by_university'] } } }),
           prisma.studyCenter.count({ where: bCenterWhere }),
           prisma.studyCenter.count({ where: { ...bCenterWhere, status: 'active' as any } }),
           prisma.studyCenter.count({ where: { ...bCenterWhere, status: { in: ['pending_verification', 'pending', 'pending_payment'] } as any } }),
@@ -228,6 +236,7 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
           pendingStudents: bPendingStudents,
           holdStudents: bHoldStudents,
           dropoutStudents: bDropoutStudents,
+          rejectedStudents: bRejectedStudents,
           totalCenters: bTotalCenters,
           activeCenters: bActiveCenters,
           pendingCenters: bPendingCenters,

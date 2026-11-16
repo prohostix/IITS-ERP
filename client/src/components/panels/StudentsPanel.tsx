@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock, CheckCircle, Eye, Download, ChevronDown, Table as TableIcon, LayoutList } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, GraduationCap, MapPin, Calendar, FileText, CreditCard, Check, Clock, CheckCircle, Eye, Download, ChevronDown, Table as TableIcon, LayoutList, ArrowRightLeft, XCircle, AlertTriangle, CheckCircle2, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -301,6 +301,12 @@ export const getStudentDisplayFieldValue = (student: any, index: number, fieldKe
     case 'center_status':
       return center?.status ? String(center.status).replace(/_/g, ' ').toUpperCase() : 'ACTIVE';
     case 'status':
+      if (student?.status === 'rejected' || student?.status === 'rejected_by_university') {
+        if (student?.universityChangeRequest?.status === 'pending_center_approval') {
+          return 'PENDING CENTER APPROVAL';
+        }
+        return 'REJECTED BY UNIVERSITY';
+      }
       return student?.status ? String(student.status).toUpperCase() : '-';
     default:
       return '-';
@@ -347,6 +353,8 @@ export function StudentsPanel() {
   const { user } = useAuth();
   const canWrite = ['org_admin', 'superadmin', 'center_admin'].includes(user?.role || '');
   const canDelete = ['org_admin', 'superadmin'].includes(user?.role || '');
+  const isOps = ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'org_admin', 'superadmin'].includes(user?.role || '');
+  const isCenter = user?.role === 'center_admin';
   const [students, setStudents] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [centers, setCenters] = useState<any[]>([]);
@@ -373,7 +381,30 @@ export function StudentsPanel() {
     pending: 0,
     hold: 0,
     dropout: 0,
+    rejected: 0,
   });
+
+  // University Rejection state
+  const [rejectUniStudent, setRejectUniStudent] = useState<any | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectingStudent, setRejectingStudent] = useState(false);
+
+  // University Change Request state (Operations)
+  const [changeUniStudent, setChangeUniStudent] = useState<any | null>(null);
+  const [changeUniData, setChangeUniData] = useState({
+    universityId: '',
+    programId: '',
+    sessionId: '',
+    specialisation: '',
+    remarks: ''
+  });
+  const [submittingChangeUni, setSubmittingChangeUni] = useState(false);
+
+  // Center Approval state (Study Center)
+  const [centerApprovalStudent, setCenterApprovalStudent] = useState<any | null>(null);
+  const [centerApprovalAction, setCenterApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [centerRemarks, setCenterRemarks] = useState('');
+  const [processingCenterApproval, setProcessingCenterApproval] = useState(false);
 
   // Installments state
   const [installments, setInstallments] = useState<any[]>([]);
@@ -512,6 +543,7 @@ export function StudentsPanel() {
           pending: list.filter((s: any) => s.status === 'pending').length,
           hold: list.filter((s: any) => s.status === 'hold').length,
           dropout: list.filter((s: any) => s.status === 'dropout').length,
+          rejected: list.filter((s: any) => s.status === 'rejected' || s.status === 'rejected_by_university').length,
         });
       }
     } catch (error) {
@@ -666,6 +698,100 @@ export function StudentsPanel() {
     }
   };
 
+  const handleRejectByUniversity = async () => {
+    if (!rejectUniStudent || !rejectionReason.trim()) {
+      toast.error('Please enter a rejection reason / university remarks');
+      return;
+    }
+    setRejectingStudent(true);
+    try {
+      await api.put(`/students/${rejectUniStudent.id}/reject-by-university`, {
+        reason: rejectionReason.trim()
+      });
+      toast.success(`Student ${rejectUniStudent.name} marked as rejected by university`);
+      setRejectUniStudent(null);
+      setRejectionReason('');
+      if (selectedStudent?.id === rejectUniStudent.id) {
+        setSelectedStudent(null);
+      }
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject student');
+    } finally {
+      setRejectingStudent(false);
+    }
+  };
+
+  const openChangeUniversityModal = (student: any) => {
+    setChangeUniStudent(student);
+    setChangeUniData({
+      universityId: '',
+      programId: '',
+      sessionId: student.sessionId || '',
+      specialisation: student.specialisation || '',
+      remarks: ''
+    });
+  };
+
+  const handleSubmitUniversityChange = async () => {
+    if (!changeUniStudent || !changeUniData.programId) {
+      toast.error('Please select the new program');
+      return;
+    }
+    setSubmittingChangeUni(true);
+    try {
+      await api.post(`/students/${changeUniStudent.id}/request-university-change`, {
+        newUniversityId: changeUniData.universityId,
+        newProgramId: changeUniData.programId,
+        newSessionId: changeUniData.sessionId,
+        specialisation: changeUniData.specialisation,
+        remarks: changeUniData.remarks
+      });
+      toast.success('University change request submitted to study center for approval');
+      setChangeUniStudent(null);
+      if (selectedStudent?.id === changeUniStudent.id) {
+        setSelectedStudent(null);
+      }
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to request university change');
+    } finally {
+      setSubmittingChangeUni(false);
+    }
+  };
+
+  const handleCenterApproval = async () => {
+    if (!centerApprovalStudent) return;
+    if (centerApprovalAction === 'reject' && !centerRemarks.trim()) {
+      toast.error('Please provide remarks/reason for declining the university change');
+      return;
+    }
+    setProcessingCenterApproval(true);
+    try {
+      if (centerApprovalAction === 'approve') {
+        await api.post(`/students/${centerApprovalStudent.id}/approve-university-change`, {
+          centerRemarks: centerRemarks.trim()
+        });
+        toast.success('University change approved. Student is now active in the new university!');
+      } else {
+        await api.post(`/students/${centerApprovalStudent.id}/reject-university-change`, {
+          centerRemarks: centerRemarks.trim()
+        });
+        toast.success('University change request declined');
+      }
+      setCenterApprovalStudent(null);
+      setCenterRemarks('');
+      if (selectedStudent?.id === centerApprovalStudent.id) {
+        setSelectedStudent(null);
+      }
+      fetchStudents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to process university change approval');
+    } finally {
+      setProcessingCenterApproval(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setFormData({
@@ -719,6 +845,14 @@ export function StudentsPanel() {
                 <span className="h-3 w-px bg-border" />
                 <span className="text-rose-700 dark:text-rose-300 font-medium">
                   Dropout: <strong>{statusCounts.dropout}</strong>
+                </span>
+              </>
+            )}
+            {statusCounts.rejected > 0 && (
+              <>
+                <span className="h-3 w-px bg-border" />
+                <span className="text-red-700 dark:text-red-400 font-medium">
+                  Rejected: <strong>{statusCounts.rejected}</strong>
                 </span>
               </>
             )}
@@ -809,6 +943,32 @@ export function StudentsPanel() {
         </div>
       </div>
 
+      {/* Study Center Pending University Change Approval Alert Banner */}
+      {isCenter && students.some(s => s.universityChangeRequest?.status === 'pending_center_approval') && (
+        <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-600 text-white rounded-lg shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-purple-950 dark:text-purple-100">
+                University Change Requests Pending Your Approval ({students.filter(s => s.universityChangeRequest?.status === 'pending_center_approval').length})
+              </p>
+              <p className="text-xs text-purple-700 dark:text-purple-300">
+                Operations has proposed transferring student(s) rejected by previous universities. Review and approve to complete re-admission into the new university.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setField('status', 'rejected')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shrink-0 shadow-xs"
+          >
+            View Pending Requests
+          </Button>
+        </div>
+      )}
+
       <div className="flex gap-2 flex-wrap mb-4 items-center justify-between">
         <div className="flex gap-2 flex-wrap items-center">
           {[
@@ -816,7 +976,8 @@ export function StudentsPanel() {
             { key: 'active', label: 'Active', count: statusCounts.active, dot: 'bg-emerald-500' },
             { key: 'pending', label: 'Pending', count: statusCounts.pending, dot: 'bg-amber-500' },
             { key: 'hold', label: 'Hold', count: statusCounts.hold, dot: 'bg-indigo-500' },
-            { key: 'dropout', label: 'Dropout', count: statusCounts.dropout, dot: 'bg-rose-500' }
+            { key: 'dropout', label: 'Dropout', count: statusCounts.dropout, dot: 'bg-rose-500' },
+            { key: 'rejected', label: 'Rejected', count: statusCounts.rejected || 0, dot: 'bg-red-600' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -1283,20 +1444,105 @@ export function StudentsPanel() {
                           <span className="flex items-center gap-1 truncate"><Mail className="w-3 h-3 shrink-0" /> {student.email}</span>
                           {student.phone && <span className="flex items-center gap-1 shrink-0"><Phone className="w-3 h-3" /> {student.phone}</span>}
                         </div>
+                        {(student.universityRejectionReason || student.universityRejection?.reason) && (
+                          <div className="text-[11px] text-red-600 dark:text-red-400 font-medium flex items-center gap-1 mt-1">
+                            <XCircle className="w-3 h-3 shrink-0" />
+                            <span>Rejected by Uni: {student.universityRejectionReason || student.universityRejection?.reason}</span>
+                          </div>
+                        )}
+                        {student.universityChangeRequest?.status === 'pending_center_approval' && (
+                          <div className="text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-md px-2 py-0.5 mt-1 inline-flex items-center gap-1.5 font-medium">
+                            <Building2 className="w-3 h-3 text-purple-600 shrink-0" />
+                            <span>Proposed Transfer: <strong>{student.universityChangeRequest.newUniversityName}</strong> ({student.universityChangeRequest.newProgramName}) — Pending Center Approval</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <div className="flex items-center gap-2 shrink-0 ml-3 flex-wrap justify-end">
                       <Badge className={cn(
                         "capitalize text-xs font-semibold",
                         student.status === 'active' ? "bg-emerald-600 hover:bg-emerald-700 text-white" :
                         student.status === 'pending' ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60 hover:bg-amber-500/25" :
                         student.status === 'hold' ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-300 dark:border-indigo-700/60 hover:bg-indigo-500/25" :
                         student.status === 'dropout' ? "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-700/60 hover:bg-rose-500/25" :
+                        (student.status === 'rejected' || student.status === 'rejected_by_university') ? "bg-red-600 text-white font-semibold" :
                         "bg-muted text-muted-foreground"
                       )}>
-                        {student.status || 'N/A'}
+                        {student.universityChangeRequest?.status === 'pending_center_approval'
+                          ? 'Uni Change Pending Center'
+                          : (student.status === 'rejected' || student.status === 'rejected_by_university')
+                            ? 'Rejected by University'
+                            : (student.status || 'N/A')}
                       </Badge>
+
+                      {/* Operations: Reject by University action */}
+                      {isOps && student.status !== 'rejected' && student.status !== 'rejected_by_university' && student.status !== 'dropout' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRejectUniStudent(student);
+                            setRejectionReason('');
+                          }}
+                          className="h-8 text-xs font-semibold text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 gap-1 px-2.5"
+                          title="Mark student as rejected by university"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          Reject (Uni)
+                        </Button>
+                      )}
+
+                      {/* Operations: Change University action when rejected */}
+                      {isOps && (student.status === 'rejected' || student.status === 'rejected_by_university') && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openChangeUniversityModal(student);
+                          }}
+                          className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white gap-1 px-2.5 shadow-xs"
+                          title="Change student's university and re-apply"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                          Change University
+                        </Button>
+                      )}
+
+                      {/* Center Admin: Approve or Decline University Change */}
+                      {isCenter && student.universityChangeRequest?.status === 'pending_center_approval' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCenterApprovalStudent(student);
+                              setCenterApprovalAction('approve');
+                              setCenterRemarks('');
+                            }}
+                            className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2.5 shadow-xs"
+                            title="Approve university change"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Approve Uni Change
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCenterApprovalStudent(student);
+                              setCenterApprovalAction('reject');
+                              setCenterRemarks('');
+                            }}
+                            className="h-8 text-xs font-semibold text-rose-600 border-rose-300 hover:bg-rose-50 gap-1 px-2"
+                            title="Decline university change"
+                          >
+                            Decline
+                          </Button>
+                        </>
+                      )}
 
                       {canWrite && student.status === 'pending' && (
                         <Button
@@ -1364,6 +1610,64 @@ export function StudentsPanel() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {/* Operations: Reject by University */}
+                    {isOps && selectedStudent.status !== 'rejected' && selectedStudent.status !== 'rejected_by_university' && selectedStudent.status !== 'dropout' && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="text-rose-600 border-rose-300 hover:bg-rose-50 font-semibold gap-1"
+                        onClick={() => {
+                          setRejectUniStudent(selectedStudent);
+                          setRejectionReason('');
+                        }}
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Reject (Uni)
+                      </Button>
+                    )}
+
+                    {/* Operations: Change University */}
+                    {isOps && (selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
+                      <Button 
+                        size="sm" 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1"
+                        onClick={() => openChangeUniversityModal(selectedStudent)}
+                      >
+                        <ArrowRightLeft className="w-4 h-4 mr-1" />
+                        Change University
+                      </Button>
+                    )}
+
+                    {/* Study Center Admin: Approve or Decline */}
+                    {isCenter && selectedStudent.universityChangeRequest?.status === 'pending_center_approval' && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1"
+                          onClick={() => {
+                            setCenterApprovalStudent(selectedStudent);
+                            setCenterApprovalAction('approve');
+                            setCenterRemarks('');
+                          }}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          Approve Change
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-rose-600 border-rose-300 hover:bg-rose-50 font-semibold gap-1"
+                          onClick={() => {
+                            setCenterApprovalStudent(selectedStudent);
+                            setCenterApprovalAction('reject');
+                            setCenterRemarks('');
+                          }}
+                        >
+                          Decline
+                        </Button>
+                      </>
+                    )}
+
                     {canWrite && selectedStudent.status === 'pending' && (
                       <Button 
                         size="sm" 
@@ -1413,6 +1717,72 @@ export function StudentsPanel() {
               </DialogHeader>
 
               <div className="space-y-6 py-4">
+                {(selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
+                  <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold text-sm">
+                      <XCircle className="w-4 h-4" />
+                      <span>Student Rejected by University</span>
+                    </div>
+                    <p className="text-xs text-rose-800 dark:text-rose-200">
+                      <strong>Rejection Reason:</strong> {selectedStudent.universityRejectionReason || selectedStudent.universityRejection?.reason || 'No remarks provided.'}
+                    </p>
+                    {selectedStudent.universityRejection?.rejectedByName && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Processed by {selectedStudent.universityRejection.rejectedByName} on {formatDateVal(selectedStudent.universityRejection.rejectedAt)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {selectedStudent.universityChangeRequest && (
+                  <div className={cn(
+                    "border rounded-xl p-4 space-y-2",
+                    selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? "bg-purple-50/80 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" :
+                    selectedStudent.universityChangeRequest.status === 'approved' ? "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" :
+                    "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-bold text-sm">
+                        <Building2 className="w-4 h-4 text-primary" />
+                        <span>University Change & Re-Admission Request</span>
+                      </div>
+                      <Badge className={cn(
+                        "text-xs uppercase font-semibold",
+                        selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? "bg-purple-600 text-white" :
+                        selectedStudent.universityChangeRequest.status === 'approved' ? "bg-emerald-600 text-white" :
+                        "bg-rose-600 text-white"
+                      )}>
+                        {selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? 'Pending Center Approval' :
+                         selectedStudent.universityChangeRequest.status === 'approved' ? 'Approved by Center' : 'Declined by Center'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                      <div>
+                        <span className="text-muted-foreground block">Proposed University:</span>
+                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newUniversityName}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Proposed Program:</span>
+                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newProgramName}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Proposed Session:</span>
+                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newSessionName || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Operations Remarks:</span>
+                        <span className="text-foreground">{selectedStudent.universityChangeRequest.remarks || 'None'}</span>
+                      </div>
+                    </div>
+                    {selectedStudent.universityChangeRequest.centerRemarks && (
+                      <div className="text-xs pt-2 border-t mt-2">
+                        <span className="text-muted-foreground block">Study Center Remarks:</span>
+                        <span className="font-medium text-foreground">{selectedStudent.universityChangeRequest.centerRemarks}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="relative pt-2">
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
                     <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal & Contact Details
@@ -1688,6 +2058,288 @@ export function StudentsPanel() {
         </DialogContent>
       </Dialog>
       
+      {/* Reject Student by University Dialog (Operations) */}
+      <Dialog open={!!rejectUniStudent} onOpenChange={(open) => !open && setRejectUniStudent(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <XCircle className="w-5 h-5" />
+              Reject Student by University
+            </DialogTitle>
+          </DialogHeader>
+          {rejectUniStudent && (
+            <div className="space-y-4 pt-1">
+              <div className="bg-muted/40 p-3 rounded-lg border text-xs space-y-1">
+                <p><strong>Student:</strong> {rejectUniStudent.name}</p>
+                <p><strong>Admission No:</strong> {rejectUniStudent.enrollmentNo}</p>
+                <p><strong>Current University:</strong> {rejectUniStudent.program?.university?.name || rejectUniStudent.enrollments?.[0]?.program?.university?.name || 'N/A'}</p>
+                <p><strong>Program:</strong> {rejectUniStudent.program?.name || 'N/A'}</p>
+                <p><strong>Study Center:</strong> {rejectUniStudent.center?.name || 'N/A'}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">
+                  Rejection Reason / University Scrutiny Remarks <span className="text-destructive">*</span>
+                </Label>
+                <textarea
+                  className="w-full min-h-[90px] border rounded-lg p-2.5 text-xs bg-background outline-none focus:border-rose-500"
+                  placeholder="Enter specific university rejection reason (e.g., Ineligible as per university norms, documents rejected, quota full)..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  required
+                />
+              </div>
+
+              <p className="text-[11px] text-muted-foreground italic">
+                Marking this student as rejected by university will update their status to "Rejected" and allow Operations to propose re-admission to an alternative university.
+              </p>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setRejectUniStudent(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={rejectingStudent || !rejectionReason.trim()}
+                  onClick={handleRejectByUniversity}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                >
+                  {rejectingStudent ? 'Rejecting...' : 'Confirm University Rejection'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Change University & Re-Admission Dialog (Operations) */}
+      <Dialog open={!!changeUniStudent} onOpenChange={(open) => !open && setChangeUniStudent(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+              <ArrowRightLeft className="w-5 h-5" />
+              Change University & Re-Admission
+            </DialogTitle>
+          </DialogHeader>
+          {changeUniStudent && (
+            <div className="space-y-4 pt-1">
+              <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-xs space-y-1">
+                <p><strong>Student:</strong> {changeUniStudent.name} ({changeUniStudent.enrollmentNo})</p>
+                <p><strong>Previous / Rejected University:</strong> {changeUniStudent.program?.university?.name || 'N/A'} - {changeUniStudent.program?.name || 'N/A'}</p>
+                {changeUniStudent.universityRejectionReason && (
+                  <p className="text-destructive"><strong>Rejection Reason:</strong> {changeUniStudent.universityRejectionReason}</p>
+                )}
+                <p><strong>Study Center:</strong> {changeUniStudent.center?.name || 'N/A'}</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">New University <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={changeUniData.universityId}
+                    onValueChange={(val) => setChangeUniData(prev => ({ ...prev, universityId: val, programId: '', sessionId: '' }))}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select target university" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {universities.map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name} {u.code ? `(${u.code})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">New Degree Program <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={changeUniData.programId}
+                    onValueChange={(val) => setChangeUniData(prev => ({ ...prev, programId: val }))}
+                    disabled={!changeUniData.universityId}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder={changeUniData.universityId ? "Select program" : "Select a university first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs
+                        .filter(p => p.universityId === changeUniData.universityId || p.university?.id === changeUniData.universityId)
+                        .map(prog => (
+                          <SelectItem key={prog.id} value={prog.id.toString()}>
+                            {prog.name} {prog.code ? `(${prog.code})` : ''}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Admission Session</Label>
+                  <Select
+                    value={changeUniData.sessionId}
+                    onValueChange={(val) => setChangeUniData(prev => ({ ...prev, sessionId: val }))}
+                    disabled={!changeUniData.universityId}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select session (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sessions
+                        .filter(s => !changeUniData.universityId || s.universityId === changeUniData.universityId || s.university?.id === changeUniData.universityId)
+                        .map(sess => (
+                          <SelectItem key={sess.id} value={sess.id}>
+                            {sess.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Specialisation Combo (Optional)</Label>
+                  <Input
+                    className="h-9 text-xs"
+                    placeholder="e.g. Finance & Marketing, History & Politics"
+                    value={changeUniData.specialisation}
+                    onChange={(e) => setChangeUniData(prev => ({ ...prev, specialisation: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Operations Remarks / Transfer Justification</Label>
+                  <textarea
+                    className="w-full min-h-[70px] border rounded-lg p-2 text-xs bg-background outline-none"
+                    placeholder="Explain why this university is chosen and any special instructions for the center..."
+                    value={changeUniData.remarks}
+                    onChange={(e) => setChangeUniData(prev => ({ ...prev, remarks: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-purple-50/70 dark:bg-purple-950/30 p-2.5 rounded-lg border border-purple-200 dark:border-purple-800 text-[11px] text-purple-900 dark:text-purple-200">
+                ℹ️ <strong>Center Approval Required:</strong> Submitting this request will notify <strong>{changeUniStudent.center?.name || 'the study center'}</strong>. The student will be officially enrolled in the new university only after the study center reviews and approves.
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setChangeUniStudent(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={submittingChangeUni || !changeUniData.programId}
+                  onClick={handleSubmitUniversityChange}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                >
+                  {submittingChangeUni ? 'Submitting...' : 'Send to Center for Approval'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Study Center Approval / Decline Dialog */}
+      <Dialog open={!!centerApprovalStudent} onOpenChange={(open) => !open && setCenterApprovalStudent(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className={cn(
+              "flex items-center gap-2",
+              centerApprovalAction === 'approve' ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600"
+            )}>
+              {centerApprovalAction === 'approve' ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Approve University Change
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-5 h-5 text-rose-600" />
+                  Decline University Change
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {centerApprovalStudent && (
+            <div className="space-y-4 pt-1">
+              <div className="bg-muted/40 p-3 rounded-lg border text-xs space-y-1.5">
+                <p><strong>Student:</strong> {centerApprovalStudent.name} ({centerApprovalStudent.enrollmentNo})</p>
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Previous University:</span>
+                    <span className="font-semibold text-rose-700 dark:text-rose-400">
+                      {centerApprovalStudent.program?.university?.name || 'Previous University'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px]">Proposed New University:</span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      {centerApprovalStudent.universityChangeRequest?.newUniversityName || 'New University'}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px]">Proposed Program & Session:</span>
+                  <span className="font-medium">
+                    {centerApprovalStudent.universityChangeRequest?.newProgramName} • {centerApprovalStudent.universityChangeRequest?.newSessionName || '-'}
+                  </span>
+                </div>
+                {centerApprovalStudent.universityChangeRequest?.remarks && (
+                  <div className="pt-1 border-t text-[11px]">
+                    <span className="text-muted-foreground block">Operations Note:</span>
+                    <span className="italic">{centerApprovalStudent.universityChangeRequest.remarks}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">
+                  Study Center Remarks {centerApprovalAction === 'reject' && <span className="text-destructive">*</span>}
+                </Label>
+                <textarea
+                  className="w-full min-h-[75px] border rounded-lg p-2.5 text-xs bg-background outline-none"
+                  placeholder={centerApprovalAction === 'approve' 
+                    ? "Add any optional comments or fee confirmation notes..." 
+                    : "Please explain why this university change cannot be accepted..."}
+                  value={centerRemarks}
+                  onChange={(e) => setCenterRemarks(e.target.value)}
+                  required={centerApprovalAction === 'reject'}
+                />
+              </div>
+
+              {centerApprovalAction === 'approve' ? (
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  ✓ Upon your approval, the student will be officially transferred and activated in <strong>{centerApprovalStudent.universityChangeRequest?.newUniversityName}</strong>.
+                </p>
+              ) : (
+                <p className="text-[11px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-800">
+                  ⚠️ Declining will notify Operations with your remarks so they can suggest an alternative option.
+                </p>
+              )}
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setCenterApprovalStudent(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={processingCenterApproval || (centerApprovalAction === 'reject' && !centerRemarks.trim())}
+                  onClick={handleCenterApproval}
+                  className={centerApprovalAction === 'approve' ? "bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" : "bg-rose-600 hover:bg-rose-700 text-white font-semibold"}
+                >
+                  {processingCenterApproval 
+                    ? 'Processing...' 
+                    : centerApprovalAction === 'approve' ? 'Confirm & Enroll in New University' : 'Decline Request'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!payConfirmData} onOpenChange={(o) => !o && setPayConfirmData(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
