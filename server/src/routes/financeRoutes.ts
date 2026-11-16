@@ -172,7 +172,7 @@ router.get('/enrollments/all', authorize('finance_admin', 'finance', 'superadmin
 router.get('/enrollments', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getFinanceEnrollments);
 router.put('/enrollments/:id/approve', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), approveFinanceEnrollment);
 router.put('/enrollments/:id/reject', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), rejectFinanceEnrollment);
-router.post('/enrollments/:id/refund', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), processRefund);
+router.post('/enrollments/:id/refund', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin'), upload.single('receipt'), processRefund);
 
 // Reports
 router.get('/overview-stats', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceOverviewStats);
@@ -231,5 +231,9 @@ router.get('/center-ledger/:centerId', authorize('finance_admin', 'finance_sub_a
 // ─── Sales Users Financial Performance Report ─────────────────────────────────
 router.get('/reports/sales-users', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getFinanceSalesUsersReport);
 router.get('/sales-users-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin'), getFinanceSalesUsersReport);
+
+// ─── Refund Report ────────────────────────────────────────────────────────────
+router.get('/reports/refunds', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin', 'center_admin', 'project_manager'), getRefundReport);
+router.get('/refunds-report', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo', 'ops_admin', 'ops_sub_admin', 'center_admin', 'project_manager'), getRefundReport);
 
 export default router;
