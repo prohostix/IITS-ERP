@@ -2,24 +2,26 @@ import * as React from 'react';
 import { Check, ChevronsUpDown, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export interface MultiSelectOption {
-  value: string;
+  value: string | number;
   label: string;
   code?: string;
   subtitle?: string;
   count?: number;
 }
 
-interface MultiSelectFilterProps {
+export interface MultiSelectFilterProps {
   title: string;
   placeholder?: string;
   options: MultiSelectOption[];
-  selectedValues: string[];
+  selectedValues?: (string | number)[];
+  selected?: (string | number)[];
+  values?: (string | number)[];
+  value?: (string | number)[] | string | number;
   onChange: (values: string[]) => void;
   className?: string;
   align?: 'start' | 'center' | 'end';
@@ -29,7 +31,10 @@ export function MultiSelectFilter({
   title,
   placeholder,
   options = [],
-  selectedValues = [],
+  selectedValues,
+  selected,
+  values,
+  value,
   onChange,
   className,
   align = 'start',
@@ -37,10 +42,13 @@ export function MultiSelectFilter({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
 
-  // Normalize selected values: filter out empty strings and '__all__' / 'all'
+  // Unify any prop variant into a stable array of strings
   const activeSelected = React.useMemo(() => {
-    return (selectedValues || []).filter(v => v && v !== 'all' && v !== '__all__');
-  }, [selectedValues]);
+    const raw = selectedValues ?? selected ?? values ?? (Array.isArray(value) ? value : value ? [value] : []);
+    return (raw || [])
+      .map(v => (v !== undefined && v !== null ? String(v) : ''))
+      .filter(v => v !== '' && v !== 'all' && v !== '__all__');
+  }, [selectedValues, selected, values, value]);
 
   const filteredOptions = React.useMemo(() => {
     if (!search.trim()) return options;
@@ -50,23 +58,24 @@ export function MultiSelectFilter({
         opt.label?.toLowerCase().includes(q) ||
         opt.code?.toLowerCase().includes(q) ||
         opt.subtitle?.toLowerCase().includes(q) ||
-        opt.value?.toLowerCase().includes(q)
+        String(opt.value)?.toLowerCase().includes(q)
     );
   }, [options, search]);
 
   const allSelected = options.length > 0 && activeSelected.length === options.length;
   const isNoneSelected = activeSelected.length === 0;
 
-  const handleToggle = (value: string) => {
-    if (activeSelected.includes(value)) {
-      onChange(activeSelected.filter(v => v !== value));
+  const handleToggle = (val: string | number) => {
+    const sVal = String(val);
+    if (activeSelected.includes(sVal)) {
+      onChange(activeSelected.filter(v => v !== sVal));
     } else {
-      onChange([...activeSelected, value]);
+      onChange([...activeSelected, sVal]);
     }
   };
 
   const handleSelectAll = () => {
-    onChange(options.map(o => o.value));
+    onChange(options.map(o => String(o.value)));
   };
 
   const handleClear = () => {
@@ -78,11 +87,20 @@ export function MultiSelectFilter({
     if (isNoneSelected) return placeholder || `All ${title}`;
     if (allSelected) return `All ${title}`;
     if (activeSelected.length === 1) {
-      const match = options.find(o => o.value === activeSelected[0]);
+      const match = options.find(o => String(o.value) === activeSelected[0]);
       if (match) {
         return match.code ? `${match.label} (${match.code})` : match.label;
       }
       return activeSelected[0];
+    }
+    if (activeSelected.length === 2) {
+      const m1 = options.find(o => String(o.value) === activeSelected[0]);
+      const m2 = options.find(o => String(o.value) === activeSelected[1]);
+      if (m1 && m2) {
+        const l1 = m1.code || m1.label;
+        const l2 = m2.code || m2.label;
+        return `${l1}, ${l2}`;
+      }
     }
     return `${activeSelected.length} ${title}`;
   }, [isNoneSelected, allSelected, activeSelected, options, placeholder, title]);
@@ -98,26 +116,42 @@ export function MultiSelectFilter({
           className={cn(
             'h-9 justify-between font-medium border text-xs gap-1.5 transition-all bg-background hover:bg-muted/50',
             !isNoneSelected && !allSelected
-              ? 'border-primary/50 bg-primary/5 text-primary hover:bg-primary/10 shadow-xs'
+              ? 'border-primary/50 bg-primary/5 text-primary hover:bg-primary/10 shadow-xs ring-1 ring-primary/20'
               : 'text-muted-foreground hover:text-foreground',
             className
           )}
         >
-          <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+          <div className="flex items-center gap-1.5 truncate max-w-[220px]">
             <span className="truncate">{triggerLabel}</span>
             {!isNoneSelected && !allSelected && (
               <Badge
                 variant="secondary"
-                className="h-4 px-1 text-[10px] font-bold bg-primary text-primary-foreground rounded-full leading-none"
+                className="h-4 px-1 text-[10px] font-bold bg-primary text-primary-foreground rounded-full leading-none shrink-0"
               >
                 {activeSelected.length}
               </Badge>
             )}
           </div>
-          <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 shrink-0 ml-1" />
+          <div className="flex items-center gap-1 shrink-0 ml-1">
+            {!isNoneSelected && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClear();
+                }}
+                className="p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
+                title={`Clear ${title} filter`}
+              >
+                <X className="w-3 h-3" />
+              </span>
+            )}
+            <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+          </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align={align} className="w-72 sm:w-80 p-2 shadow-xl border rounded-xl" sideOffset={5}>
+      <PopoverContent align={align} className="w-72 sm:w-84 p-2 shadow-xl border rounded-xl" sideOffset={5}>
         <div className="space-y-2">
           {/* Header & Quick Actions */}
           <div className="flex items-center justify-between pb-1.5 border-b px-1">
@@ -162,22 +196,43 @@ export function MultiSelectFilter({
               <div className="text-center py-4 text-xs text-muted-foreground">No options found</div>
             ) : (
               filteredOptions.map(option => {
-                const isChecked = activeSelected.includes(option.value);
+                const sVal = String(option.value);
+                const isChecked = activeSelected.includes(sVal);
                 return (
-                  <label
-                    key={option.value}
+                  <div
+                    key={sVal}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleToggle(option.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggle(option.value);
+                      }
+                    }}
                     className={cn(
-                      'flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors select-none',
+                      'flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors select-none group',
                       isChecked
                         ? 'bg-primary/10 text-primary font-semibold'
                         : 'hover:bg-muted text-slate-700 dark:text-slate-300'
                     )}
                   >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => handleToggle(option.value)}
-                      className="size-3.5 rounded border-slate-300 dark:border-slate-600 data-[state=checked]:bg-primary shrink-0"
-                    />
+                    {/* Visual Checkbox Indicator */}
+                    <div
+                      className={cn(
+                        'size-4 rounded-[4px] border flex items-center justify-center transition-all shrink-0',
+                        isChecked
+                          ? 'bg-primary border-primary text-white shadow-2xs'
+                          : 'border-slate-300 dark:border-slate-600 bg-background group-hover:border-slate-400'
+                      )}
+                    >
+                      {isChecked && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
+                    </div>
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
                         <span className="truncate font-medium text-xs text-foreground" title={option.label}>
@@ -200,7 +255,7 @@ export function MultiSelectFilter({
                         </div>
                       )}
                     </div>
-                  </label>
+                  </div>
                 );
               })
             )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import {
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 
 export function FinanceReregPaymentReportPanel() {
@@ -70,6 +71,69 @@ export function FinanceReregPaymentReportPanel() {
       setAllSessions(sRes.data.data || []);
     } catch (_e) {}
   };
+
+  // Filter programs based on selected universities: only show programs from selected universities
+  const filteredPrograms = useMemo(() => {
+    if (!filters.universities || filters.universities.length === 0) return allPrograms;
+    const uniIds = filters.universities.map(String);
+    return allPrograms.filter(p => uniIds.includes(String(p.universityId || p.university?.id)));
+  }, [allPrograms, filters.universities]);
+
+  // Prune any selected programs that do not belong to the selected universities
+  useEffect(() => {
+    if (filters.universities && filters.universities.length > 0 && filters.programs && filters.programs.length > 0) {
+      const allowedIds = new Set(filteredPrograms.map(p => String(p.id)));
+      const valid = filters.programs.filter((id: string) => allowedIds.has(String(id)));
+      if (valid.length !== filters.programs.length) {
+        setField('programs', valid);
+      }
+    }
+  }, [filters.universities, filteredPrograms]);
+
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.branches || []).forEach((bid: string) => {
+      const match = allBranches.find(b => String(b.id) === String(bid));
+      items.push({
+        category: 'Branch',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = allSessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    (filters.universities || []).forEach((uid: string) => {
+      const match = allUniversities.find(u => String(u.id) === String(uid));
+      items.push({
+        category: 'University',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || uid),
+        onRemove: () => setField('universities', (filters.universities || []).filter((id: string) => id !== uid))
+      });
+    });
+    (filters.programs || []).forEach((pid: string) => {
+      const match = allPrograms.find(p => String(p.id) === String(pid));
+      items.push({
+        category: 'Program',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || pid),
+        onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
+      });
+    });
+    (filters.centers || []).forEach((cid: string) => {
+      const match = allCenters.find(c => String(c.id) === String(cid));
+      items.push({
+        category: 'Center',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
+        onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
+      });
+    });
+    return items;
+  }, [filters, allBranches, allSessions, allUniversities, allPrograms, allCenters]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -477,7 +541,12 @@ export function FinanceReregPaymentReportPanel() {
             <MultiSelectFilter
               title="Programs"
               placeholder="All Programs"
-              options={allPrograms.map(p => ({ label: p.name, value: p.id }))}
+              options={filteredPrograms.map(p => ({
+                label: p.name,
+                value: String(p.id),
+                code: p.code || p.university?.code,
+                subtitle: p.university?.name
+              }))}
               selectedValues={filters.programs}
               onChange={vals => setField('programs', vals)}
             />
@@ -533,6 +602,13 @@ export function FinanceReregPaymentReportPanel() {
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />
           </div>
+
+          {/* Active Filter Chips */}
+          {activeFilterItems.length > 0 && (
+            <div className="w-full pt-2 border-t border-slate-100">
+              <ActiveFilterBar filters={activeFilterItems} onClearAll={clearFilters} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

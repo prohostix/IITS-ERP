@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -44,6 +45,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     sessions: [] as string[],
     centers: [] as string[],
     universities: [] as string[],
+    programs: [] as string[],
     statuses: [] as string[],
     search: '',
   });
@@ -53,10 +55,29 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   const [branchSort, setBranchSort] = useState<'latest' | 'branch_asc' | 'branch_desc'>('latest');
   const [centers, setCenters] = useState<any[]>([]);
   const [universities, setUniversities] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
 
   // Detailed Ledger state
   const [ledgerData, setLedgerData] = useState<any | null>(null);
+
+  // Filter programs based on selected universities: when a university is selected, only show programs from that university
+  const filteredPrograms = useMemo(() => {
+    if (!filters.universities || filters.universities.length === 0) return programs;
+    const uniIds = filters.universities.map(String);
+    return programs.filter(p => uniIds.includes(String(p.universityId || p.university?.id)));
+  }, [programs, filters.universities]);
+
+  // Prune any selected programs that do not belong to the selected universities
+  useEffect(() => {
+    if (filters.universities && filters.universities.length > 0 && filters.programs && filters.programs.length > 0) {
+      const allowedIds = new Set(filteredPrograms.map(p => String(p.id)));
+      const valid = filters.programs.filter((id: string) => allowedIds.has(String(id)));
+      if (valid.length !== filters.programs.length) {
+        setField('programs', valid);
+      }
+    }
+  }, [filters.universities, filteredPrograms]);
 
   // Receipt recording dialog
   const [receiptDialog, setReceiptDialog] = useState(false);
@@ -84,7 +105,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   useEffect(() => {
     fetchStudentList();
-  }, [filters.branches, filters.sessions, filters.centers, filters.universities, filters.statuses]);
+  }, [filters.branches, filters.sessions, filters.centers, filters.universities, filters.programs, filters.statuses]);
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -94,16 +115,18 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
 
   const fetchFilterOptions = async () => {
     try {
-      const [cRes, uRes, sRes, bRes] = await Promise.all([
+      const [cRes, uRes, sRes, bRes, pRes] = await Promise.all([
         api.get('/operations/centers'),
         api.get('/operations/universities'),
         api.get('/operations/sessions'),
         api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+        api.get('/operations/programs').catch(() => ({ data: { data: [] } })),
       ]);
       setCenters(cRes.data.data || []);
       setUniversities(uRes.data.data || []);
       setSessions(sRes.data.data || []);
       setBranches(bRes.data.data || []);
+      setPrograms(pRes.data.data || []);
     } catch (_e) {}
   };
 
@@ -115,6 +138,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
       if (filters.sessions.length > 0) q.append('sessionId', filters.sessions.join(','));
       if (filters.centers.length > 0) q.append('centerId', filters.centers.join(','));
       if (filters.universities.length > 0) q.append('universityId', filters.universities.join(','));
+      if (filters.programs && filters.programs.length > 0) q.append('programId', filters.programs.join(','));
       if (filters.statuses.length > 0) q.append('status', filters.statuses.join(','));
       if (filters.search) q.append('search', filters.search);
 
@@ -921,6 +945,59 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     );
   }
 
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.branches || []).forEach((bid: string) => {
+      const match = branches.find(b => String(b.id) === String(bid));
+      items.push({
+        category: 'Branch',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = sessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    (filters.universities || []).forEach((uid: string) => {
+      const match = universities.find(u => String(u.id) === String(uid));
+      items.push({
+        category: 'University',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || uid),
+        onRemove: () => setField('universities', (filters.universities || []).filter((id: string) => id !== uid))
+      });
+    });
+    (filters.programs || []).forEach((pid: string) => {
+      const match = programs.find(p => String(p.id) === String(pid));
+      items.push({
+        category: 'Program',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || pid),
+        onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
+      });
+    });
+    (filters.centers || []).forEach((cid: string) => {
+      const match = centers.find(c => String(c.id) === String(cid));
+      items.push({
+        category: 'Center',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
+        onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
+      });
+    });
+    (filters.statuses || []).forEach((st: string) => {
+      const labelMap: Record<string, string> = { paid: 'Paid in Full', partial: 'Partially Paid', pending: 'Pending', advance: 'Advance Paid' };
+      items.push({
+        category: 'Status',
+        label: labelMap[st] || st,
+        onRemove: () => setField('statuses', (filters.statuses || []).filter((id: string) => id !== st))
+      });
+    });
+    return items;
+  }, [filters, branches, sessions, universities, programs, centers]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // DIRECTORY VIEW (Searchable List of All Students with Ledger Summaries)
   // ══════════════════════════════════════════════════════════════════════════
@@ -1033,15 +1110,28 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
               title="Universities"
               selected={filters.universities}
               onChange={(u) => setField('universities', u)}
-              options={universities.map(u => ({ label: u.name, value: u.id }))}
+              options={universities.map(u => ({ label: u.name, value: u.id, code: u.code }))}
               placeholder="All Universities"
+            />
+
+            <MultiSelectFilter
+              title="Programs"
+              selected={filters.programs || []}
+              onChange={(p) => setField('programs', p)}
+              options={filteredPrograms.map(p => ({
+                label: p.name,
+                value: String(p.id),
+                code: p.code || p.university?.code,
+                subtitle: p.university?.name
+              }))}
+              placeholder="All Programs"
             />
 
             <MultiSelectFilter
               title="Centers"
               selected={filters.centers}
               onChange={(c) => setField('centers', c)}
-              options={centers.map(c => ({ label: c.name, value: c.id }))}
+              options={centers.map(c => ({ label: c.name, value: c.id, code: c.code }))}
               placeholder="All Centers"
             />
 
@@ -1092,6 +1182,13 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />
           </div>
+
+          {/* Active Filter Chips */}
+          {activeFilterItems.length > 0 && (
+            <div className="w-full pt-2 border-t border-slate-100">
+              <ActiveFilterBar filters={activeFilterItems} onClearAll={clearFilters} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

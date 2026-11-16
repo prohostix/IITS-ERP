@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, RefreshCw, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -45,6 +46,53 @@ export function FinanceTotalReportPanel() {
   const [universities, setUniversities] = useState<any[]>([]);
   const [programs, setPrograms] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+
+  // Filter programs based on selected universities: only show programs from selected universities
+  const filteredPrograms = useMemo(() => {
+    if (!filters.universities || filters.universities.length === 0) return programs;
+    const uniIds = filters.universities.map(String);
+    return programs.filter((p: any) => uniIds.includes(String(p.universityId || p.university?.id)));
+  }, [programs, filters.universities]);
+
+  // Prune any selected programs that do not belong to the selected universities
+  useEffect(() => {
+    if (filters.universities && filters.universities.length > 0 && filters.programs && filters.programs.length > 0) {
+      const allowedIds = new Set(filteredPrograms.map((p: any) => String(p.id)));
+      const valid = filters.programs.filter((id: string) => allowedIds.has(String(id)));
+      if (valid.length !== filters.programs.length) {
+        setField('programs', valid);
+      }
+    }
+  }, [filters.universities, filteredPrograms]);
+
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.universities || []).forEach((uid: string) => {
+      const match = universities.find(u => String(u.id) === String(uid));
+      items.push({
+        category: 'University',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || uid),
+        onRemove: () => setField('universities', (filters.universities || []).filter((id: string) => id !== uid))
+      });
+    });
+    (filters.programs || []).forEach((pid: string) => {
+      const match = programs.find(p => String(p.id) === String(pid));
+      items.push({
+        category: 'Program',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || pid),
+        onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = sessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    return items;
+  }, [filters, universities, programs, sessions]);
 
   const fetchReport = () => {
     const params = new URLSearchParams();
@@ -211,7 +259,12 @@ export function FinanceTotalReportPanel() {
                   title="Programs"
                   selected={filters.programs}
                   onChange={(p) => setField('programs', p)}
-                  options={programs.map((p: any) => ({ label: p.name, value: p.id }))}
+                  options={filteredPrograms.map((p: any) => ({
+                    label: p.name,
+                    value: String(p.id),
+                    code: p.code || p.university?.code,
+                    subtitle: p.university?.name
+                  }))}
                   placeholder="All Programs"
                 />
 
@@ -246,6 +299,13 @@ export function FinanceTotalReportPanel() {
                 )}
               </div>
             </div>
+
+            {/* Active Filter Chips */}
+            {activeFilterItems.length > 0 && (
+              <div className="w-full pt-2 border-t border-muted/50">
+                <ActiveFilterBar filters={activeFilterItems} onClearAll={clearFilters} />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

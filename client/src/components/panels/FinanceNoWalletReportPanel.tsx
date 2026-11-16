@@ -109,7 +109,16 @@ export function FinanceNoWalletReportPanel() {
       </div>
 
       <div className="flex items-center gap-3 bg-white p-3 rounded-lg border shadow-sm">
-        <Select value={universityId} onValueChange={setUniversityId}>
+        <Select
+          value={universityId}
+          onValueChange={(val) => {
+            setUniversityId(val);
+            if (val !== 'all' && programId !== 'all') {
+              const match = programs.find((p: any) => p.id === programId && p.universityId === val);
+              if (!match) setProgramId('all');
+            }
+          }}
+        >
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Universities" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Universities</SelectItem>
@@ -122,7 +131,10 @@ export function FinanceNoWalletReportPanel() {
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Programs" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Programs</SelectItem>
-            {programs.map((p: any) => (
+            {(universityId && universityId !== 'all'
+              ? programs.filter((p: any) => p.universityId === universityId)
+              : programs
+            ).map((p: any) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
             ))}
           </SelectContent>

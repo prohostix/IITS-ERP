@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription
 } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import {
   CheckCircle2, Clock, AlertCircle, Eye, Filter, Landmark, RotateCcw
 } from 'lucide-react';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
+import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -590,6 +591,27 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     );
   }
 
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.branches || []).forEach((bid: string) => {
+      const match = branches.find(b => String(b.id) === String(bid));
+      items.push({
+        category: 'Branch',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = sessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    return items;
+  }, [filters, branches, sessions]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // DIRECTORY VIEW (Searchable List of All Study Centers)
   // ══════════════════════════════════════════════════════════════════════════
@@ -730,6 +752,13 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
               className="pl-8 text-xs h-9 bg-slate-50/50"
             />
           </div>
+
+          {/* Active Filter Chips */}
+          {activeFilterItems.length > 0 && (
+            <div className="w-full pt-2 border-t border-slate-100">
+              <ActiveFilterBar filters={activeFilterItems} onClearAll={clearFilters} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
