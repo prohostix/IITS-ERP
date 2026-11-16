@@ -632,7 +632,38 @@ export const getPendingPaymentCenters = asyncHandler(async (req: AuthRequest, re
     },
     orderBy: { createdAt: 'desc' }
   });
-  res.json({ success: true, data: centers });
+
+  const authFees = await prisma.universityAuthFee.findMany({
+    where: { organizationId: req.user.organizationId }
+  });
+
+  const universities = await prisma.university.findMany({
+    where: { organizationId: req.user.organizationId },
+    select: { id: true, name: true, code: true }
+  });
+
+  const enriched = centers.map(c => {
+    const uniIds = Array.isArray(c.universityIds) ? c.universityIds : [];
+    const centerAuthFees = uniIds.map(uid => {
+      const uni = universities.find(u => u.id === uid);
+      const fee = authFees.find(f => (f as any).universityId === uid || (f as any).university === uid);
+      const feeDetails = fee?.feeDetails as any;
+      const amount = typeof feeDetails?.amount === 'number'
+        ? feeDetails.amount
+        : (fee ? Number((fee as any).amount || 0) : null);
+      return {
+        universityId: uid,
+        universityName: uni?.name || uid,
+        amount
+      };
+    });
+    return {
+      ...c,
+      authFees: centerAuthFees
+    };
+  });
+
+  res.json({ success: true, data: enriched });
 });
 
 export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {

@@ -24,7 +24,7 @@ interface Center {
   address: string;
   verifiedBy?: { name: string };
   verifiedAt?: string;
-  authFees: AuthFeeEntry[];
+  authFees?: AuthFeeEntry[];
   paymentProof?: PaymentProof;
   createdAt: string;
 }
@@ -79,8 +79,8 @@ export function FinanceCenterVerificationPanel() {
     }
   };
 
-  const totalFee = (fees: AuthFeeEntry[]) =>
-    fees.reduce((sum, f) => sum + (f.amount || 0), 0);
+  const totalFee = (fees?: AuthFeeEntry[]) =>
+    Array.isArray(fees) ? fees.reduce((sum, f) => sum + (f.amount || 0), 0) : 0;
 
   return (
     <div className="space-y-6">
@@ -117,20 +117,26 @@ export function FinanceCenterVerificationPanel() {
                       <p className="text-xs text-muted-foreground mt-0.5">Docs verified by: {c.verifiedBy.name}</p>
                     )}
                     <div className="mt-3 space-y-1">
-                      {c.authFees.map(f => (
-                        <div key={f.universityId} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{f.universityName}</span>
-                          {f.amount !== null ? (
-                            <span className="font-semibold">&#8377;{f.amount.toLocaleString()}</span>
-                          ) : (
-                            <Badge variant="destructive" className="text-[10px]">Fee not configured</Badge>
-                          )}
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between text-sm font-bold pt-1 border-t border-border mt-1">
-                        <span>Total</span>
-                        <span>&#8377;{totalFee(c.authFees).toLocaleString()}</span>
-                      </div>
+                      {Array.isArray(c.authFees) && c.authFees.length > 0 ? (
+                        <>
+                          {c.authFees.map(f => (
+                            <div key={f.universityId} className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">{f.universityName}</span>
+                              {f.amount !== null && f.amount !== undefined ? (
+                                <span className="font-semibold">&#8377;{f.amount.toLocaleString()}</span>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px]">Fee not configured</Badge>
+                              )}
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between text-sm font-bold pt-1 border-t border-border mt-1">
+                            <span>Total</span>
+                            <span>&#8377;{totalFee(c.authFees).toLocaleString()}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground italic">No authorization fees specified</div>
+                      )}
                     </div>
                     {c.paymentProof ? (
                       <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border">
