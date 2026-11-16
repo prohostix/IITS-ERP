@@ -40,7 +40,7 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
   const [summary, setSummary] = useState<any>({});
 
   // Active persistent filters
-  const [filters, setFilters, clearFilters, isFiltered, setField] = usePersistentFilters('student_ledger_panel_v2', {
+  const [filters, , clearFilters, isFiltered, setField] = usePersistentFilters('student_ledger_panel_v2', {
     branches: [] as string[],
     sessions: [] as string[],
     centers: [] as string[],

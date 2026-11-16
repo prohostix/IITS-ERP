@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-  RefreshCw, CheckCircle, XCircle, Search, GraduationCap, Clock, AlertCircle, Ban,
+  RefreshCw, CheckCircle, XCircle, Search, GraduationCap, Clock, Ban,
   Wallet, Banknote, Upload, FileText, Trash2, Eye, Receipt
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,7 +36,8 @@ interface Enrollment {
 interface Summary {
   payment_pending: number;
   document_review: number;
-  finance_review: number;
+  finance_review?: number;
+  pending_finance_review?: number;
   enrolled: number;
   rejected: number;
   department_rejected: number;
