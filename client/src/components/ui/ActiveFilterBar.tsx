@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { X, Filter, RotateCcw } from 'lucide-react';
 
 export interface ActiveFilterItem {

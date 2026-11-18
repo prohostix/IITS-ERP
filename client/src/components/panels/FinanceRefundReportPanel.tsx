@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Search, RefreshCw, FileSpreadsheet, RotateCcw, Wallet, Banknote,
-  Receipt, Eye, Download, CheckCircle2, Clock, AlertTriangle, ExternalLink
+  Receipt, Eye, Download, CheckCircle2, Clock, AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

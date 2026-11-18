@@ -410,6 +410,7 @@ export function ProgramFeeStructurePanel() {
       yearlyBreakdown: yearly,
       semesterBreakdown: semester,
       baseFee: String(fee.baseFee || '0'),
+      universityFee: String(fee.universityFee || '0'),
       fullProgramFee: String(fee.fullProgramFee || '0'),
       oneTimeFee: String(oneTimeFeeObj ? oneTimeFeeObj.amount : '0'),
       oneTimeUniversityFee: String(fee.oneTimeUniversityFee || '0'),
@@ -1259,7 +1260,10 @@ export function ProgramFeeStructurePanel() {
                       <p className="text-xs text-muted-foreground mt-0.5">Fallback fee structure</p>
                     </div>
                   </div>
-                  {sessions.filter(s => !s.universityId || s.universityId === form.universityId).map(s => (
+                  {sessions.filter(s => {
+                    const sUniId = typeof s.universityId === 'object' ? (s.universityId as any)?.id : s.universityId;
+                    return !sUniId || String(sUniId) === String(form.universityId);
+                  }).map(s => (
                     <div 
                       key={s.id} 
                       onClick={() => { setForm({ ...form, admissionSessionId: s.id }); setWizardStep(3); }}
@@ -1270,7 +1274,9 @@ export function ProgramFeeStructurePanel() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-slate-800">{s.name}</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Term dates: {new Date(s.startDate).toLocaleDateString()} - {new Date(s.endDate).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Term dates: {s.startDate ? new Date(s.startDate).toLocaleDateString() : 'N/A'} - {s.endDate ? new Date(s.endDate).toLocaleDateString() : 'N/A'}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1283,18 +1289,38 @@ export function ProgramFeeStructurePanel() {
                 <div className="mb-6 flex items-center gap-3">
                   <Button variant="outline" size="icon" onClick={() => setWizardStep(2)} className="rounded-full w-8 h-8"><span className="sr-only">Back</span>&larr;</Button>
                   <div>
-                    <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">3</span> Select Program</h3>
-                    <p className="text-sm text-muted-foreground ml-8">Choose a program.</p>
+                    <h3 className="text-lg font-semibold flex items-center"><span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 inline-flex items-center justify-center text-sm mr-2">3</span> Select Program or Scope</h3>
+                    <p className="text-sm text-muted-foreground ml-8">Choose a specific program or configure a university-wide default fee structure.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ml-11">
-                  {programs.filter(p => p.universityId === form.universityId).map(p => {
+                  {/* University-Level Default Option */}
+                  <div
+                    onClick={() => {
+                      setForm({ ...form, level: 'university', programId: '', specialisation: '' });
+                      setWizardStep(4);
+                    }}
+                    className="p-4 border-2 border-dashed border-emerald-200 rounded-xl bg-emerald-50/20 hover:border-emerald-400 hover:shadow-md cursor-pointer transition-all group flex gap-4 items-center"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">All University Programs</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">University-level default fee structure</p>
+                    </div>
+                  </div>
+
+                  {programs.filter(p => {
+                    const pUniId = typeof p.universityId === 'object' ? p.universityId?.id : p.universityId;
+                    return String(pUniId) === String(form.universityId);
+                  }).map(p => {
                     const hasSpecs = p.specialisations && p.specialisations.length > 0;
                     return (
                       <div 
                         key={p.id} 
                         onClick={() => { 
-                          setForm({ ...form, programId: p.id, specialisation: '' }); 
+                          setForm({ ...form, level: 'program', programId: p.id, specialisation: '' }); 
                           if (hasSpecs) setWizardStep(3.5); 
                           else setWizardStep(4); 
                         }}
@@ -1306,7 +1332,7 @@ export function ProgramFeeStructurePanel() {
                         <div>
                           <h4 className="font-semibold text-slate-800">{p.name}</h4>
                           <p className="text-xs text-muted-foreground mt-0.5">{p.code}</p>
-                          {hasSpecs && <Badge variant="secondary" className="mt-2 text-[10px] bg-slate-100 text-slate-600">Has Specialisations</Badge>}
+                          {hasSpecs && <Badge variant="secondary" className="mt-2 text-[10px] bg-slate-100 text-slate-600">Has Specialisations ({p.specialisations?.length})</Badge>}
                         </div>
                       </div>
                     );
@@ -1377,11 +1403,64 @@ export function ProgramFeeStructurePanel() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
-                  <div className="space-y-1">
-                    <Label>Level <span className="text-destructive">*</span></Label>
-                    <select className="w-full border rounded-md px-3 py-2 text-sm bg-background max-w-xs" value={form.level} onChange={(e) => setForm({...form, level: e.target.value})} disabled>
-                      <option value="program">Program</option>
-                    </select>
+                  {/* Scope, Session, Specialisation & Effective Date Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Scope Level</Label>
+                      <select
+                        className="w-full h-9 border rounded-md px-3 text-xs bg-background"
+                        value={form.level}
+                        onChange={(e) => setForm({ ...form, level: e.target.value })}
+                      >
+                        <option value="program">Program Specific</option>
+                        <option value="university">University-Wide Default</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Admission Session</Label>
+                      <select
+                        className="w-full h-9 border rounded-md px-3 text-xs bg-background"
+                        value={form.admissionSessionId || '__none__'}
+                        onChange={(e) => setForm({ ...form, admissionSessionId: e.target.value })}
+                      >
+                        <option value="__none__">Default (All Sessions)</option>
+                        {sessions
+                          .filter(s => {
+                            const sUniId = typeof s.universityId === 'object' ? (s.universityId as any)?.id : s.universityId;
+                            return !sUniId || String(sUniId) === String(form.universityId);
+                          })
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {form.level === 'program' && (programs.find(p => p.id === form.programId)?.specialisations?.length || 0) > 0 && (
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Specialisation</Label>
+                        <select
+                          className="w-full h-9 border rounded-md px-3 text-xs bg-background"
+                          value={form.specialisation || ''}
+                          onChange={(e) => setForm({ ...form, specialisation: e.target.value })}
+                        >
+                          <option value="">All Specialisations (Default)</option>
+                          {programs.find(p => p.id === form.programId)?.specialisations?.map((s, idx) => (
+                            <option key={idx} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Effective From <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                      <Input
+                        type="date"
+                        value={form.effectiveFrom}
+                        onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
                   </div>
 
                   {/* Payment Mode Selection Cards */}
@@ -1513,11 +1592,40 @@ export function ProgramFeeStructurePanel() {
                   {/* YEAR-WISE INSTALLMENT SCHEDULE SECTION */}
                   {form.enableYearly && (
                     <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/20 space-y-4">
-                      <div className="flex items-center justify-between border-b border-purple-200/60 pb-2">
+                      <div className="flex items-center justify-between border-b border-purple-200/60 pb-2 flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <Badge className="bg-purple-600 text-white">Year-Wise Installment Schedule</Badge>
                           <span className="text-xs text-purple-800 font-medium">({form.yearlyBreakdown.length} Annual Installments)</span>
                         </div>
+                        {form.yearlyBreakdown.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const first = form.yearlyBreakdown[0];
+                              if (!first) return;
+                              setForm(prev => ({
+                                ...prev,
+                                yearlyBreakdown: prev.yearlyBreakdown.map((item, idx) =>
+                                  idx === 0
+                                    ? item
+                                    : {
+                                        ...item,
+                                        baseFee: first.baseFee,
+                                        universityFee: first.universityFee,
+                                        examFee: first.examFee,
+                                        commissionRate: first.commissionRate,
+                                      }
+                                ),
+                              }));
+                              toast.success('Copied Year 1 amounts to all years');
+                            }}
+                            className="h-7 text-xs bg-white border-purple-200 text-purple-700 hover:bg-purple-50"
+                          >
+                            Copy Year 1 to All Years
+                          </Button>
+                        )}
                       </div>
 
                       <div className="space-y-3">
@@ -1577,11 +1685,40 @@ export function ProgramFeeStructurePanel() {
                   {/* SEMESTER-WISE INSTALLMENT SCHEDULE SECTION */}
                   {form.enableSemester && (
                     <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/20 space-y-4">
-                      <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                      <div className="flex items-center justify-between border-b border-blue-200/60 pb-2 flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <Badge className="bg-blue-600 text-white">Semester-Wise Installment Schedule</Badge>
                           <span className="text-xs text-blue-800 font-medium">({form.semesterBreakdown.length} Semester Installments)</span>
                         </div>
+                        {form.semesterBreakdown.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const first = form.semesterBreakdown[0];
+                              if (!first) return;
+                              setForm(prev => ({
+                                ...prev,
+                                semesterBreakdown: prev.semesterBreakdown.map((item, idx) =>
+                                  idx === 0
+                                    ? item
+                                    : {
+                                        ...item,
+                                        baseFee: first.baseFee,
+                                        universityFee: first.universityFee,
+                                        examFee: first.examFee,
+                                        commissionRate: first.commissionRate,
+                                      }
+                                ),
+                              }));
+                              toast.success('Copied Semester 1 amounts to all semesters');
+                            }}
+                            className="h-7 text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                          >
+                            Copy Semester 1 to All Semesters
+                          </Button>
+                        )}
                       </div>
 
                       <div className="space-y-3">
