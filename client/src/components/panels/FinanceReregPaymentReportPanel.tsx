@@ -18,8 +18,12 @@ import { toast } from 'sonner';
 import { MultiSelectFilter } from '@/components/ui/MultiSelectFilter';
 import { ActiveFilterBar, type ActiveFilterItem } from '@/components/ui/ActiveFilterBar';
 import { usePersistentFilters } from '@/hooks/usePersistentFilters';
+import { useAuth } from '@/hooks/useAuth';
 
 export function FinanceReregPaymentReportPanel() {
+  const { user } = useAuth();
+  const isCenterAdmin = user?.role === 'center_admin';
+
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<any>({});
   const [universities, setUniversities] = useState<any[]>([]);
@@ -57,18 +61,23 @@ export function FinanceReregPaymentReportPanel() {
 
   const fetchFilterOptions = async () => {
     try {
-      const [bRes, uRes, cRes, pRes, sRes] = await Promise.all([
-        api.get('/org/branches').catch(() => ({ data: { data: [] } })),
+      const calls: Promise<any>[] = [
         api.get('/operations/universities'),
-        api.get('/operations/centers'),
         api.get('/operations/programs'),
         api.get('/operations/sessions')
-      ]);
-      setAllBranches(bRes.data.data || []);
-      setAllUniversities(uRes.data.data || []);
-      setAllCenters(cRes.data.data || []);
-      setAllPrograms(pRes.data.data || []);
-      setAllSessions(sRes.data.data || []);
+      ];
+      if (!isCenterAdmin) {
+        calls.push(api.get('/org/branches').catch(() => ({ data: { data: [] } })));
+        calls.push(api.get('/operations/centers'));
+      }
+      const results = await Promise.all(calls);
+      setAllUniversities(results[0].data.data || []);
+      setAllPrograms(results[1].data.data || []);
+      setAllSessions(results[2].data.data || []);
+      if (!isCenterAdmin) {
+        setAllBranches(results[3].data.data || []);
+        setAllCenters(results[4].data.data || []);
+      }
     } catch (_e) {}
   };
 
@@ -92,14 +101,16 @@ export function FinanceReregPaymentReportPanel() {
 
   const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
     const items: ActiveFilterItem[] = [];
-    (filters.branches || []).forEach((bid: string) => {
-      const match = allBranches.find(b => String(b.id) === String(bid));
-      items.push({
-        category: 'Branch',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
-        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+    if (!isCenterAdmin) {
+      (filters.branches || []).forEach((bid: string) => {
+        const match = allBranches.find(b => String(b.id) === String(bid));
+        items.push({
+          category: 'Branch',
+          label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+          onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+        });
       });
-    });
+    }
     (filters.sessions || []).forEach((sid: string) => {
       const match = allSessions.find(s => String(s.id) === String(sid));
       items.push({
@@ -124,16 +135,18 @@ export function FinanceReregPaymentReportPanel() {
         onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
       });
     });
-    (filters.centers || []).forEach((cid: string) => {
-      const match = allCenters.find(c => String(c.id) === String(cid));
-      items.push({
-        category: 'Center',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
-        onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
+    if (!isCenterAdmin) {
+      (filters.centers || []).forEach((cid: string) => {
+        const match = allCenters.find(c => String(c.id) === String(cid));
+        items.push({
+          category: 'Center',
+          label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
+          onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
+        });
       });
-    });
+    }
     return items;
-  }, [filters, allBranches, allSessions, allUniversities, allPrograms, allCenters]);
+  }, [filters, allBranches, allSessions, allUniversities, allPrograms, allCenters, isCenterAdmin]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -495,7 +508,7 @@ export function FinanceReregPaymentReportPanel() {
         <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Branches */}
-            {allBranches.length > 0 && (
+            {!isCenterAdmin && allBranches.length > 0 && (
               <MultiSelectFilter
                 title="Branches"
                 placeholder="All Branches"
@@ -529,13 +542,15 @@ export function FinanceReregPaymentReportPanel() {
             />
 
             {/* Centers */}
-            <MultiSelectFilter
-              title="Centers"
-              placeholder="All Centers"
-              options={allCenters.map(c => ({ label: c.name, value: c.id, code: c.code }))}
-              selectedValues={filters.centers}
-              onChange={vals => setField('centers', vals)}
-            />
+            {!isCenterAdmin && (
+              <MultiSelectFilter
+                title="Centers"
+                placeholder="All Centers"
+                options={allCenters.map(c => ({ label: c.name, value: c.id, code: c.code }))}
+                selectedValues={filters.centers}
+                onChange={vals => setField('centers', vals)}
+              />
+            )}
 
             {/* Programs */}
             <MultiSelectFilter

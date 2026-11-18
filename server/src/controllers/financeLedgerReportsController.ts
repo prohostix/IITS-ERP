@@ -497,8 +497,12 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
   const orgId = req.user.organizationId;
   const allBranchesScope = await getAllBranchesScope(orgId);
 
+  const userCenterId = req.user.role === 'center_admin'
+    ? ((req.user as any).studyCenterId || (req.user as any).centerId || req.user.studyCenter?.id || null)
+    : null;
+
   let branchCenterIds: string[] | null = null;
-  if (branchId && branchId !== 'all') {
+  if (!userCenterId && branchId && branchId !== 'all') {
     const branchIds = String(branchId).split(',').map(b => b.trim()).filter(Boolean);
     const scopes = await Promise.all(branchIds.map(bid => getBranchScopeByBranchId(orgId, bid)));
     branchCenterIds = Array.from(new Set(scopes.flatMap(s => s.centerIds)));
@@ -511,7 +515,9 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
     status: 'paid'
   };
 
-  if (centerId && centerId !== 'all') {
+  if (userCenterId) {
+    invoiceWhere.centerId = userCenterId;
+  } else if (centerId && centerId !== 'all') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
     invoiceWhere.centerId = cids.length === 1 ? cids[0] : { in: cids };
   } else if (branchCenterIds) {
@@ -646,7 +652,9 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
       ...(universityId && universityId !== 'all' ? {
         program: { universityId: String(universityId).includes(',') ? { in: String(universityId).split(',').filter(Boolean) } : (universityId as string) }
       } : {}),
-      ...(centerId && centerId !== 'all' ? {
+      ...(userCenterId ? {
+        studyCenterId: userCenterId
+      } : centerId && centerId !== 'all' ? {
         studyCenterId: String(centerId).includes(',') ? { in: String(centerId).split(',').filter(Boolean) } : (centerId as string)
       } : branchCenterIds ? {
         studyCenterId: { in: branchCenterIds }
@@ -777,6 +785,10 @@ export const getReregPaymentReport = asyncHandler(async (req: AuthRequest, res: 
           status: 'pending',
           dueDate: null
         });
+
+        // Break immediately after the first unpaid installment is added so that
+        // only the student's immediate upcoming re-registration is shown, not future installments.
+        break;
       }
     }
   }

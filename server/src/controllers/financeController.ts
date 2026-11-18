@@ -1626,7 +1626,7 @@ export const getReregPendingReport = asyncHandler(async (req: AuthRequest, res: 
   
   let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
-    const cid = (req.user as any).studyCenterId || (req.user as any).centerId;
+    const cid = (req.user as any).studyCenterId || (req.user as any).centerId || req.user.studyCenter?.id;
     centerCondition = { studyCenterId: cid };
   } else if (centerId && centerId !== '__all__') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);
@@ -1813,7 +1813,7 @@ export const getReregCompletedReport = asyncHandler(async (req: AuthRequest, res
   
   let centerCondition: any = {};
   if (req.user.role === 'center_admin') {
-    const cid = (req.user as any).studyCenterId || (req.user as any).centerId;
+    const cid = (req.user as any).studyCenterId || (req.user as any).centerId || req.user.studyCenter?.id;
     centerCondition = { studyCenterId: cid };
   } else if (centerId && centerId !== '__all__') {
     const cids = String(centerId).split(',').map(c => c.trim()).filter(Boolean);

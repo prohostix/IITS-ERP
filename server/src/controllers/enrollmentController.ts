@@ -1005,6 +1005,30 @@ export const processPaymentStage = asyncHandler(async (req: AuthRequest, res: Re
     return;
   }
 
+  // Notify Finance admins about the enrollment payment ready for review
+  try {
+    const financeAdmins = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        role: { in: ['finance_admin', 'finance_sub_admin', 'finance'] as any }
+      }
+    });
+
+    if (financeAdmins.length > 0) {
+      await prisma.notification.createMany({
+        data: financeAdmins.map(admin => ({
+          organizationId: req.user.organizationId,
+          userId: admin.id,
+          title: '📄 Enrollment Fee Paid via Wallet',
+          message: `Payment for ${dbEnrollment.studentName} (${dbEnrollment.program?.name || 'Program'}) has been submitted via wallet. Pending finance verification.`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: 'enrollments_finance'
+        }))
+      });
+    }
+  } catch (_e) {}
+
   res.json({ success: true, message: 'Payment stage completed' });
 });
 

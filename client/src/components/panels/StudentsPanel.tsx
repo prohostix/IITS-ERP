@@ -687,12 +687,12 @@ export function StudentsPanel() {
   const handlePayInstallmentClick = (installmentName: string, amount: number) => {
     if (!selectedStudent) return;
     
-    const uniCategory = selectedStudent.program?.university?.category;
+    const uniCategory = selectedStudent.program?.university?.category || selectedStudent.programId?.university?.category;
     const isNoWallet = uniCategory === 'team_lease';
     
     const message = isNoWallet 
       ? `Are you sure you want to mark ₹${amount.toLocaleString()} for ${installmentName} as paid directly to the university?`
-      : `Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} using your study center wallet?`;
+      : `Are you sure you want to pay ₹${amount.toLocaleString()} for ${installmentName} in advance using your study center wallet?`;
       
     setPayConfirmData({ installmentName, amount, message });
   };
@@ -1989,7 +1989,7 @@ export function StudentsPanel() {
                                 <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30 font-semibold text-xs flex items-center gap-1">
                                   <Clock className="w-3.5 h-3.5" /> Pending
                                 </Badge>
-                                {user?.role === 'center_admin' && (!selectedStudent?.programId?.university?.category || selectedStudent?.programId?.university?.category === 'direct_iits') && (
+                                {user?.role === 'center_admin' && (
                                   <Button
                                     size="sm"
                                     variant="outline"

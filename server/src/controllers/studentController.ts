@@ -782,9 +782,19 @@ export const getStudentInstallments = asyncHandler(async (req: AuthRequest, res:
 
 export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { installmentName, amount } = req.body;
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0) {
+    res.status(400).json({ success: false, message: 'Invalid payment amount' });
+    return;
+  }
+
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
-    include: { program: { include: { university: true, programFeeStructure: true } }, enrollments: true }
+    include: {
+      program: { include: { university: true, programFeeStructure: true } },
+      enrollments: true,
+      center: true
+    }
   });
 
   if (!student) {
@@ -792,45 +802,71 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
     return;
   }
 
-  const category = (student.program.university as any)?.category || 'team_lease';
-  const NO_WALLET_CATEGORIES = ['team_lease'];
-  const isNoWallet = NO_WALLET_CATEGORIES.includes(category);
+  // Resolve study center
+  const centerId = req.user.studyCenterId || (req.user as any).centerId || req.user.studyCenter?.id || student.centerId;
+  if (!centerId) {
+    res.status(400).json({ success: false, message: 'Study center could not be identified' });
+    return;
+  }
 
-  const wallet = await prisma.studyCenterWallet.findUnique({
-    where: { studyCenterId: req.user.studyCenterId || '' }
+  const uniCategory = (student.program?.university as any)?.category;
+  // NO_WALLET_CATEGORIES: ONLY 'team_lease' is direct-to-university without wallet deduction.
+  // 'direct_iits', 'premium', or universities without a category are WALLET universities.
+  const isNoWallet = uniCategory === 'team_lease';
+
+  // Find or initialize center wallet
+  let wallet = await prisma.studyCenterWallet.findUnique({
+    where: { studyCenterId: centerId }
   });
+  if (!wallet && !isNoWallet) {
+    wallet = await prisma.studyCenterWallet.create({
+      data: {
+        organizationId: req.user.organizationId,
+        studyCenterId: centerId,
+        balance: 0
+      }
+    });
+  }
 
   if (!isNoWallet) {
-    if (!wallet || wallet.balance < amount) {
-      res.status(400).json({ success: false, message: `Insufficient wallet balance. Available: ₹${wallet?.balance || 0}` });
+    if (!wallet || wallet.balance < numAmount) {
+      res.status(400).json({
+        success: false,
+        message: `Insufficient wallet balance. Required: ₹${numAmount.toLocaleString('en-IN')}, Available: ₹${(wallet?.balance || 0).toLocaleString('en-IN')}. Please top up your wallet first.`
+      });
       return;
     }
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Deduct wallet only for universities that use wallets
+    // 1. Deduct wallet for wallet universities
     if (!isNoWallet && wallet) {
       await tx.studyCenterWallet.update({
         where: { id: wallet.id },
-        data: { balance: { decrement: amount } }
+        data: { balance: { decrement: numAmount } }
       });
     }
 
-    // 2. Create Invoice
-    const invoiceNo = `INV-STU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // 2. Create Invoice for the center/student
+    const invoiceNo = `INV-ADV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const invoice = await tx.invoice.create({
       data: {
         organizationId: req.user.organizationId,
-        centerId: req.user.studyCenterId || '',
+        centerId: centerId,
         studentId: student.id,
         invoiceNo,
-        amount,
+        amount: numAmount,
         tax: 0,
-        total: amount,
+        total: numAmount,
         status: 'paid',
         dueDate: new Date(),
         paidAt: new Date(),
-        items: [{ description: `Fee for ${installmentName} (${student.program.name})`, quantity: 1, rate: amount, amount }]
+        items: [{
+          description: `Advance Fee for ${installmentName} (${student.program?.name || 'Program'})`,
+          quantity: 1,
+          rate: numAmount,
+          amount: numAmount
+        }]
       }
     });
 
@@ -839,27 +875,110 @@ export const payStudentInstallment = asyncHandler(async (req: AuthRequest, res: 
       data: {
         organizationId: req.user.organizationId,
         invoiceId: invoice.id,
-        amount,
+        amount: numAmount,
         method: isNoWallet ? 'direct_to_university' : 'wallet_debit',
         receivedBy: req.user.id,
-        notes: isNoWallet ? `Student paid directly to the university - ${installmentName}` : `Paid in advance by study center for student ${student.name} - ${installmentName}`
+        notes: isNoWallet
+          ? `Student paid directly to the university - ${installmentName}`
+          : `Advance paid by study center from wallet for student ${student.name} - ${installmentName}`
       }
     });
 
-    // 4. Create StudentFeeReceipt so it reflects in the Student Payment Log
+    // 4. Create StudentFeeReceipt so it reflects in the Student Payment Log and statement
     const enrollment = student.enrollments && student.enrollments.length > 0 ? student.enrollments[0] : null;
     if (enrollment) {
       await tx.studentFeeReceipt.create({
         data: {
           organizationId: req.user.organizationId,
           enrollmentId: enrollment.id,
-          amount,
+          amount: numAmount,
           receiptDate: new Date(),
           paymentMode: isNoWallet ? 'Direct to University' : 'Wallet',
           remarks: `Installment Paid: ${installmentName}`,
+          referenceNo: invoiceNo,
           recordedBy: req.user.id
         }
       });
+
+      // 5. Reach Finance for approval: Unlock or create UniversityFeePayment with status: 'pending'
+      let uniFeeAmount = numAmount;
+      if (student.program?.programFeeStructure) {
+        const pfs = student.program.programFeeStructure as any[];
+        const feeStructure = pfs.find((f: any) => f.admissionSessionId === enrollment.sessionId && f.specialisation === enrollment.specialisation) ||
+               pfs.find((f: any) => !f.admissionSessionId && f.specialisation === enrollment.specialisation) ||
+               pfs.find((f: any) => f.admissionSessionId === enrollment.sessionId && !f.specialisation) ||
+               pfs.find((f: any) => !f.admissionSessionId && !f.specialisation) ||
+               pfs[0];
+
+        if (feeStructure && feeStructure.feeBreakdown) {
+          const rawBreakdown = typeof feeStructure.feeBreakdown === 'string'
+            ? (() => { try { return JSON.parse(feeStructure.feeBreakdown); } catch { return []; } })()
+            : (feeStructure.feeBreakdown as any[]);
+          const invoiceMethod = /semester|sem\b/i.test(installmentName)
+            ? 'semester'
+            : (/year/i.test(installmentName) ? 'yearly' : enrollment.paymentMethod);
+          const breakdown = filterBreakdownsForMethod(rawBreakdown, invoiceMethod, feeStructure.billingCycle).blocks;
+          const match = installmentName.match(/\d+/);
+          if (match && breakdown.length > 0) {
+            const index = parseInt(match[0], 10) - 1;
+            if (index >= 0 && index < breakdown.length) {
+              const b = breakdown[index];
+              if (b.universityFee) uniFeeAmount = Number(b.universityFee);
+            }
+          }
+        }
+      }
+
+      const existingUniPayment = await tx.universityFeePayment.findFirst({
+        where: {
+          studentId: student.id,
+          enrollmentId: enrollment.id,
+          semesterOrYear: { contains: installmentName, mode: 'insensitive' }
+        }
+      });
+
+      if (existingUniPayment) {
+        await tx.universityFeePayment.update({
+          where: { id: existingUniPayment.id },
+          data: {
+            status: 'pending',
+            amount: uniFeeAmount > 0 ? uniFeeAmount : existingUniPayment.amount
+          }
+        });
+      } else {
+        await tx.universityFeePayment.create({
+          data: {
+            organizationId: req.user.organizationId,
+            studentId: student.id,
+            enrollmentId: enrollment.id,
+            semesterOrYear: installmentName,
+            amount: uniFeeAmount,
+            status: 'pending'
+          }
+        });
+      }
+
+      // Notify Finance admins about the advance payment awaiting verification/approval
+      const financeAdmins = await tx.user.findMany({
+        where: {
+          organizationId: req.user.organizationId,
+          role: { in: ['finance_admin', 'finance_sub_admin', 'finance'] as any }
+        }
+      });
+
+      if (financeAdmins.length > 0) {
+        await tx.notification.createMany({
+          data: financeAdmins.map(admin => ({
+            organizationId: req.user.organizationId,
+            userId: admin.id,
+            title: '💳 University Fee Advance Paid',
+            message: `Study center has paid ₹${numAmount.toLocaleString('en-IN')} in advance for ${student.name} (${installmentName}). University fee is awaiting finance review/approval.`,
+            type: 'general' as any,
+            priority: 'high' as any,
+            link: 'university_fees'
+          }))
+        });
+      }
 
       // 5. Update CommissionIn if applicable
       let commToAdd = 0;
