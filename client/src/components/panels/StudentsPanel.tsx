@@ -423,6 +423,7 @@ export function StudentsPanel() {
   const [displayFieldsOpen, setDisplayFieldsOpen] = useState(false);
   const [selectedDisplayFields, setSelectedDisplayFields] = useState<string[]>(DEFAULT_DISPLAY_FIELD_KEYS);
   const [reportViewMode, setReportViewMode] = useState<'directory' | 'report'>('directory');
+  const currentViewMode = isCenter ? 'directory' : reportViewMode;
 
   const isAllDisplayFieldsChecked = selectedDisplayFields.length === ALL_DISPLAY_FIELD_KEYS.length;
   const isDefaultDisplayFieldsChecked =
@@ -1158,33 +1159,35 @@ export function StudentsPanel() {
           )}
 
           {/* Select Student Display Field Filter Dropdown Trigger */}
-          <Button
-            type="button"
-            variant={displayFieldsOpen ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDisplayFieldsOpen((prev) => !prev)}
-            className={cn(
-              'h-9 px-3 text-xs font-semibold gap-1.5 shadow-xs transition-all',
-              displayFieldsOpen
-                ? 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600'
-                : 'border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40'
-            )}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Select Student Display Field</span>
-            <Badge
-              variant="secondary"
+          {!isCenter && (
+            <Button
+              type="button"
+              variant={displayFieldsOpen ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDisplayFieldsOpen((prev) => !prev)}
               className={cn(
-                'ml-0.5 px-1.5 py-0 text-[10px] font-bold rounded-full',
+                'h-9 px-3 text-xs font-semibold gap-1.5 shadow-xs transition-all',
                 displayFieldsOpen
-                  ? 'bg-white/20 text-white'
-                  : 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200'
+                  ? 'bg-sky-600 hover:bg-sky-700 text-white border-sky-600'
+                  : 'border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/40'
               )}
             >
-              {selectedDisplayFields.length}/{STUDENT_DISPLAY_FIELDS.length}
-            </Badge>
-            <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', displayFieldsOpen && 'rotate-180')} />
-          </Button>
+              <Eye className="w-3.5 h-3.5" />
+              <span>Select Student Display Field</span>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  'ml-0.5 px-1.5 py-0 text-[10px] font-bold rounded-full',
+                  displayFieldsOpen
+                    ? 'bg-white/20 text-white'
+                    : 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200'
+                )}
+              >
+                {selectedDisplayFields.length}/{STUDENT_DISPLAY_FIELDS.length}
+              </Badge>
+              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', displayFieldsOpen && 'rotate-180')} />
+            </Button>
+          )}
 
           {/* Clear Filters Button */}
           {isFiltered && (
@@ -1209,7 +1212,7 @@ export function StudentsPanel() {
       </div>
 
       {/* Select Student Display Field Collapsible Dropdown Panel */}
-      {displayFieldsOpen && (
+      {!isCenter && displayFieldsOpen && (
         <div className="rounded-xl overflow-hidden border border-sky-300 dark:border-sky-800 shadow-sm mb-4">
           <div className="bg-[#00a6fb] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 font-semibold text-sm">
@@ -1301,34 +1304,36 @@ export function StudentsPanel() {
         />
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
-            <button
-              type="button"
-              onClick={() => setReportViewMode('directory')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
-                reportViewMode === 'directory'
-                  ? 'bg-background text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-              Directory
-            </button>
-            <button
-              type="button"
-              onClick={() => setReportViewMode('report')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
-                reportViewMode === 'report'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <TableIcon className="w-3.5 h-3.5" />
-              Report Table ({orderedSelectedFields.length} Cols)
-            </button>
-          </div>
+          {!isCenter && (
+            <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setReportViewMode('directory')}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
+                  currentViewMode === 'directory'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                Directory
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportViewMode('report')}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all',
+                  currentViewMode === 'report'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                Report Table ({orderedSelectedFields.length} Cols)
+              </button>
+            </div>
+          )}
 
           <Button
             type="button"
@@ -1347,11 +1352,11 @@ export function StudentsPanel() {
         <CardHeader className="py-4 border-b bg-muted/20">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <span>{reportViewMode === 'report' ? 'Generated Student Report' : 'Student Directory'}</span>
+              <span>{currentViewMode === 'report' ? 'Generated Student Report' : 'Student Directory'}</span>
               <Badge variant="outline" className="text-xs font-mono font-semibold bg-background">
                 {students.length} {students.length === 1 ? 'student' : 'students'}
               </Badge>
-              {reportViewMode === 'report' && (
+              {currentViewMode === 'report' && (
                 <Badge variant="secondary" className="text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
                   {orderedSelectedFields.length} Columns
                 </Badge>
@@ -1364,7 +1369,7 @@ export function StudentsPanel() {
             <div className="text-center py-8 text-muted-foreground">Loading students...</div>
           ) : students.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No students found</div>
-          ) : reportViewMode === 'report' ? (
+          ) : currentViewMode === 'report' ? (
             orderedSelectedFields.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No display fields selected. Click <strong>Select Student Display Field</strong> above to choose columns.
