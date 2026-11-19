@@ -828,3 +828,4 @@ export function VisitorManagementPanel() {
     </div>
   );
 }
+

@@ -55,7 +55,8 @@ export function FinanceSalaryApprovalPanel() {
     try {
       const params = status ? `?status=${status}` : '';
       const res = await api.get(`/finance/salary-configs${params}`);
-      setConfigs(res.data.data || []);
+      const rawList = res.data.data || [];
+      setConfigs(rawList.filter((c: any) => (c.userId as any)?.status !== 'resigned'));
       setSummary(res.data.summary || null);
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to load salary configs');

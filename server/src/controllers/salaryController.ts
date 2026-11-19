@@ -5,16 +5,24 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getSalaryConfigs = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const includeResigned = req.query.includeResigned === 'true';
+  const where: any = { organizationId: req.user.organizationId };
+  if (!includeResigned) {
+    where.user = { status: { not: 'resigned' } };
+  }
   const configs = await prisma.salaryConfig.findMany({
-    where: { organizationId: req.user.organizationId },
-    include: { user: { select: { name: true, email: true, designation: true } } }
+    where,
+    include: { user: { select: { id: true, name: true, email: true, designation: true, role: true, status: true } } }
   });
   res.json({ success: true, count: configs.length, data: configs });
 });
 
 export const getFinanceSalaryConfigs = asyncHandler(async (req: AuthRequest, res: Response) => {
   const status = req.query.status as string;
-  const where: any = { organizationId: req.user.organizationId };
+  const where: any = { 
+    organizationId: req.user.organizationId,
+    user: { status: { not: 'resigned' } }
+  };
   if (status && status !== 'all') {
     where.approvalStatus = status;
   } else if (!status) {
@@ -22,11 +30,14 @@ export const getFinanceSalaryConfigs = asyncHandler(async (req: AuthRequest, res
   }
   const configs = await prisma.salaryConfig.findMany({
     where,
-    include: { user: { select: { name: true, email: true, designation: true, role: true } } }
+    include: { user: { select: { id: true, name: true, email: true, designation: true, role: true, status: true } } }
   });
 
   const allConfigs = await prisma.salaryConfig.findMany({
-    where: { organizationId: req.user.organizationId }
+    where: { 
+      organizationId: req.user.organizationId,
+      user: { status: { not: 'resigned' } }
+    }
   });
 
   const summary = {

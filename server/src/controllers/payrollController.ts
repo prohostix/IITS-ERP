@@ -17,6 +17,9 @@ export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) 
     where.employeeId = req.user.id;
   } else if (employeeId) {
     where.employeeId = employeeId;
+  } else {
+    // Exclude resigned employees from general organization payroll views
+    where.user = { status: { not: 'resigned' } };
   }
 
   if (month) where.month = month;
@@ -32,6 +35,7 @@ export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) 
           email: true,
           designation: true,
           departmentId: true,
+          status: true,
         }
       },
       confirmer: { select: { id: true, name: true, email: true } },

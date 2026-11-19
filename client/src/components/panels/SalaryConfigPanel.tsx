@@ -66,11 +66,15 @@ export function SalaryConfigPanel() {
     try {
       const [cfgRes, usersRes] = await Promise.all([
         api.get('/hr/salary-configs'),
-        api.get('/users'),
+        api.get('/users?status=active'),
       ]);
-      setConfigs(cfgRes.data.data || []);
+      const rawConfigs = cfgRes.data.data || [];
+      setConfigs(rawConfigs.filter((c: any) => {
+        const u = typeof c.userId === 'object' ? c.userId : null;
+        return u?.status !== 'resigned';
+      }));
       const allUsers: User[] = usersRes.data.data || [];
-      setUsers(allUsers.filter(u => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role)));
+      setUsers(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role) && u.status !== 'resigned'));
     } catch {
       toast.error('Failed to load salary data');
     } finally {
@@ -147,6 +151,8 @@ export function SalaryConfigPanel() {
   const unconfiguredUsers = users.filter(u => !configuredUserIds.has(u.id));
 
   const filtered = configs.filter(c => {
+    const u = typeof c.userId === 'object' ? c.userId : null;
+    if (u?.status === 'resigned') return false;
     const name = (typeof c.userId === 'object' ? c.userId.name : '') || '';
     return name.toLowerCase().includes(search.toLowerCase());
   });

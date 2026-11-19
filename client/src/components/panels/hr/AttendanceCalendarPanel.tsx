@@ -28,9 +28,9 @@ export function AttendanceCalendarPanel() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get('/users');
+      const res = await api.get('/users?status=active');
       const allUsers = res.data.data || [];
-      const filtered = allUsers.filter((u: any) => !['superadmin', 'student', 'center_admin'].includes(u.role));
+      const filtered = allUsers.filter((u: any) => !['superadmin', 'student', 'center_admin'].includes(u.role) && u.status !== 'resigned');
       setEmployees(filtered);
     } catch (e: any) {
       toast.error('Failed to load employees');

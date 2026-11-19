@@ -108,9 +108,9 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
 
   const fetchEmployees = async () => {
     try {
-      const response = await api.get('/users');
+      const response = await api.get('/users?status=active');
       const allUsers = response.data.data || [];
-      setEmployees(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role)));
+      setEmployees(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role) && u.status !== 'resigned'));
     } catch (error) {
     }
   };
@@ -329,6 +329,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
       // Personal view: only show own recorded attendance
       return attendance.filter(rec => {
         if (!rec || !rec.date) return false;
+        if (rec.user?.status === 'resigned') return false;
         if (!dateFilter) return true;
         const recDate = new Date(rec.date);
         return recDate.getDate() === dateFilter.getDate() && 
@@ -344,7 +345,8 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
     }
 
     // HR / Manager View: match all active employees against attendance for selected date
-    return employees.map(emp => {
+    const activeStaff = employees.filter(emp => emp.status !== 'resigned');
+    return activeStaff.map(emp => {
       const empId = emp.id;
       const existingRec = attendance.find(rec => {
         const recEmpId = rec.employeeId?.id || rec.userId || rec.employeeId;

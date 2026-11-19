@@ -69,3 +69,4 @@ router.patch(
 router.get('/hosts', getOfficeHosts);
 
 export default router;
+

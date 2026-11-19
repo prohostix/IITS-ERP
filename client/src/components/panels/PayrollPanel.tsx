@@ -74,7 +74,8 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
     setLoading(true);
     try {
       const res = await api.get('/payroll');
-      setPayrolls(res.data.data || []);
+      const rawPayrolls = res.data.data || [];
+      setPayrolls(rawPayrolls.filter((p: any) => (p.user as any)?.status !== 'resigned' && (p.employeeId as any)?.status !== 'resigned'));
     } catch { toast.error('Failed to fetch payrolls'); }
     finally { setLoading(false); }
   };

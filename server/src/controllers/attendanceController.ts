@@ -101,12 +101,15 @@ export const getMonthlyLateSummary = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const getAttendances = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { employeeId, userId, startDate, endDate, date } = req.query;
+  const { employeeId, userId, startDate, endDate, date, includeResigned } = req.query;
   const where: any = { organizationId: req.user.organizationId };
 
   const targetUser = userId || employeeId;
   if (targetUser && targetUser !== 'all') {
     where.userId = targetUser as string;
+  } else if (includeResigned !== 'true') {
+    // Exclude resigned staff from general organization-wide attendance views
+    where.user = { status: { not: 'resigned' } };
   }
 
   if (date) {
@@ -134,7 +137,19 @@ export const getAttendances = asyncHandler(async (req: AuthRequest, res: Respons
 
   const attendances = await prisma.attendance.findMany({ 
     where, 
-    include: { user: true },
+    include: { 
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          designation: true,
+          status: true,
+          role: true,
+          department: { select: { id: true, name: true } }
+        }
+      }
+    },
     orderBy: { date: 'desc' }
   });
   const mapped = attendances.map(a => ({
@@ -403,7 +418,7 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
 
     let userWhere: any = { 
       organizationId: req.user.organizationId, 
-      status: 'active' as any,
+      status: { notIn: ['resigned', 'suspended'] },
       role: { notIn: ['student', 'center_admin', 'superadmin'] }
     };
     if (departmentId) {
