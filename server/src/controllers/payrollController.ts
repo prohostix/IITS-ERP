@@ -572,6 +572,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       delete finalDeductions.loss_of_pay;
       delete finalDeductions.late_arrival;
       delete finalDeductions.late_deduction;
+      delete finalDeductions.tax;
       if (lopDeduction > 0) {
         finalDeductions.loss_of_pay = lopDeduction;
       }

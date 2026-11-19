@@ -13,11 +13,30 @@ export const getSalaryConfigs = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 export const getFinanceSalaryConfigs = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const status = req.query.status as string;
+  const where: any = { organizationId: req.user.organizationId };
+  if (status && status !== 'all') {
+    where.approvalStatus = status;
+  } else if (!status) {
+    where.approvalStatus = 'pending_approval';
+  }
   const configs = await prisma.salaryConfig.findMany({
-    where: { organizationId: req.user.organizationId, approvalStatus: 'pending_approval' },
-    include: { user: { select: { name: true, email: true, designation: true } } }
+    where,
+    include: { user: { select: { name: true, email: true, designation: true, role: true } } }
   });
-  res.json({ success: true, count: configs.length, data: configs });
+
+  const allConfigs = await prisma.salaryConfig.findMany({
+    where: { organizationId: req.user.organizationId }
+  });
+
+  const summary = {
+    total: allConfigs.length,
+    pending: allConfigs.filter(c => c.approvalStatus === 'pending_approval').length,
+    approved: allConfigs.filter(c => c.approvalStatus === 'approved').length,
+    rejected: allConfigs.filter(c => c.approvalStatus === 'rejected').length,
+  };
+
+  res.json({ success: true, count: configs.length, summary, data: configs });
 });
 
 export const getSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -65,11 +84,18 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
     });
   }
 
-  const deductions = req.body.deductions || {};
+  const deductions = req.body.deductions ? { ...req.body.deductions } : {};
   // If basic is <= 15000 and the frontend hasn't provided a pf value, apply default statutory calculation
   if (numBasic <= 15000 && (deductions.pf === undefined || deductions.pf === null || deductions.pf === '')) {
     deductions.pf = Math.round(numBasic * 0.12);
   }
+  // Ensure TDS isn't duplicated inside deductions.tax
+  if (tds !== undefined && tds !== null) {
+    delete deductions.tax;
+  }
+
+  const autoApprove = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
+  const initialStatus = autoApprove ? 'approved' : 'pending_approval';
 
   const config = await prisma.salaryConfig.upsert({
     where: { userId: req.params.userId },
@@ -83,7 +109,8 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
       tds: Number(tds || 0),
       effectiveFrom: parsedEffectiveFrom,
       organizationId: req.user.organizationId, 
-      createdBy: req.user.id 
+      createdBy: req.user.id,
+      ...(autoApprove ? { approvalStatus: 'approved', approvedBy: req.user.id, approvedAt: new Date() } : { approvalStatus: 'pending_approval' })
     },
     create: { 
       ...salaryData,
@@ -94,6 +121,9 @@ export const upsertSalaryConfig = asyncHandler(async (req: AuthRequest, res: Res
       labourWelfareFund: Number(labourWelfareFund || 0),
       tds: Number(tds || 0),
       effectiveFrom: parsedEffectiveFrom,
+      approvalStatus: initialStatus,
+      approvedBy: autoApprove ? req.user.id : null,
+      approvedAt: autoApprove ? new Date() : null,
       userId: req.params.userId, 
       organizationId: req.user.organizationId, 
       createdBy: req.user.id 
@@ -206,9 +236,16 @@ export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, re
 export { generateSmartPayroll } from './payrollController.js';
 
 export const approveSalaryConfig = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { action, remarks } = req.body;
+  const status = action === 'reject' ? 'rejected' : 'approved';
   const config = await prisma.salaryConfig.update({
     where: { id: req.params.id },
-    data: { approvalStatus: 'approved', approvedBy: req.user.id, approvedAt: new Date() }
+    data: {
+      approvalStatus: status,
+      approvedBy: req.user.id,
+      approvedAt: new Date(),
+      rejectedRemarks: action === 'reject' ? remarks || 'Rejected by finance' : null
+    }
   });
   res.json({ success: true, data: config });
 });

@@ -81,14 +81,26 @@ export function SalaryConfigPanel() {
   const openEdit = (config?: SalaryConfig, userId?: string) => {
     if (config) {
       setEditingUserId(typeof config.userId === 'object' ? config.userId.id : config.userId);
+      const allowances = config.allowances || {};
+      const deductions = config.deductions || {};
       setForm({
-        basicSalary: config.basicSalary,
-        allowances: { ...config.allowances },
-        deductions: { ...config.deductions },
+        basicSalary: config.basicSalary || 0,
+        allowances: {
+          hra: (allowances as any).hra || 0,
+          transport: (allowances as any).transport || 0,
+          medical: (allowances as any).medical || 0,
+          other: (allowances as any).other || 0,
+        },
+        deductions: {
+          pf: (deductions as any).pf || 0,
+          insurance: (deductions as any).insurance || 0,
+          other: (deductions as any).other || 0,
+          tax: 0,
+        },
         lateDeductionPerMinute: config.lateDeductionPerMinute || 0,
         professionalTax: config.professionalTax || 0,
         labourWelfareFund: config.labourWelfareFund || 0,
-        tds: config.tds || 0,
+        tds: config.tds || (deductions as any).tax || 0,
         effectiveFrom: config.effectiveFrom ? config.effectiveFrom.split('T')[0] : new Date().toISOString().split('T')[0],
       });
     } else {
@@ -100,6 +112,11 @@ export function SalaryConfigPanel() {
 
   const handleSave = async () => {
     if (!editingUserId) { toast.error('Select an employee'); return; }
+    const totalAllowances = Object.values(form.allowances as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
+    if (form.basicSalary > 0 && totalAllowances > form.basicSalary) {
+      toast.error(`Wage Code Rule: Basic Salary (₹${form.basicSalary}) must be at least 50% of Gross Salary. Total allowances (₹${totalAllowances}) cannot exceed Basic Salary.`);
+      return;
+    }
     setSaving(true);
     try {
       await api.put(`/hr/salary-configs/${editingUserId}`, form);
@@ -134,15 +151,43 @@ export function SalaryConfigPanel() {
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const gross = (f: any) =>
-    (f.basicSalary || 0) + Object.values(f.allowances as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
-  const net = (f: any) => {
-    const defaultDeductions = Object.values(f.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0);
-    const statutoryDeductions = (f.professionalTax || 0) + (f.labourWelfareFund || 0) + (f.tds || 0);
-    let pf = 0;
-    if (f.basicSalary <= 15000) pf = f.basicSalary * 0.12;
-    return gross(f) - defaultDeductions - statutoryDeductions - pf;
+  const calcGross = (f: any): number => {
+    const basic = Number(f.basicSalary) || 0;
+    const allowances = f.allowances || {};
+    let totalAllowances = 0;
+    if (Array.isArray(allowances)) {
+      totalAllowances = allowances.reduce((s: number, a: any) => s + (Number(a.amount) || 0), 0);
+    } else if (typeof allowances === 'object') {
+      totalAllowances = Object.values(allowances).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+    }
+    return basic + totalAllowances;
   };
+
+  const calcTotalDeductions = (f: any): number => {
+    const deductions = f.deductions || {};
+    let deductionsSum = 0;
+    if (Array.isArray(deductions)) {
+      deductionsSum = deductions.reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0);
+    } else if (typeof deductions === 'object') {
+      // Exclude tax from deductions dictionary to prevent double-counting with TDS
+      Object.entries(deductions).forEach(([k, v]) => {
+        if (k !== 'tax') {
+          deductionsSum += Number(v) || 0;
+        }
+      });
+    }
+    const tds = Number(f.tds) || Number(deductions.tax) || 0;
+    const pt = Number(f.professionalTax) || 0;
+    const lwf = Number(f.labourWelfareFund) || 0;
+    return deductionsSum + tds + pt + lwf;
+  };
+
+  const calcNet = (f: any): number => {
+    return Math.max(0, calcGross(f) - calcTotalDeductions(f));
+  };
+
+  const gross = calcGross;
+  const net = calcNet;
 
   return (
     <div className="space-y-6">
@@ -178,9 +223,9 @@ export function SalaryConfigPanel() {
           {filtered.map(config => {
             const user = (config as any).user || (typeof config.userId === 'object' ? config.userId : null);
             const uid = user?.id || (typeof config.userId === 'string' ? config.userId : config.id);
-            const grossAmt = gross(config);
-            const statutoryAmt = (config.professionalTax || 0) + (config.labourWelfareFund || 0) + (config.tds || 0);
-            const netAmt = grossAmt - Object.values(config.deductions).reduce((s, v) => s + (v || 0), 0) - statutoryAmt;
+            const grossAmt = calcGross(config);
+            const deductionsAmt = calcTotalDeductions(config);
+            const netAmt = calcNet(config);
             return (
               <Card key={uid} className="hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
@@ -211,14 +256,19 @@ export function SalaryConfigPanel() {
                         <p className="text-xs text-red-500 mb-2 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />{config.rejectedRemarks}
                         </p>
-                      )}                      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      )}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                         <div>
                           <p className="text-xs text-muted-foreground">Basic</p>
-                          <p className="font-semibold">₹{config.basicSalary.toLocaleString()}</p>
+                          <p className="font-semibold">₹{(Number(config.basicSalary) || 0).toLocaleString()}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Gross</p>
                           <p className="font-semibold text-blue-600">₹{grossAmt.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Deductions</p>
+                          <p className="font-semibold text-red-500">₹{deductionsAmt.toLocaleString()}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Net</p>
@@ -297,8 +347,23 @@ export function SalaryConfigPanel() {
                   <Input
                     type="number"
                     min="0"
-                    value={form.basicSalary}
-                    onChange={e => setForm((f: any) => ({ ...f, basicSalary: Number(e.target.value) }))}
+                    value={form.basicSalary || ''}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setForm((f: any) => {
+                        const prevSuggested = Math.round((f.basicSalary || 0) * 0.12);
+                        const isAutoOrEmpty = !f.deductions?.pf || f.deductions.pf === prevSuggested;
+                        const newPf = isAutoOrEmpty && val > 0 ? Math.round(val * 0.12) : (f.deductions?.pf || 0);
+                        return {
+                          ...f,
+                          basicSalary: val,
+                          deductions: {
+                            ...f.deductions,
+                            pf: newPf
+                          }
+                        };
+                      });
+                    }}
                   />
                   <p className="text-[11px] text-muted-foreground">Must be at least 50% of total Gross Salary under statutory rules</p>
                 </div>
@@ -336,19 +401,32 @@ export function SalaryConfigPanel() {
                   <div className="space-y-1 border p-2.5 rounded-lg bg-card">
                     <div className="flex items-center justify-between">
                       <Label className="font-semibold text-xs">ESI Deduction (₹)</Label>
-                      <button
-                        type="button"
-                        className="text-[10px] text-primary hover:underline font-semibold"
-                        onClick={() => {
-                          const grossVal = gross(form);
-                          // Standard employee contribution is 0.75% of gross if gross <= 21000
-                          const calculated = grossVal <= 21000 ? Math.round(grossVal * 0.0075) : 0;
-                          setForm((f: any) => ({ ...f, deductions: { ...f.deductions, insurance: calculated } }));
-                          toast.info(`ESI set to ₹${calculated} (0.75% of gross)`);
-                        }}
-                      >
-                        Auto (0.75%)
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          className="text-[10px] text-primary hover:underline font-semibold"
+                          onClick={() => {
+                            const grossVal = calcGross(form);
+                            // Standard employee contribution is 0.75% of gross if gross <= 21000
+                            const calculated = grossVal <= 21000 ? Math.round(grossVal * 0.0075) : 0;
+                            setForm((f: any) => ({ ...f, deductions: { ...f.deductions, insurance: calculated } }));
+                            toast.info(`ESI set to ₹${calculated} (0.75% of gross)`);
+                          }}
+                        >
+                          Auto (0.75%)
+                        </button>
+                        <span className="text-muted-foreground text-[10px]">•</span>
+                        <button
+                          type="button"
+                          className="text-[10px] text-muted-foreground hover:text-foreground font-semibold"
+                          onClick={() => {
+                            setForm((f: any) => ({ ...f, deductions: { ...f.deductions, insurance: 0 } }));
+                            toast.info('ESI set to ₹0 (Exempt)');
+                          }}
+                        >
+                          Exempt (₹0)
+                        </button>
+                      </div>
                     </div>
                     <Input
                       type="number"
@@ -366,17 +444,30 @@ export function SalaryConfigPanel() {
                   <div className="space-y-1 border p-2.5 rounded-lg bg-card">
                     <div className="flex items-center justify-between">
                       <Label className="font-semibold text-xs">PF Deduction (₹)</Label>
-                      <button
-                        type="button"
-                        className="text-[10px] text-primary hover:underline font-semibold"
-                        onClick={() => {
-                          const calculated = Math.round(form.basicSalary * 0.12);
-                          setForm((f: any) => ({ ...f, deductions: { ...f.deductions, pf: calculated } }));
-                          toast.info(`PF set to ₹${calculated} (12% of basic)`);
-                        }}
-                      >
-                        Auto (12%)
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          className="text-[10px] text-primary hover:underline font-semibold"
+                          onClick={() => {
+                            const calculated = Math.round((Number(form.basicSalary) || 0) * 0.12);
+                            setForm((f: any) => ({ ...f, deductions: { ...f.deductions, pf: calculated } }));
+                            toast.info(`PF set to ₹${calculated} (12% of basic)`);
+                          }}
+                        >
+                          Auto (12%)
+                        </button>
+                        <span className="text-muted-foreground text-[10px]">•</span>
+                        <button
+                          type="button"
+                          className="text-[10px] text-muted-foreground hover:text-foreground font-semibold"
+                          onClick={() => {
+                            setForm((f: any) => ({ ...f, deductions: { ...f.deductions, pf: 0 } }));
+                            toast.info('PF set to ₹0 (Exempt)');
+                          }}
+                        >
+                          Exempt (₹0)
+                        </button>
+                      </div>
                     </div>
                     <Input
                       type="number"
@@ -396,13 +487,13 @@ export function SalaryConfigPanel() {
                     <Input
                       type="number"
                       min="0"
-                      value={form.tds || form.deductions.tax || 0}
+                      value={form.tds || 0}
                       onChange={e => {
                         const val = Number(e.target.value);
                         setForm((f: any) => ({
                           ...f,
                           tds: val,
-                          deductions: { ...f.deductions, tax: val }
+                          deductions: { ...f.deductions, tax: 0 }
                         }));
                       }}
                     />
@@ -524,28 +615,62 @@ export function SalaryConfigPanel() {
             })()}
 
             {/* Live preview */}
-            <div className="p-3 rounded-xl bg-muted/50 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
-              <div>
-                <p className="text-muted-foreground">Basic</p>
-                <p className="font-bold text-foreground">₹{form.basicSalary.toLocaleString()}</p>
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-muted-foreground text-[11px] font-medium">Basic</p>
+                  <p className="font-bold text-foreground text-sm mt-0.5">₹{(Number(form.basicSalary) || 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-muted-foreground text-[11px] font-medium">Gross Earnings</p>
+                  <p className="font-bold text-blue-600 text-sm mt-0.5">₹{calcGross(form).toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-muted-foreground text-[11px] font-medium">Total Deductions</p>
+                  <p className="font-bold text-red-500 text-sm mt-0.5">₹{calcTotalDeductions(form).toLocaleString()}</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-muted-foreground text-[11px] font-medium">Est. Net</p>
+                  <p className="font-bold text-emerald-600 text-sm mt-0.5">₹{calcNet(form).toLocaleString()}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground">Gross Earnings</p>
-                <p className="font-bold text-blue-600">₹{gross(form).toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Deductions</p>
-                <p className="font-bold text-red-500">
-                  ₹{(
-                    Object.values(form.deductions as Record<string, number>).reduce((s, v) => s + (v || 0), 0) +
-                    (form.professionalTax || 0) +
-                    (form.labourWelfareFund || 0)
-                  ).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Est. Net</p>
-                <p className="font-bold text-green-600">₹{net(form).toLocaleString()}</p>
+
+              {/* Deductions Breakdown */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Deductions Breakdown:</span>
+                {(form.deductions?.pf > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    PF: ₹{Number(form.deductions.pf).toLocaleString()}
+                  </span>
+                )}
+                {(form.deductions?.insurance > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    ESI: ₹{Number(form.deductions.insurance).toLocaleString()}
+                  </span>
+                )}
+                {(form.tds > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    TDS: ₹{Number(form.tds).toLocaleString()}
+                  </span>
+                )}
+                {(form.professionalTax > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    PT: ₹{Number(form.professionalTax).toLocaleString()}
+                  </span>
+                )}
+                {(form.labourWelfareFund > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    LWF: ₹{Number(form.labourWelfareFund).toLocaleString()}
+                  </span>
+                )}
+                {(form.deductions?.other > 0) && (
+                  <span className="bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border text-slate-800 dark:text-slate-200 font-medium">
+                    Other: ₹{Number(form.deductions.other).toLocaleString()}
+                  </span>
+                )}
+                {calcTotalDeductions(form) === 0 && (
+                  <span className="text-slate-500 italic">None configured (₹0)</span>
+                )}
               </div>
             </div>
           </div>
