@@ -55,7 +55,7 @@ const navItems: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde', 'employee'],
+    roles: ['superadmin', 'org_admin', 'ceo', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'front_office_admin', 'bde', 'employee'],
   },
   {
     id: 'organizations',
@@ -205,13 +205,23 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    id: 'front_office',
+    label: 'Front Desk',
+    icon: Building2,
+    roles: ['front_office_admin', 'org_admin', 'ceo'],
+    children: [
+      { id: 'visitors', label: 'Visitor Logbook', icon: Users, roles: ['front_office_admin', 'org_admin', 'ceo'] },
+      { id: 'meeting_rooms', label: 'Meeting Rooms', icon: Calendar, roles: ['front_office_admin', 'org_admin', 'ceo'] },
+    ],
+  },
+  {
     id: 'staff',
     label: 'Staff Portal',
     icon: Users,
-    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'],
+    roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'front_office_admin', 'bde'],
     children: [
-      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
-      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'bde'] },
+      { id: 'holidays', label: 'Holidays', icon: Calendar, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'front_office_admin', 'bde'] },
+      { id: 'announcements', label: 'Announcements', icon: Bell, roles: ['employee', 'ops_admin', 'finance_admin', 'hr_admin', 'sales_admin', 'front_office_admin', 'bde'] },
     ],
   },
   {

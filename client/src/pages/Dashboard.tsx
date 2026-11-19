@@ -12,6 +12,7 @@ import { ModernStudyCenterDashboard } from './ModernStudyCenterDashboard';
 import { ModernEmployeeDashboard } from './ModernEmployeeDashboard';
 import { ModernStaffPortal } from './ModernStaffPortal';
 import { ModernBranchManagerDashboard } from './ModernBranchManagerDashboard';
+import { ModernFrontOfficeDashboard } from './ModernFrontOfficeDashboard';
 import { CenterOnboardingGate } from '@/components/CenterOnboardingGate';
 
 interface DashboardProps {
@@ -162,6 +163,10 @@ export function Dashboard({ useDepartmentDashboard, initialTab, onNavigateToTabl
 
   if (user?.role === 'sales_admin' || user?.role === 'sales_sub_admin') {
     return <ModernSalesDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
+  }
+
+  if (user?.role === 'front_office_admin') {
+    return <ModernFrontOfficeDashboard initialTab={initialTab} onNavigate={onNavigateToTable} />;
   }
 
   if (user?.role === 'center_admin') {

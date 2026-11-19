@@ -85,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hr_sub_admin: ['hr', 'employees', 'attendance', 'leave'],
       sales_admin: ['sales', 'leads', 'deals', 'referrals', 'targets', 'reports'],
       sales_sub_admin: ['sales', 'leads', 'deals', 'referrals', 'reports'],
+      front_office_admin: ['dashboard', 'front_office', 'visitors', 'meeting_rooms', 'room_bookings', 'attendance', 'leave', 'profile', 'tasks'],
       center_admin: ['center', 'students', 'invoices', 'marks'],
       branch_manager: [
         'sales', 'leads', 'deals', 'referrals', 'targets',

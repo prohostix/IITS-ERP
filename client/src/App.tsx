@@ -43,6 +43,11 @@ const TABLE_TO_TAB: Record<string, string> = {
   // Org Admin
   hierarchy: 'hierarchy',
   branches: 'branches',
+  meeting_rooms: 'meeting_rooms',
+  'meeting-rooms': 'meeting_rooms',
+  rooms: 'meeting_rooms',
+  // Front Office
+  visitors: 'visitors',
   // Shared
   users: 'users',
   departments: 'departments',
@@ -173,7 +178,8 @@ function App() {
       case 'hr_admin':
       case 'hr_sub_admin':
       case 'sales_admin':
-      case 'sales_sub_admin': return 'overview';
+      case 'sales_sub_admin':
+      case 'front_office_admin': return 'overview';
       default: return 'tasks';
     }
   };
@@ -197,7 +203,7 @@ function App() {
       activeTable = 'dashboard';
       activeTab = undefined;
     } else {
-      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'];
+      const roleDashboardRoles = ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'finance_admin', 'finance_sub_admin', 'hr_admin', 'hr_sub_admin', 'sales_admin', 'sales_sub_admin', 'front_office_admin', 'center_admin', 'branch_manager'];
       const isEmployeeSubDeptManager = user?.role === 'employee' && Boolean((user as any)?.subDepartmentId) && Boolean(deptType);
       const isEmployeeRole = user?.role === 'employee';
       const isBranchManager = user?.role === 'branch_manager' || Boolean((user as any)?.managedBranch);
@@ -397,6 +403,20 @@ function App() {
     if (user.role === 'sales_admin' || user.role === 'sales_sub_admin') {
       const items = getSalesNavItems(true);
       return [...items, { id: 'center_admissions', label: 'Centers Admissions' }];
+    }
+
+    if (user.role === 'front_office_admin') {
+      return [
+        { id: '__front_office_mgmt', label: 'Front Desk & Reception', isSection: true },
+        { id: 'dashboard', label: 'Overview' },
+        { id: 'visitors', label: 'Visitor Logbook' },
+        { id: 'meeting_rooms', label: 'Meeting Room Booking' },
+        { id: '__employee_portal', label: 'My Portal', isSection: true },
+        { id: 'attendance', label: 'My Attendance' },
+        { id: 'leaves', label: 'My Leaves' },
+        { id: 'holidays', label: 'Holiday List' },
+        { id: 'announcements', label: 'Announcements' },
+      ];
     }
 
     if (user.role === 'center_admin') {

@@ -270,6 +270,7 @@ export function EmployeesPanel() {
                       <SelectItem value="ops_sub_admin">Operations Sub-Admin</SelectItem>
                       <SelectItem value="sales_admin">Sales Admin</SelectItem>
                       <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
+                      <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
                       <SelectItem value="branch_manager">Branch Manager</SelectItem>
                     </SelectContent>
                   </Select>
@@ -462,6 +463,7 @@ export function EmployeesPanel() {
                   <SelectItem value="finance_admin">Finance Admin</SelectItem>
                   <SelectItem value="ops_admin">Ops Admin</SelectItem>
                   <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                  <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
                   <SelectItem value="branch_manager">Branch Manager</SelectItem>
                   <SelectItem value="general_manager">Project Manager</SelectItem>
                 </SelectContent>

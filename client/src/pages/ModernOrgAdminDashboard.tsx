@@ -23,6 +23,7 @@ import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUs
 import { OrgAdminSessionsPanel } from '@/components/panels/OrgAdminSessionsPanel';
 import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
 import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
+import { OrgMeetingRoomsPanel } from '@/components/panels/OrgMeetingRoomsPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api from '@/lib/api';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
@@ -74,6 +75,7 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Overview</TabsTrigger>
             <TabsTrigger value="hierarchy" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Hierarchy</TabsTrigger>
             <TabsTrigger value="branches" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Branches</TabsTrigger>
+            <TabsTrigger value="meeting_rooms" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Meeting Rooms</TabsTrigger>
             <TabsTrigger value="users" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Users</TabsTrigger>
             <TabsTrigger value="departments" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Departments</TabsTrigger>
             <TabsTrigger value="subdepartments" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Sub-Departments</TabsTrigger>
@@ -209,6 +211,9 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
         <TabsContent value="users"><UsersPanel /></TabsContent>
         <TabsContent value="hierarchy"><OrgHierarchyPanel /></TabsContent>
         <TabsContent value="branches"><BranchesPanel /></TabsContent>
+        <TabsContent value="meeting_rooms"><OrgMeetingRoomsPanel /></TabsContent>
+        <TabsContent value="meeting-rooms"><OrgMeetingRoomsPanel /></TabsContent>
+        <TabsContent value="rooms"><OrgMeetingRoomsPanel /></TabsContent>
         <TabsContent value="departments"><DepartmentsPanel /></TabsContent>
         <TabsContent value="subdepartments"><SubDepartmentsPanel /></TabsContent>
         <TabsContent value="tasks"><TasksPanel /></TabsContent>

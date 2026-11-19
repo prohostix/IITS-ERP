@@ -562,6 +562,7 @@ export function UsersPanel() {
                     <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
                     <SelectItem value="sales_admin">Sales Admin</SelectItem>
                     <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
+                    <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
                     <SelectItem value="center_admin">Center Admin</SelectItem>
                     <SelectItem value="branch_manager">Branch Manager</SelectItem>
                     <SelectItem value="employee">Employee</SelectItem>

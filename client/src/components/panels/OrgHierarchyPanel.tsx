@@ -38,7 +38,7 @@ interface DesignationNode {
 const ROLE_COLORS: Record<string, string> = {
   org_admin: '#7c3aed', ceo: '#2563eb', general_manager: '#2563eb', ops_admin: '#ea580c', ops_sub_admin: '#ea580c',
   finance_admin: '#059669', finance_sub_admin: '#059669', hr_admin: '#7c3aed', hr_sub_admin: '#7c3aed',
-  sales_admin: '#db2777', sales_sub_admin: '#db2777', center_admin: '#8b5cf6', branch_manager: '#0284c7', bde: '#4f46e5', employee: '#475569', staff: '#64748b',
+  sales_admin: '#db2777', sales_sub_admin: '#db2777', front_office_admin: '#0891b2', center_admin: '#8b5cf6', branch_manager: '#0284c7', bde: '#4f46e5', employee: '#475569', staff: '#64748b',
 };
 
 const getDeptColor = (type?: string, isBranch?: boolean) => {

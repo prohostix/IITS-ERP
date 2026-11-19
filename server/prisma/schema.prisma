@@ -83,6 +83,9 @@ model Organization {
   studentStatusRequests StudentStatusRequest[]
   commissionIns         CommissionIn[]
   commissionOuts        CommissionOut[]
+  meetingRooms          MeetingRoom[]
+  roomBookings          RoomBooking[]
+  visitors              Visitor[]
   hiringRequests        HiringRequest[]
   candidates            Candidate[]
   shifts                Shift[]
@@ -250,6 +253,10 @@ model User {
   requestedHirings              HiringRequest[]        @relation("HiringRequestedBy")
   approvedHirings               HiringRequest[]        @relation("HiringApprovedBy")
   inductionsCompleted           Candidate[]            @relation("InductionCompletedBy")
+  roomBookings                  RoomBooking[]          @relation("UserRoomBookings")
+  bookedRooms                   RoomBooking[]          @relation("BookedByRoomBookings")
+  hostVisitors                  Visitor[]              @relation("HostVisitorLogs")
+  createdVisitors               Visitor[]              @relation("CreatedVisitorLogs")
   permissions                   Json?                  @default("[]")
 
   @@index([organizationId, role])
@@ -1976,4 +1983,85 @@ model UniversityWalletLedger {
   university      University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, universityId])
+}
+
+model MeetingRoom {
+  id              String        @id @default(uuid())
+  organizationId  String
+  name            String
+  code            String?
+  floor           String?
+  capacity        Int           @default(4)
+  amenities       String[]      @default([])
+  status          String        @default("active") // "active", "maintenance", "inactive"
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings        RoomBooking[]
+
+  @@index([organizationId])
+}
+
+model RoomBooking {
+  id              String        @id @default(uuid())
+  organizationId  String
+  roomId          String
+  userId          String        // User for whom the room is booked (the host / meeting owner)
+  bookedById      String?       // Who booked it (Front office admin / Org admin)
+  title           String        // Meeting Title / Agenda
+  description     String?
+  date            DateTime      // Date of booking
+  startTime       String        // e.g. "10:00 AM" or "10:00"
+  endTime         String        // e.g. "11:00 AM" or "11:00"
+  startDateTime   DateTime?
+  endDateTime     DateTime?
+  attendeesCount  Int?          @default(2)
+  status          String        @default("confirmed") // "confirmed", "in_progress", "completed", "cancelled"
+  remarks         String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  room            MeetingRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user            User          @relation("UserRoomBookings", fields: [userId], references: [id], onDelete: Cascade)
+  bookedBy        User?         @relation("BookedByRoomBookings", fields: [bookedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([roomId, date])
+  @@index([userId])
+}
+
+model Visitor {
+  id              String        @id @default(uuid())
+  organizationId  String
+  name            String        // Visitor's full name
+  phone           String?
+  email           String?
+  company         String?       // Organization / Company visiting from
+  visitDate       DateTime      @default(now())
+  checkInTime     String?       // e.g. "10:30 AM"
+  checkOutTime    String?       // e.g. "11:30 AM"
+  checkInAt       DateTime?     @default(now())
+  checkOutAt      DateTime?
+  purpose         String        // Reason for visit
+  hostUserId      String?       // Who they meet in the office (User id)
+  idProofType     String?       // Aadhar, PAN, Driving License, Passport, etc.
+  idProofNumber   String?
+  status          String        @default("checked_in") // "checked_in", "checked_out", "scheduled", "cancelled"
+  passNumber      String?       // Visitor pass number
+  remarks         String?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  hostUser        User?         @relation("HostVisitorLogs", fields: [hostUserId], references: [id], onDelete: SetNull)
+  createdBy       User?         @relation("CreatedVisitorLogs", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([hostUserId])
+  @@index([visitDate])
+  @@index([status])
 }

@@ -753,6 +753,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                     <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
                     <SelectItem value="sales_admin">Sales Admin</SelectItem>
                     <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
+                    <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
                     <SelectItem value="branch_manager">Branch Manager</SelectItem>
                     <SelectItem value="bde">BDE</SelectItem>
                   </SelectContent>
@@ -1067,6 +1068,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                 <SelectItem value="ops_sub_admin">Ops Sub-Admin</SelectItem>
                 <SelectItem value="sales_admin">Sales Admin</SelectItem>
                 <SelectItem value="sales_sub_admin">Sales Sub-Admin</SelectItem>
+                <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
                 <SelectItem value="branch_manager">Branch Manager</SelectItem>
                 <SelectItem value="general_manager">Project Manager</SelectItem>
               </SelectContent>

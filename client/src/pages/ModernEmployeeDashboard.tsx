@@ -33,6 +33,7 @@ import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalationsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
+import { UserMeetingBookingsWidget } from '@/components/dashboard/UserMeetingBookingsWidget';
 
 
 export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab?: string; onNavigate?: (tab: string) => void }) {
@@ -228,6 +229,11 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
                 )}
               </CardContent>
             </Card>
+
+            {/* Meeting Room Bookings for Employee */}
+            <div className="lg:col-span-3">
+              <UserMeetingBookingsWidget />
+            </div>
 
             {/* Rewards & Recognition */}
             <div className="space-y-4">

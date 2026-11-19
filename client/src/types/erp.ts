@@ -14,6 +14,7 @@ export type UserRole =
   | 'hr_sub_admin'
   | 'sales_admin' 
   | 'sales_sub_admin'
+  | 'front_office_admin'
   | 'bde' 
   | 'center_admin' 
   | 'branch_manager'

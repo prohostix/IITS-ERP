@@ -51,6 +51,7 @@ import publicRoutes from './routes/publicRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import enrollmentRoutes from './routes/enrollmentRoutes.js';
 import commissionRoutes from './routes/commissionRoutes.js';
+import frontOfficeRoutes from './routes/frontOfficeRoutes.js';
 
 const app: Application = express();
 app.set('trust proxy', 1);
@@ -130,6 +131,7 @@ app.use(`/api/${API_VERSION}/public`, publicRoutes);
 app.use(`/api/${API_VERSION}/enrollment`, enrollmentRoutes);
 app.use(`/api/${API_VERSION}/backups`, backupRoutes);
 app.use(`/api/${API_VERSION}/commissions`, commissionRoutes);
+app.use(`/api/${API_VERSION}/front-office`, frontOfficeRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

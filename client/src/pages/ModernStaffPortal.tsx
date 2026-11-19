@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { UserMeetingBookingsWidget } from '@/components/dashboard/UserMeetingBookingsWidget';
 export function ModernStaffPortal() {
   const [loading, setLoading] = useState(false);
 
@@ -80,6 +81,9 @@ export function ModernStaffPortal() {
           color="info"
         />
       </div>
+
+      {/* Booked Meeting Rooms for Staff */}
+      <UserMeetingBookingsWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Notice Board */}
