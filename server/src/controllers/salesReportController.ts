@@ -220,10 +220,17 @@ async function buildUserHierarchyMap(organizationId: string) {
   // Subordinate user IDs resolution
   const getSubordinateIds = (managerId: string): string[] => {
     const subIds = new Set<string>();
-    // Direct reporting
-    for (const u of allUsers) {
-      if (u.reportingTo === managerId) {
-        subIds.add(u.id);
+    // 1. Recursive direct & indirect reportingTo downline
+    const repQueue = [managerId];
+    const visitedRep = new Set<string>([managerId]);
+    while (repQueue.length > 0) {
+      const curr = repQueue.shift()!;
+      for (const u of allUsers) {
+        if (u.reportingTo === curr && !visitedRep.has(u.id)) {
+          visitedRep.add(u.id);
+          subIds.add(u.id);
+          repQueue.push(u.id);
+        }
       }
     }
 
@@ -897,21 +904,19 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     orderBy: { createdAt: 'desc' }
   });
 
-  // Pick session
-  let activeSession = null;
-  if (sessionId && sessionId !== 'all') {
-    activeSession = availableSessions.find(s => s.id === sessionId) || null;
-  } else {
-    activeSession = availableSessions.find(s => s.status === 'active') || availableSessions[0] || null;
-  }
+  // Pick session (null when 'all' or not specified -> show across all sessions)
+  const isAllSessions = !sessionId || sessionId === 'all';
+  const activeSession = !isAllSessions
+    ? (availableSessions.find(s => s.id === sessionId) || null)
+    : null;
 
-  if (!activeSession) {
+  if (!isAllSessions && !activeSession) {
     return res.json({
       success: true,
       data: {
         session: null,
         availableSessions,
-        overview: { total: 0, completed: 0, pending: 0, rejected: 0, totalRevenue: 0, centersCount: 0, programsCount: 0 },
+        overview: { sessionName: 'All Sessions', total: 0, completed: 0, pending: 0, rejected: 0, totalRevenue: 0, centersCount: 0, programsCount: 0, overallConversionRate: 0 },
         byHierarchy: [],
         byCenter: [],
         byProgram: [],
@@ -935,14 +940,27 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
-  // Enrollment query for the session
+  const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
+
+  // Enrollment query for the session (or all sessions)
   const enrollmentWhere: any = {
-    organizationId,
-    sessionId: activeSession.id
+    organizationId
   };
 
+  if (activeSession) {
+    enrollmentWhere.sessionId = activeSession.id;
+  }
+
   if (status && status !== 'all') {
-    enrollmentWhere.status = status;
+    if (status === 'enrolled') {
+      enrollmentWhere.status = 'enrolled';
+    } else if (status === 'rejected') {
+      enrollmentWhere.status = { in: REJECTED_STATUSES };
+    } else if (status === 'pending') {
+      enrollmentWhere.status = { notIn: ['enrolled', ...REJECTED_STATUSES] };
+    } else {
+      enrollmentWhere.status = status;
+    }
   }
 
   if (allowedCenterIds !== null) {
@@ -957,6 +975,9 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
   const enrollments = await prisma.enrollment.findMany({
     where: enrollmentWhere,
     include: {
+      session: {
+        select: { id: true, name: true }
+      },
       program: {
         select: {
           id: true,
@@ -1037,14 +1058,39 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
   for (const e of enrollments) {
     const fee = Number(e.totalFee) || 0;
     const isEnrolled = e.status === 'enrolled';
-    const isRejected = e.status === 'rejected' || e.status === 'department_rejected';
+    const isRejected = REJECTED_STATUSES.includes(e.status);
     const isPending = !isEnrolled && !isRejected;
 
     // Credit staff: salesUser or center referrer
     const staffId = e.salesUserId || e.studyCenter?.referredBy || 'unassigned';
+    const staffUser = userMap.get(staffId);
+    const staffName = staffUser?.name || 'Direct / Unassigned';
+    const chain = resolveChain(staffId);
+    const reportingTLName = chain[0]?.name || 'N/A';
+
+    if (search) {
+      const q = search.trim().toLowerCase();
+      const studentNameStr = (e.studentName || e.student?.name || '').toLowerCase();
+      const enrollNoStr = (e.enrollmentNumber || '').toLowerCase();
+      const centerNameStr = (e.studyCenter?.name || '').toLowerCase();
+      const progNameStr = (e.program?.name || '').toLowerCase();
+      const uniNameStr = (e.program?.university?.name || '').toLowerCase();
+      const staffNameStr = staffName.toLowerCase();
+      const tlNameStr = reportingTLName.toLowerCase();
+      if (
+        !studentNameStr.includes(q) &&
+        !enrollNoStr.includes(q) &&
+        !centerNameStr.includes(q) &&
+        !progNameStr.includes(q) &&
+        !uniNameStr.includes(q) &&
+        !staffNameStr.includes(q) &&
+        !tlNameStr.includes(q)
+      ) {
+        continue;
+      }
+    }
+
     if (!staffStatsMap.has(staffId)) {
-      const staffUser = userMap.get(staffId);
-      const chain = resolveChain(staffId);
       staffStatsMap.set(staffId, {
         staff: staffUser ? {
           id: staffUser.id,
@@ -1066,11 +1112,13 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     const staffStat = staffStatsMap.get(staffId)!;
-    staffStat.total += 1;
+    if (!isRejected || status === 'rejected') {
+      staffStat.total += 1;
+      staffStat.revenue += fee;
+    }
     if (isEnrolled) staffStat.completed += 1;
     else if (isRejected) staffStat.rejected += 1;
     else staffStat.pending += 1;
-    staffStat.revenue += fee;
     if (e.studyCenterId) staffStat.centersSet.add(e.studyCenterId);
 
     // Center Stat
@@ -1098,11 +1146,13 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     const centerStat = centerStatsMap.get(centerId)!;
-    centerStat.total += 1;
+    if (!isRejected || status === 'rejected') {
+      centerStat.total += 1;
+      centerStat.revenue += fee;
+    }
     if (isEnrolled) centerStat.completed += 1;
     else if (isRejected) centerStat.rejected += 1;
     else centerStat.pending += 1;
-    centerStat.revenue += fee;
 
     const progName = e.program?.name || 'Unknown Program';
     centerStat.programCounts[progName] = (centerStat.programCounts[progName] || 0) + 1;
@@ -1121,9 +1171,11 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     const progStat = programStatsMap.get(progId)!;
-    progStat.total += 1;
+    if (!isRejected || status === 'rejected') {
+      progStat.total += 1;
+      progStat.revenue += fee;
+    }
     if (isEnrolled) progStat.completed += 1;
-    progStat.revenue += fee;
 
     // Formatted row
     formattedAdmissions.push({
@@ -1132,6 +1184,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
       studentName: e.studentName || e.student?.name || 'N/A',
       studentEmail: e.studentEmail || e.student?.email || '',
       studentPhone: e.studentPhone || e.student?.phone || '',
+      sessionName: e.session?.name || activeSession?.name || 'N/A',
       programName: e.program?.name || 'N/A',
       universityName: e.program?.university?.name || 'N/A',
       studyCenterName: e.studyCenter?.name || 'Direct',
@@ -1157,7 +1210,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
     rejected: s.rejected,
     revenue: s.revenue,
     conversionRate: s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0
-  })).sort((a, b) => b.completed - a.completed);
+  })).sort((a, b) => b.total - a.total || b.completed - a.completed);
 
   const byCenter = Array.from(centerStatsMap.values()).map(c => {
     // Top program
@@ -1174,35 +1227,28 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
       topProgram: topProg,
       conversionRate: c.total > 0 ? Math.round((c.completed / c.total) * 100) : 0
     };
-  }).sort((a, b) => b.completed - a.completed);
+  }).sort((a, b) => b.total - a.total || b.completed - a.completed);
 
-  const byProgram = Array.from(programStatsMap.values()).sort((a, b) => b.completed - a.completed);
+  const byProgram = Array.from(programStatsMap.values()).sort((a, b) => b.total - a.total || b.completed - a.completed);
 
-  // Apply search filter on detailed admissions
-  let filteredAdmissions = formattedAdmissions;
-  if (search) {
-    const q = search.trim().toLowerCase();
-    filteredAdmissions = filteredAdmissions.filter(a =>
-      a.studentName.toLowerCase().includes(q) ||
-      a.enrollmentNumber.toLowerCase().includes(q) ||
-      a.studyCenterName.toLowerCase().includes(q) ||
-      a.programName.toLowerCase().includes(q) ||
-      a.salesStaffName.toLowerCase().includes(q)
-    );
-  }
+  const filteredAdmissions = formattedAdmissions;
+  const validAdmissions = filteredAdmissions.filter(a => !REJECTED_STATUSES.includes(a.status) || status === 'rejected');
+  const completedCount = filteredAdmissions.filter(a => a.status === 'enrolled').length;
+  const rejectedCount = filteredAdmissions.filter(a => REJECTED_STATUSES.includes(a.status)).length;
+  const pendingCount = filteredAdmissions.length - completedCount - rejectedCount;
 
   // Overview metrics
   const overview = {
-    sessionName: activeSession.name,
-    total: enrollments.length,
-    completed: enrollments.filter(e => e.status === 'enrolled').length,
-    pending: enrollments.filter(e => !['enrolled', 'rejected', 'department_rejected'].includes(e.status)).length,
-    rejected: enrollments.filter(e => ['rejected', 'department_rejected'].includes(e.status)).length,
-    totalRevenue: enrollments.reduce((acc, e) => acc + (Number(e.totalFee) || 0), 0),
+    sessionName: activeSession ? `${activeSession.name}${activeSession.university?.code ? ` (${activeSession.university.code})` : ''}` : 'All Sessions',
+    total: validAdmissions.length,
+    completed: completedCount,
+    pending: pendingCount,
+    rejected: rejectedCount,
+    totalRevenue: validAdmissions.reduce((acc, e) => acc + (Number(e.totalFee) || 0), 0),
     centersCount: centerStatsMap.size,
     programsCount: programStatsMap.size,
-    overallConversionRate: enrollments.length > 0
-      ? Math.round((enrollments.filter(e => e.status === 'enrolled').length / enrollments.length) * 100)
+    overallConversionRate: validAdmissions.length > 0
+      ? Math.round((completedCount / validAdmissions.length) * 100)
       : 0
   };
 
@@ -1216,7 +1262,7 @@ export const getSessionReport = asyncHandler(async (req: AuthRequest, res: Respo
       byCenter,
       byProgram,
       admissions: filteredAdmissions,
-      filters: { sessionId: activeSession.id, status, branchId }
+      filters: { sessionId: activeSession ? activeSession.id : 'all', status, branchId }
     }
   });
 });

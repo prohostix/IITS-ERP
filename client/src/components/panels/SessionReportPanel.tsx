@@ -60,7 +60,7 @@ export function SessionReportPanel() {
     admissions: []
   });
 
-  const [selectedSessionId, setSelectedSessionId] = useState<string>('');
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -68,16 +68,13 @@ export function SessionReportPanel() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedSessionId && selectedSessionId !== 'all') params.set('sessionId', selectedSessionId);
+      params.set('sessionId', selectedSessionId || 'all');
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (search.trim()) params.set('search', search.trim());
 
       const res = await api.get(`/sales/reports/session-report?${params.toString()}`);
       if (res.data.success) {
         setData(res.data.data);
-        if (res.data.data.session && !selectedSessionId) {
-          setSelectedSessionId(res.data.data.session.id);
-        }
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to load session report');
@@ -96,13 +93,14 @@ export function SessionReportPanel() {
       return;
     }
 
-    const sessionName = data.session?.name || 'Session';
+    const sessionName = data.session?.name || 'All_Sessions';
 
     // Sheet 1: Admissions List
     const admissionsRows = data.admissions.map((a, i) => ({
       '#': i + 1,
       'Enrollment Number': a.enrollmentNumber,
       'Student Name': a.studentName,
+      'Session': a.sessionName || sessionName,
       'Program': a.programName,
       'University': a.universityName,
       'Study Center': a.studyCenterName,
@@ -165,6 +163,11 @@ export function SessionReportPanel() {
         return <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">Enrolled</Badge>;
       case 'rejected':
       case 'department_rejected':
+      case 'ops_rejected':
+      case 'university_rejected':
+      case 'cancelled':
+      case 'dropout':
+      case 'refunded':
         return <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30">Rejected</Badge>;
       default:
         return <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">In Review</Badge>;
@@ -212,6 +215,7 @@ export function SessionReportPanel() {
                   <SelectValue placeholder="Select Session" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Sessions</SelectItem>
                   {data.availableSessions.map(s => {
                     const uniLabel = s.university?.code || s.university?.name;
                     return (
@@ -522,6 +526,7 @@ export function SessionReportPanel() {
                     <TableHead className="w-12 text-center">#</TableHead>
                     <TableHead>Student Name</TableHead>
                     <TableHead>Enrollment #</TableHead>
+                    <TableHead>Session</TableHead>
                     <TableHead>Program</TableHead>
                     <TableHead>Study Center</TableHead>
                     <TableHead>Sales Staff (BDE)</TableHead>
@@ -534,7 +539,7 @@ export function SessionReportPanel() {
                 <TableBody>
                   {data.admissions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="h-32 text-center text-muted-foreground">
                         No student admission records found for this session.
                       </TableCell>
                     </TableRow>
@@ -547,6 +552,9 @@ export function SessionReportPanel() {
                           <div className="text-[10px] text-muted-foreground">{a.studentPhone}</div>
                         </TableCell>
                         <TableCell className="text-xs font-mono">{a.enrollmentNumber}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">{a.sessionName || '-'}</Badge>
+                        </TableCell>
                         <TableCell>
                           <div className="text-xs font-medium text-foreground">{a.programName}</div>
                           <div className="text-[10px] text-muted-foreground">{a.universityName}</div>
