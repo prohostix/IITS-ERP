@@ -803,6 +803,33 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
     filtered = filtered.filter(t => t.performanceStatus === status);
   }
 
+  if (year && year !== 'all') {
+    filtered = filtered.filter(t => {
+      const p = String(t.period || '').trim();
+      if (/^\d{4}/.test(p)) return p.slice(0, 4) === String(targetYear);
+      if (t.deadline) return new Date(t.deadline).getFullYear() === targetYear;
+      return true;
+    });
+  }
+
+  if (month && month !== 'all') {
+    const paddedMonth = String(targetMonth).padStart(2, '0');
+    filtered = filtered.filter(t => {
+      const p = String(t.period || '').trim();
+      if (/^\d{4}-\d{2}/.test(p)) return p.slice(5, 7) === paddedMonth;
+      if (t.deadline) return String(new Date(t.deadline).getMonth() + 1).padStart(2, '0') === paddedMonth;
+      return true;
+    });
+  }
+
+  if (type && type !== 'all') {
+    filtered = filtered.filter(t => {
+      if (type === 'admission' || type === 'students' || type === 'admissions') return /student|admission/i.test(t.type || '');
+      if (type === 'revenue' || type === 'sales') return !/student|admission/i.test(t.type || '');
+      return (t.type || '').toLowerCase().includes(type.toLowerCase());
+    });
+  }
+
   if (search) {
     const q = search.trim().toLowerCase();
     filtered = filtered.filter(t =>
@@ -816,10 +843,11 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
   filtered.sort((a, b) => b.percentage - a.percentage);
 
   // Overall KPI cards
-  const totalTargetAdmissions = filtered.filter(t => t.type.toLowerCase().includes('admission')).reduce((acc, t) => acc + t.targetValue, 0);
-  const totalAchievedAdmissions = filtered.filter(t => t.type.toLowerCase().includes('admission')).reduce((acc, t) => acc + t.achievedValue, 0);
-  const totalTargetRevenue = filtered.filter(t => !t.type.toLowerCase().includes('admission')).reduce((acc, t) => acc + t.targetValue, 0);
-  const totalAchievedRevenue = filtered.filter(t => !t.type.toLowerCase().includes('admission')).reduce((acc, t) => acc + t.achievedValue, 0);
+  const isAdmissionType = (tType: string) => /student|admission/i.test(tType || '');
+  const totalTargetAdmissions = filtered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
+  const totalAchievedAdmissions = filtered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
+  const totalTargetRevenue = filtered.filter(t => !isAdmissionType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
+  const totalAchievedRevenue = filtered.filter(t => !isAdmissionType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
 
   const overall = {
     totalTargetsCount: filtered.length,

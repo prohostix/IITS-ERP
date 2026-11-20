@@ -14,6 +14,10 @@ export interface TargetDateRange {
  * - 'monthly', 'weekly', 'quarterly', 'yearly'
  */
 export function parseTargetPeriod(period: string | null | undefined, createdAt?: Date | string | null): TargetDateRange {
+  if (period === 'session' || period === 'all') {
+    return { dateFrom: new Date(0), dateTo: new Date(8640000000000000) };
+  }
+
   if (typeof period === 'string' && /^\d{4}-\d{2}$/.test(period.trim())) {
     const [y, m] = period.trim().split('-').map(Number);
     const dateFrom = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
@@ -69,61 +73,92 @@ export function parseTargetPeriod(period: string | null | undefined, createdAt?:
 export async function calculateAndSyncTargets(targets: any[], organizationId: string): Promise<any[]> {
   if (!targets || targets.length === 0) return [];
 
-  // Gather unique employee IDs to query subordinates and centers
+  // Gather unique employee IDs, center IDs, and department IDs from targets
   const employeeIds = Array.from(new Set(targets.map(t => t.employeeId).filter(Boolean)));
   const centerIdsDirect = Array.from(new Set(targets.map(t => t.centerId).filter(Boolean)));
+  const departmentIds = Array.from(new Set(targets.map(t => t.departmentId).filter(Boolean)));
 
-  // Load all designations for organization to resolve subordinate downline
-  const [allUsers, allDesignations] = await Promise.all([
+  // Load all users, designations, and branches to build complete organizational downline
+  const [allUsers, allDesignations, allBranches] = await Promise.all([
     prisma.user.findMany({
       where: { organizationId, status: { not: 'deleted' } },
-      select: { id: true, designationId: true, branchId: true, reportingTo: true }
+      select: { id: true, designationId: true, branchId: true, departmentId: true, reportingTo: true, role: true }
     }),
     prisma.designation.findMany({
       where: { organizationId, status: { not: 'deleted' } },
-      select: { id: true, parentDesignationId: true }
+      select: { id: true, parentDesignationId: true, branchId: true, departmentId: true }
+    }),
+    prisma.branch.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: { id: true, branchManagerId: true }
     })
   ]);
 
   const userMap = new Map<string, typeof allUsers[0]>();
   allUsers.forEach(u => userMap.set(u.id, u));
 
-  // Map employeeId to all credited staff (the employee + any subordinates)
+  // Map employeeId to all credited staff (the employee + recursive subordinates + branch members if branch mgr)
   const employeeSubordinatesMap = new Map<string, string[]>();
 
   for (const empId of employeeIds) {
     const credited = new Set<string>([empId]);
     const empUser = userMap.get(empId);
 
-    // Direct reporting
-    allUsers.forEach(u => {
-      if (u.reportingTo === empId) credited.add(u.id);
-    });
+    // 1. Recursive direct reportingTo downline
+    const queue = [empId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      for (const u of allUsers) {
+        if (u.reportingTo === curr && !credited.has(u.id)) {
+          credited.add(u.id);
+          queue.push(u.id);
+        }
+      }
+    }
 
-    // Subordinate designations
+    // 2. Branch manager scope: all users in branches managed by this employee
+    const managedBranches = allBranches.filter(b => b.branchManagerId === empId);
+    for (const mb of managedBranches) {
+      for (const u of allUsers) {
+        if (u.branchId === mb.id) {
+          credited.add(u.id);
+        }
+      }
+    }
+
+    // 3. Recursive subordinate designations
     if (empUser?.designationId) {
       const childDesigIds = new Set<string>();
-      const queue = [empUser.designationId];
-      while (queue.length > 0) {
-        const curr = queue.shift()!;
+      const desigQueue = [empUser.designationId];
+      while (desigQueue.length > 0) {
+        const currDesig = desigQueue.shift()!;
         for (const d of allDesignations) {
-          if (d.parentDesignationId === curr && !childDesigIds.has(d.id)) {
+          if (d.parentDesignationId === currDesig && !childDesigIds.has(d.id)) {
             childDesigIds.add(d.id);
-            queue.push(d.id);
+            desigQueue.push(d.id);
           }
         }
       }
 
       if (childDesigIds.size > 0) {
-        allUsers.forEach(u => {
+        for (const u of allUsers) {
           if (u.designationId && childDesigIds.has(u.designationId)) {
-            credited.add(u.id);
+            if (!empUser.branchId || !u.branchId || u.branchId === empUser.branchId) {
+              credited.add(u.id);
+            }
           }
-        });
+        }
       }
     }
 
     employeeSubordinatesMap.set(empId, Array.from(credited));
+  }
+
+  // Pre-map department users if any target is department-scoped
+  const deptStaffMap = new Map<string, string[]>();
+  for (const dId of departmentIds) {
+    const usersInDept = allUsers.filter(u => u.departmentId === dId).map(u => u.id);
+    deptStaffMap.set(dId, usersInDept);
   }
 
   // Fetch all study centers referred by any of these credited staff
@@ -144,11 +179,13 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
     }
   }
 
-  // Pre-fetch all enrolled enrollments in organization (with dates, session, program university)
-  const allCompletedEnrollments = await prisma.enrollment.findMany({
+  // Pre-fetch all active enrollments (excluding rejected/cancelled/dropout/refunded)
+  const allActiveEnrollments = await prisma.enrollment.findMany({
     where: {
       organizationId,
-      status: 'enrolled'
+      status: {
+        notIn: ['rejected', 'department_rejected', 'cancelled', 'dropout', 'refunded']
+      }
     },
     select: {
       id: true,
@@ -156,9 +193,13 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
       studyCenterId: true,
       sessionId: true,
       totalFee: true,
+      status: true,
       admissionDate: true,
       enrolledAt: true,
+      departmentReviewedAt: true,
+      financeReviewedAt: true,
       createdAt: true,
+      updatedAt: true,
       program: {
         select: {
           id: true,
@@ -188,25 +229,51 @@ export async function calculateAndSyncTargets(targets: any[], organizationId: st
       cList.forEach(cId => creditedCenters.add(cId));
     }
 
+    // Add department staff and their centers if target is department-scoped
+    if (t.departmentId && deptStaffMap.has(t.departmentId)) {
+      const dStaff = deptStaffMap.get(t.departmentId) || [];
+      dStaff.forEach(sId => {
+        creditedStaff.push(sId);
+        const cList = centersByStaff.get(sId) || [];
+        cList.forEach(cId => creditedCenters.add(cId));
+      });
+    }
+
     const staffSet = new Set(creditedStaff);
 
     // Filter enrollments matching date, attribution, university, and session
-    const matchingEnrollments = allCompletedEnrollments.filter(e => {
+    const matchingEnrollments = allActiveEnrollments.filter(e => {
       // University specific target check
       if (t.universityId && e.program?.universityId !== t.universityId) return false;
 
       // Session specific target check
       if (t.sessionId && e.sessionId !== t.sessionId) return false;
 
-      const d = e.admissionDate || e.enrolledAt || e.createdAt;
-      if (!d) return false;
-      const tTime = new Date(d).getTime();
-      if (tTime < fromTime || tTime > toTime) return false;
+      // Attribution match: student assigned to staff or belonging to a credited center
+      const matchesAttribution =
+        (e.salesUserId && staffSet.has(e.salesUserId)) ||
+        (e.studyCenterId && creditedCenters.has(e.studyCenterId));
 
-      // Attribution match
-      if (e.salesUserId && staffSet.has(e.salesUserId)) return true;
-      if (e.studyCenterId && creditedCenters.has(e.studyCenterId)) return true;
-      return false;
+      if (!matchesAttribution) return false;
+
+      // If target is session-scoped without specific month bounds, session match is sufficient
+      if (t.sessionId && (t.period === 'session' || t.period === 'all')) {
+        return true;
+      }
+
+      // Multi-milestone event date matching: check if any milestone falls within the target period window
+      const eventDates = [
+        e.enrolledAt,
+        e.financeReviewedAt,
+        e.departmentReviewedAt,
+        e.admissionDate,
+        e.createdAt
+      ].filter(Boolean).map(d => new Date(d!).getTime());
+
+      if (eventDates.length === 0) return false;
+
+      const inPeriod = eventDates.some(tTime => tTime >= fromTime && tTime <= toTime);
+      return inPeriod;
     });
 
     const isAdmissionOrStudent = /student|admission/i.test(t.type || '');
