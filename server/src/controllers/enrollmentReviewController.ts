@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
+import { getSalesChainForCenterOrEnrollment } from './notificationController.js';
 
 export const getPendingReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isHistory = req.query.history === 'true';
@@ -169,24 +170,33 @@ export const rejectDeptEnrollment = asyncHandler(async (req: AuthRequest, res: R
     include: { program: true }
   });
 
-  // Notify Study Center and Sales User - batch insert instead of N+1
+  // Notify Study Center and Sales Chain - batch insert instead of N+1
   try {
-    const centerAdmins = await prisma.user.findMany({
-      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
-    });
-    const recipients = centerAdmins.map(a => a.id);
-    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
-    await prisma.notification.createMany({
-      data: recipients.map(userId => ({
-        organizationId: req.user.organizationId,
-        userId,
-        title: '❌ Enrollment Rejected by Operations',
-        message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-        type: 'general' as any,
-        priority: 'high' as any,
-        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
-      }))
-    });
+    const [centerAdmins, salesChainIds] = await Promise.all([
+      prisma.user.findMany({
+        where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any },
+        select: { id: true }
+      }),
+      getSalesChainForCenterOrEnrollment(req.user.organizationId, {
+        studyCenterId: enrollment.studyCenterId,
+        salesUserId: enrollment.salesUserId
+      })
+    ]);
+    const centerAdminSet = new Set(centerAdmins.map(a => a.id));
+    const recipients = Array.from(new Set([...centerAdmins.map(a => a.id), ...salesChainIds]));
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map(userId => ({
+          organizationId: req.user.organizationId,
+          userId,
+          title: '❌ Enrollment Rejected by Operations',
+          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: centerAdminSet.has(userId) ? 'enrollments' : 'center_admissions'
+        }))
+      });
+    }
   } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });

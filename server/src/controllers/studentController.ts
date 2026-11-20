@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
 import bcrypt from 'bcryptjs';
-import { createNotification, broadcastNotification } from './notificationController.js';
+import { createNotification, broadcastNotification, getSalesChainForCenterOrEnrollment } from './notificationController.js';
 
 export const getStudents = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = { organizationId: req.user.organizationId };
@@ -1071,14 +1071,36 @@ export const submitStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
     }
   });
 
-  // Broadcast notification to operations department roles
-  await broadcastNotification(
-    req.user.organizationId,
-    'system',
-    'New Status Change Request',
-    `A request has been submitted to mark student ${student.name} as ${requestedStatus.toUpperCase()}.`,
-    ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'employee']
-  );
+  // Notify Operations users and the sales chain owning this student's study center
+  try {
+    const [opsUsers, salesChainIds] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          organizationId: req.user.organizationId,
+          status: 'active',
+          OR: [
+            { role: { in: ['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager'] as any } },
+            { department: { type: 'operations' } }
+          ]
+        },
+        select: { id: true }
+      }),
+      getSalesChainForCenterOrEnrollment(req.user.organizationId, { studyCenterId: student.centerId })
+    ]);
+    const recipients = Array.from(new Set([...opsUsers.map(u => u.id), ...salesChainIds]));
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map(userId => ({
+          organizationId: req.user.organizationId,
+          userId,
+          type: 'system' as any,
+          title: 'New Status Change Request',
+          message: `A request has been submitted to mark student ${student.name} as ${requestedStatus.toUpperCase()}.`,
+          read: false
+        }))
+      });
+    }
+  } catch (_e) {}
 
   res.status(201).json({ success: true, data: statusRequest });
 });
@@ -1171,25 +1193,51 @@ export const verifyStatusChangeRequest = asyncHandler(async (req: AuthRequest, r
   });
 
   // Notify next parties
-  if (action === 'verify') {
-    // Notify Finance roles
-    await broadcastNotification(
-      request.organizationId,
-      'system',
-      'Status Change Request Verified',
-      `Operations verified a request to mark student ${request.student?.name} as ${request.requestedStatus.toUpperCase()}. Pending finance confirmation.`,
-      ['finance_admin', 'employee']
-    );
-  } else {
-    // Notify the requester (study center)
-    await createNotification(
-      request.organizationId,
-      request.createdBy,
-      'system',
-      'Status Request Rejected',
-      `Operations rejected the status change request for student ${request.student?.name}.`
-    );
-  }
+  try {
+    const salesChainIds = await getSalesChainForCenterOrEnrollment(request.organizationId, {
+      studyCenterId: request.student?.centerId
+    });
+    if (action === 'verify') {
+      const financeUsers = await prisma.user.findMany({
+        where: {
+          organizationId: request.organizationId,
+          status: 'active',
+          OR: [
+            { role: { in: ['finance_admin', 'finance_sub_admin', 'finance'] as any } },
+            { department: { type: 'finance' } }
+          ]
+        },
+        select: { id: true }
+      });
+      const recipients = Array.from(new Set([...financeUsers.map(u => u.id), ...salesChainIds]));
+      if (recipients.length > 0) {
+        await prisma.notification.createMany({
+          data: recipients.map(userId => ({
+            organizationId: request.organizationId,
+            userId,
+            type: 'system' as any,
+            title: 'Status Change Request Verified',
+            message: `Operations verified a request to mark student ${request.student?.name} as ${request.requestedStatus.toUpperCase()}. Pending finance confirmation.`,
+            read: false
+          }))
+        });
+      }
+    } else {
+      const recipients = Array.from(new Set([request.createdBy, ...salesChainIds].filter(Boolean)));
+      if (recipients.length > 0) {
+        await prisma.notification.createMany({
+          data: recipients.map(userId => ({
+            organizationId: request.organizationId,
+            userId,
+            type: 'system' as any,
+            title: 'Status Request Rejected',
+            message: `Operations rejected the status change request for student ${request.student?.name}.`,
+            read: false
+          }))
+        });
+      }
+    }
+  } catch (_e) {}
 
   res.status(200).json({ success: true, data: updated });
 });
@@ -1235,24 +1283,30 @@ export const confirmStatusChangeRequest = asyncHandler(async (req: AuthRequest, 
     return updated;
   });
 
-  // Notify the requester
-  if (action === 'confirm') {
-    await createNotification(
-      request.organizationId,
-      request.createdBy,
-      'system',
-      'Status Request Approved',
-      `Finance confirmed the status change request for student ${request.student?.name}. The student status has been updated to ${request.requestedStatus.toUpperCase()}.`
-    );
-  } else {
-    await createNotification(
-      request.organizationId,
-      request.createdBy,
-      'system',
-      'Status Request Rejected',
-      `Finance rejected the status change request for student ${request.student?.name}.`
-    );
-  }
+  // Notify the requester and sales chain
+  try {
+    const salesChainIds = await getSalesChainForCenterOrEnrollment(request.organizationId, {
+      studyCenterId: request.student?.centerId
+    });
+    const recipients = Array.from(new Set([request.createdBy, ...salesChainIds].filter(Boolean)));
+    const title = action === 'confirm' ? 'Status Request Approved' : 'Status Request Rejected';
+    const message =
+      action === 'confirm'
+        ? `Finance confirmed the status change request for student ${request.student?.name}. The student status has been updated to ${request.requestedStatus.toUpperCase()}.`
+        : `Finance rejected the status change request for student ${request.student?.name}.`;
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map(userId => ({
+          organizationId: request.organizationId,
+          userId,
+          type: 'system' as any,
+          title,
+          message,
+          read: false
+        }))
+      });
+    }
+  } catch (_e) {}
 
   res.status(200).json({ success: true, data: result });
 });

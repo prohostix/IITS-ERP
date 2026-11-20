@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import bcrypt from 'bcryptjs';
 import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
+import { getSalesChainForCenterOrEnrollment } from './notificationController.js';
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status, search } = req.query;
@@ -364,26 +365,34 @@ export const approveFinanceEnrollment = asyncHandler(async (req: AuthRequest, re
     }
   }
 
-  // Create notifications
+  // Create notifications for Study Center and Sales Chain
   try {
-    const centerAdmins = await prisma.user.findMany({
-      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
-    });
-    const recipients = centerAdmins.map(a => a.id);
-    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
+    const [centerAdmins, salesChainIds] = await Promise.all([
+      prisma.user.findMany({
+        where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any },
+        select: { id: true }
+      }),
+      getSalesChainForCenterOrEnrollment(req.user.organizationId, {
+        studyCenterId: enrollment.studyCenterId,
+        salesUserId: enrollment.salesUserId
+      })
+    ]);
+    const centerAdminSet = new Set(centerAdmins.map(a => a.id));
+    const recipients = Array.from(new Set([...centerAdmins.map(a => a.id), ...salesChainIds]));
 
-    // Batch create all notifications in a single DB call
-    await prisma.notification.createMany({
-      data: recipients.map(userId => ({
-        organizationId: req.user.organizationId,
-        userId,
-        title: '🎉 Student Enrolled',
-        message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
-        type: 'general' as any,
-        priority: 'high' as any,
-        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
-      }))
-    });
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map(userId => ({
+          organizationId: req.user.organizationId,
+          userId,
+          title: '🎉 Student Enrolled',
+          message: `Student ${enrollment.studentName} has been successfully enrolled for ${enrollment.program.name}.`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: centerAdminSet.has(userId) ? 'enrollments' : 'center_admissions'
+        }))
+      });
+    }
   } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });
@@ -410,26 +419,34 @@ export const rejectFinanceEnrollment = asyncHandler(async (req: AuthRequest, res
     include: { program: true }
   });
 
-  // Create notifications
+  // Create notifications for Study Center and Sales Chain
   try {
-    const centerAdmins = await prisma.user.findMany({
-      where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any }
-    });
-    const recipients = centerAdmins.map(a => a.id);
-    if (enrollment.salesUserId) recipients.push(enrollment.salesUserId);
+    const [centerAdmins, salesChainIds] = await Promise.all([
+      prisma.user.findMany({
+        where: { studyCenterId: enrollment.studyCenterId, role: 'center_admin' as any },
+        select: { id: true }
+      }),
+      getSalesChainForCenterOrEnrollment(req.user.organizationId, {
+        studyCenterId: enrollment.studyCenterId,
+        salesUserId: enrollment.salesUserId
+      })
+    ]);
+    const centerAdminSet = new Set(centerAdmins.map(a => a.id));
+    const recipients = Array.from(new Set([...centerAdmins.map(a => a.id), ...salesChainIds]));
 
-    // Batch create all notifications in a single DB call
-    await prisma.notification.createMany({
-      data: recipients.map(userId => ({
-        organizationId: req.user.organizationId,
-        userId,
-        title: '❌ Enrollment Rejected by Finance',
-        message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
-        type: 'general' as any,
-        priority: 'high' as any,
-        link: userId === enrollment.salesUserId ? 'student-applications' : 'enrollments'
-      }))
-    });
+    if (recipients.length > 0) {
+      await prisma.notification.createMany({
+        data: recipients.map(userId => ({
+          organizationId: req.user.organizationId,
+          userId,
+          title: '❌ Enrollment Rejected by Finance',
+          message: `Enrollment for ${enrollment.studentName} was rejected. Remarks: ${req.body.remarks}`,
+          type: 'general' as any,
+          priority: 'high' as any,
+          link: centerAdminSet.has(userId) ? 'enrollments' : 'center_admissions'
+        }))
+      });
+    }
   } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.json({ success: true, data: enrollment });

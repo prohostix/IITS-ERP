@@ -6,6 +6,7 @@ import { resolveProgramFeeStructure } from '../utils/feeStructureHelper.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { getBranchScope, getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
+import { getSalesChainForCenterOrEnrollment } from './notificationController.js';
 import bcrypt from 'bcryptjs';
 
 export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -542,34 +543,40 @@ export const createEnrollment = asyncHandler(async (req: AuthRequest, res: Respo
     return enrollment;
   });
 
-  // Notify Operations Users
+  // Notify Operations Users and the Sales Chain owning this Study Center
   try {
-    const opsUsers = await prisma.user.findMany({
-      where: { 
-        organizationId,
-        OR: [
-          { role: { in: ['ops_admin', 'ops_sub_admin'] } as any },
-          { role: 'employee' as any, department: { type: 'operations' } }
-        ]
-      }
-    });
-    
-    // Fetch program details for the message
-    const prog = await prisma.program.findUnique({ where: { id: programId } });
+    const [opsUsers, salesChainIds, prog] = await Promise.all([
+      prisma.user.findMany({
+        where: { 
+          organizationId,
+          status: 'active',
+          OR: [
+            { role: { in: ['ops_admin', 'ops_sub_admin'] } as any },
+            { role: 'employee' as any, department: { type: 'operations' } }
+          ]
+        },
+        select: { id: true }
+      }),
+      getSalesChainForCenterOrEnrollment(organizationId, { studyCenterId }),
+      prisma.program.findUnique({ where: { id: programId } })
+    ]);
     const programName = prog ? prog.name : '';
+    const opsIdSet = new Set(opsUsers.map(u => u.id));
+    const allRecipients = Array.from(new Set([...opsUsers.map(u => u.id), ...salesChainIds]));
 
-    // Batch create notifications in a single DB call instead of N+1 loop
-    await prisma.notification.createMany({
-      data: opsUsers.map(opUser => ({
-        organizationId,
-        userId: opUser.id,
-        title: '📄 New Enrollment Pending Verification',
-        message: `A new enrollment for ${studentName} has been submitted by ${center.name} for ${programName}.`,
-        type: 'general' as any,
-        priority: 'medium' as any,
-        link: 'enrollment_review'
-      }))
-    });
+    if (allRecipients.length > 0) {
+      await prisma.notification.createMany({
+        data: allRecipients.map(userId => ({
+          organizationId,
+          userId,
+          title: '📄 New Enrollment Pending Verification',
+          message: `A new enrollment for ${studentName} has been submitted by ${center.name} for ${programName}.`,
+          type: 'general' as any,
+          priority: 'medium' as any,
+          link: opsIdSet.has(userId) ? 'enrollment_review' : 'center_admissions'
+        }))
+      });
+    }
   } catch (notifErr) { console.error('Notification dispatch failed:', notifErr); }
 
   res.status(201).json({ success: true, data: enrollment });
