@@ -90,6 +90,12 @@ export function TeamPerformancePanel() {
   const [memberFilter, setMemberFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [universityFilter, setUniversityFilter] = useState('all');
+  const [sessionFilter, setSessionFilter] = useState('all');
+  const [centerFilter, setCenterFilter] = useState('all');
+  const [reportFilter, setReportFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const fetchTeam = async () => {
     setLoading(true);
@@ -105,35 +111,110 @@ export function TeamPerformancePanel() {
 
   useEffect(() => { fetchTeam(); }, []);
 
-  const totalLeads = team.reduce((s, m) => s + (m.leads || 0), 0);
-  const totalConverted = team.reduce((s, m) => s + (m.converted || 0), 0);
-  const totalAdmissions = team.reduce((s, m) => s + (m.admissionsTotal || 0), 0);
-  const totalEnrolled = team.reduce((s, m) => s + (m.admissionsEnrolled || 0), 0);
-  const totalRevenue = team.reduce((s, m) => s + (m.admissionsRevenue || 0), 0);
-  const avgScore = team.length ? Math.round(team.reduce((s, m) => s + (m.score || 0), 0) / team.length) : 0;
-
   // Flattened admissions across the whole downline
   const allAdmissions = useMemo(
     () => team.flatMap(m => (m.admissions || []).map(a => ({ ...a, memberId: m.id, memberName: m.name, memberDesignation: m.designation, reportingToName: m.reportingToName }))),
     [team]
   );
 
-  const filteredAdmissions = useMemo(() => {
+  const uniq = (arr: string[]) => Array.from(new Set(arr.filter(v => v && v !== '-'))).sort();
+  const universityOptions = useMemo(() => uniq(allAdmissions.map(a => a.universityName)), [allAdmissions]);
+  const sessionOptions = useMemo(() => uniq(allAdmissions.map(a => a.sessionName)), [allAdmissions]);
+  const centerOptions = useMemo(() => uniq(allAdmissions.map(a => a.centerName)), [allAdmissions]);
+
+  const filtersActive = memberFilter !== 'all' || statusFilter !== 'all' || universityFilter !== 'all' || sessionFilter !== 'all' ||
+    centerFilter !== 'all' || reportFilter !== 'all' || !!dateFrom || !!dateTo || !!search.trim();
+
+  const clearFilters = () => {
+    setMemberFilter('all'); setStatusFilter('all'); setUniversityFilter('all'); setSessionFilter('all');
+    setCenterFilter('all'); setReportFilter('all'); setDateFrom(''); setDateTo(''); setSearch('');
+  };
+
+  // Members visible under member / reporting filters
+  const visibleMembers = useMemo(() => team.filter(m => {
+    if (memberFilter !== 'all' && m.id !== memberFilter) return false;
+    if (reportFilter === 'direct' && !m.isDirectReport) return false;
+    if (reportFilter === 'indirect' && m.isDirectReport) return false;
+    return true;
+  }), [team, memberFilter, reportFilter]);
+
+  const admissionMatches = (a: any) => {
+    if (statusFilter === 'enrolled' && a.status !== 'enrolled') return false;
+    if (statusFilter === 'pending' && (a.status === 'enrolled' || REJECTED.includes(a.status))) return false;
+    if (statusFilter === 'rejected' && !REJECTED.includes(a.status)) return false;
+    if (universityFilter !== 'all' && a.universityName !== universityFilter) return false;
+    if (sessionFilter !== 'all' && a.sessionName !== sessionFilter) return false;
+    if (centerFilter !== 'all' && a.centerName !== centerFilter) return false;
+    if (dateFrom || dateTo) {
+      const t = a.admissionDate ? new Date(a.admissionDate).getTime() : NaN;
+      if (isNaN(t)) return false;
+      if (dateFrom && t < new Date(dateFrom + 'T00:00:00').getTime()) return false;
+      if (dateTo && t > new Date(dateTo + 'T23:59:59').getTime()) return false;
+    }
     const q = search.trim().toLowerCase();
-    return allAdmissions.filter(a => {
-      if (memberFilter !== 'all' && a.memberId !== memberFilter) return false;
-      if (statusFilter === 'enrolled' && a.status !== 'enrolled') return false;
-      if (statusFilter === 'pending' && (a.status === 'enrolled' || REJECTED.includes(a.status))) return false;
-      if (statusFilter === 'rejected' && !REJECTED.includes(a.status)) return false;
-      if (q && ![a.studentName, a.enrollmentNumber, a.centerName, a.programName, a.universityName, a.memberName]
-        .some(v => (v || '').toLowerCase().includes(q))) return false;
+    if (q && ![a.studentName, a.enrollmentNumber, a.centerName, a.programName, a.universityName, a.memberName]
+      .some(v => (v || '').toLowerCase().includes(q))) return false;
+    return true;
+  };
+
+  // Members with their filtered admissions & recomputed stats
+  const memberRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const admissionFiltersOn = statusFilter !== 'all' || universityFilter !== 'all' || sessionFilter !== 'all' || centerFilter !== 'all' || !!dateFrom || !!dateTo;
+    return visibleMembers.map(m => {
+      const adm = (m.admissions || []).map(a => ({ ...a, memberName: m.name })).filter(admissionMatches);
+      const valid = adm.filter(a => !REJECTED.includes(a.status));
+      return {
+        ...m,
+        filteredAdmissions: adm,
+        fTotal: valid.length,
+        fEnrolled: adm.filter(a => a.status === 'enrolled').length,
+        fPending: valid.filter(a => a.status !== 'enrolled').length,
+        fRejected: adm.length - valid.length,
+        fRevenue: valid.reduce((s, a) => s + (a.totalFee || 0), 0),
+        nameMatch: !q || m.name.toLowerCase().includes(q) || (m.designation || '').toLowerCase().includes(q)
+      };
+    }).filter(m => {
+      // hide members with no matching admissions when admission filters/search are active
+      if (q) return m.nameMatch || m.filteredAdmissions.length > 0;
+      if (admissionFiltersOn) return m.filteredAdmissions.length > 0;
       return true;
     });
-  }, [allAdmissions, memberFilter, statusFilter, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleMembers, statusFilter, universityFilter, sessionFilter, centerFilter, dateFrom, dateTo, search]);
+
+  const filteredAdmissions = useMemo(
+    () => memberRows.flatMap(m => m.filteredAdmissions.map(a => ({ ...a, memberId: m.id, memberName: m.name, memberDesignation: m.designation, reportingToName: m.reportingToName }))),
+    [memberRows]
+  );
+
+  const totalLeads = memberRows.reduce((s, m) => s + (m.leads || 0), 0);
+  const totalConverted = memberRows.reduce((s, m) => s + (m.converted || 0), 0);
+  const totalAdmissions = memberRows.reduce((s, m) => s + m.fTotal, 0);
+  const totalEnrolled = memberRows.reduce((s, m) => s + m.fEnrolled, 0);
+  const totalRevenue = memberRows.reduce((s, m) => s + m.fRevenue, 0);
+  const avgScore = memberRows.length ? Math.round(memberRows.reduce((s, m) => s + (m.score || 0), 0) / memberRows.length) : 0;
 
   const toggle = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
 
   const exportExcel = () => {
+    const summary = memberRows.map((m, i) => ({
+      'Rank': i + 1,
+      'Team Member': m.name,
+      'Designation': m.designation,
+      'Reports To': m.reportingToName || '-',
+      'Direct Report': m.isDirectReport ? 'Yes' : 'No',
+      'Centers': m.centersCount || 0,
+      'Admissions': m.fTotal,
+      'Enrolled': m.fEnrolled,
+      'Pending': m.fPending,
+      'Rejected': m.fRejected,
+      'Revenue': m.fRevenue,
+      'Leads': m.leads,
+      'Converted': m.converted,
+      'Target Progress %': m.targetProgress,
+      'Score': m.score
+    }));
     const rows = filteredAdmissions.map((a, i) => ({
       '#': i + 1,
       'Team Member': a.memberName,
@@ -149,10 +230,10 @@ export function TeamPerformancePanel() {
       'Status': statusLabel(a.status),
       'Fee': a.totalFee
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Team Admissions');
-    XLSX.writeFile(wb, `Team_Admissions_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary.length ? summary : [{ Note: 'No team members' }]), 'Team Summary');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ Note: 'No admissions' }]), 'Team Admissions');
+    XLSX.writeFile(wb, `My_Team_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const AdmissionsTable = ({ rows, showMember }: { rows: any[]; showMember?: boolean }) => (
@@ -227,14 +308,89 @@ export function TeamPerformancePanel() {
             <button
               onClick={() => setView('admissions')}
               className={cn('px-3 py-1.5 text-xs font-medium rounded-md transition-colors', view === 'admissions' ? 'bg-background shadow-sm' : 'text-muted-foreground')}
-            >All Admissions ({allAdmissions.length})</button>
+            >All Admissions ({filteredAdmissions.length})</button>
           </div>
+          <Button size="sm" onClick={exportExcel} disabled={loading || memberRows.length === 0} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <FileSpreadsheet className="w-4 h-4" /> Export Excel
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchTeam} disabled={loading}>
             <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
             Refresh
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card className="border border-border/60 shadow-sm bg-card/40">
+        <CardContent className="pt-5 pb-5 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search member, student, center..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+            </div>
+            <Select value={memberFilter} onValueChange={setMemberFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Team member" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Team Members</SelectItem>
+                {team.map(m => (
+                  <SelectItem key={m.id} value={m.id}>{m.name} ({m.admissionsTotal || 0})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={reportFilter} onValueChange={setReportFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Reporting" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Direct &amp; Indirect</SelectItem>
+                <SelectItem value="direct">Direct Reports Only</SelectItem>
+                <SelectItem value="indirect">Indirect Reports Only</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="enrolled">Enrolled</SelectItem>
+                <SelectItem value="pending">Pending / In Review</SelectItem>
+                <SelectItem value="rejected">Rejected / Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={universityFilter} onValueChange={setUniversityFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="University" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Universities</SelectItem>
+                {universityOptions.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sessionFilter} onValueChange={setSessionFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Session" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sessions</SelectItem>
+                {sessionOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={centerFilter} onValueChange={setCenterFilter}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Study Center" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Study Centers</SelectItem>
+                {centerOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9" title="From date" />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9" title="To date" />
+            </div>
+          </div>
+          {filtersActive && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                Showing {memberRows.length} of {team.length} members · {filteredAdmissions.length} admissions
+              </span>
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">Clear filters</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -243,8 +399,8 @@ export function TeamPerformancePanel() {
             <div className="p-3 rounded-xl bg-primary/10 text-primary"><Users className="w-5 h-5" /></div>
             <div>
               <p className="text-xs text-muted-foreground uppercase font-medium">Team Size</p>
-              <p className="text-2xl font-bold">{loading ? '...' : team.length}</p>
-              <p className="text-[10px] text-muted-foreground">{team.filter(m => m.isDirectReport).length} direct reports</p>
+              <p className="text-2xl font-bold">{loading ? '...' : memberRows.length}</p>
+              <p className="text-[10px] text-muted-foreground">{memberRows.filter(m => m.isDirectReport).length} direct reports</p>
             </div>
           </CardContent>
         </Card>
@@ -290,15 +446,15 @@ export function TeamPerformancePanel() {
               <div className="space-y-3">
                 {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
               </div>
-            ) : team.length === 0 ? (
+            ) : memberRows.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">No team members found</p>
+                <p className="font-medium">{team.length === 0 ? 'No team members found' : 'No members match the selected filters'}</p>
                 <p className="text-sm mt-1">Staff reporting to you (directly or indirectly) will appear here.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {team.map((member, i) => {
+                {memberRows.map((member, i) => {
                   const open = !!expanded[member.id];
                   return (
                     <div
@@ -348,12 +504,12 @@ export function TeamPerformancePanel() {
                           </div>
                           <div className="text-center">
                             <p className="text-xs text-muted-foreground">Admissions</p>
-                            <p className="font-bold text-sm">{member.admissionsTotal || 0}</p>
-                            <p className="text-[10px] text-success">{member.admissionsEnrolled || 0} enrolled</p>
+                            <p className="font-bold text-sm">{member.fTotal}</p>
+                            <p className="text-[10px] text-success">{member.fEnrolled} enrolled</p>
                           </div>
                           <div className="text-center">
                             <p className="text-xs text-muted-foreground">Revenue</p>
-                            <p className="font-bold text-sm">{formatINR(member.admissionsRevenue || 0)}</p>
+                            <p className="font-bold text-sm">{formatINR(member.fRevenue)}</p>
                           </div>
                           <div className="text-center">
                             <p className="text-xs text-muted-foreground">Leads</p>
@@ -378,12 +534,12 @@ export function TeamPerformancePanel() {
                       {open && (
                         <div className="px-4 pb-4 space-y-3">
                           <div className="flex flex-wrap gap-2 text-[11px]">
-                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Total: {member.admissionsTotal || 0}</Badge>
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Enrolled: {member.admissionsEnrolled || 0}</Badge>
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">Pending: {member.admissionsPending || 0}</Badge>
-                            <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/30">Rejected: {member.admissionsRejected || 0}</Badge>
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Total: {member.fTotal}</Badge>
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Enrolled: {member.fEnrolled}</Badge>
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">Pending: {member.fPending}</Badge>
+                            <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/30">Rejected: {member.fRejected}</Badge>
                           </div>
-                          <AdmissionsTable rows={member.admissions || []} />
+                          <AdmissionsTable rows={member.filteredAdmissions} />
                         </div>
                       )}
                     </div>
@@ -395,40 +551,11 @@ export function TeamPerformancePanel() {
         </Card>
       ) : (
         <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
-          <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <CardTitle>Team Admissions</CardTitle>
-              <CardDescription>All admissions from your downline's study centers</CardDescription>
-            </div>
-            <Button size="sm" onClick={exportExcel} disabled={filteredAdmissions.length === 0} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-              <FileSpreadsheet className="w-4 h-4" /> Export Excel
-            </Button>
+          <CardHeader>
+            <CardTitle>Team Admissions</CardTitle>
+            <CardDescription>All admissions from your downline's study centers (filtered)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search student, center, program..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
-              </div>
-              <Select value={memberFilter} onValueChange={setMemberFilter}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Team member" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Team Members</SelectItem>
-                  {team.map(m => (
-                    <SelectItem key={m.id} value={m.id}>{m.name} ({m.admissionsTotal || 0})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="enrolled">Enrolled</SelectItem>
-                  <SelectItem value="pending">Pending / In Review</SelectItem>
-                  <SelectItem value="rejected">Rejected / Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             {loading ? (
               <div className="h-32 bg-muted rounded-xl animate-pulse" />
             ) : (
