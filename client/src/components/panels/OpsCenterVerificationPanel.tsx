@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +30,8 @@ interface Center {
 }
 
 export function OpsCenterVerificationPanel() {
+  const { user } = useAuth();
+  const isUserInBranch = Boolean(user?.branchId || (user as any)?.designationRef?.branchId || user?.role === 'branch_manager' || user?.role === 'center_admin');
   const [centers, setCenters] = useState<Center[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
   const [branchFilter, setBranchFilter] = useState('all');
@@ -114,24 +117,28 @@ export function OpsCenterVerificationPanel() {
           <p className="text-muted-foreground text-sm mt-1">Review and verify study center documents across branches.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-            value={branchFilter}
-            onChange={e => setBranchFilter(e.target.value)}
-          >
-            <option value="all">All Branches</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            <option value="unassigned">Unassigned Branch</option>
-          </select>
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-            value={branchSort}
-            onChange={e => setBranchSort(e.target.value as any)}
-          >
-            <option value="latest">Sort: Latest First</option>
-            <option value="branch_asc">Sort: Branch (A → Z)</option>
-            <option value="branch_desc">Sort: Branch (Z → A)</option>
-          </select>
+          {!isUserInBranch && (
+            <>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+              >
+                <option value="all">All Branches</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                <option value="unassigned">Unassigned Branch</option>
+              </select>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                value={branchSort}
+                onChange={e => setBranchSort(e.target.value as any)}
+              >
+                <option value="latest">Sort: Latest First</option>
+                <option value="branch_asc">Sort: Branch (A → Z)</option>
+                <option value="branch_desc">Sort: Branch (Z → A)</option>
+              </select>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={fetch} disabled={loading}>
             <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />Refresh
           </Button>

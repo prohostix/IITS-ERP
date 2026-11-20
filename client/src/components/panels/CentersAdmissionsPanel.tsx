@@ -45,6 +45,14 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function CentersAdmissionsPanel() {
   const { user } = useAuth();
+  const isUserInBranch = Boolean(
+    user?.branchId ||
+    (user as any)?.designationRef?.branchId ||
+    (user as any)?.branch?.id ||
+    user?.role === 'branch_manager' ||
+    user?.role === 'center_admin' ||
+    ['sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'counselor', 'employee'].includes(user?.role || '')
+  );
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -126,7 +134,7 @@ export function CentersAdmissionsPanel() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        {user?.role !== 'branch_manager' && branches.length > 0 && (
+        {!isUserInBranch && branches.length > 0 && (
           <Select value={branchFilter} onValueChange={setBranchFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All Branches" />
@@ -139,16 +147,18 @@ export function CentersAdmissionsPanel() {
             </SelectContent>
           </Select>
         )}
-        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort By" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="latest">Sort: Latest First</SelectItem>
-            <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
-            <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
-          </SelectContent>
-        </Select>
+        {!isUserInBranch && (
+          <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Sort By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Sort: Latest First</SelectItem>
+              <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+              <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex gap-2 flex-wrap">
         {STATUSES.map(s => (

@@ -37,6 +37,7 @@ export const protect = async (
           organization: true,
           department: true,
           branch: true,
+          designationRef: true,
           studyCenter: true,
           subDepartment: { include: { parentDept: true } },
           managedDepartments: true,

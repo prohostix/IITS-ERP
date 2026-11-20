@@ -1219,12 +1219,12 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     allowedStaffIds = scope.staffIds;
+  } else if (!isGlobalAuth) {
+    const teamUsers = await resolveSalesTeamUsers(req.user, organizationId);
+    allowedStaffIds = Array.from(new Set([req.user.id, ...teamUsers.map(u => u.id)]));
   } else if (branchIdFilter) {
     const scope = await getBranchScopeByBranchId(organizationId, branchIdFilter);
     allowedStaffIds = scope.staffIds;
-  } else if (!isGlobalAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
-    allowedStaffIds = [req.user.id, ...subordinateIds];
   }
 
   if (allowedStaffIds !== null) {

@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface SalesStaffItem {
@@ -137,6 +138,15 @@ const rankBadge = (index: number) => {
 };
 
 export function SalesStaffAdmissionReportPanel() {
+  const { user } = useAuth();
+  const isUserInBranch = Boolean(
+    user?.branchId ||
+    (user as any)?.designationRef?.branchId ||
+    (user as any)?.branch?.id ||
+    user?.role === 'branch_manager' ||
+    user?.role === 'center_admin' ||
+    ['sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'counselor', 'employee'].includes(user?.role || '')
+  );
   const [loading, setLoading] = useState(false);
   const [staffSummary, setStaffSummary] = useState<StaffSummaryItem[]>([]);
   const [admissions, setAdmissions] = useState<AdmissionItem[]>([]);
@@ -173,10 +183,11 @@ export function SalesStaffAdmissionReportPanel() {
   const pageSize = 15;
 
   useEffect(() => {
+    if (isUserInBranch) return;
     api.get('/org/branches').then(res => {
       if (res.data?.data) setAvailableBranches(res.data.data);
     }).catch(() => {});
-  }, []);
+  }, [isUserInBranch]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -372,38 +383,42 @@ export function SalesStaffAdmissionReportPanel() {
       <Card className="border border-border/60 shadow-sm bg-card/60 backdrop-blur-md">
         <CardContent className="p-4 sm:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 items-end">
-            {/* Branch Filter */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-primary" /> Branch
-              </label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
-              >
-                <option value="all">All Branches</option>
-                {availableBranches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
+            {/* Branch Filter (only for global/org-wide roles not scoped to a branch) */}
+            {!isUserInBranch && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-primary" /> Branch
+                </label>
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                >
+                  <option value="all">All Branches</option>
+                  {availableBranches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Sort By Branch */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <ArrowUpDown className="w-3.5 h-3.5 text-primary" /> Sort Branches
-              </label>
-              <select
-                value={branchSort}
-                onChange={(e) => setBranchSort(e.target.value as any)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
-              >
-                <option value="default">Sort: By Admissions Rank</option>
-                <option value="branch_asc">Sort: Branch (A → Z)</option>
-                <option value="branch_desc">Sort: Branch (Z → A)</option>
-              </select>
-            </div>
+            {!isUserInBranch && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-primary" /> Sort Branches
+                </label>
+                <select
+                  value={branchSort}
+                  onChange={(e) => setBranchSort(e.target.value as any)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+                >
+                  <option value="default">Sort: By Admissions Rank</option>
+                  <option value="branch_asc">Sort: Branch (A → Z)</option>
+                  <option value="branch_desc">Sort: Branch (Z → A)</option>
+                </select>
+              </div>
+            )}
 
             {/* Session Filter */}
             <div>

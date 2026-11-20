@@ -1064,8 +1064,8 @@ export function StudentsPanel() {
         </div>
 
         <div className="flex gap-2 flex-wrap items-center ml-auto">
-          {/* Branches Multi-Select */}
-          {user?.role !== 'center_admin' && user?.role !== 'branch_manager' && branches.length > 0 && (
+          {/* Branches Multi-Select (only for org-wide users not assigned to a branch) */}
+          {!user?.branchId && !(user as any)?.designationRef?.branchId && user?.role !== 'center_admin' && user?.role !== 'branch_manager' && branches.length > 0 && (
             <MultiSelectFilter
               title="Branches"
               placeholder="All Branches"

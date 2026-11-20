@@ -28,6 +28,9 @@ export function applyBranchManagerRole<T extends Record<string, any>>(user: T | 
     (user as any).role = 'branch_manager';
     (user as any).branchId = managed.id;
   }
+  if (!(user as any).branchId && (user as any).designationRef?.branchId) {
+    (user as any).branchId = (user as any).designationRef.branchId;
+  }
   return user;
 }
 

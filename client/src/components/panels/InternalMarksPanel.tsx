@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 export function InternalMarksPanel() {
   const { user } = useAuth();
   const isCenterAdmin = user?.role === 'center_admin';
+  const isUserInBranch = Boolean(user?.branchId || (user as any)?.designationRef?.branchId || user?.role === 'branch_manager' || user?.role === 'center_admin');
   const isReadOnly = !isCenterAdmin; // ops_admin and others are read-only
 
   const [marks, setMarks] = useState<any[]>([]);
@@ -228,30 +229,32 @@ export function InternalMarksPanel() {
               {isReadOnly ? 'Submitted by study centers across branches' : 'Your entered marks'}
             </CardDescription>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={branchFilter} onValueChange={setBranchFilter}>
-              <SelectTrigger className="w-44 h-9 text-xs">
-                <SelectValue placeholder="All Branches" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
-                {branches.map(b => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-                <SelectItem value="unassigned">Unassigned Branch</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
-              <SelectTrigger className="w-44 h-9 text-xs">
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="latest">Sort: Latest First</SelectItem>
-                <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
-                <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {!isUserInBranch && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={branchFilter} onValueChange={setBranchFilter}>
+                <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches.map(b => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                  <SelectItem value="unassigned">Unassigned Branch</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+                <SelectTrigger className="w-44 h-9 text-xs">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">Sort: Latest First</SelectItem>
+                  <SelectItem value="branch_asc">Sort: Branch (A → Z)</SelectItem>
+                  <SelectItem value="branch_desc">Sort: Branch (Z → A)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (

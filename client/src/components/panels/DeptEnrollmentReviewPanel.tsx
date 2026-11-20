@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface Enrollment {
@@ -60,6 +61,8 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export function DeptEnrollmentReviewPanel() {
+  const { user } = useAuth();
+  const isUserInBranch = Boolean(user?.branchId || (user as any)?.designationRef?.branchId || user?.role === 'branch_manager' || user?.role === 'center_admin');
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
@@ -225,24 +228,28 @@ export function DeptEnrollmentReviewPanel() {
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full"
           />
-          <select 
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            value={branchFilter}
-            onChange={e => setBranchFilter(e.target.value)}
-          >
-            <option value="all">All Branches</option>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            <option value="unassigned">Unassigned Branch</option>
-          </select>
-          <select 
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            value={branchSort}
-            onChange={e => setBranchSort(e.target.value as any)}
-          >
-            <option value="latest">Sort: Latest First</option>
-            <option value="branch_asc">Sort: Branch (A → Z)</option>
-            <option value="branch_desc">Sort: Branch (Z → A)</option>
-          </select>
+          {!isUserInBranch && (
+            <>
+              <select 
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+              >
+                <option value="all">All Branches</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                <option value="unassigned">Unassigned Branch</option>
+              </select>
+              <select 
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={branchSort}
+                onChange={e => setBranchSort(e.target.value as any)}
+              >
+                <option value="latest">Sort: Latest First</option>
+                <option value="branch_asc">Sort: Branch (A → Z)</option>
+                <option value="branch_desc">Sort: Branch (Z → A)</option>
+              </select>
+            </>
+          )}
           <select 
             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             value={universityFilter}

@@ -640,29 +640,33 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
               Study Centers ({centers.length} total · {Object.keys(branchGroups).filter(k => k !== '__unassigned__').length} branches)
             </CardTitle>
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
-              <Select value={branchFilter} onValueChange={setBranchFilter}>
-                <SelectTrigger className="w-[175px] h-9 text-xs font-medium">
-                  <SelectValue placeholder="All Branches" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {existingBranchNames.map((bName) => (
-                    <SelectItem key={bName} value={bName}>{bName}</SelectItem>
-                  ))}
-                  <SelectItem value="__unassigned__">Unassigned Centers</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
-                <SelectTrigger className="w-[180px] h-9 text-xs font-medium">
-                  <SelectValue placeholder="Sort Branches" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name_asc">Sort: Branch (A → Z)</SelectItem>
-                  <SelectItem value="name_desc">Sort: Branch (Z → A)</SelectItem>
-                  <SelectItem value="count_desc">Sort: Most Centers</SelectItem>
-                  <SelectItem value="count_asc">Sort: Least Centers</SelectItem>
-                </SelectContent>
-              </Select>
+              {!user?.branchId && !(user as any)?.designationRef?.branchId && !['branch_manager', 'center_admin', 'sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'counselor'].includes(user?.role || '') && existingBranchNames.length > 1 && (
+                <>
+                  <Select value={branchFilter} onValueChange={setBranchFilter}>
+                    <SelectTrigger className="w-[175px] h-9 text-xs font-medium">
+                      <SelectValue placeholder="All Branches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      {existingBranchNames.map((bName) => (
+                        <SelectItem key={bName} value={bName}>{bName}</SelectItem>
+                      ))}
+                      <SelectItem value="__unassigned__">Unassigned Centers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={branchSort} onValueChange={(v: any) => setBranchSort(v)}>
+                    <SelectTrigger className="w-[180px] h-9 text-xs font-medium">
+                      <SelectValue placeholder="Sort Branches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name_asc">Sort: Branch (A → Z)</SelectItem>
+                      <SelectItem value="name_desc">Sort: Branch (Z → A)</SelectItem>
+                      <SelectItem value="count_desc">Sort: Most Centers</SelectItem>
+                      <SelectItem value="count_asc">Sort: Least Centers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
               <Select value={universityFilter} onValueChange={setUniversityFilter}>
                 <SelectTrigger className="w-[180px] h-9 text-xs font-medium">
                   <SelectValue placeholder="All Universities" />

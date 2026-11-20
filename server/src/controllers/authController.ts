@@ -173,7 +173,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
         departmentId: user.departmentId,
         subDepartmentId: user.subDepartmentId,
         studyCenterId: user.studyCenterId,
-        branchId: (user as any).branchId || null,
+        branchId: (user as any).branchId || (user as any).designationRef?.branchId || (user as any).managedBranch?.id || null,
         designation: user.designation || (user as any).designationRef?.title,
         status: user.status,
         canAddPrograms: user.canAddPrograms || false,

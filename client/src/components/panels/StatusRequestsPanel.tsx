@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface StatusRequestsPanelProps {
@@ -14,6 +15,8 @@ interface StatusRequestsPanelProps {
 }
 
 export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
+  const { user } = useAuth();
+  const isUserInBranch = Boolean(user?.branchId || (user as any)?.designationRef?.branchId || user?.role === 'branch_manager' || user?.role === 'center_admin');
   const [requests, setRequests] = useState<any[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string; centerIds?: string[] }[]>([]);
   const [branchFilter, setBranchFilter] = useState('all');
@@ -228,24 +231,28 @@ export function StatusRequestsPanel({ type }: StatusRequestsPanelProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-            value={branchFilter}
-            onChange={e => setBranchFilter(e.target.value)}
-          >
-            <option value="all">All Branches</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            <option value="unassigned">Unassigned Branch</option>
-          </select>
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-            value={branchSort}
-            onChange={e => setBranchSort(e.target.value as any)}
-          >
-            <option value="latest">Sort: Latest First</option>
-            <option value="branch_asc">Sort: Branch (A → Z)</option>
-            <option value="branch_desc">Sort: Branch (Z → A)</option>
-          </select>
+          {!isUserInBranch && (
+            <>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                value={branchFilter}
+                onChange={e => setBranchFilter(e.target.value)}
+              >
+                <option value="all">All Branches</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                <option value="unassigned">Unassigned Branch</option>
+              </select>
+              <select
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                value={branchSort}
+                onChange={e => setBranchSort(e.target.value as any)}
+              >
+                <option value="latest">Sort: Latest First</option>
+                <option value="branch_asc">Sort: Branch (A → Z)</option>
+                <option value="branch_desc">Sort: Branch (Z → A)</option>
+              </select>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={fetchRequests} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </Button>
