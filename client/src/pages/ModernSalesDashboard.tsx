@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, 
   Target, 
@@ -6,6 +6,19 @@ import {
   Zap, 
   ArrowUpRight,
   BarChart3,
+  Building2,
+  GraduationCap,
+  CheckCircle2,
+  Clock,
+  IndianRupee,
+  Trophy,
+  Medal,
+  Award,
+  Link2,
+  FileBarChart,
+  Calendar,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { LeadsPanel } from '@/components/panels/LeadsPanel';
 import { TargetsPanel } from '@/components/panels/TargetsPanel';
@@ -18,7 +31,6 @@ import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
 import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { TeamPerformancePanel } from '@/components/panels/TeamPerformancePanel';
-
 import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
@@ -51,16 +63,31 @@ import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 
+const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const formatINR = (val: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
+
+const rankIcon = (i: number) => {
+  if (i === 0) return <Trophy className="w-4 h-4 text-yellow-500" />;
+  if (i === 1) return <Medal className="w-4 h-4 text-slate-400" />;
+  if (i === 2) return <Award className="w-4 h-4 text-amber-600" />;
+  return <span className="w-4 h-4 flex items-center justify-center text-xs font-bold text-muted-foreground">#{i + 1}</span>;
+};
 
 export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate }: { initialTab?: string; isSubDeptManager?: boolean; onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
-  const isSalesAdmin = user?.role === 'sales_admin' || user?.role === 'bde' || isSubDeptManager;
+  const hasSubDept = Boolean(isSubDeptManager || user?.subDepartmentId);
 
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<any>({});
   const [leads, setLeads] = useState<any[]>([]);
   const [targets, setTargets] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [centers, setCenters] = useState<any[]>([]);
+  const [team, setTeam] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState(initialTab || (hasSubDept && initialTab === 'my_subdept' ? 'my_subdept' : 'overview'));
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -68,40 +95,57 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       onNavigate(tab === 'overview' || tab === 'my_subdept' ? 'dashboard' : tab);
     }
   };
-  void handleTabChange;
 
   useEffect(() => {
     setActiveTab(initialTab || 'overview');
   }, [initialTab]);
-  useEffect(() => { fetchAll(); }, []);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [metricsRes, leadsRes, targetsRes] = await Promise.all([
-        api.get('/dashboard/metrics'),
+      const [metricsRes, leadsRes, targetsRes, enrollmentsRes, centersRes, teamRes] = await Promise.all([
+        api.get('/dashboard/metrics').catch(() => ({ data: { data: {} } })),
         api.get('/sales/leads').catch(() => ({ data: { data: [] } })),
         api.get('/sales/targets').catch(() => ({ data: { data: [] } })),
+        api.get('/enrollment/all').catch(() => ({ data: { data: [] } })),
+        api.get('/sales/my-centers').catch(() => ({ data: { data: [] } })),
+        api.get('/sales/team-performance').catch(() => ({ data: { data: [] } })),
       ]);
       setMetrics(metricsRes.data.data || {});
       setLeads(leadsRes.data.data || []);
       setTargets(targetsRes.data.data || []);
-    } catch (e) {
+      setEnrollments(enrollmentsRes.data.data || []);
+      setCenters(centersRes.data.data || []);
+      setTeam(teamRes.data.data || []);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
   };
 
-  // Sub-dept manager (employee in sales dept) — scoped personal view
-  if (!isSalesAdmin) {
-    return <SalesEmployeePortal initialTab={initialTab} user={user} />;
-  }
-
   const renderContent = () => {
     switch (activeTab) {
-      case 'overview': return (
-        <OverviewContent metrics={metrics} leads={leads} targets={targets} loading={loading} onNavigate={setActiveTab} />
-      );
+      case 'overview':
+        return (
+          <OverviewContent
+            user={user}
+            metrics={metrics}
+            leads={leads}
+            targets={targets}
+            enrollments={enrollments}
+            centers={centers}
+            team={team}
+            loading={loading}
+            onRefresh={fetchAll}
+            onNavigate={handleTabChange}
+          />
+        );
+      case 'my_subdept': return hasSubDept ? <SubSalesPortalPanel /> : null;
       case 'leads': return <LeadsPanel />;
       case 'targets': return <TargetsPanel endpoint="/sales/targets" title="Sales Targets" />;
       case 'invite_links': return <SalesInvitePanel />;
@@ -128,17 +172,37 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'holidays': return <HolidaysPanel />;
       case 'announcements': return <AnnouncementsPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
+      case 'ld-portal':
+        return (
+          <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle>Learning &amp; Development Portal</CardTitle>
+              <CardDescription>Courses, certifications and growth resources</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="py-12 text-center text-muted-foreground">
+                <p className="font-medium">Courses will be assigned by HR. Check back regularly.</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
       default: return null;
     }
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{user?.name || 'Sales Dashboard'}</h1>
           <p className="text-muted-foreground mt-1">{user?.designation || 'Sales Administrator'}</p>
         </div>
+        {activeTab === 'overview' && (
+          <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading} className="gap-1.5 self-start md:self-auto">
+            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            Refresh Overview
+          </Button>
+        )}
       </div>
       {renderContent()}
     </div>
@@ -179,270 +243,691 @@ export function getSalesNavItems(isManager: boolean = true) {
   ];
 }
 
-function OverviewContent({ metrics, leads, targets, loading, onNavigate }: any) {
-  // Compute live stats
+function OverviewContent({ user, metrics, leads, targets, enrollments, centers, team, loading, onNavigate }: any) {
+  // 1. Study Centers stats
+  const totalCenters = centers.length;
+  const activeCentersCount = centers.filter((c: any) => c.status === 'active' || c.status === 'verified').length;
+  const pendingCentersCount = totalCenters - activeCentersCount;
+
+  // 2. Admissions & Revenue stats (combine direct enrollments & team downline admissions if any)
+  const combinedAdmissions = useMemo(() => {
+    const map = new Map<string, any>();
+    (enrollments || []).forEach((e: any) => {
+      if (e?.id) map.set(e.id, e);
+    });
+    (team || []).forEach((m: any) => {
+      (m.admissions || []).forEach((a: any) => {
+        if (a?.id && !map.has(a.id)) {
+          map.set(a.id, {
+            id: a.id,
+            studentName: a.studentName,
+            enrollmentNumber: a.enrollmentNumber,
+            status: a.status,
+            totalFee: a.totalFee,
+            createdAt: a.admissionDate,
+            admissionDate: a.admissionDate,
+            studyCenter: { name: a.centerName, code: a.centerCode },
+            program: { name: a.programName, university: { name: a.universityName } },
+            session: { name: a.sessionName },
+            memberName: m.name
+          });
+        }
+      });
+    });
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.admissionDate || b.createdAt || 0).getTime() - new Date(a.admissionDate || a.createdAt || 0).getTime()
+    );
+  }, [enrollments, team]);
+
+  const validAdmissions = useMemo(
+    () => combinedAdmissions.filter((e: any) => !REJECTED_STATUSES.includes((e.status || '').toLowerCase())),
+    [combinedAdmissions]
+  );
+  const enrolledAdmissions = useMemo(
+    () => combinedAdmissions.filter((e: any) => e.status === 'enrolled'),
+    [combinedAdmissions]
+  );
+  const rejectedAdmissions = useMemo(
+    () => combinedAdmissions.filter((e: any) => REJECTED_STATUSES.includes((e.status || '').toLowerCase())),
+    [combinedAdmissions]
+  );
+  const inReviewAdmissions = useMemo(
+    () => validAdmissions.filter((e: any) => e.status !== 'enrolled'),
+    [validAdmissions]
+  );
+
+  const totalRevenue = useMemo(
+    () => validAdmissions.reduce((sum: number, e: any) => sum + (Number(e.totalFee) || 0), 0),
+    [validAdmissions]
+  );
+  const avgFeePerStudent = validAdmissions.length > 0 ? Math.round(totalRevenue / validAdmissions.length) : 0;
+
+  // 3. Targets stats (scoped to user + their team)
+  const teamIdsSet = useMemo(() => {
+    const s = new Set<string>();
+    if (user?.id) s.add(user.id);
+    (team || []).forEach((m: any) => { if (m?.id) s.add(m.id); });
+    return s;
+  }, [user?.id, team]);
+
+  const scopedTargets = useMemo(() => {
+    const mineOrTeam = (targets || []).filter((t: any) => {
+      const empId = typeof t.employeeId === 'object' ? t.employeeId?.id : (t.employee?.id || t.employeeId);
+      return !empId || teamIdsSet.has(empId);
+    });
+    return mineOrTeam.length > 0 ? mineOrTeam : (targets || []);
+  }, [targets, teamIdsSet]);
+
+  const completedTargetsCount = scopedTargets.filter((t: any) => Number(t.achieved || 0) >= Number(t.target || 1)).length;
+  const avgTargetProgress = scopedTargets.length > 0
+    ? Math.round(
+        scopedTargets.reduce((sum: number, t: any) => {
+          const pct = Number(t.target) > 0 ? Math.min(100, Math.round((Number(t.achieved || 0) / Number(t.target)) * 100)) : 0;
+          return sum + pct;
+        }, 0) / scopedTargets.length
+      )
+    : 0;
+
+  // 4. Leads stats
   const totalLeads = leads.length;
   const newLeads = leads.filter((l: any) => l.status === 'new').length;
   const convertedLeads = leads.filter((l: any) => l.status === 'converted').length;
   const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0;
 
-  // Lead source breakdown from real data
-  const sourceCounts: Record<string, number> = {};
-  leads.forEach((l: any) => {
-    const src = l.source || 'Direct';
-    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-  });
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--error))'];
-  const sourceData = Object.entries(sourceCounts).map(([name, value], i) => ({
-    name, value, color: COLORS[i % COLORS.length],
-  }));
+  // 5. Team stats
+  const directReportsCount = (team || []).filter((m: any) => m.isDirectReport).length;
+  const teamAdmissionsCount = (team || []).reduce((s: number, m: any) => s + (Number(m.admissionsTotal) || 0), 0);
 
-  // Target progress — compute from achieved/target since model has no status/progress fields
-  const activeTargets = targets.filter((t: any) => (t.achieved || 0) < t.target);
-  const avgProgress = activeTargets.length
-    ? Math.round(activeTargets.reduce((s: number, t: any) => {
-        const pct = t.target > 0 ? Math.round((t.achieved / t.target) * 100) : 0;
-        return s + pct;
-      }, 0) / activeTargets.length)
-    : 0;
+  // 6. Universities & Programs reach
+  const { universityDistribution, uniqueUniversitiesCount, uniqueProgramsCount } = useMemo(() => {
+    const uniMap = new Map<string, { name: string; count: number; revenue: number }>();
+    const progSet = new Set<string>();
 
-  // Lead status bar chart
-  const statusData = [
-    { label: 'New', value: leads.filter((l: any) => l.status === 'new').length, color: 'hsl(var(--primary))' },
-    { label: 'Contacted', value: leads.filter((l: any) => l.status === 'contacted').length, color: 'hsl(var(--info))' },
-    { label: 'Qualified', value: leads.filter((l: any) => l.status === 'qualified').length, color: 'hsl(var(--warning))' },
-    { label: 'Converted', value: convertedLeads, color: 'hsl(var(--success))' },
-    { label: 'Lost', value: leads.filter((l: any) => l.status === 'lost').length, color: 'hsl(var(--error))' },
-  ];
+    validAdmissions.forEach((e: any) => {
+      const uName = e.program?.university?.name || e.universityName || 'General University';
+      const pName = e.program?.name || e.programName || '';
+      if (pName) progSet.add(pName);
+      if (!uniMap.has(uName)) uniMap.set(uName, { name: uName, count: 0, revenue: 0 });
+      const entry = uniMap.get(uName)!;
+      entry.count += 1;
+      entry.revenue += Number(e.totalFee) || 0;
+    });
 
-  const hotLeads = [...leads]
-    .filter((l: any) => l.status !== 'converted' && l.status !== 'lost')
-    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
+    const COLORS = ['#6366f1', '#10b981', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6'];
+    const dist = Array.from(uniMap.values())
+      .sort((a, b) => b.count - a.count)
+      .map((u, i) => ({ ...u, color: COLORS[i % COLORS.length] }));
+
+    return {
+      universityDistribution: dist,
+      uniqueUniversitiesCount: uniMap.size,
+      uniqueProgramsCount: progSet.size
+    };
+  }, [validAdmissions]);
+
+  // 7. Monthly Admissions & Revenue Chart data
+  const monthlyChartData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const buckets = MONTH_LABELS.map(label => ({ month: label, admissions: 0, revenue: 0 }));
+    validAdmissions.forEach((e: any) => {
+      const dStr = e.admissionDate || e.createdAt;
+      if (!dStr) return;
+      const d = new Date(dStr);
+      if (!isNaN(d.getTime()) && d.getFullYear() === currentYear) {
+        const mIdx = d.getMonth();
+        buckets[mIdx].admissions += 1;
+        buckets[mIdx].revenue += Number(e.totalFee) || 0;
+      }
+    });
+    return buckets;
+  }, [validAdmissions]);
+
+  // 8. Top Study Centers by Admissions
+  const topCenters = useMemo(() => {
+    const map = new Map<string, { name: string; code: string; count: number; enrolled: number; revenue: number }>();
+    validAdmissions.forEach((e: any) => {
+      const cName = e.studyCenter?.name || e.centerName || 'Direct';
+      const cCode = e.studyCenter?.code || e.centerCode || '';
+      if (!map.has(cName)) map.set(cName, { name: cName, code: cCode, count: 0, enrolled: 0, revenue: 0 });
+      const item = map.get(cName)!;
+      item.count += 1;
+      if (e.status === 'enrolled') item.enrolled += 1;
+      item.revenue += Number(e.totalFee) || 0;
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count || b.revenue - a.revenue).slice(0, 5);
+  }, [validAdmissions]);
+
+  const statusBadge = (s: string) => {
+    const lower = (s || '').toLowerCase();
+    if (lower === 'enrolled') {
+      return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Enrolled</Badge>;
+    }
+    if (REJECTED_STATUSES.includes(lower)) {
+      return <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30 text-[10px]">Rejected</Badge>;
+    }
+    return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] capitalize">{lower.replace(/_/g, ' ')}</Badge>;
+  };
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Hero Header */}
+      {/* 1. Dashboard Hero Header */}
       <DashboardHero
-        title="Sales Growth & Admissions Pulse"
-        badge="Live Sales Pipeline"
-        subtitle="Monitor inbound lead pipelines, regional study center acquisitions, target velocities, and real-time conversion rates across all territories."
+        title="Sales Growth & Admissions Command"
+        badge="Live Sales & Center Intelligence"
+        subtitle="Real-time visibility into study center acquisitions, student admission pipelines, team hierarchy performance, and target quota velocity."
         stats={[
-          { label: 'Total Inbound Leads', value: loading ? '...' : totalLeads, icon: Users },
-          { label: 'Conversion Velocity', value: `${conversionRate}%`, icon: TrendingUp, change: `${convertedLeads} enrolled`, isPositive: true },
-          { label: 'Active Targets', value: loading ? '...' : activeTargets.length, icon: Target },
-          { label: 'Avg Progress', value: `${avgProgress}%`, icon: Zap, change: avgProgress >= 70 ? 'On pace' : 'Attention needed', isPositive: avgProgress >= 70 },
+          {
+            label: 'Total Admissions',
+            value: loading ? '...' : validAdmissions.length,
+            icon: GraduationCap,
+            change: `${enrolledAdmissions.length} enrolled · ${inReviewAdmissions.length} in review`,
+            isPositive: validAdmissions.length > 0
+          },
+          {
+            label: 'Admission Revenue',
+            value: loading ? '...' : formatINR(totalRevenue),
+            icon: IndianRupee,
+            change: `Avg ${formatINR(avgFeePerStudent)} / student`,
+            isPositive: totalRevenue > 0
+          },
+          {
+            label: 'Study Centers',
+            value: loading ? '...' : totalCenters,
+            icon: Building2,
+            change: `${activeCentersCount} active partners`,
+            isPositive: true
+          },
+          {
+            label: 'Target Achievement',
+            value: loading ? '...' : `${avgTargetProgress}%`,
+            icon: Target,
+            change: `${completedTargetsCount}/${scopedTargets.length} quotas achieved`,
+            isPositive: avgTargetProgress >= 70
+          },
         ]}
         primaryAction={{
-          label: 'Manage Leads',
-          onClick: () => onNavigate('leads'),
-          icon: Users
+          label: 'Centers Admissions',
+          onClick: () => onNavigate('center_admissions'),
+          icon: GraduationCap
         }}
         secondaryAction={{
-          label: 'View Targets',
-          onClick: () => onNavigate('targets'),
+          label: 'Target vs. Achievement',
+          onClick: () => onNavigate('target_achievement_report'),
           icon: Target
         }}
       />
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-5">
+      {/* 2. Quick Action Shortcuts Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: 'My Team', sub: `${team.length} Downline Staff`, icon: <Users className="w-4 h-4 text-indigo-500" />, tab: 'my_team' },
+          { label: 'Admission Hierarchy', sub: 'Center & TL Rollup', icon: <FileBarChart className="w-4 h-4 text-emerald-500" />, tab: 'admission_report' },
+          { label: 'Session Report', sub: 'All Intake Sessions', icon: <Calendar className="w-4 h-4 text-sky-500" />, tab: 'session_report' },
+          { label: 'Study Centers', sub: `${totalCenters} Registered`, icon: <Building2 className="w-4 h-4 text-purple-500" />, tab: 'study_centers' },
+          { label: 'Invite Links', sub: 'Onboard Centers', icon: <Link2 className="w-4 h-4 text-amber-500" />, tab: 'invite_links' },
+          { label: 'Financial Report', sub: 'Revenue & Commissions', icon: <IndianRupee className="w-4 h-4 text-rose-500" />, tab: 'sales_users_report' },
+        ].map(action => (
+          <button
+            key={action.tab}
+            type="button"
+            onClick={() => onNavigate(action.tab)}
+            className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/60 bg-card/70 hover:bg-card hover:border-primary/40 hover:shadow-md transition-all text-left group"
+          >
+            <div className="p-2.5 rounded-xl bg-muted/60 group-hover:bg-primary/10 transition-colors shrink-0">
+              {action.icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">{action.label}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{action.sub}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* 3. Primary KPI Cards Grid (8 Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-5">
         <SalesMetric
-          title="Total Leads"
-          value={loading ? '...' : totalLeads}
-          trend={newLeads > 0 ? `${newLeads} new leads` : 'Pipeline active'}
-          icon={<Users className="w-5 h-5" />}
+          title="Student Admissions"
+          value={loading ? '...' : validAdmissions.length}
+          subtext={`${enrolledAdmissions.length} confirmed enrolled · ${inReviewAdmissions.length} in verification`}
+          trend={validAdmissions.length > 0 ? 'Active Intake' : 'No Admissions'}
+          icon={<GraduationCap className="w-5 h-5" />}
           color="primary"
-          onClick={() => onNavigate('leads')}
+          onClick={() => onNavigate('center_admissions')}
         />
         <SalesMetric
-          title="Conversions"
-          value={loading ? '...' : convertedLeads}
-          trend={`${conversionRate}% conversion rate`}
+          title="Admission Revenue"
+          value={loading ? '...' : formatINR(totalRevenue)}
+          subtext={`Average fee ${formatINR(avgFeePerStudent)} across ${validAdmissions.length} admissions`}
+          trend={`${enrolledAdmissions.length} Enrolled`}
           icon={<TrendingUp className="w-5 h-5" />}
+          color="success"
+          onClick={() => onNavigate('sales_users_report')}
+        />
+        <SalesMetric
+          title="Partner Study Centers"
+          value={loading ? '...' : totalCenters}
+          subtext={`${activeCentersCount} active & verified · ${pendingCentersCount} onboarding`}
+          trend={`${topCenters.length} Contributing`}
+          icon={<Building2 className="w-5 h-5" />}
+          color="info"
+          onClick={() => onNavigate('center_onboarding')}
+        />
+        <SalesMetric
+          title="Target Achievement"
+          value={loading ? '...' : `${avgTargetProgress}%`}
+          subtext={`${completedTargetsCount} of ${scopedTargets.length} targets completed`}
+          trend={avgTargetProgress >= 100 ? 'Quota Exceeded' : avgTargetProgress >= 70 ? 'On Track' : 'In Progress'}
+          icon={<Target className="w-5 h-5" />}
+          color="warning"
+          onClick={() => onNavigate('target_achievement_report')}
+        />
+        <SalesMetric
+          title="Team Downline"
+          value={loading ? '...' : team.length}
+          subtext={`${directReportsCount} direct reports · ${teamAdmissionsCount} downline admissions`}
+          trend="Hierarchy Active"
+          icon={<Users className="w-5 h-5" />}
+          color="primary"
+          onClick={() => onNavigate('my_team')}
+        />
+        <SalesMetric
+          title="Universities & Programs"
+          value={loading ? '...' : uniqueUniversitiesCount}
+          subtext={`${uniqueProgramsCount} distinct academic programs with active admissions`}
+          trend="Session Report"
+          icon={<Sparkles className="w-5 h-5" />}
+          color="info"
+          onClick={() => onNavigate('session_report')}
+        />
+        <SalesMetric
+          title="Inbound Leads"
+          value={loading ? '...' : totalLeads}
+          subtext={`${newLeads} new leads · ${convertedLeads} converted (${conversionRate}%)`}
+          trend={newLeads > 0 ? `${newLeads} New` : 'Lead Pipeline'}
+          icon={<BarChart3 className="w-5 h-5" />}
           color="success"
           onClick={() => onNavigate('leads')}
         />
         <SalesMetric
-          title="Active Targets"
-          value={loading ? '...' : activeTargets.length}
-          trend={avgProgress > 0 ? `${avgProgress}% avg quota reached` : 'No active quotas'}
-          icon={<Target className="w-5 h-5" />}
-          color="warning"
-          onClick={() => onNavigate('targets')}
-        />
-        <SalesMetric
           title="Pending Tasks"
           value={loading ? '...' : (metrics.pendingTasks || 0)}
-          trend={metrics.overdueTasks ? `${metrics.overdueTasks} tasks overdue` : 'All tasks on schedule'}
+          subtext={metrics.overdueTasks ? `${metrics.overdueTasks} tasks overdue` : 'All sales tasks & follow-ups on schedule'}
+          trend="Action Items"
           icon={<Zap className="w-5 h-5" />}
-          color="info"
+          color="warning"
           onClick={() => onNavigate('tasks')}
         />
       </div>
 
+      {/* 4. Visual Analytics Row: Monthly Admissions Trend + University Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Lead Status Chart */}
-        <Card
-          className="lg:col-span-3 border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => onNavigate('leads')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between">
+        {/* Monthly Admissions & Pipeline Status Breakdown */}
+        <Card className="lg:col-span-2 border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3">
             <div>
-              <CardTitle>Lead Pipeline</CardTitle>
-              <CardDescription>Live status breakdown — click to manage leads</CardDescription>
+              <CardTitle className="text-lg">Monthly Admissions &amp; Pipeline Velocity ({new Date().getFullYear()})</CardTitle>
+              <CardDescription>Monthly admission volume and stage distribution across your hierarchy</CardDescription>
             </div>
-            <BarChart3 className="w-5 h-5 text-muted-foreground" />
+            <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => onNavigate('sales_admission_report')}>
+              Full Staff Report <ArrowUpRight className="ml-1 w-3.5 h-3.5" />
+            </Button>
           </CardHeader>
-          <CardContent className="h-[260px]">
-            {leads.length > 0 ? (
+          <CardContent className="space-y-5">
+            {/* Stage Breakdown Pills */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-center justify-between text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                  <span>Active Admissions</span>
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <p className="text-2xl font-extrabold mt-1">{validAdmissions.length}</p>
+                <p className="text-[10px] text-muted-foreground">Total valid submissions</p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <span>Enrolled</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <p className="text-2xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">{enrolledAdmissions.length}</p>
+                <p className="text-[10px] text-muted-foreground">Verified &amp; enrolled</p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>In Verification</span>
+                  <Clock className="w-4 h-4" />
+                </div>
+                <p className="text-2xl font-extrabold mt-1 text-amber-600 dark:text-amber-400">{inReviewAdmissions.length}</p>
+                <p className="text-[10px] text-muted-foreground">Doc / Finance review</p>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center justify-between text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                  <span>Rejected / Drop</span>
+                  <BarChart3 className="w-4 h-4" />
+                </div>
+                <p className="text-2xl font-extrabold mt-1">{rejectedAdmissions.length}</p>
+                <p className="text-[10px] text-muted-foreground">Excluded from quota</p>
+              </div>
+            </div>
+
+            {/* Bar Chart */}
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={statusData} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
+                <BarChart data={monthlyChartData} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px' }} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={36}>
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    formatter={(val: any, name: any) => [name === 'revenue' ? formatINR(Number(val)) : val, name === 'revenue' ? 'Revenue' : 'Admissions']}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="admissions" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} barSize={26} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
-                <Users className="w-10 h-10 opacity-20" />
-                <p className="text-sm">No leads yet</p>
-                <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); onNavigate('leads'); }}>
-                  Add Lead
-                </Button>
-              </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Lead Sources */}
-        <Card
-          className="border-none shadow-xl bg-card/60 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors"
-          onClick={() => onNavigate('leads')}
-        >
-          <CardHeader>
-            <CardTitle>Lead Sources</CardTitle>
-            <CardDescription>Acquisition channel breakdown</CardDescription>
+        {/* University & Program Distribution */}
+        <Card className="border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg">University Share</CardTitle>
+              <CardDescription>Admissions &amp; fee revenue by university</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs text-primary" onClick={() => onNavigate('session_report')}>
+              Details <ArrowUpRight className="ml-1 w-3 h-3" />
+            </Button>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            {sourceData.length > 0 ? (
+          <CardContent className="space-y-4">
+            {universityDistribution.length > 0 ? (
               <>
-                <div className="h-[160px] w-full">
+                <div className="h-[165px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={sourceData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value">
-                        {sourceData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Pie
+                        data={universityDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={68}
+                        paddingAngle={4}
+                        dataKey="count"
+                      >
+                        {universityDistribution.map((entry, index) => (
+                          <Cell key={`uni-cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px' }} />
+                      <Tooltip
+                        formatter={(val: any, _name: any, item: any) => [`${val} admissions (${formatINR(item?.payload?.revenue || 0)})`, item?.payload?.name]}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                  {sourceData.map(item => (
-                    <div key={item.name} className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs text-muted-foreground truncate">{item.name}</span>
-                      <span className="text-xs font-bold ml-auto">{item.value}</span>
+                <div className="space-y-2">
+                  {universityDistribution.slice(0, 5).map(u => (
+                    <div key={u.name} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: u.color }} />
+                        <span className="font-semibold truncate">{u.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Badge variant="outline" className="text-[10px]">{u.count} Adm.</Badge>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatINR(u.revenue)}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground gap-2">
-                <Users className="w-8 h-8 opacity-20" />
-                <p className="text-sm">No source data yet</p>
+              <div className="h-[240px] flex flex-col items-center justify-center text-muted-foreground gap-2">
+                <GraduationCap className="w-9 h-9 opacity-25" />
+                <p className="text-sm">No university admissions recorded yet</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Hot Leads */}
-        <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('leads')}>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Recent Leads</CardTitle>
-            <Button variant="ghost" size="sm" className="text-primary font-bold" onClick={e => { e.stopPropagation(); onNavigate('leads'); }}>
-              View All <ArrowUpRight className="ml-1 w-3 h-3" />
+      {/* 5. Bottom Operational Grid: Team Leaderboard, Top Study Centers & Active Targets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Team Performance Leaderboard */}
+        <Card className="border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-lg">Team Leaderboard</CardTitle>
+              <CardDescription>Downline staff ranked by admissions &amp; targets</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-primary text-xs font-bold" onClick={() => onNavigate('my_team')}>
+              View Team <ArrowUpRight className="ml-1 w-3 h-3" />
             </Button>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2.5">
             {loading ? (
-              [1,2,3].map(i => <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />)
-            ) : hotLeads.length === 0 ? (
-              <div className="py-6 text-center text-muted-foreground">
-                <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No active leads</p>
+              [1, 2, 3].map(i => <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />)
+            ) : team.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-25" />
+                <p className="text-sm">No subordinate team members</p>
               </div>
             ) : (
-              hotLeads.map((lead: any) => (
-                <div key={lead.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                      {(lead.name || lead.contactName || '?')[0].toUpperCase()}
+              team.slice(0, 5).map((m: any, idx: number) => (
+                <div
+                  key={m.id}
+                  onClick={() => onNavigate('my_team')}
+                  className="flex items-center justify-between p-2.5 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-5 flex justify-center shrink-0">{rankIcon(idx)}</div>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                      {(m.name?.[0] || '?').toUpperCase()}
                     </div>
-                    <div>
-                      <h5 className="text-sm font-bold">{lead.name || lead.contactName || 'Unknown'}</h5>
-                      <p className="text-[10px] text-muted-foreground">{lead.source || 'Direct'} · {new Date(lead.createdAt).toLocaleDateString()}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate">{m.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {m.designation} · {m.centersCount || 0} centers
+                      </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] uppercase font-bold">{lead.status}</Badge>
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="text-xs font-extrabold text-primary">{m.admissionsTotal || 0} Adm.</p>
+                    <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatINR(m.admissionsRevenue || 0)}
+                    </p>
+                  </div>
                 </div>
               ))
             )}
           </CardContent>
         </Card>
 
-        {/* Targets + Punch */}
-        <div className="space-y-4">
-          <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => onNavigate('targets')}>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-lg">Active Targets</CardTitle>
-              <Button variant="ghost" size="sm" className="text-primary font-bold" onClick={e => { e.stopPropagation(); onNavigate('targets'); }}>
-                View All <ArrowUpRight className="ml-1 w-3 h-3" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {loading ? (
-                [1,2].map(i => <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />)
-              ) : activeTargets.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No active targets</p>
-              ) : (
-              activeTargets.slice(0, 3).map((t: any) => {
-                  const pct = t.target > 0 ? Math.round((t.achieved / t.target) * 100) : 0;
-                  const label = (typeof t.employeeId === 'object' ? t.employeeId?.name : t.employee?.name)
-                    || (typeof t.departmentId === 'object' ? t.departmentId?.name : t.department?.name)
-                    || t.type || 'Target';
-                  return (
-                  <div key={t.id} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium truncate max-w-[180px]">{label} ({t.period})</span>
-                      <span className="font-bold text-primary">{pct}%</span>
+        {/* Top Performing Study Centers */}
+        <Card className="border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-lg">Top Study Centers</CardTitle>
+              <CardDescription>Highest contributing partner centers</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-primary text-xs font-bold" onClick={() => onNavigate('admission_report')}>
+              All Centers <ArrowUpRight className="ml-1 w-3 h-3" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {loading ? (
+              [1, 2, 3].map(i => <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />)
+            ) : topCenters.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Building2 className="w-8 h-8 mx-auto mb-2 opacity-25" />
+                <p className="text-sm">No center admissions yet</p>
+              </div>
+            ) : (
+              topCenters.map((c, idx) => (
+                <div
+                  key={c.name + idx}
+                  onClick={() => onNavigate('admission_report')}
+                  className="flex items-center justify-between p-2.5 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 font-bold text-xs flex items-center justify-center shrink-0">
+                      #{idx + 1}
                     </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate">{c.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {c.enrolled} enrolled · {c.count - c.enrolled} in review
+                      </p>
                     </div>
                   </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-</div>
+                  <div className="text-right shrink-0 ml-2">
+                    <Badge variant="outline" className="text-[10px] font-bold">{c.count} Adm.</Badge>
+                    <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      {formatINR(c.revenue)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Sales Targets & Quota Tracker */}
+        <Card className="border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle className="text-lg">Targets &amp; Quotas</CardTitle>
+              <CardDescription>Live goal vs achievement progress</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-primary text-xs font-bold" onClick={() => onNavigate('target_achievement_report')}>
+              Full Report <ArrowUpRight className="ml-1 w-3 h-3" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading ? (
+              [1, 2, 3].map(i => <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />)
+            ) : scopedTargets.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Target className="w-8 h-8 mx-auto mb-2 opacity-25" />
+                <p className="text-sm">No targets assigned yet</p>
+              </div>
+            ) : (
+              scopedTargets.slice(0, 5).map((t: any) => {
+                const isRev = /revenue|fee|amount|sales/i.test(t.type || '');
+                const goal = Number(t.target) || 0;
+                const ach = Number(t.achieved) || 0;
+                const pct = goal > 0 ? Math.round((ach / goal) * 100) : 0;
+                const empName =
+                  (typeof t.employeeId === 'object' ? t.employeeId?.name : t.employee?.name) ||
+                  user?.name ||
+                  'Target';
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => onNavigate('target_achievement_report')}
+                    className="p-3 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 cursor-pointer transition-colors space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold truncate">{empName}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] font-bold',
+                          pct >= 100 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : 'text-primary'
+                        )}
+                      >
+                        {pct}%
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span className="capitalize">{t.type} · {t.period}</span>
+                      <span className="font-semibold text-foreground">
+                        {isRev ? `${formatINR(ach)} / ${formatINR(goal)}` : `${ach} / ${goal} Students`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full transition-all', pct >= 100 ? 'bg-emerald-500' : 'bg-primary')}
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* 6. Recent Student Admissions Table */}
+      <Card className="border border-border/60 shadow-lg bg-card/70 backdrop-blur-xl">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-lg">Recent Student Admissions</CardTitle>
+            <CardDescription>Latest student enrollments submitted across your study centers and team</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => onNavigate('center_admissions')}>
+            View All Admissions ({combinedAdmissions.length}) <ArrowUpRight className="ml-1 w-3.5 h-3.5" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />)}</div>
+          ) : combinedAdmissions.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-25" />
+              <p className="text-sm">No student admissions recorded yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground text-left">
+                    <th className="py-2.5 px-3 font-semibold">Student</th>
+                    <th className="py-2.5 px-3 font-semibold">Study Center</th>
+                    <th className="py-2.5 px-3 font-semibold">University &amp; Program</th>
+                    <th className="py-2.5 px-3 font-semibold">Date</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Fee</th>
+                    <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {combinedAdmissions.slice(0, 6).map((e: any) => (
+                    <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <p className="font-bold text-foreground">{e.studentName}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{e.enrollmentNumber || 'Pending ID'}</p>
+                      </td>
+                      <td className="py-2.5 px-3 font-medium">
+                        {e.studyCenter?.name || e.centerName || '-'}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <p className="font-semibold">{e.program?.university?.name || e.universityName || '-'}</p>
+                        <p className="text-[10px] text-muted-foreground">{e.program?.name || e.programName || '-'}</p>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
+                        {e.admissionDate || e.createdAt
+                          ? new Date(e.admissionDate || e.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-foreground">
+                        {formatINR(Number(e.totalFee) || 0)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        {statusBadge(e.status)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function SalesMetric({ title, value, trend, icon, color, onClick }: any) {
+function SalesMetric({ title, value, subtext, trend, icon, color, onClick }: any) {
   const colorMap: any = {
     primary: {
       bg: 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground',
@@ -500,182 +985,13 @@ function SalesMetric({ title, value, trend, icon, color, onClick }: any) {
               {value}
             </h3>
           </div>
+          {subtext && (
+            <p className="text-[11px] text-muted-foreground group-hover:text-foreground/70 transition-colors truncate pt-0.5">
+              {subtext}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-// ─── Sales Employee Portal (sub-dept managers, sales employees) ───────────────
-function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: any }) {
-  const isSubDeptManager = Boolean(user?.subDepartmentId);
-  const [activeTab, setActiveTab] = useState(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
-  const [leads, setLeads] = useState<any[]>([]);
-  const [targets, setTargets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setActiveTab(initialTab || (isSubDeptManager ? 'my_subdept' : 'overview'));
-  }, [initialTab]);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      api.get('/sales/leads').catch(() => ({ data: { data: [] } })),
-      api.get('/sales/targets').catch(() => ({ data: { data: [] } })),
-    ]).then(([leadsRes, targetsRes]) => {
-      setLeads(leadsRes.data.data || []);
-      setTargets(targetsRes.data.data || []);
-    }).finally(() => setLoading(false));
-  }, []);
-
-
-  const myLeads = leads.filter((l: any) => {
-    const refId = typeof l.referredBy === 'object' ? l.referredBy?.id : l.referredBy;
-    return refId?.toString() === (user?.id || user?.id)?.toString();
-  });
-
-  const myTargets = targets.filter((t: any) => {
-    const empId = typeof t.employeeId === 'object' ? t.employeeId?.id : t.employeeId;
-    return empId?.toString() === (user?.id || user?.id)?.toString();
-  });
-
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{user?.name || 'Sales Portal'}</h1>
-          <p className="text-muted-foreground mt-1">{user?.designation || 'Sales Executive'}</p>
-        </div>
-      </div>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-5">
-          <p className="text-xs text-muted-foreground uppercase font-medium">My Leads</p>
-          <p className="text-3xl font-bold mt-1">{loading ? '...' : myLeads.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{myLeads.filter((l:any) => l.status === 'new').length} new</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <p className="text-xs text-muted-foreground uppercase font-medium">Converted</p>
-          <p className="text-3xl font-bold mt-1 text-success">{loading ? '...' : myLeads.filter((l:any) => l.status === 'converted').length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            {myLeads.length > 0 ? Math.round((myLeads.filter((l:any) => l.status === 'converted').length / myLeads.length) * 100) : 0}% rate
-          </p>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <p className="text-xs text-muted-foreground uppercase font-medium">My Targets</p>
-          <p className="text-3xl font-bold mt-1">{loading ? '...' : myTargets.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{myTargets.filter((t:any) => (t.achieved||0) < t.target).length} active</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-5">
-          <p className="text-xs text-muted-foreground uppercase font-medium">Avg Progress</p>
-          <p className="text-3xl font-bold mt-1 text-primary">
-            {loading ? '...' : (myTargets.length > 0
-              ? Math.round(myTargets.reduce((s:number, t:any) => s + (t.target > 0 ? (t.achieved/t.target)*100 : 0), 0) / myTargets.length)
-              : 0)}%
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">across all targets</p>
-        </CardContent></Card>
-      </div>
-
-      {/* Content rendered by active tab — tabs are in the sidebar */}
-      {(() => {
-        switch (activeTab) {
-          case 'overview': return (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <CardTitle className="text-base">Recent Leads</CardTitle>
-                  <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('leads')}>
-                    View All <ArrowUpRight className="ml-1 w-3 h-3" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {loading ? [1,2,3].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />) :
-                    myLeads.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">No leads yet</p> :
-                    myLeads.slice(0, 4).map((l: any) => (
-                      <div key={l.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                        <div>
-                          <p className="text-sm font-medium">{l.centerName || l.contactName || 'Lead'}</p>
-                          <p className="text-[10px] text-muted-foreground">{l.source} · {new Date(l.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] uppercase">{l.status}</Badge>
-                      </div>
-                    ))
-                  }
-                </CardContent>
-              </Card>
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <CardTitle className="text-base">My Targets</CardTitle>
-                    <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setActiveTab('targets')}>
-                      View All <ArrowUpRight className="ml-1 w-3 h-3" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {loading ? [1,2].map(i => <div key={i} className="h-8 bg-muted rounded animate-pulse" />) :
-                      myTargets.length === 0 ? <p className="text-sm text-muted-foreground text-center py-2">No targets assigned</p> :
-                      myTargets.slice(0, 3).map((t: any) => {
-                        const pct = t.target > 0 ? Math.min(100, Math.round((t.achieved / t.target) * 100)) : 0;
-                        return (
-                          <div key={t.id} className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="font-medium">{t.type} · {t.period}</span>
-                              <span className="font-bold text-primary">{pct}%</span>
-                            </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })
-                    }
-                  </CardContent>
-                </Card>
-</div>
-            </div>
-          );
-          case 'my_subdept': return isSubDeptManager ? <SubSalesPortalPanel /> : null;
-          case 'leads': return <LeadsPanel />;
-          case 'targets': return <TargetsPanel endpoint="/sales/targets" title="My Targets" />;
-          case 'invite_links': return <SalesInvitePanel />;
-          case 'team':
-      case 'my_team': return <TeamPerformancePanel />;
-          case 'study_centers': return <StudyCentersPanel />;
-          case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
-          case 'center_admissions': return <CentersAdmissionsPanel />;
-          case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
-          case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
-          case 'admission_report': return <AdmissionHierarchyReportPanel />;
-          case 'target_achievement_report': return <TargetVsAchievementReportPanel />;
-          case 'session_report': return <SessionReportPanel />;
-          case 'my_attendance': return <AttendancePanel isPersonalView />;
-          case 'my_leaves': return <LeavesPanel isPersonalView />;
-          case 'payslips':
-          case 'my_payslips': return <PayrollPanel isEmployeeView />;
-      case 'my_documents': return <MyDocumentsPanel />;
-          case 'tasks': return <TasksPanel />;
-          case 'announcements': return <AnnouncementsPanel />;
-          case 'notice-board': return <NoticeBoardPanel />;
-          case 'holidays': return <HolidaysPanel />;
-          case 'ld-portal': return (
-            <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
-              <CardHeader>
-                <CardTitle>Learning &amp; Development Portal</CardTitle>
-                <CardDescription>Courses, certifications and growth resources</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="py-12 text-center text-muted-foreground">
-                  <p className="font-medium">Courses will be assigned by HR. Check back regularly.</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-          default: return null;
-        }
-      })()}
-    </div>
   );
 }

@@ -616,11 +616,60 @@ export const submitMyCenterPayment = asyncHandler(async (req: AuthRequest, res: 
 });
 
 export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const where: any = { organizationId: req.user.organizationId };
+  const organizationId = req.user.organizationId;
+  const where: any = { organizationId };
 
-  // Scoping for Sales users: only show admissions from centers they manually added/referred
-  if (['sales_admin', 'sales_sub_admin', 'bde'].includes(req.user.role)) {
-    where.studyCenter = { referredBy: req.user.id };
+  // Scoping for Sales users: include centers referred by them AND their downline team in hierarchy
+  if (['sales_admin', 'sales_sub_admin', 'bde', 'team_leader', 'sales'].includes(req.user.role)) {
+    const [allUsers, allDesignations] = await Promise.all([
+      prisma.user.findMany({
+        where: { organizationId, status: { not: 'deleted' } },
+        select: { id: true, reportingTo: true, designationId: true, branchId: true }
+      }),
+      prisma.designation.findMany({
+        where: { organizationId, status: { not: 'deleted' } },
+        select: { id: true, parentDesignationId: true }
+      })
+    ]);
+
+    const visibleStaffIds = new Set<string>([req.user.id]);
+    const queue = [req.user.id];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      for (const u of allUsers) {
+        if (u.reportingTo === curr && !visibleStaffIds.has(u.id)) {
+          visibleStaffIds.add(u.id);
+          queue.push(u.id);
+        }
+      }
+    }
+
+    if (req.user.designationId) {
+      const childDesigIds = new Set<string>();
+      const dq = [req.user.designationId];
+      while (dq.length > 0) {
+        const cd = dq.shift()!;
+        for (const d of allDesignations) {
+          if (d.parentDesignationId === cd && !childDesigIds.has(d.id)) {
+            childDesigIds.add(d.id);
+            dq.push(d.id);
+          }
+        }
+      }
+      for (const u of allUsers) {
+        if (u.designationId && childDesigIds.has(u.designationId)) {
+          if (!req.user.branchId || !u.branchId || u.branchId === req.user.branchId) {
+            visibleStaffIds.add(u.id);
+          }
+        }
+      }
+    }
+
+    const staffList = Array.from(visibleStaffIds);
+    where.OR = [
+      { studyCenter: { referredBy: { in: staffList } } },
+      { salesUserId: { in: staffList } }
+    ];
   } else if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
     where.studyCenterId = { in: scope.centerIds };
