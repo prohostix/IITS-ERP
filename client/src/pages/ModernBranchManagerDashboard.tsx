@@ -154,7 +154,8 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'leave-approvals': return <LeaveApprovalsPanel />;
       case 'leaves': return <LeavesPanel />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
-      case 'my_payslips': return <PayrollPanel />;
+      case 'payslips':
+      case 'my_payslips': return <PayrollPanel isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;

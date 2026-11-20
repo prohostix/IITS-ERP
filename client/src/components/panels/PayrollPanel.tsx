@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import html2pdf from 'html2pdf.js';
 import { PayslipDocument } from './hr/PayslipDocument';
 
@@ -40,7 +41,10 @@ interface PayrollPanelProps {
   isEmployeeView?: boolean;
 }
 
-export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
+export function PayrollPanel({ isEmployeeView: isEmployeeViewProp = false }: PayrollPanelProps) {
+  const { user } = useAuth();
+  const canManagePayroll = ['hr_admin', 'hr_sub_admin', 'hr', 'org_admin', 'superadmin', 'ceo'].includes(user?.role || '');
+  const isEmployeeView = isEmployeeViewProp || !canManagePayroll;
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
@@ -73,9 +77,19 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
   const fetchPayrolls = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/payroll');
+      const url = isEmployeeView && user?.id ? `/payroll?employeeId=${user.id}` : '/payroll';
+      const res = await api.get(url);
       const rawPayrolls = res.data.data || [];
-      setPayrolls(rawPayrolls.filter((p: any) => (p.user as any)?.status !== 'resigned' && (p.employeeId as any)?.status !== 'resigned'));
+      if (isEmployeeView && user?.id) {
+        setPayrolls(
+          rawPayrolls.filter((p: any) => {
+            const pEmpId = p.employeeId?.id || p.user?.id || p.employeeId;
+            return pEmpId === user.id;
+          })
+        );
+      } else {
+        setPayrolls(rawPayrolls.filter((p: any) => (p.user as any)?.status !== 'resigned' && (p.employeeId as any)?.status !== 'resigned'));
+      }
     } catch { toast.error('Failed to fetch payrolls'); }
     finally { setLoading(false); }
   };
@@ -242,6 +256,106 @@ export function PayrollPanel({ isEmployeeView = false }: PayrollPanelProps) {
                   {filtered.map(p => {
                     const empName = p.employeeId?.name || p.employeeId?.userId?.name || 'Employee';
                     const isSelected = selectedIds.includes(p.id);
+                    const allowObj = (p.allowances || {}) as Record<string, number>;
+                    const dedObj = (p.deductions || {}) as Record<string, number>;
+                    const totalAllowances = Object.values(allowObj).reduce((s, v) => s + (Number(v) || 0), 0);
+                    const totalDeductions = Object.values(dedObj).reduce((s, v) => s + (Number(v) || 0), 0);
+
+                    if (isEmployeeView) {
+                      return (
+                        <div key={p.id} className="p-4 border rounded-xl bg-card/50 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5">{p.month}</Badge>
+                              <Badge className={`text-xs capitalize ${STATUS_COLOR[p.status] || 'bg-gray-100'}`}>
+                                {p.status.replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="text-[10px] uppercase text-muted-foreground block">Net Salary Received</span>
+                                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                                  ₹{(p.netSalary || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingPdf} title="Download PDF Payslip">
+                                <Download className="w-3.5 h-3.5 mr-1" /> PDF
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Calculation Breakdown */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t text-xs">
+                            <div className="p-2.5 rounded-lg bg-muted/30 space-y-1">
+                              <p className="font-semibold text-foreground uppercase text-[10px] tracking-wider">Earnings Calculation</p>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Basic Salary</span>
+                                <span className="font-medium">₹{(p.basicSalary || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                              {Object.entries(allowObj).map(([k, v]) => Number(v) > 0 && (
+                                <div key={k} className="flex justify-between">
+                                  <span className="text-muted-foreground uppercase">{k}</span>
+                                  <span className="font-medium">+₹{Number(v).toLocaleString('en-IN')}</span>
+                                </div>
+                              ))}
+                              {(p.bonus || 0) > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Bonus</span>
+                                  <span className="font-medium">+₹{Number(p.bonus).toLocaleString('en-IN')}</span>
+                                </div>
+                              )}
+                              {(p.overtime || 0) > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Overtime</span>
+                                  <span className="font-medium">+₹{Number(p.overtime).toLocaleString('en-IN')}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between pt-1 border-t font-semibold text-foreground">
+                                <span>Gross Salary</span>
+                                <span>₹{(p.grossSalary || ((p.basicSalary || 0) + totalAllowances + (p.bonus || 0) + (p.overtime || 0))).toLocaleString('en-IN')}</span>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-muted/30 space-y-1">
+                              <p className="font-semibold text-foreground uppercase text-[10px] tracking-wider">Deductions Calculation</p>
+                              {Object.entries(dedObj).filter(([, v]) => Number(v) > 0).length === 0 ? (
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Deductions</span>
+                                  <span>₹0</span>
+                                </div>
+                              ) : (
+                                Object.entries(dedObj).map(([k, v]) => Number(v) > 0 && (
+                                  <div key={k} className="flex justify-between">
+                                    <span className="text-muted-foreground uppercase">{k}</span>
+                                    <span className="font-medium text-rose-600">-₹{Number(v).toLocaleString('en-IN')}</span>
+                                  </div>
+                                ))
+                              )}
+                              <div className="flex justify-between pt-1 border-t font-semibold text-rose-600">
+                                <span>Total Deductions</span>
+                                <span>-₹{totalDeductions.toLocaleString('en-IN')}</span>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-muted/30 space-y-1 flex flex-col justify-between">
+                              <div>
+                                <p className="font-semibold text-foreground uppercase text-[10px] tracking-wider">Attendance &amp; Net Calculation</p>
+                                {p.remarks ? (
+                                  <p className="text-orange-600 dark:text-orange-400 font-medium mt-1">{p.remarks}</p>
+                                ) : (
+                                  <p className="text-muted-foreground mt-1">Standard monthly calculation</p>
+                                )}
+                              </div>
+                              <div className="flex justify-between pt-1 border-t font-bold text-emerald-600 dark:text-emerald-400">
+                                <span>Net Payable</span>
+                                <span>₹{(p.netSalary || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={p.id} className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
                         {!isEmployeeView && p.status === 'confirmed' && (

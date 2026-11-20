@@ -121,7 +121,8 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'leave-approvals': return <LeaveApprovalsPanel />;
       case 'leaves': return <LeavesPanel />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
-      case 'my_payslips': return <PayrollPanel />;
+      case 'payslips':
+      case 'my_payslips': return <PayrollPanel isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
@@ -652,7 +653,8 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'session_report': return <SessionReportPanel />;
           case 'my_attendance': return <AttendancePanel isPersonalView />;
           case 'my_leaves': return <LeavesPanel isPersonalView />;
-          case 'my_payslips': return <PayrollPanel />;
+          case 'payslips':
+          case 'my_payslips': return <PayrollPanel isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel />;
           case 'tasks': return <TasksPanel />;
           case 'announcements': return <AnnouncementsPanel />;

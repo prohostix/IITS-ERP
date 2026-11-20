@@ -164,7 +164,8 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'escalations': return <FinanceEscalationsPanel />;
       case 'my_leaves': return <LeavesPanel isPersonalView />;
       case 'my_attendance': return <AttendancePanel isPersonalView />;
-      case 'my_payslips': return <PayrollPanel />;
+      case 'payslips':
+      case 'my_payslips': return <PayrollPanel isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;

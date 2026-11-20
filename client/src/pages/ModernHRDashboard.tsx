@@ -103,7 +103,8 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'activity_report': return <EmployeeActivityReportPanel key="activity_report" />;
       case 'my_leaves': return <LeavesPanel key="my_leaves" isPersonalView />;
       case 'my_attendance': return <AttendancePanel key="my_attendance" isPersonalView />;
-      case 'my_payslips': return <PayrollPanel key="my_payslips" />;
+      case 'payslips':
+      case 'my_payslips': return <PayrollPanel key="my_payslips" isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel key="my_documents" />;
       case 'subdepartments': return <SubDepartmentsPanel key="subdepartments" />;
       case 'notice-board': return <NoticeBoardPanel key="notice-board" />;
