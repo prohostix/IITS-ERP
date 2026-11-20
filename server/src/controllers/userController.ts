@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
+import { assignHireToHierarchyPosition } from './orgAdminController.js';
 
 export const getUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = {};
@@ -57,8 +58,9 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
 
   const { vacancyId, ...userData } = req.body;
 
+  let vacancy: any = null;
   if (vacancyId) {
-    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
     if (!vacancy) {
       res.status(404).json({ success: false, message: 'Vacancy not found' });
       return;
@@ -66,6 +68,12 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
     if (vacancy.filled >= vacancy.count) {
       res.status(400).json({ success: false, message: 'Vacancy limit reached. Cannot hire more candidates.' });
       return;
+    }
+    if (!userData.designation) {
+      userData.designation = vacancy.designation;
+    }
+    if (!userData.departmentId) {
+      userData.departmentId = vacancy.departmentId;
     }
   }
 
@@ -78,15 +86,75 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
     userData.password = await hashPassword(userData.password);
   }
 
-  const user = await prisma.user.create({
+  let user = await prisma.user.create({
     data: userData
   });
 
-  if (vacancyId) {
+  // Automatically place the hired user into the open position on the Org Chart, set reportingTo, and create EmployeeProfile
+  if (vacancy || userData.designationId || userData.designation) {
+    try {
+      const assigned = await assignHireToHierarchyPosition({
+        organizationId: user.organizationId,
+        userId: user.id,
+        designationId: userData.designationId || null,
+        title: vacancy?.designation || userData.designation || null,
+        departmentId: vacancy?.departmentId || userData.departmentId || null,
+        branchId: userData.branchId || null
+      });
+      if (assigned?.user) {
+        user = assigned.user;
+      }
+    } catch (e) {
+      console.error('Failed to assign hired user to hierarchy position:', e);
+    }
+  }
+
+  if (vacancyId && vacancy) {
+    const nextFilled = (vacancy.filled || 0) + 1;
     await prisma.vacancy.update({
       where: { id: vacancyId },
-      data: { filled: { increment: 1 } }
+      data: {
+        filled: nextFilled,
+        ...(nextFilled >= (vacancy.count || 1) ? { status: 'closed' } : {})
+      }
     });
+
+    // Also update any matching approved HiringRequest if fulfilled
+    try {
+      const matchingReq = await prisma.hiringRequest.findFirst({
+        where: {
+          organizationId: user.organizationId,
+          departmentId: vacancy.departmentId,
+          title: { equals: vacancy.designation, mode: 'insensitive' },
+          status: 'approved' as any
+        },
+        include: { candidates: true }
+      });
+      if (matchingReq) {
+        const empProfile = await prisma.employeeProfile.findUnique({ where: { userId: user.id } });
+        await prisma.candidate.create({
+          data: {
+            organizationId: user.organizationId,
+            hiringRequestId: matchingReq.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone || '',
+            status: 'joined' as any,
+            joinDate: new Date(),
+            ...(empProfile ? { employeeId: empProfile.id } : {})
+          }
+        });
+        const totalJoined = (matchingReq.candidates || []).filter((c: any) =>
+          ['joined', 'appointment_sent', 'induction_pending', 'induction_completed', 'completed'].includes(c.status)
+        ).length + 1;
+        if (totalJoined >= (matchingReq.count || 1)) {
+          await prisma.hiringRequest.update({
+            where: { id: matchingReq.id },
+            data: { status: 'completed' as any }
+          });
+        }
+      }
+    } catch (_e) {}
   }
   
   res.status(201).json({ success: true, data: user });

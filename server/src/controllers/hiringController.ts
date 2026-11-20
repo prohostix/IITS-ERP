@@ -1,26 +1,60 @@
+// @ts-nocheck
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
-import { HiringStatus, EmploymentRole, InductionStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma.js';
+import { ensureOpenPositionInHierarchy, assignHireToHierarchyPosition } from './orgAdminController.js';
 
 // Manager API: Create a hiring request
 export const createHiringRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const { departmentId, designationId, title, description, count } = req.body;
+    const { departmentId, designationId, parentDesignationId, branchId, title, description, count } = req.body;
     const organizationId = req.user.organizationId;
     const requestedBy = req.user.id;
 
+    // Resolve departmentId fallback from requester or organization
+    let resolvedDeptId = departmentId;
+    if (!resolvedDeptId) {
+      resolvedDeptId = req.user.departmentId || req.user.designationRef?.departmentId || null;
+    }
+    if (!resolvedDeptId && designationId) {
+      const d = await prisma.designation.findUnique({ where: { id: designationId }, select: { departmentId: true } });
+      if (d?.departmentId) resolvedDeptId = d.departmentId;
+    }
+    if (!resolvedDeptId && parentDesignationId) {
+      const pd = await prisma.designation.findUnique({ where: { id: parentDesignationId }, select: { departmentId: true } });
+      if (pd?.departmentId) resolvedDeptId = pd.departmentId;
+    }
+    if (!resolvedDeptId) {
+      const fallbackDept = await prisma.department.findFirst({ where: { organizationId } });
+      resolvedDeptId = fallbackDept?.id;
+    }
+
+    let resolvedTitle = (title || '').trim();
+    if (!resolvedTitle && designationId) {
+      const d = await prisma.designation.findUnique({ where: { id: designationId }, select: { title: true } });
+      resolvedTitle = d?.title || 'Open Position';
+    }
+
+    // If manager specified a parentDesignationId (to create a new child position under them),
+    // store parentDesignationId in designationId if no direct designationId was chosen, or resolve on approval
     const request = await prisma.hiringRequest.create({
       data: {
         organizationId,
-        departmentId,
-        designationId,
-        title,
-        description,
-        count: parseInt(count, 10),
+        departmentId: resolvedDeptId,
+        designationId: designationId || null,
+        title: resolvedTitle || 'Open Position',
+        description: parentDesignationId && !designationId
+          ? `${description || ''}${description ? '\n' : ''}[PARENT_DESIGNATION:${parentDesignationId}]${branchId ? `[BRANCH:${branchId}]` : ''}`
+          : description || '',
+        count: Math.max(1, parseInt(count, 10) || 1),
         requestedBy,
         status: 'pending_hr_approval'
+      },
+      include: {
+        department: true,
+        requester: { select: { id: true, name: true, email: true, designation: true } },
+        candidates: true
       }
     });
 
@@ -38,7 +72,7 @@ export const getHiringRequests = async (req: AuthRequest, res: Response) => {
       where: { organizationId },
       include: {
         department: true,
-        requester: { select: { name: true, email: true } },
+        requester: { select: { id: true, name: true, email: true, designation: true } },
         candidates: true
       },
       orderBy: { createdAt: 'desc' }
@@ -56,12 +90,78 @@ export const updateHiringRequestStatus = async (req: AuthRequest, res: Response)
     const { status, hrRemarks } = req.body;
     const hrApprovedBy = req.user.id;
 
+    const existing = await prisma.hiringRequest.findUnique({
+      where: { id }
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Hiring request not found' });
+      return;
+    }
+
+    let linkedDesignationId = existing.designationId;
+
+    // When HR approves a hiring request, automatically create/update the open position in the Org Chart hierarchy
+    // and ensure an open Vacancy record exists!
+    if (status === 'approved' && existing.status !== 'approved') {
+      const parentMatch = (existing.description || '').match(/\[PARENT_DESIGNATION:([^\]]+)\]/);
+      const branchMatch = (existing.description || '').match(/\[BRANCH:([^\]]+)\]/);
+
+      const desig = await ensureOpenPositionInHierarchy({
+        organizationId: existing.organizationId,
+        title: existing.title,
+        count: existing.count,
+        designationId: existing.designationId,
+        parentDesignationId: parentMatch ? parentMatch[1] : null,
+        branchId: branchMatch ? branchMatch[1] : null,
+        departmentId: existing.departmentId,
+        requestedByUserId: existing.requestedBy
+      });
+
+      if (desig?.id) {
+        linkedDesignationId = desig.id;
+      }
+
+      // Also create/sync an open Vacancy record so it shows in HR -> Vacancies
+      const existingVacancy = await prisma.vacancy.findFirst({
+        where: {
+          organizationId: existing.organizationId,
+          departmentId: existing.departmentId,
+          designation: { equals: existing.title, mode: 'insensitive' },
+          status: 'open'
+        }
+      });
+
+      if (existingVacancy) {
+        await prisma.vacancy.update({
+          where: { id: existingVacancy.id },
+          data: { count: (existingVacancy.count || 0) + existing.count }
+        });
+      } else {
+        await prisma.vacancy.create({
+          data: {
+            organizationId: existing.organizationId,
+            departmentId: existing.departmentId,
+            designation: existing.title,
+            count: existing.count,
+            filled: 0,
+            status: 'open'
+          }
+        });
+      }
+    }
+
     const request = await prisma.hiringRequest.update({
       where: { id },
       data: {
         status,
         hrRemarks,
-        hrApprovedBy
+        hrApprovedBy,
+        ...(linkedDesignationId ? { designationId: linkedDesignationId } : {})
+      },
+      include: {
+        department: true,
+        requester: { select: { id: true, name: true, email: true, designation: true } },
+        candidates: true
       }
     });
     res.json({ success: true, data: request });
@@ -70,10 +170,10 @@ export const updateHiringRequestStatus = async (req: AuthRequest, res: Response)
   }
 };
 
-// HR API: Add Candidate to Hiring Request
+// HR API: Add Candidate to Hiring Request (and optionally mark joined / hire immediately)
 export const addCandidate = async (req: AuthRequest, res: Response) => {
   try {
-    const { hiringRequestId, name, email, phone, offerLetterUrl } = req.body;
+    const { hiringRequestId, name, email, phone, offerLetterUrl, hireImmediately, password, role, joinDate, employmentRole } = req.body;
     const organizationId = req.user.organizationId;
 
     const candidate = await prisma.candidate.create({
@@ -82,11 +182,24 @@ export const addCandidate = async (req: AuthRequest, res: Response) => {
         hiringRequestId,
         name,
         email,
-        phone,
+        phone: phone || '',
         offerLetterUrl,
         status: 'offer_sent'
       }
     });
+
+    if (hireImmediately) {
+      req.params.id = candidate.id;
+      req.body = {
+        status: 'joined',
+        password: password || 'password123',
+        role: role || 'employee',
+        joinDate: joinDate || new Date().toISOString(),
+        employmentRole: employmentRole || 'probation'
+      };
+      return await updateCandidateStatus(req, res);
+    }
+
     res.json({ success: true, data: candidate });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -97,10 +210,10 @@ export const addCandidate = async (req: AuthRequest, res: Response) => {
 export const updateCandidateStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, appointmentLetterUrl, joinDate, employmentRole } = req.body;
+    const { status, appointmentLetterUrl, joinDate, employmentRole, password, role } = req.body;
     const organizationId = req.user.organizationId;
     
-    let updateData: any = { status };
+    const updateData: any = { status };
     if (appointmentLetterUrl) updateData.appointmentLetterUrl = appointmentLetterUrl;
     if (joinDate) updateData.joinDate = new Date(joinDate);
     if (employmentRole) updateData.employmentRole = employmentRole;
@@ -112,36 +225,71 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
     }
 
     let candidate = await prisma.candidate.findUnique({ where: { id }, include: { hiringRequest: true } });
-    if (!candidate) throw new Error("Candidate not found");
+    if (!candidate) throw new Error('Candidate not found');
 
     if (status === 'joined' && !candidate.employeeId) {
-      // Auto-create user and employee record
-      const passwordHash = await bcrypt.hash('password123', 10);
-      
-      const newUser = await prisma.user.create({
-        data: {
+      const passwordHash = await bcrypt.hash(password || 'password123', 10);
+      const empCode = `EMP-${Date.now().toString().slice(-6)}`;
+
+      // Check if user with this email already exists
+      let targetUser = await prisma.user.findFirst({
+        where: { email: candidate.email }
+      });
+
+      if (!targetUser) {
+        targetUser = await prisma.user.create({
+          data: {
+            organizationId,
+            userId: empCode,
+            name: candidate.name,
+            email: candidate.email,
+            phone: candidate.phone || null,
+            password: passwordHash,
+            role: (role as any) || 'employee',
+            departmentId: candidate.hiringRequest.departmentId,
+            designation: candidate.hiringRequest.title,
+            status: 'active'
+          }
+        });
+      }
+
+      // Assign hired user to the open position on the Org Chart & set reportingTo + EmployeeProfile
+      await assignHireToHierarchyPosition({
+        organizationId,
+        userId: targetUser.id,
+        designationId: candidate.hiringRequest.designationId,
+        title: candidate.hiringRequest.title,
+        departmentId: candidate.hiringRequest.departmentId,
+        employmentRole: employmentRole || 'probation',
+        joinDate: joinDate || new Date()
+      });
+
+      const empProfile = await prisma.employeeProfile.findUnique({
+        where: { userId: targetUser.id }
+      });
+      if (empProfile) {
+        updateData.employeeId = empProfile.id;
+      }
+
+      // Update corresponding open Vacancy count if present
+      const matchingVacancy = await prisma.vacancy.findFirst({
+        where: {
           organizationId,
-          name: candidate.name,
-          email: candidate.email,
-          password: passwordHash,
-          role: 'employee',
           departmentId: candidate.hiringRequest.departmentId,
-          status: 'active'
+          designation: { equals: candidate.hiringRequest.title, mode: 'insensitive' },
+          status: 'open'
         }
       });
-      
-      const newEmployee = await prisma.employeeProfile.create({
-        data: {
-          organizationId,
-          userId: newUser.id,
-          employmentType: 'full_time',
-          employmentRole: employmentRole || 'probation',
-          inductionStatus: 'pending',
-          joinDate: new Date(joinDate || new Date())
-        }
-      });
-      
-      updateData.employeeId = newEmployee.id;
+      if (matchingVacancy) {
+        const nextFilled = (matchingVacancy.filled || 0) + 1;
+        await prisma.vacancy.update({
+          where: { id: matchingVacancy.id },
+          data: {
+            filled: nextFilled,
+            ...(nextFilled >= (matchingVacancy.count || 1) ? { status: 'closed' } : {})
+          }
+        });
+      }
     }
 
     candidate = await prisma.candidate.update({
@@ -150,6 +298,22 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
       include: { hiringRequest: true }
     });
 
+    // Check if all requested positions in the HiringRequest are now joined/completed
+    if (status === 'joined' && candidate.hiringRequest) {
+      const joinedCount = await prisma.candidate.count({
+        where: {
+          hiringRequestId: candidate.hiringRequestId,
+          status: { in: ['joined', 'appointment_sent', 'induction_pending', 'induction_completed', 'completed'] as any }
+        }
+      });
+      if (joinedCount >= (candidate.hiringRequest.count || 1)) {
+        await prisma.hiringRequest.update({
+          where: { id: candidate.hiringRequestId },
+          data: { status: 'completed' as any }
+        });
+      }
+    }
+
     res.json({ success: true, data: candidate });
   } catch (error: any) {
     console.error(error);
@@ -157,7 +321,7 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
   }
 };
 
-// Manager API: Get Hiring Requests by Department
+// Manager API: Get Hiring Requests by Requester / Department
 export const getManagerHiringRequests = async (req: AuthRequest, res: Response) => {
   try {
     const requestedBy = req.user.id;

@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { ensureOpenPositionInHierarchy } from './orgAdminController.js';
 
 const mapLeaveRequest = (leave: any) => ({
   ...leave,
@@ -399,8 +400,18 @@ export const getVacancy = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json({ success: true, data: vacancy });
 });
 export const createVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { title, designation, departmentId, count, positions, ...rest } = req.body;
-  const finalDesignation = designation || title || 'Vacancy';
+  const { title, designation, designationId, parentDesignationId, branchId, departmentId, count, positions } = req.body;
+  let finalDesignation = (designation || title || '').trim();
+  let finalDeptId = typeof departmentId === 'object' ? departmentId?.id : departmentId;
+
+  if (designationId && !finalDesignation) {
+    const d = await prisma.designation.findUnique({ where: { id: designationId }, select: { title: true, departmentId: true } });
+    if (d) {
+      finalDesignation = d.title;
+      if (!finalDeptId && d.departmentId) finalDeptId = d.departmentId;
+    }
+  }
+  if (!finalDesignation) finalDesignation = 'Open Position';
 
   let validDept = null;
   if (finalDeptId && finalDeptId !== 'null' && finalDeptId !== '') {
@@ -422,25 +433,78 @@ export const createVacancy = asyncHandler(async (req: AuthRequest, res: Response
   }
   finalDeptId = validDept.id;
 
-  const allowedFields = ['status', 'filled'];
+  const parsedCount = Math.max(
+    1,
+    count !== undefined ? parseInt(String(count), 10) : (positions !== undefined ? parseInt(String(positions), 10) : 1)
+  );
+
   const dbData: any = {
     designation: finalDesignation,
     departmentId: finalDeptId,
-    count: count !== undefined ? parseInt(count) : (positions !== undefined ? parseInt(positions) : 1),
+    count: parsedCount,
+    status: req.body.status || 'open',
+    filled: req.body.filled !== undefined ? parseInt(String(req.body.filled), 10) : 0,
     organizationId: req.user.organizationId
   };
 
-  for (const field of allowedFields) {
-    if (req.body[field] !== undefined) dbData[field] = req.body[field];
+  const vacancy = await prisma.vacancy.create({
+    data: dbData,
+    include: { department: true }
+  });
+
+  // Directly reflect the open vacancy as an open position slot on the Org Chart hierarchy
+  if (dbData.status === 'open') {
+    try {
+      await ensureOpenPositionInHierarchy({
+        organizationId: req.user.organizationId,
+        title: finalDesignation,
+        count: Math.max(1, parsedCount - (dbData.filled || 0)),
+        designationId: designationId || null,
+        parentDesignationId: parentDesignationId || null,
+        departmentId: finalDeptId,
+        branchId: branchId || null,
+        requestedByUserId: req.user.id
+      });
+    } catch (e) {
+      console.error('Failed to sync vacancy to org chart:', e);
+    }
   }
 
-  const vacancy = await prisma.vacancy.create({
-    data: dbData
-  });
   res.status(201).json({ success: true, data: vacancy });
 });
 export const updateVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const vacancy = await prisma.vacancy.update({ where: { id: req.params.id }, data: req.body });
+  const { designation, title, departmentId, count, filled, status, designationId, parentDesignationId, branchId } = req.body;
+  const updateData: any = {};
+  if (designation || title) updateData.designation = (designation || title).trim();
+  if (departmentId) updateData.departmentId = typeof departmentId === 'object' ? departmentId.id : departmentId;
+  if (count !== undefined) updateData.count = Math.max(1, parseInt(String(count), 10) || 1);
+  if (filled !== undefined) updateData.filled = Math.max(0, parseInt(String(filled), 10) || 0);
+  if (status) updateData.status = status;
+
+  const vacancy = await prisma.vacancy.update({
+    where: { id: req.params.id },
+    data: updateData,
+    include: { department: true }
+  });
+
+  if (vacancy.status === 'open') {
+    const openCount = Math.max(0, (vacancy.count || 1) - (vacancy.filled || 0));
+    if (openCount > 0) {
+      try {
+        await ensureOpenPositionInHierarchy({
+          organizationId: req.user.organizationId,
+          title: vacancy.designation,
+          count: openCount,
+          designationId: designationId || null,
+          parentDesignationId: parentDesignationId || null,
+          departmentId: vacancy.departmentId,
+          branchId: branchId || null,
+          requestedByUserId: req.user.id
+        });
+      } catch (_e) {}
+    }
+  }
+
   res.json({ success: true, data: vacancy });
 });
 export const deleteVacancy = asyncHandler(async (req: AuthRequest, res: Response) => {

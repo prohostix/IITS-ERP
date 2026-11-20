@@ -53,11 +53,12 @@ export const assignHierarchy = asyncHandler(async (req: AuthRequest, res: Respon
 // Designations
 export const getDesignations = asyncHandler(async (req: AuthRequest, res: Response) => {
   const designations = await prisma.designation.findMany({
-    where: { organizationId: req.user.organizationId },
+    where: { organizationId: req.user.organizationId, status: { not: 'deleted' } },
     include: {
       department: true,
       subDepartment: true,
       filledBy: {
+        where: { status: { notIn: ['resigned', 'deleted', 'inactive'] } },
         select: {
           id: true,
           name: true,
@@ -108,7 +109,7 @@ export const assignUserToDesignation = asyncHandler(async (req: AuthRequest, res
   // 1. Fetch designation and its parent designation
   const designation = await prisma.designation.findUnique({
     where: { id: designationId },
-    select: { id: true, parentDesignationId: true, branchId: true }
+    select: { id: true, title: true, parentDesignationId: true, branchId: true, departmentId: true, subDepartmentId: true }
   });
 
   // 2. Determine who the user should report to (holder of parent designation)
@@ -127,11 +128,15 @@ export const assignUserToDesignation = asyncHandler(async (req: AuthRequest, res
     }
   }
 
-  // 3. Assign user to this designation and update reportingTo
+  // 3. Assign user to this designation and update reportingTo, title, department, and branch
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
       designationId,
+      ...(designation?.title ? { designation: designation.title } : {}),
+      ...(designation?.departmentId ? { departmentId: designation.departmentId } : {}),
+      ...(designation?.subDepartmentId ? { subDepartmentId: designation.subDepartmentId } : {}),
+      ...(designation?.branchId ? { branchId: designation.branchId } : {}),
       reportingTo: parentUserId
     }
   });
@@ -152,6 +157,31 @@ export const assignUserToDesignation = asyncHandler(async (req: AuthRequest, res
         reportingTo: user.id
       }
     });
+  }
+
+  // 5. If an open Vacancy matches this designation, increment filled count
+  if (designation?.title) {
+    try {
+      const openVacancy = await prisma.vacancy.findFirst({
+        where: {
+          organizationId: orgId,
+          status: 'open',
+          designation: { equals: designation.title, mode: 'insensitive' },
+          ...(designation.departmentId ? { departmentId: designation.departmentId } : {})
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+      if (openVacancy && (openVacancy.filled || 0) < (openVacancy.count || 1)) {
+        const nextFilled = (openVacancy.filled || 0) + 1;
+        await prisma.vacancy.update({
+          where: { id: openVacancy.id },
+          data: {
+            filled: nextFilled,
+            ...(nextFilled >= (openVacancy.count || 1) ? { status: 'closed' } : {})
+          }
+        });
+      }
+    } catch (_e) {}
   }
 
   res.json({ success: true, data: user });
@@ -227,3 +257,274 @@ export const syncHierarchyReporting = asyncHandler(async (req: AuthRequest, res:
   const updatedCount = await syncAllHierarchyReporting(orgId);
   res.json({ success: true, message: `Synchronized reporting chain for ${updatedCount} users.`, updatedCount });
 });
+
+/**
+ * Ensures an open position node (Designation) exists in the Org Chart hierarchy
+ * with enough available capacity (maxHeadcount >= activeFilled + count).
+ */
+export async function ensureOpenPositionInHierarchy(options: {
+  organizationId: string;
+  title: string;
+  count: number;
+  designationId?: string | null;
+  parentDesignationId?: string | null;
+  departmentId?: string | null;
+  subDepartmentId?: string | null;
+  branchId?: string | null;
+  requestedByUserId?: string | null;
+}) {
+  const { organizationId } = options;
+  const requestedCount = Math.max(1, Number(options.count) || 1);
+  const cleanTitle = (options.title || 'Open Position').trim();
+
+  let requester: any = null;
+  if (options.requestedByUserId) {
+    requester = await prisma.user.findUnique({
+      where: { id: options.requestedByUserId },
+      include: { designationRef: true }
+    });
+  }
+
+  // 1. If a specific designationId was passed, try to load it
+  if (options.designationId) {
+    const existingById = await prisma.designation.findFirst({
+      where: { id: options.designationId, organizationId, status: { not: 'deleted' } },
+      include: {
+        filledBy: {
+          where: { status: { notIn: ['resigned', 'deleted', 'inactive'] } },
+          select: { id: true }
+        }
+      }
+    });
+    if (existingById) {
+      const activeFilled = existingById.filledBy?.length || 0;
+      const targetMax = Math.max(existingById.maxHeadcount || 1, activeFilled + requestedCount);
+      const updated = await prisma.designation.update({
+        where: { id: existingById.id },
+        data: { maxHeadcount: targetMax, status: 'active' }
+      });
+      return updated;
+    }
+  }
+
+  // 2. Resolve parentDesignationId, branchId, departmentId, subDepartmentId
+  let effectiveParentId = options.parentDesignationId || requester?.designationId || null;
+  let effectiveBranchId = options.branchId || requester?.branchId || requester?.designationRef?.branchId || null;
+  let effectiveDeptId = options.departmentId || requester?.departmentId || requester?.designationRef?.departmentId || null;
+  let effectiveSubDeptId = options.subDepartmentId || requester?.subDepartmentId || requester?.designationRef?.subDepartmentId || null;
+  let parentLevel = 1;
+
+  if (effectiveParentId) {
+    const parentDesig = await prisma.designation.findUnique({
+      where: { id: effectiveParentId }
+    });
+    if (parentDesig) {
+      parentLevel = parentDesig.level || 1;
+      if (!effectiveBranchId) effectiveBranchId = parentDesig.branchId;
+      if (!effectiveDeptId) effectiveDeptId = parentDesig.departmentId;
+      if (!effectiveSubDeptId) effectiveSubDeptId = parentDesig.subDepartmentId;
+    }
+  } else if (effectiveDeptId) {
+    // Find top-level designation in this department/branch to act as parent if none specified
+    const deptHeadDesig = await prisma.designation.findFirst({
+      where: {
+        organizationId,
+        departmentId: effectiveDeptId,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+        status: { not: 'deleted' }
+      },
+      orderBy: { level: 'asc' }
+    });
+    if (deptHeadDesig && deptHeadDesig.title.toLowerCase() !== cleanTitle.toLowerCase()) {
+      effectiveParentId = deptHeadDesig.id;
+      parentLevel = deptHeadDesig.level || 1;
+      if (!effectiveBranchId) effectiveBranchId = deptHeadDesig.branchId;
+    }
+  }
+
+  // 3. Check if a Designation with the same title already exists in this scope
+  const existingByTitle = await prisma.designation.findFirst({
+    where: {
+      organizationId,
+      status: { not: 'deleted' },
+      title: { equals: cleanTitle, mode: 'insensitive' },
+      ...(effectiveParentId ? { parentDesignationId: effectiveParentId } : {}),
+      ...(effectiveDeptId ? { departmentId: effectiveDeptId } : {}),
+      ...(effectiveBranchId ? { branchId: effectiveBranchId } : {})
+    },
+    include: {
+      filledBy: {
+        where: { status: { notIn: ['resigned', 'deleted', 'inactive'] } },
+        select: { id: true }
+      }
+    }
+  });
+
+  if (existingByTitle) {
+    const activeFilled = existingByTitle.filledBy?.length || 0;
+    const targetMax = Math.max(existingByTitle.maxHeadcount || 1, activeFilled + requestedCount);
+    const updated = await prisma.designation.update({
+      where: { id: existingByTitle.id },
+      data: { maxHeadcount: targetMax, status: 'active' }
+    });
+    return updated;
+  }
+
+  // 4. Create a new Designation node in the Org Chart
+  const created = await prisma.designation.create({
+    data: {
+      organizationId,
+      title: cleanTitle,
+      level: effectiveParentId ? parentLevel + 1 : 1,
+      parentDesignationId: effectiveParentId,
+      departmentId: effectiveDeptId,
+      subDepartmentId: effectiveSubDeptId,
+      branchId: effectiveBranchId,
+      maxHeadcount: requestedCount,
+      status: 'active'
+    }
+  });
+
+  return created;
+}
+
+/**
+ * Assigns a newly hired user to their corresponding Org Chart Designation node,
+ * sets their reportingTo manager from the parent designation holder,
+ * and ensures an EmployeeProfile exists.
+ */
+export async function assignHireToHierarchyPosition(options: {
+  organizationId: string;
+  userId: string;
+  designationId?: string | null;
+  title?: string | null;
+  departmentId?: string | null;
+  branchId?: string | null;
+  employmentRole?: string | null;
+  joinDate?: Date | string | null;
+}) {
+  const { organizationId, userId } = options;
+
+  let targetDesig: any = null;
+  if (options.designationId) {
+    targetDesig = await prisma.designation.findFirst({
+      where: { id: options.designationId, organizationId, status: { not: 'deleted' } },
+      include: {
+        filledBy: {
+          where: { status: { notIn: ['resigned', 'deleted', 'inactive'] } },
+          select: { id: true }
+        }
+      }
+    });
+  }
+
+  if (!targetDesig && options.title) {
+    const candidates = await prisma.designation.findMany({
+      where: {
+        organizationId,
+        status: { not: 'deleted' },
+        title: { equals: options.title.trim(), mode: 'insensitive' },
+        ...(options.departmentId ? { departmentId: options.departmentId } : {}),
+        ...(options.branchId ? { branchId: options.branchId } : {})
+      },
+      include: {
+        filledBy: {
+          where: { status: { notIn: ['resigned', 'deleted', 'inactive'] } },
+          select: { id: true }
+        }
+      }
+    });
+    // Prefer a designation node that currently has an open slot
+    targetDesig =
+      candidates.find(c => (c.filledBy?.length || 0) < (c.maxHeadcount || 1)) ||
+      candidates[0] ||
+      null;
+  }
+
+  if (!targetDesig && options.title) {
+    // Create the designation node if it somehow didn't exist yet
+    targetDesig = await ensureOpenPositionInHierarchy({
+      organizationId,
+      title: options.title,
+      count: 1,
+      departmentId: options.departmentId,
+      branchId: options.branchId
+    });
+  }
+
+  let parentUserId: string | null = null;
+  if (targetDesig?.parentDesignationId) {
+    const parentUser = await prisma.user.findFirst({
+      where: {
+        organizationId,
+        designationId: targetDesig.parentDesignationId,
+        status: 'active'
+      },
+      select: { id: true }
+    });
+    if (parentUser && parentUser.id !== userId) {
+      parentUserId = parentUser.id;
+    }
+  }
+
+  if (targetDesig) {
+    const activeFilled = (targetDesig.filledBy || []).filter((u: any) => u.id !== userId).length;
+    if ((targetDesig.maxHeadcount || 1) < activeFilled + 1) {
+      await prisma.designation.update({
+        where: { id: targetDesig.id },
+        data: { maxHeadcount: activeFilled + 1 }
+      });
+    }
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(targetDesig ? {
+        designationId: targetDesig.id,
+        designation: targetDesig.title,
+        ...(targetDesig.departmentId ? { departmentId: targetDesig.departmentId } : {}),
+        ...(targetDesig.subDepartmentId ? { subDepartmentId: targetDesig.subDepartmentId } : {}),
+        ...(targetDesig.branchId ? { branchId: targetDesig.branchId } : {})
+      } : {}),
+      ...(parentUserId ? { reportingTo: parentUserId } : {})
+    }
+  });
+
+  // Update child designation holders if any
+  if (targetDesig?.id) {
+    const childDesignations = await prisma.designation.findMany({
+      where: { organizationId, parentDesignationId: targetDesig.id, status: { not: 'deleted' } },
+      select: { id: true }
+    });
+    if (childDesignations.length > 0) {
+      await prisma.user.updateMany({
+        where: {
+          organizationId,
+          designationId: { in: childDesignations.map(cd => cd.id) },
+          reportingTo: null
+        },
+        data: { reportingTo: updatedUser.id }
+      });
+    }
+  }
+
+  // Ensure EmployeeProfile exists for the hired user
+  const existingProfile = await prisma.employeeProfile.findUnique({
+    where: { userId: updatedUser.id }
+  });
+  if (!existingProfile) {
+    await prisma.employeeProfile.create({
+      data: {
+        organizationId,
+        userId: updatedUser.id,
+        employmentType: 'full_time',
+        employmentRole: (options.employmentRole as any) || 'probation',
+        inductionStatus: 'pending',
+        joinDate: options.joinDate ? new Date(options.joinDate) : new Date()
+      }
+    });
+  }
+
+  return { user: updatedUser, designation: targetDesig };
+}

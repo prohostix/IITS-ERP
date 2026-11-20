@@ -6,20 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 
 export function VacanciesPanel() {
   const [vacancies, setVacancies] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [designations, setDesignations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [hireDialogOpen, setHireDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVacancy, setSelectedVacancy] = useState<any>(null);
   const [filterTab, setFilterTab] = useState<'all' | 'open' | 'hired'>('all');
+  const [positionMode, setPositionMode] = useState<'existing' | 'new'>('existing');
   const [formData, setFormData] = useState({
+    designationId: '',
+    parentDesignationId: '',
     designation: '',
     departmentId: '',
     count: '1',
@@ -36,7 +41,17 @@ export function VacanciesPanel() {
   useEffect(() => {
     fetchVacancies();
     fetchDepartments();
+    fetchDesignations();
   }, []);
+
+  const fetchDesignations = async () => {
+    try {
+      const res = await api.get('/org/designations');
+      setDesignations(res.data.data || []);
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchVacancies = async () => {
     setLoading(true);
@@ -60,23 +75,34 @@ export function VacanciesPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        designationId: positionMode === 'existing' ? formData.designationId : null,
+        parentDesignationId: formData.parentDesignationId || null
+      };
       if (editingId) {
-        await api.put(`/hr/vacancies/${editingId}`, formData);
+        await api.put(`/hr/vacancies/${editingId}`, payload);
+        toast.success('Vacancy updated and synced with Org Chart');
       } else {
-        await api.post('/hr/vacancies', formData);
+        await api.post('/hr/vacancies', payload);
+        toast.success('Vacancy posted and open position added to Org Chart');
       }
       setDialogOpen(false);
       resetForm();
       fetchVacancies();
+      fetchDesignations();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to save vacancy');
+      toast.error(error.response?.data?.message || 'Failed to save vacancy');
     }
   };
 
   const handleEdit = (vacancy: any) => {
     const vid = vacancy.id || vacancy.id;
     setEditingId(vid);
+    setPositionMode('new');
     setFormData({
+      designationId: '',
+      parentDesignationId: '',
       designation: vacancy.designation || '',
       departmentId: (typeof vacancy.departmentId === 'object' ? vacancy.departmentId?.id || vacancy.departmentId?.id : vacancy.departmentId) || '',
       count: vacancy.count?.toString() || '1',
@@ -117,14 +143,17 @@ export function VacanciesPanel() {
   const handleHireSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Create the user with the vacancy's department
+      const deptId = typeof selectedVacancy.departmentId === 'object'
+        ? selectedVacancy.departmentId?.id
+        : selectedVacancy.departmentId;
       await api.post('/users', {
         ...hireFormData,
-        departmentId: selectedVacancy.departmentId,
+        departmentId: deptId,
+        designation: selectedVacancy.designation,
         vacancyId: selectedVacancy.id,
       });
       
-      alert(`User ${hireFormData.name} created successfully and assigned to ${selectedVacancy.department?.name || 'department'}!`);
+      toast.success(`User ${hireFormData.name} hired and assigned to ${selectedVacancy.designation} in the Org Chart!`);
       setHireDialogOpen(false);
       setHireFormData({
         name: '',
@@ -133,14 +162,19 @@ export function VacanciesPanel() {
         role: 'employee',
       });
       setSelectedVacancy(null);
+      fetchVacancies();
+      fetchDesignations();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to create user');
+      toast.error(error.response?.data?.message || 'Failed to create user');
     }
   };
 
   const resetForm = () => {
     setEditingId(null);
+    setPositionMode(designations.length > 0 ? 'existing' : 'new');
     setFormData({
+      designationId: '',
+      parentDesignationId: '',
       designation: '',
       departmentId: '',
       count: '1',
@@ -172,10 +206,94 @@ export function VacanciesPanel() {
               <DialogTitle>{editingId ? 'Edit Vacancy' : 'Post New Vacancy'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Designation / Job Title</Label>
-                <Input value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} required placeholder="e.g., Software Engineer" />
-              </div>
+              {!editingId && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={positionMode === 'existing' ? 'default' : 'outline'}
+                    onClick={() => setPositionMode('existing')}
+                    className="flex-1"
+                  >
+                    Existing Org Chart Position
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={positionMode === 'new' ? 'default' : 'outline'}
+                    onClick={() => { setPositionMode('new'); setFormData(prev => ({ ...prev, designationId: '' })); }}
+                    className="flex-1"
+                  >
+                    + New Position in Hierarchy
+                  </Button>
+                </div>
+              )}
+
+              {positionMode === 'existing' && !editingId ? (
+                <div>
+                  <Label>Select Position in Org Chart</Label>
+                  <Select
+                    value={formData.designationId}
+                    onValueChange={(val) => {
+                      const found = designations.find(d => d.id === val);
+                      const deptId = found?.departmentId
+                        ? (typeof found.departmentId === 'object' ? found.departmentId.id : found.departmentId)
+                        : formData.departmentId;
+                      setFormData(prev => ({
+                        ...prev,
+                        designationId: val,
+                        designation: found?.title || prev.designation,
+                        departmentId: deptId || prev.departmentId
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose existing Org Chart position..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {designations.map((d) => {
+                        const bName = typeof d.branchId === 'object' ? d.branchId?.name : '';
+                        const deptName = typeof d.departmentId === 'object' ? d.departmentId?.name : '';
+                        const filled = Array.isArray(d.filledBy) ? d.filledBy.length : 0;
+                        return (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.title} {bName ? `• ${bName}` : (deptName ? `• ${deptName}` : '')} ({filled}/{d.maxHeadcount} filled)
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>Designation / Job Title</Label>
+                    <Input value={formData.designation} onChange={(e) => setFormData({...formData, designation: e.target.value})} required placeholder="e.g., BDE, Team Leader, Software Engineer" />
+                  </div>
+                  <div>
+                    <Label>Reports To (Parent Position in Org Chart)</Label>
+                    <Select
+                      value={formData.parentDesignationId || 'none'}
+                      onValueChange={(value) => setFormData({ ...formData, parentDesignationId: value === 'none' ? '' : value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select parent position in Org Chart" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Top Level / Department Head</SelectItem>
+                        {designations.map((d) => {
+                          const holder = Array.isArray(d.filledBy) && d.filledBy[0] ? ` (${d.filledBy[0].name})` : '';
+                          return (
+                            <SelectItem key={d.id} value={d.id}>
+                              {d.title}{holder}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               <div>
                 <Label>Department</Label>
                 <Select value={formData.departmentId} onValueChange={(value) => setFormData({...formData, departmentId: value})}>
@@ -364,6 +482,14 @@ export function VacanciesPanel() {
                 <SelectContent>
                   <SelectItem value="employee">Employee</SelectItem>
                   <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="bde">BDE</SelectItem>
+                  <SelectItem value="sales_sub_admin">Sales Sub Admin</SelectItem>
+                  <SelectItem value="sales_admin">Sales Admin</SelectItem>
+                  <SelectItem value="ops_sub_admin">Ops Sub Admin</SelectItem>
+                  <SelectItem value="finance_sub_admin">Finance Sub Admin</SelectItem>
+                  <SelectItem value="hr_sub_admin">HR Sub Admin</SelectItem>
+                  <SelectItem value="front_office_admin">Front Office Admin</SelectItem>
+                  <SelectItem value="branch_manager">Branch Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
