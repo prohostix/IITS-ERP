@@ -46,7 +46,7 @@ interface Enrollment {
   branchName?: string;
   session?: { name: string };
   documents?: { name: string; url: string; status?: string; remarks?: string }[];
-  educationalDetails?: { qualification: string; institution: string; passingYear: string; percentage?: string }[];
+  educationalDetails?: { qualification: string; institution: string; boardUniversity?: string; passingYear: string; year?: string; percentage?: string; subject?: string }[];
 }
 
 const STATUS_COLOR: Record<string, string> = {

@@ -3,17 +3,11 @@ import {
   Calendar,
   GraduationCap,
   Building2,
-  Users,
   TrendingUp,
-  Download,
   RefreshCw,
   Search,
-  Filter,
   CheckCircle2,
-  Clock,
-  XCircle,
-  FileSpreadsheet,
-  BookOpen
+  FileSpreadsheet
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

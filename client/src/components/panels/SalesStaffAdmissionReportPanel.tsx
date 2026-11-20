@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
-  TrendingUp, 
   CheckCircle2, 
   Clock, 
-  XCircle, 
   DollarSign, 
   Download, 
   RefreshCw, 

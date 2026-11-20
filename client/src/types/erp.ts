@@ -84,6 +84,8 @@ export interface User {
   organizationId: string;
   departmentId?: string;
   subDepartmentId?: string;
+  branchId?: string | null;
+  studyCenterId?: string | null;
   email: string;
   name: string;
   role: UserRole;
