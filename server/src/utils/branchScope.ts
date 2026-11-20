@@ -92,28 +92,58 @@ export async function getBranchScope(user: any): Promise<BranchScope> {
         ] : [])
       ]
     },
-    select: { id: true }
+    select: { id: true, designationId: true }
   });
   const staffIdSet = new Set<string>([user.id, ...staff.map(s => s.id)]);
 
-  // Also include any transitive subordinates reporting to branch staff
-  let frontier = Array.from(staffIdSet);
-  for (let depth = 0; depth < 4 && frontier.length > 0; depth++) {
-    const subs = await prisma.user.findMany({
-      where: {
-        organizationId: user.organizationId,
-        reportingTo: { in: frontier }
-      },
-      select: { id: true }
-    });
-    const nextFrontier: string[] = [];
-    for (const s of subs) {
-      if (!staffIdSet.has(s.id)) {
-        staffIdSet.add(s.id);
-        nextFrontier.push(s.id);
+  // Also include any transitive subordinates reporting to branch staff or in child designations
+  const [allOrgUsers, allOrgDesignations] = await Promise.all([
+    prisma.user.findMany({
+      where: { organizationId: user.organizationId, status: { not: 'deleted' } },
+      select: { id: true, reportingTo: true, designationId: true, branchId: true }
+    }),
+    prisma.designation.findMany({
+      where: { organizationId: user.organizationId, status: { not: 'deleted' } },
+      select: { id: true, parentDesignationId: true, branchId: true }
+    })
+  ]);
+
+  const desigFrontier: string[] = [];
+  if (user.designationId) desigFrontier.push(user.designationId);
+  for (const s of staff) {
+    if (s.designationId) desigFrontier.push(s.designationId);
+  }
+  for (const d of allOrgDesignations) {
+    if (d.branchId === branch.id) desigFrontier.push(d.id);
+  }
+  const branchDesigIds = new Set<string>(desigFrontier);
+  const dq = [...desigFrontier];
+  while (dq.length > 0) {
+    const cd = dq.shift()!;
+    for (const d of allOrgDesignations) {
+      if (d.parentDesignationId === cd && !branchDesigIds.has(d.id)) {
+        branchDesigIds.add(d.id);
+        dq.push(d.id);
       }
     }
-    frontier = nextFrontier;
+  }
+  for (const u of allOrgUsers) {
+    if (u.designationId && branchDesigIds.has(u.designationId)) {
+      if (!u.branchId || u.branchId === branch.id) {
+        staffIdSet.add(u.id);
+      }
+    }
+  }
+
+  const rq = Array.from(staffIdSet);
+  while (rq.length > 0) {
+    const curr = rq.shift()!;
+    for (const u of allOrgUsers) {
+      if (u.reportingTo === curr && !staffIdSet.has(u.id)) {
+        staffIdSet.add(u.id);
+        rq.push(u.id);
+      }
+    }
   }
 
   const staffIds = Array.from(staffIdSet);
@@ -130,7 +160,7 @@ export async function getBranchScope(user: any): Promise<BranchScope> {
       OR: [
         { referredBy: { in: staffIds } },
         ...(inviteTokens.length > 0 ? [{ inviteToken: { in: inviteTokens } }] : []),
-        { branchName: branch.name }
+        { branchName: { equals: branch.name, mode: 'insensitive' } }
       ]
     },
     select: { id: true }

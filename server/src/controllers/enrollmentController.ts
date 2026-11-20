@@ -672,10 +672,16 @@ export const getAllEnrollments = asyncHandler(async (req: AuthRequest, res: Resp
     ];
   } else if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
-    where.studyCenterId = { in: scope.centerIds };
+    where.OR = [
+      { studyCenterId: { in: scope.centerIds } },
+      { salesUserId: { in: scope.staffIds } }
+    ];
   } else if (req.query.branchId && req.query.branchId !== 'all') {
     const scope = await getBranchScopeByBranchId(req.user.organizationId, String(req.query.branchId));
-    where.studyCenterId = { in: scope.centerIds };
+    where.OR = [
+      { studyCenterId: { in: scope.centerIds } },
+      { salesUserId: { in: scope.staffIds } }
+    ];
   }
 
   const [enrollments, allBranchesScope] = await Promise.all([
