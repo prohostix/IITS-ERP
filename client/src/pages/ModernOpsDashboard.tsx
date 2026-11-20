@@ -14,11 +14,8 @@ import {
   Wallet,
   Receipt,
   Landmark,
-  FileSpreadsheet,
   Layers,
   Sparkles,
-  Filter,
-  DollarSign,
   RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -61,7 +58,7 @@ import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniv
 import { FinanceReregReportWrapper } from '@/components/panels/FinanceReregReportWrapper';
 
 
-export function ModernOpsDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+export function ModernOpsDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
   const { user } = useAuth();
   const isSubDeptManager = Boolean((user)?.subDepartmentId);
   const [metrics, setMetrics] = useState<any>({});
@@ -1269,7 +1266,7 @@ function OpsMetricCard({ title, value, icon, subtext, onClick, colorClass = "fro
     <Card 
       className={cn(
         "group relative overflow-hidden border shadow-lg bg-card/40 backdrop-blur-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between h-full",
-        colorClass.split(' ').find(c => c.startsWith('border-')) || "border-border"
+        colorClass.split(' ').find((c: string) => c.startsWith('border-')) || "border-border"
       )} 
       onClick={onClick}
     >

@@ -27,6 +27,7 @@ interface Payroll {
   bonus: number;
   overtime: number;
   remarks?: string;
+  createdAt?: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -409,6 +410,7 @@ export function PayrollPanel({ isEmployeeView: isEmployeeViewProp = false }: Pay
           <PayslipDocument
             payroll={{
               ...pdfPayroll,
+              createdAt: pdfPayroll.createdAt || new Date().toISOString(),
               user: pdfPayroll.employeeId?.userId || pdfPayroll.employeeId,
             }}
           />
