@@ -501,6 +501,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         designation: true,
         role: true,
         branchId: true,
+        reportingTo: true,
         designationRef: { select: { title: true } }
       },
       orderBy: { name: 'asc' }
@@ -523,6 +524,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
         designation: true,
         role: true,
         branchId: true,
+        reportingTo: true,
         department: { select: { type: true } },
         subDepartment: { select: { parentDept: { select: { type: true } } } },
         designationRef: {
@@ -635,8 +637,10 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
   }
 
   const userIds = teamUsers.map(u => u.id);
+  const nameById = new Map<string, string>(teamUsers.map(u => [u.id, u.name]));
+  nameById.set(req.user.id, req.user.name);
 
-  const [leads, targets] = await Promise.all([
+  const [leads, targets, centers] = await Promise.all([
     prisma.lead.findMany({
       where: { organizationId: orgId, referredBy: { in: userIds } },
       select: { referredBy: true, status: true }
@@ -644,10 +648,71 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
     prisma.target.findMany({
       where: { organizationId: orgId, employeeId: { in: userIds } },
       select: { employeeId: true, target: true, achieved: true, status: true }
+    }),
+    prisma.studyCenter.findMany({
+      where: { organizationId: orgId, referredBy: { in: userIds } },
+      select: { id: true, referredBy: true }
     })
   ]);
 
+  // Admissions credited to each team member (via centers they referred, or students assigned directly)
+  const centerOwner = new Map<string, string>();
+  centers.forEach(c => { if (c.referredBy) centerOwner.set(c.id, c.referredBy); });
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      organizationId: orgId,
+      OR: [
+        { studyCenterId: { in: Array.from(centerOwner.keys()) } },
+        { salesUserId: { in: userIds } }
+      ]
+    },
+    select: {
+      id: true,
+      studentName: true,
+      studentPhone: true,
+      enrollmentNumber: true,
+      status: true,
+      totalFee: true,
+      admissionDate: true,
+      createdAt: true,
+      studyCenterId: true,
+      salesUserId: true,
+      studyCenter: { select: { name: true, code: true } },
+      program: { select: { name: true, university: { select: { name: true } } } },
+      session: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const admissionsByUser = new Map<string, any[]>();
+  for (const e of enrollments) {
+    const ownerId = (e.salesUserId && userIds.includes(e.salesUserId))
+      ? e.salesUserId
+      : centerOwner.get(e.studyCenterId);
+    if (!ownerId) continue;
+    if (!admissionsByUser.has(ownerId)) admissionsByUser.set(ownerId, []);
+    admissionsByUser.get(ownerId)!.push({
+      id: e.id,
+      studentName: e.studentName,
+      studentPhone: e.studentPhone,
+      enrollmentNumber: e.enrollmentNumber,
+      status: e.status,
+      totalFee: Number(e.totalFee) || 0,
+      admissionDate: e.admissionDate || e.createdAt,
+      centerName: e.studyCenter?.name || '-',
+      centerCode: e.studyCenter?.code || '',
+      programName: e.program?.name || '-',
+      universityName: e.program?.university?.name || '-',
+      sessionName: e.session?.name || '-'
+    });
+  }
+
+  const REJECTED = ['rejected', 'department_rejected', 'cancelled', 'dropout', 'refunded'];
+
   const teamMembers = teamUsers.map(u => {
+    const admissions = admissionsByUser.get(u.id) || [];
+    const validAdmissions = admissions.filter(a => !REJECTED.includes(a.status));
     const userLeads = leads.filter(l => l.referredBy === u.id);
     const leadCount = userLeads.length;
     const convertedCount = userLeads.filter(l => l.status === 'converted').length;
@@ -681,7 +746,17 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
       targetAchieved,
       targetTotal,
       targetProgress,
-      score
+      score,
+      reportingTo: u.reportingTo || null,
+      reportingToName: u.reportingTo ? (nameById.get(u.reportingTo) || null) : null,
+      isDirectReport: u.reportingTo === req.user.id,
+      centersCount: centers.filter(c => c.referredBy === u.id).length,
+      admissionsTotal: validAdmissions.length,
+      admissionsEnrolled: admissions.filter(a => a.status === 'enrolled').length,
+      admissionsPending: validAdmissions.filter(a => a.status !== 'enrolled').length,
+      admissionsRejected: admissions.length - validAdmissions.length,
+      admissionsRevenue: validAdmissions.reduce((s, a) => s + a.totalFee, 0),
+      admissions
     };
   });
 

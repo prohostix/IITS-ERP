@@ -105,6 +105,7 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'leads': return <LeadsPanel />;
       case 'targets': return <TargetsPanel endpoint="/sales/targets" title="Sales Targets" />;
       case 'invite_links': return <SalesInvitePanel />;
+      case 'team':
       case 'my_team': return <TeamPerformancePanel />;
       case 'study_centers': return <StudyCentersPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
@@ -639,7 +640,8 @@ function SalesEmployeePortal({ initialTab, user }: { initialTab?: string; user: 
           case 'leads': return <LeadsPanel />;
           case 'targets': return <TargetsPanel endpoint="/sales/targets" title="My Targets" />;
           case 'invite_links': return <SalesInvitePanel />;
-          case 'my_team': return <TeamPerformancePanel />;
+          case 'team':
+      case 'my_team': return <TeamPerformancePanel />;
           case 'study_centers': return <StudyCentersPanel />;
           case 'center_onboarding': return <CenterOnboardingOverviewPanel mode="sales" />;
           case 'center_admissions': return <CentersAdmissionsPanel />;
