@@ -469,24 +469,6 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       const dayStr = `${year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayOfWeek = dayDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
 
-      // 1. If employee joined mid-month after this day
-      if (joinDateStr && dayStr < joinDateStr) {
-        absentDays += 1;
-        preJoiningDays += 1;
-        continue;
-      }
-
-      // 2. Is Holiday? (Company public holiday = paid non-working day)
-      if (holidayDateSet.has(dayStr)) {
-        continue;
-      }
-
-      // 3. Is Weekly Off? (e.g. Sunday = paid non-working day)
-      if (!workingDays.includes(dayOfWeek)) {
-        continue;
-      }
-
-      // 4. Scheduled Working Day:
       const att = userAttMap.get(dayStr);
       const matchingLeave = userLeaves.find(l => {
         const startStr = toLocalDateStr(l.startDate);
@@ -494,8 +476,13 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         return dayStr >= startStr && dayStr <= endStr;
       });
 
+      // 1. Always honor actual recorded attendance on this day (even if on a holiday or weekend)
       if (att) {
-        if (att.status === 'present' || att.status === 'late') {
+        if (att.status === 'half_day' || att.isHalfDay) {
+          halfDays += 1;
+          presentDays += 0.5;
+          absentDays += 0.5;
+        } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
           presentDays += 1;
           if (att.status === 'late' || att.isLate) {
             lateDays += 1;
@@ -510,10 +497,6 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
               }
             }
           }
-        } else if (att.status === 'half_day' || att.isHalfDay) {
-          halfDays += 1;
-          presentDays += 0.5;
-          absentDays += 0.5;
         } else if (att.status === 'leave') {
           if (matchingLeave && matchingLeave.type === 'unpaid') {
             unpaidLeaveDays += 1;
@@ -524,7 +507,18 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         } else if (att.status === 'absent') {
           absentDays += 1;
         }
-      } else if (matchingLeave && dayStr <= todayStr) {
+        continue;
+      }
+
+      // 2. If employee joined mid-month after this day
+      if (joinDateStr && dayStr < joinDateStr) {
+        absentDays += 1;
+        preJoiningDays += 1;
+        continue;
+      }
+
+      // 3. Approved leave on this day
+      if (matchingLeave && dayStr <= todayStr) {
         if (matchingLeave.type === 'unpaid') {
           unpaidLeaveDays += 1;
           absentDays += 1;
@@ -535,10 +529,16 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         } else {
           paidLeaveDays += 1;
         }
-      } else {
-        // Scheduled working day with neither punch nor approved leave (or future unworked day)
-        absentDays += 1;
+        continue;
       }
+
+      // 4. Is Holiday or Weekly Off?
+      if (holidayDateSet.has(dayStr) || !workingDays.includes(dayOfWeek)) {
+        continue;
+      }
+
+      // 5. Scheduled working day with neither punch nor approved leave (or future unworked day)
+      absentDays += 1;
     }
 
     // Determine payable days & Loss of Pay (LOP) strictly from actual days attended + approved paid leave so far
