@@ -455,6 +455,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     let halfDays = 0;
     let paidLeaveDays = 0;
     let unpaidLeaveDays = 0;
+    let paidHolidayDays = 0;
     let lateDays = 0;
     let totalLateMinutes = 0;
     let smartLateDeductions = 0;
@@ -532,26 +533,35 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         continue;
       }
 
-      // 4. Is Holiday or Weekly Off?
-      if (holidayDateSet.has(dayStr) || !workingDays.includes(dayOfWeek)) {
+      // 4. Is Company Holiday? (Paid holiday when date has elapsed/occurred)
+      if (holidayDateSet.has(dayStr)) {
+        if (dayStr <= todayStr) {
+          paidHolidayDays += 1;
+        }
         continue;
       }
 
-      // 5. Scheduled working day with neither punch nor approved leave (or future unworked day)
+      // 5. Is Weekly Off?
+      if (!workingDays.includes(dayOfWeek)) {
+        continue;
+      }
+
+      // 6. Scheduled working day with neither punch nor approved leave (or future unworked day)
       absentDays += 1;
     }
 
-    // Determine payable days & Loss of Pay (LOP) strictly from actual days attended + approved paid leave so far
+    // Determine payable days & Loss of Pay (LOP) from actual days attended + approved paid leave + paid company holidays
     let payableDays = 0;
     let lopDeduction = 0;
 
     if (presentDays === 0 && paidLeaveDays === 0 && halfDays === 0) {
       // Zero attendance in the entire month -> 0 payable days and 100% LOP
       payableDays = 0;
+      paidHolidayDays = 0;
       absentDays = totalDaysInMonth;
       lopDeduction = fixedMonthlyGross;
     } else {
-      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((presentDays + paidLeaveDays).toFixed(1))));
+      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((presentDays + paidLeaveDays + paidHolidayDays).toFixed(1))));
       absentDays = Math.max(0, parseFloat((totalDaysInMonth - payableDays).toFixed(1)));
       const earnedGross = Math.round(perDaySalary * payableDays);
       lopDeduction = Math.max(0, Math.min(fixedMonthlyGross, fixedMonthlyGross - earnedGross));
@@ -604,6 +614,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       const parts = [`Att: ${presentDays}P, ${absentDays}A`];
       if (halfDays > 0) parts.push(`${halfDays}HD`);
       if (paidLeaveDays > 0) parts.push(`${paidLeaveDays}L`);
+      if (paidHolidayDays > 0) parts.push(`${paidHolidayDays}H`);
       if (lateDays > 0) parts.push(`${lateDays}Late (${totalLateMinutes}m)`);
 
       let summary = parts.join(', ');
