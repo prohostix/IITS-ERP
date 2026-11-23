@@ -4,40 +4,94 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+async function evaluateLateFromCheckIn(
+  organizationId: string | null | undefined,
+  userId: string,
+  targetDate: Date,
+  checkIn: Date | null,
+  rawStatus?: string,
+  rawIsLate?: boolean,
+  rawLateMinutes?: number
+): Promise<{ status: string; isLate: boolean; lateMinutes: number }> {
+  let status = rawStatus || 'present';
+  let isLate = rawIsLate !== undefined ? Boolean(rawIsLate) : status === 'late';
+  let lateMinutes = Number(rawLateMinutes) || 0;
+
+  if (!checkIn || isNaN(checkIn.getTime()) || ['absent', 'leave', 'half_day'].includes(status)) {
+    if (status === 'absent' || status === 'leave') {
+      return { status, isLate: false, lateMinutes: 0 };
+    }
+    return { status, isLate, lateMinutes };
+  }
+
+  let expTimeStr = '09:00';
+  let graceMinutes = 15;
+
+  const [hrSettings, employee] = await Promise.all([
+    organizationId ? prisma.hRSettings.findFirst({ where: { organizationId } }) : Promise.resolve(null),
+    prisma.employeeProfile.findUnique({ where: { userId }, include: { shift: true } })
+  ]);
+
+  const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+
+  if (hrSettings?.officeHours) {
+    const oh: any = typeof hrSettings.officeHours === 'string'
+      ? JSON.parse(hrSettings.officeHours)
+      : hrSettings.officeHours;
+    if (oh?.checkInTime) expTimeStr = oh.checkInTime;
+    if (oh?.graceMinutes !== undefined) graceMinutes = Number(oh.graceMinutes) || 0;
+    if (Array.isArray(oh?.dayOverrides)) {
+      const ov = oh.dayOverrides.find((o: any) => o?.day === dayOfWeek);
+      if (ov?.checkInTime) expTimeStr = ov.checkInTime;
+    }
+  } else if (employee?.shift && !employee.shift.isOpenShift && employee.shift.startTime) {
+    expTimeStr = employee.shift.startTime;
+    graceMinutes = Number(employee.shift.graceTimeMinutes) || 0;
+  }
+
+  const [expH, expM] = expTimeStr.split(':').map(Number);
+  const expectedMins = (Number(expH) || 9) * 60 + (Number(expM) || 0);
+
+  // Convert checkIn timestamp to IST (UTC+5:30)
+  const istCheckIn = new Date(checkIn.getTime() + 5.5 * 60 * 60 * 1000);
+  const checkInMins = istCheckIn.getUTCHours() * 60 + istCheckIn.getUTCMinutes();
+  const diffMins = checkInMins - expectedMins;
+
+  if (diffMins > graceMinutes) {
+    isLate = true;
+    lateMinutes = diffMins;
+    if (status === 'present') {
+      status = 'late';
+    }
+  } else if (rawLateMinutes === undefined || Number(rawLateMinutes) === 0) {
+    isLate = false;
+    lateMinutes = 0;
+    if (status === 'late' && rawStatus !== 'late') {
+      status = 'present';
+    }
+  }
+
+  return { status, isLate, lateMinutes };
+}
+
 export const punchIn = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { isWFH = false, isHalfDay = false } = req.body;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const checkInTime = new Date();
-  
-  // Find employee and shift
-  const employee = await prisma.employeeProfile.findUnique({
-    where: { userId: req.user.id },
-    include: { shift: true }
-  });
 
-  let isLate = false;
-  let lateMinutes = 0;
-  let status = 'present';
+  const evaluated = await evaluateLateFromCheckIn(
+    req.user.organizationId,
+    req.user.id,
+    today,
+    checkInTime,
+    isHalfDay ? 'half_day' : 'present'
+  );
 
-  if (employee?.shift && !employee.shift.isOpenShift && employee.shift.startTime) {
-    // Calculate late minutes
-    const [hours, minutes] = employee.shift.startTime.split(':').map(Number);
-    const expectedTime = new Date(today);
-    expectedTime.setHours(hours, minutes, 0, 0);
-    
-    const graceTime = employee.shift.graceTimeMinutes * 60000; // in milliseconds
-    const diff = checkInTime.getTime() - expectedTime.getTime();
-    
-    if (diff > graceTime) {
-      isLate = true;
-      lateMinutes = Math.floor(diff / 60000);
-      status = 'late';
-    }
-  }
-
-  if (isHalfDay) status = 'half_day';
+  const status = isHalfDay ? 'half_day' : evaluated.status;
+  const isLate = evaluated.isLate;
+  const lateMinutes = evaluated.lateMinutes;
 
   const attendance = await prisma.attendance.upsert({
     where: { userId_date: { userId: req.user.id, date: today } },
@@ -235,14 +289,24 @@ export const createAttendance = asyncHandler(async (req: AuthRequest, res: Respo
     workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));
   }
 
-  const status = req.body.status || 'present';
-  const isLate = req.body.isLate !== undefined ? Boolean(req.body.isLate) : status === 'late';
+  const resolvedOrgId = user?.organizationId || req.user.organizationId;
+
+  const evaluated = await evaluateLateFromCheckIn(
+    resolvedOrgId,
+    finalUserId,
+    targetDate,
+    checkIn && !isNaN(checkIn.getTime()) ? checkIn : null,
+    req.body.status,
+    req.body.isLate,
+    req.body.lateMinutes
+  );
+
+  const status = evaluated.status;
+  const isLate = evaluated.isLate;
   const isHalfDay = req.body.isHalfDay !== undefined ? Boolean(req.body.isHalfDay) : status === 'half_day';
   const isWFH = Boolean(req.body.isWFH);
-  const lateMinutes = Number(req.body.lateMinutes) || 0;
+  const lateMinutes = evaluated.lateMinutes;
   const notes = req.body.notes !== undefined ? (req.body.notes ? String(req.body.notes) : null) : null;
-
-  const resolvedOrgId = user?.organizationId || req.user.organizationId;
 
   const data = {
     userId: finalUserId,
@@ -327,20 +391,32 @@ export const updateAttendance = asyncHandler(async (req: AuthRequest, res: Respo
   if (req.body.notes !== undefined) updateData.notes = req.body.notes ? String(req.body.notes) : null;
   if (req.body.checkIn !== undefined) updateData.checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
   if (req.body.checkOut !== undefined) updateData.checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
-  if (req.body.isLate !== undefined) updateData.isLate = Boolean(req.body.isLate);
-  if (req.body.lateMinutes !== undefined) updateData.lateMinutes = Number(req.body.lateMinutes) || 0;
   if (req.body.isHalfDay !== undefined) updateData.isHalfDay = Boolean(req.body.isHalfDay);
   if (req.body.isWFH !== undefined) updateData.isWFH = Boolean(req.body.isWFH);
 
-  if (req.body.status && req.body.isLate === undefined) {
-    updateData.isLate = req.body.status === 'late';
-  }
   if (req.body.status && req.body.isHalfDay === undefined) {
     updateData.isHalfDay = req.body.status === 'half_day';
   }
 
   const finalCheckIn = updateData.checkIn !== undefined ? updateData.checkIn : attendance.checkIn;
   const finalCheckOut = updateData.checkOut !== undefined ? updateData.checkOut : attendance.checkOut;
+  const finalDate = updateData.date || attendance.date;
+  const finalStatus = updateData.status !== undefined ? updateData.status : attendance.status;
+
+  const evaluated = await evaluateLateFromCheckIn(
+    attendance.organizationId || req.user.organizationId,
+    attendance.userId,
+    finalDate,
+    finalCheckIn && !isNaN(finalCheckIn.getTime()) ? finalCheckIn : null,
+    finalStatus,
+    req.body.isLate,
+    req.body.lateMinutes
+  );
+
+  updateData.status = evaluated.status;
+  updateData.isLate = evaluated.isLate;
+  updateData.lateMinutes = evaluated.lateMinutes;
+
   if (finalCheckIn && finalCheckOut && !isNaN(finalCheckIn.getTime()) && !isNaN(finalCheckOut.getTime())) {
     const diffHours = (finalCheckOut.getTime() - finalCheckIn.getTime()) / (1000 * 60 * 60);
     updateData.workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));

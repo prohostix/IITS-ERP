@@ -342,6 +342,9 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
 
   // Working days (default Mon-Sat if not specified)
   let workingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  let defaultCheckInTime = '09:00';
+  let graceMinutes = 15;
+  let dayOverrides: any[] = [];
   let latePolicyDeductionPerMinute = 0;
   if (hrSettings?.officeHours) {
     const oh: any = typeof hrSettings.officeHours === 'string'
@@ -350,6 +353,9 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     if (Array.isArray(oh?.workingDays) && oh.workingDays.length > 0) {
       workingDays = oh.workingDays;
     }
+    if (oh?.checkInTime) defaultCheckInTime = oh.checkInTime;
+    if (oh?.graceMinutes !== undefined) graceMinutes = Number(oh.graceMinutes) || 0;
+    if (Array.isArray(oh?.dayOverrides)) dayOverrides = oh.dayOverrides;
   }
   if (hrSettings?.latePolicy) {
     const lp: any = typeof hrSettings.latePolicy === 'string'
@@ -359,6 +365,20 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       latePolicyDeductionPerMinute = Number(lp.deductionPerExtraMinute);
     }
   }
+
+  const computeCheckInLateMinutes = (checkIn: Date | string | null | undefined, dayOfWeek: string): number => {
+    if (!checkIn) return 0;
+    const d = new Date(checkIn);
+    if (isNaN(d.getTime())) return 0;
+    const ov = dayOverrides.find((o: any) => o?.day === dayOfWeek);
+    const expTimeStr = ov?.checkInTime || defaultCheckInTime || '09:00';
+    const [expH, expM] = expTimeStr.split(':').map(Number);
+    const expectedMins = (Number(expH) || 9) * 60 + (Number(expM) || 0);
+    const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    const checkInMins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    const diffMins = checkInMins - expectedMins;
+    return diffMins > graceMinutes ? diffMins : 0;
+  };
 
   // Map of holiday dates YYYY-MM-DD
   const holidayDateSet = new Set<string>();
@@ -485,17 +505,21 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
           absentDays += 0.5;
         } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
           presentDays += 1;
-          if (att.status === 'late' || att.isLate) {
+          const derivedLateMins = computeCheckInLateMinutes(att.checkIn, dayOfWeek);
+          const mins = Number(att.lateMinutes) > 0 ? Number(att.lateMinutes) : derivedLateMins;
+          if (att.status === 'late' || att.isLate || mins > 0) {
             lateDays += 1;
-            const mins = att.lateMinutes || 0;
             totalLateMinutes += mins;
             if (att.lateDeductionAmount && att.lateDeductionAmount > 0) {
-              smartLateDeductions += att.lateDeductionAmount;
-            } else if (isSmart) {
-              const perMin = Number(lateDeductionPerMinute) || latePolicyDeductionPerMinute;
-              if (perMin > 0 && mins > 0) {
-                smartLateDeductions += mins * perMin;
-              }
+              smartLateDeductions += Number(att.lateDeductionAmount);
+            } else if (mins > 0) {
+              const perMin =
+                Number(lateDeductionPerMinute) > 0
+                  ? Number(lateDeductionPerMinute)
+                  : latePolicyDeductionPerMinute > 0
+                  ? latePolicyDeductionPerMinute
+                  : perDaySalary / (8 * 60);
+              smartLateDeductions += mins * perMin;
             }
           }
         } else if (att.status === 'leave') {
@@ -533,7 +557,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         continue;
       }
 
-      // 4. Is Company Holiday? (Paid holiday when date has elapsed/occurred)
+      // 4. Is Company Holiday? (Paid holiday — not an absent day)
       if (holidayDateSet.has(dayStr)) {
         if (dayStr <= todayStr) {
           paidHolidayDays += 1;
@@ -541,18 +565,20 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         continue;
       }
 
-      // 5. Is Weekly Off?
+      // 5. Is Weekly Off? (e.g. Sunday — paid weekly off, not an absent day)
       if (!workingDays.includes(dayOfWeek)) {
         continue;
       }
 
-      // 6. Scheduled working day with neither punch nor approved leave (or future unworked day)
+      // 6. Scheduled working day with neither punch nor approved leave
       absentDays += 1;
     }
 
-    // Determine payable days & Loss of Pay (LOP) from actual days attended + approved paid leave + paid company holidays
+    // Determine payable days & Loss of Pay (LOP):
+    // Sundays (weekly offs) and company holidays are paid non-working days; only actual absent working days deduct LOP.
     let payableDays = 0;
     let lopDeduction = 0;
+    const roundedLateDeduction = Math.round(smartLateDeductions);
 
     if (presentDays === 0 && paidLeaveDays === 0 && halfDays === 0) {
       // Zero attendance in the entire month -> 0 payable days and 100% LOP
@@ -561,8 +587,8 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       absentDays = totalDaysInMonth;
       lopDeduction = fixedMonthlyGross;
     } else {
-      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((presentDays + paidLeaveDays + paidHolidayDays).toFixed(1))));
-      absentDays = Math.max(0, parseFloat((totalDaysInMonth - payableDays).toFixed(1)));
+      absentDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat(absentDays.toFixed(1))));
+      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((totalDaysInMonth - absentDays).toFixed(1))));
       const earnedGross = Math.round(perDaySalary * payableDays);
       lopDeduction = Math.max(0, Math.min(fixedMonthlyGross, fixedMonthlyGross - earnedGross));
     }
@@ -578,8 +604,8 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       if (lopDeduction > 0) {
         finalDeductions.push({ name: 'Loss of Pay (Absenteeism)', amount: lopDeduction });
       }
-      if (isSmart && smartLateDeductions > 0) {
-        finalDeductions.push({ name: 'Late Arrival Penalty', amount: Math.round(smartLateDeductions) });
+      if (roundedLateDeduction > 0) {
+        finalDeductions.push({ name: 'Late Arrival Penalty', amount: roundedLateDeduction });
       }
     } else {
       finalDeductions = { ...parsedDeductions };
@@ -590,8 +616,8 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       if (lopDeduction > 0) {
         finalDeductions.loss_of_pay = lopDeduction;
       }
-      if (isSmart && smartLateDeductions > 0) {
-        finalDeductions.late_arrival = Math.round(smartLateDeductions);
+      if (roundedLateDeduction > 0) {
+        finalDeductions.late_arrival = roundedLateDeduction;
       }
     }
 
@@ -620,8 +646,8 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       let summary = parts.join(', ');
       summary += ` | Payable: ${payableDays}/${totalDaysInMonth} days`;
       if (lopDeduction > 0) summary += ` | LOP: -₹${lopDeduction.toLocaleString('en-IN')}`;
-      if (isSmart && smartLateDeductions > 0) summary += ` | Late: -₹${Math.round(smartLateDeductions).toLocaleString('en-IN')}`;
-      if (lopDeduction === 0 && smartLateDeductions === 0) summary += ` (Full attendance)`;
+      if (roundedLateDeduction > 0) summary += ` | Late: -₹${roundedLateDeduction.toLocaleString('en-IN')}`;
+      if (lopDeduction === 0 && roundedLateDeduction === 0) summary += ` (Full attendance)`;
       if (preJoiningDays > 0) summary += ` (Joined: ${joinDateStr})`;
       remarks = summary;
     }
