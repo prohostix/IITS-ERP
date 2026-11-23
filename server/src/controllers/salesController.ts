@@ -1231,16 +1231,10 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   }
 
   if (allowedStaffIds !== null) {
-    if (staffIdFilter) {
-      staffWhere.id = allowedStaffIds.includes(staffIdFilter) ? staffIdFilter : '__none__';
-    } else {
-      staffWhere.id = { in: allowedStaffIds };
-    }
-  } else if (staffIdFilter) {
-    staffWhere.id = staffIdFilter;
+    staffWhere.id = { in: allowedStaffIds };
   }
 
-  const [rawSalesStaff, allBranchesScope] = await Promise.all([
+  const [rawSalesStaff, allBranchesScope, allOrgUsers, allOrgDesignations] = await Promise.all([
     prisma.user.findMany({
       where: staffWhere,
       select: {
@@ -1250,11 +1244,16 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
         phone: true,
         role: true,
         designation: true,
+        designationId: true,
+        reportingTo: true,
+        branchId: true,
         branch: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
         designationRef: {
           select: {
+            id: true,
             title: true,
+            branchId: true,
             branch: { select: { id: true, name: true } },
             department: { select: { id: true, name: true } }
           }
@@ -1262,20 +1261,104 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
       },
       orderBy: { name: 'asc' }
     }),
-    getAllBranchesScope(organizationId)
+    getAllBranchesScope(organizationId),
+    prisma.user.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: { id: true, reportingTo: true, designationId: true, branchId: true, designationRef: { select: { branchId: true } } }
+    }),
+    prisma.designation.findMany({
+      where: { organizationId, status: { not: 'deleted' } },
+      select: { id: true, parentDesignationId: true, branchId: true }
+    })
   ]);
 
   const salesStaff = rawSalesStaff.map(({ designationRef, ...s }) => {
     const resolvedBranch = allBranchesScope.staffBranchMap[s.id];
     return {
       ...s,
+      designationRef,
       designation: s.designation || designationRef?.title || null,
       branch: s.branch || designationRef?.branch || (resolvedBranch ? { id: resolvedBranch.branchId, name: resolvedBranch.branchName } : null),
       department: s.department || designationRef?.department || null
     };
   });
 
-  const staffIds = salesStaff.map(s => s.id);
+  // Build effective downline team staff IDs for each sales staff / leader (TL, Asst BDM, BDM, Branch Manager)
+  const downlineByStaffId = new Map<string, Set<string>>();
+  for (const s of salesStaff) {
+    const teamSet = new Set<string>([s.id]);
+    const sBranchId = s.branchId || s.designationRef?.branchId || s.branch?.id || null;
+    const isBM =
+      s.role === 'branch_manager' ||
+      /branch\s*manager/i.test(s.designation || '') ||
+      allBranchesScope.branches.some((b: any) => b.branchManagerId === s.id);
+
+    if (isBM) {
+      const mb =
+        allBranchesScope.branches.find((b: any) => b.branchManagerId === s.id) ||
+        (sBranchId ? allBranchesScope.branches.find((b: any) => b.id === sBranchId) : null);
+      if (mb && allBranchesScope.branchScopes[mb.id]) {
+        allBranchesScope.branchScopes[mb.id].staffIds.forEach((id: string) => teamSet.add(id));
+      }
+    }
+
+    const rq = [s.id];
+    while (rq.length > 0) {
+      const curr = rq.shift()!;
+      for (const u of allOrgUsers) {
+        if (u.reportingTo === curr && !teamSet.has(u.id)) {
+          teamSet.add(u.id);
+          rq.push(u.id);
+        }
+      }
+    }
+
+    if (s.designationId) {
+      const childDesigIds = new Set<string>();
+      const dq = [s.designationId];
+      while (dq.length > 0) {
+        const cd = dq.shift()!;
+        for (const d of allOrgDesignations) {
+          if (d.parentDesignationId === cd && !childDesigIds.has(d.id)) {
+            childDesigIds.add(d.id);
+            dq.push(d.id);
+          }
+        }
+      }
+      for (const u of allOrgUsers) {
+        if (u.designationId && childDesigIds.has(u.designationId)) {
+          const uBranch = u.branchId || u.designationRef?.branchId || allBranchesScope.staffBranchMap[u.id]?.branchId || null;
+          if (!sBranchId || !uBranch || uBranch === sBranchId) {
+            teamSet.add(u.id);
+          }
+        }
+      }
+    }
+
+    const rq2 = Array.from(teamSet);
+    while (rq2.length > 0) {
+      const curr = rq2.shift()!;
+      for (const u of allOrgUsers) {
+        if (u.reportingTo === curr && !teamSet.has(u.id)) {
+          teamSet.add(u.id);
+          rq2.push(u.id);
+        }
+      }
+    }
+
+    downlineByStaffId.set(s.id, teamSet);
+  }
+
+  // If staffIdFilter is selected, include that staff member and their downline in the active view
+  const activeViewStaffIds = staffIdFilter
+    ? (downlineByStaffId.get(staffIdFilter) || new Set<string>([staffIdFilter]))
+    : null;
+
+  const staffIds = Array.from(
+    new Set(
+      salesStaff.flatMap(s => Array.from(downlineByStaffId.get(s.id) || [s.id]))
+    )
+  );
 
   // Fetch all study centers referred by these sales staff members
   const studyCenters = await prisma.studyCenter.findMany({
@@ -1364,7 +1447,7 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   }
   const availableYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-  // Group enrollments per sales staff
+  // Group enrollments per sales staff (rolling up downline team members into TLs, Asst BDMs, BDMs, and Branch Managers)
   const staffMetricsMap = new Map<string, {
     totalAdmissions: number;
     enrolledCount: number;
@@ -1387,19 +1470,52 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     });
   }
 
+  // Compute rolled-up study centers count per staff (own + downline team)
+  const rolledUpCenterCountMap = new Map<string, number>();
+  for (const s of salesStaff) {
+    const teamIds = downlineByStaffId.get(s.id) || new Set([s.id]);
+    let count = 0;
+    for (const tid of teamIds) {
+      count += staffToCenterCountMap.get(tid) || 0;
+    }
+    rolledUpCenterCountMap.set(s.id, count);
+  }
+
   const filteredAdmissionsList: any[] = [];
+  let dedupTotalAdmissions = 0;
+  let dedupEnrolled = 0;
+  let dedupPending = 0;
+  let dedupRejected = 0;
+  let dedupRevenue = 0;
 
   for (const e of allEnrollments) {
-    // Determine which staff member this enrollment belongs to
-    let staffId = e.salesUserId;
-    if (!staffId && e.studyCenterId) {
-      staffId = centerToStaffMap.get(e.studyCenterId) || null;
+    // Determine which leaf staff member this enrollment belongs to
+    let leafStaffId = e.salesUserId;
+    if (!leafStaffId && e.studyCenterId) {
+      leafStaffId = centerToStaffMap.get(e.studyCenterId) || null;
     }
-    if (!staffId && e.student?.referredBy) {
-      staffId = e.student.referredBy;
+    if (!leafStaffId && e.student?.referredBy) {
+      leafStaffId = e.student.referredBy;
     }
 
-    if (!staffId || !staffMetricsMap.has(staffId)) continue;
+    if (!leafStaffId) continue;
+
+    // If filtered by a specific staff member (or manager/TL/BM), check if leafStaffId is in their team
+    if (activeViewStaffIds && !activeViewStaffIds.has(leafStaffId)) {
+      continue;
+    }
+
+    // Find all salesStaff entries whose teamSet contains leafStaffId
+    const matchingStaffIds: string[] = [];
+    for (const s of salesStaff) {
+      if (staffIdFilter && s.id !== staffIdFilter && !activeViewStaffIds?.has(s.id)) continue;
+      const teamIds = downlineByStaffId.get(s.id);
+      if (teamIds && teamIds.has(leafStaffId)) {
+        matchingStaffIds.push(s.id);
+      }
+    }
+
+    if (matchingStaffIds.length === 0) continue;
 
     // Apply Session filter
     if (sessionIdFilter) {
@@ -1436,31 +1552,15 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     // Monthly trend is tracked for the selected year (or current year if 'all')
     const trendYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
     if (admissionYear === trendYear && (!isRejectedStatus || includeRejectedInTotals)) {
-      const metrics = staffMetricsMap.get(staffId)!;
-      metrics.monthlyTrend[admissionMonth - 1] += 1;
+      for (const mStaffId of matchingStaffIds) {
+        const metrics = staffMetricsMap.get(mStaffId);
+        if (metrics) metrics.monthlyTrend[admissionMonth - 1] += 1;
+      }
     }
 
     if (matchesDate) {
-      const metrics = staffMetricsMap.get(staffId)!;
       const fee = Number(e.totalFee) || 0;
-
-      if (e.status === 'enrolled') {
-        metrics.enrolledCount += 1;
-        metrics.totalAdmissions += 1;
-        metrics.totalRevenue += fee;
-      } else if (isRejectedStatus) {
-        metrics.rejectedCount += 1;
-        if (includeRejectedInTotals) {
-          metrics.totalAdmissions += 1;
-          metrics.totalRevenue += fee;
-        }
-      } else {
-        metrics.pendingCount += 1;
-        metrics.totalAdmissions += 1;
-        metrics.totalRevenue += fee;
-      }
-
-      const staffObj = salesStaff.find(s => s.id === staffId);
+      const leafStaffObj = salesStaff.find(s => s.id === leafStaffId);
       const admissionItem = {
         id: e.id,
         enrollmentNumber: e.enrollmentNumber || 'N/A',
@@ -1477,10 +1577,10 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
         admissionDate: dateVal,
         totalFee: fee,
         salesStaff: {
-          id: staffId,
-          name: staffObj?.name || 'Unknown',
-          email: staffObj?.email || '',
-          role: staffObj?.role || ''
+          id: leafStaffId,
+          name: leafStaffObj?.name || e.salesUser?.name || 'Unknown',
+          email: leafStaffObj?.email || e.salesUser?.email || '',
+          role: leafStaffObj?.role || ''
         }
       };
 
@@ -1497,20 +1597,64 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
         if (!matchesSearch) continue;
       }
 
-      metrics.admissions.push(admissionItem);
-      filteredAdmissionsList.push(admissionItem);
+      // Credit each matching staff member (leaf + their TL / Asst BDM / Branch Manager)
+      for (const mStaffId of matchingStaffIds) {
+        const metrics = staffMetricsMap.get(mStaffId);
+        if (!metrics) continue;
+        if (e.status === 'enrolled') {
+          metrics.enrolledCount += 1;
+          metrics.totalAdmissions += 1;
+          metrics.totalRevenue += fee;
+        } else if (isRejectedStatus) {
+          metrics.rejectedCount += 1;
+          if (includeRejectedInTotals) {
+            metrics.totalAdmissions += 1;
+            metrics.totalRevenue += fee;
+          }
+        } else {
+          metrics.pendingCount += 1;
+          metrics.totalAdmissions += 1;
+          metrics.totalRevenue += fee;
+        }
+        metrics.admissions.push(admissionItem);
+      }
+
+      // Track deduplicated overall totals
+      if (e.status === 'enrolled') {
+        dedupEnrolled += 1;
+        dedupTotalAdmissions += 1;
+        dedupRevenue += fee;
+      } else if (isRejectedStatus) {
+        dedupRejected += 1;
+        if (includeRejectedInTotals) {
+          dedupTotalAdmissions += 1;
+          dedupRevenue += fee;
+        }
+      } else {
+        dedupPending += 1;
+        dedupTotalAdmissions += 1;
+        dedupRevenue += fee;
+      }
+
+      if (!isRejectedStatus || includeRejectedInTotals) {
+        filteredAdmissionsList.push(admissionItem);
+      }
     }
   }
 
-  // Construct staff summary list
-  const staffSummary = salesStaff.map(s => {
+  // Construct staff summary list (filtered to selected staff + downline if staffIdFilter is set)
+  const visibleSalesStaff = staffIdFilter
+    ? salesStaff.filter(s => s.id === staffIdFilter || activeViewStaffIds?.has(s.id))
+    : salesStaff;
+
+  const staffSummary = visibleSalesStaff.map(({ designationRef: _dr, ...s }) => {
     const metrics = staffMetricsMap.get(s.id)!;
     const conversionRate = metrics.totalAdmissions > 0 
       ? Math.round((metrics.enrolledCount / metrics.totalAdmissions) * 100) 
       : 0;
     return {
       staff: s,
-      studyCentersCount: staffToCenterCountMap.get(s.id) || 0,
+      studyCentersCount: rolledUpCenterCountMap.get(s.id) || 0,
       totalAdmissions: metrics.totalAdmissions,
       enrolledCount: metrics.enrolledCount,
       pendingCount: metrics.pendingCount,
@@ -1522,16 +1666,16 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
     };
   }).sort((a, b) => b.totalAdmissions - a.totalAdmissions);
 
-  // Overall summary
+  // Deduplicated overall summary
   const overallSummary = {
-    totalStaff: salesStaff.length,
-    totalAdmissions: staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0),
-    totalEnrolled: staffSummary.reduce((acc, s) => acc + s.enrolledCount, 0),
-    totalPending: staffSummary.reduce((acc, s) => acc + s.pendingCount, 0),
-    totalRejected: staffSummary.reduce((acc, s) => acc + s.rejectedCount, 0),
-    totalRevenue: staffSummary.reduce((acc, s) => acc + s.totalRevenue, 0),
-    avgConversionRate: staffSummary.length > 0 && staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0) > 0
-      ? Math.round((staffSummary.reduce((acc, s) => acc + s.enrolledCount, 0) / staffSummary.reduce((acc, s) => acc + s.totalAdmissions, 0)) * 100)
+    totalStaff: visibleSalesStaff.length,
+    totalAdmissions: dedupTotalAdmissions,
+    totalEnrolled: dedupEnrolled,
+    totalPending: dedupPending,
+    totalRejected: dedupRejected,
+    totalRevenue: dedupRevenue,
+    avgConversionRate: dedupTotalAdmissions > 0
+      ? Math.round((dedupEnrolled / dedupTotalAdmissions) * 100)
       : 0
   };
 

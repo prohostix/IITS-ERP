@@ -1981,38 +1981,72 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
   const orgId = req.user.organizationId;
   const { year, month, staffId, search, status, dateFrom, dateTo } = req.query as Record<string, string>;
 
-  // 1. Fetch sales staff
-  const salesUsers = await prisma.user.findMany({
-    where: {
-      organizationId: orgId,
-      status: { not: 'deleted' },
-      OR: [
-        { role: { in: ['sales_admin', 'bde', 'counselor', 'sales_sub_admin', 'sales_manager', 'sales'] } },
-        { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
-        { department: { name: { contains: 'Business', mode: 'insensitive' } } },
-      ],
-      ...(staffId && staffId !== 'all' ? { id: staffId } : {})
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      designation: true,
-      status: true,
-      createdAt: true,
-      branch: { select: { id: true, name: true } },
-      department: { select: { id: true, name: true } }
-    },
-    orderBy: { name: 'asc' }
-  });
-
-  // Fallback: If filtered by specific staffId and not found by standard sales role/dept, look up directly
-  if (staffId && staffId !== 'all' && salesUsers.length === 0) {
-    const singleUser = await prisma.user.findFirst({
+  // 1. Fetch all sales staff & branch/team leaders plus hierarchy data
+  const [baseSalesUsers, centerReferrers, enrollmentSalesUsers, allOrgUsers, allDesignations, allBranchesScope] = await Promise.all([
+    prisma.user.findMany({
       where: {
-        id: staffId,
+        organizationId: orgId,
+        status: { not: 'deleted' },
+        OR: [
+          { role: { in: ['sales_admin', 'bde', 'bda', 'counselor', 'sales_sub_admin', 'sales_manager', 'sales', 'team_leader', 'branch_manager'] } },
+          { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
+          { department: { name: { contains: 'Business', mode: 'insensitive' } } },
+          { department: { type: 'sales' } },
+          { subDepartment: { parentDept: { type: 'sales' } } },
+          { designationRef: { department: { type: 'sales' } } },
+          { designationRef: { subDepartment: { parentDept: { type: 'sales' } } } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        designation: true,
+        designationId: true,
+        reportingTo: true,
+        branchId: true,
+        status: true,
+        createdAt: true,
+        branch: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
+        designationRef: { select: { id: true, title: true, branchId: true, branch: { select: { id: true, name: true } } } }
+      },
+      orderBy: { name: 'asc' }
+    }),
+    prisma.studyCenter.findMany({
+      where: { organizationId: orgId, referredBy: { not: null } },
+      select: { referredBy: true },
+      distinct: ['referredBy']
+    }),
+    prisma.enrollment.findMany({
+      where: { organizationId: orgId, salesUserId: { not: null } },
+      select: { salesUserId: true },
+      distinct: ['salesUserId']
+    }),
+    prisma.user.findMany({
+      where: { organizationId: orgId, status: { not: 'deleted' } },
+      select: { id: true, reportingTo: true, designationId: true, branchId: true, role: true, designation: true, designationRef: { select: { title: true, branchId: true } } }
+    }),
+    prisma.designation.findMany({
+      where: { organizationId: orgId, status: { not: 'deleted' } },
+      select: { id: true, parentDesignationId: true, branchId: true }
+    }),
+    getAllBranchesScope(orgId)
+  ]);
+
+  const allCandidateUsers = [...baseSalesUsers];
+  const existingIds = new Set(allCandidateUsers.map(u => u.id));
+  const extraUserIds = [
+    ...centerReferrers.map(c => c.referredBy).filter(Boolean),
+    ...enrollmentSalesUsers.map(e => e.salesUserId).filter(Boolean)
+  ].filter(id => !existingIds.has(id as string)) as string[];
+
+  if (extraUserIds.length > 0) {
+    const extraUsers = await prisma.user.findMany({
+      where: {
+        id: { in: extraUserIds },
         organizationId: orgId,
         status: { not: 'deleted' }
       },
@@ -2023,45 +2057,40 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
         phone: true,
         role: true,
         designation: true,
+        designationId: true,
+        reportingTo: true,
+        branchId: true,
         status: true,
         createdAt: true,
         branch: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } }
+        department: { select: { id: true, name: true } },
+        designationRef: { select: { id: true, title: true, branchId: true, branch: { select: { id: true, name: true } } } }
       }
     });
-    if (singleUser) {
-      salesUsers.push(singleUser);
-    }
+    allCandidateUsers.push(...extraUsers);
   }
 
-  // If not filtered to single staff, check for any other referrers with centers or enrollments
-  if (!staffId || staffId === 'all') {
-    const [centerReferrers, enrollmentSalesUsers] = await Promise.all([
-      prisma.studyCenter.findMany({
-        where: { organizationId: orgId, referredBy: { not: null } },
-        select: { referredBy: true },
-        distinct: ['referredBy']
-      }),
-      prisma.enrollment.findMany({
-        where: { organizationId: orgId, salesUserId: { not: null } },
-        select: { salesUserId: true },
-        distinct: ['salesUserId']
-      })
-    ]);
+  // Build dropdown list of all sales staff before applying staffId filter
+  const allSalesStaff = allCandidateUsers.map(u => {
+    const resolvedBranch = allBranchesScope.staffBranchMap[u.id];
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      designation: u.designation || u.designationRef?.title || null,
+      branchName: u.branch?.name || u.designationRef?.branch?.name || resolvedBranch?.branchName || '-',
+      departmentName: u.department?.name || '-'
+    };
+  });
 
-    const existingIds = new Set(salesUsers.map(u => u.id));
-    const extraUserIds = [
-      ...centerReferrers.map(c => c.referredBy).filter(Boolean),
-      ...enrollmentSalesUsers.map(e => e.salesUserId).filter(Boolean)
-    ].filter(id => !existingIds.has(id as string)) as string[];
-
-    if (extraUserIds.length > 0) {
-      const extraUsers = await prisma.user.findMany({
-        where: {
-          id: { in: extraUserIds },
-          organizationId: orgId,
-          status: { not: 'deleted' }
-        },
+  // Determine which users to display cards/rows for
+  let salesUsers = allCandidateUsers;
+  if (staffId && staffId !== 'all') {
+    salesUsers = allCandidateUsers.filter(u => u.id === staffId);
+    if (salesUsers.length === 0) {
+      const singleUser = await prisma.user.findFirst({
+        where: { id: staffId, organizationId: orgId, status: { not: 'deleted' } },
         select: {
           id: true,
           name: true,
@@ -2069,48 +2098,148 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
           phone: true,
           role: true,
           designation: true,
+          designationId: true,
+          reportingTo: true,
+          branchId: true,
           status: true,
           createdAt: true,
           branch: { select: { id: true, name: true } },
-          department: { select: { id: true, name: true } }
+          department: { select: { id: true, name: true } },
+          designationRef: { select: { id: true, title: true, branchId: true, branch: { select: { id: true, name: true } } } }
         }
       });
-      salesUsers.push(...extraUsers);
+      if (singleUser) salesUsers = [singleUser];
     }
   }
 
-  const allSalesUserIds = salesUsers.map(u => u.id);
+  // Helper: resolve a user's own + downline team staff IDs and branch center IDs
+  const resolveEffectiveScopeForUser = (user: any): { teamStaffIds: Set<string>; extraCenterIds: Set<string> } => {
+    const teamStaffIds = new Set<string>([user.id]);
+    const extraCenterIds = new Set<string>();
+    const userBranchId = user.branchId || user.designationRef?.branchId || allBranchesScope.staffBranchMap[user.id]?.branchId || null;
+    const desigTitle = user.designation || user.designationRef?.title || '';
+    const isBM =
+      user.role === 'branch_manager' ||
+      /branch\s*manager/i.test(desigTitle) ||
+      allBranchesScope.branches.some((b: any) => b.branchManagerId === user.id);
 
-  // 2. Fetch all study centers referred by these sales users
-  const allCenters = await prisma.studyCenter.findMany({
-    where: {
-      organizationId: orgId,
-      referredBy: { in: allSalesUserIds }
-    },
-    include: {
-      wallet: { select: { balance: true } },
-      _count: { select: { enrollments: true, students: true } }
+    if (isBM) {
+      const managedBranch =
+        allBranchesScope.branches.find((b: any) => b.branchManagerId === user.id) ||
+        (userBranchId ? allBranchesScope.branches.find((b: any) => b.id === userBranchId) : null);
+      if (managedBranch && allBranchesScope.branchScopes[managedBranch.id]) {
+        const bScope = allBranchesScope.branchScopes[managedBranch.id];
+        bScope.staffIds.forEach((id: string) => teamStaffIds.add(id));
+        bScope.centerIds.forEach((id: string) => extraCenterIds.add(id));
+      }
     }
-  });
 
-  const centersByUserId: Record<string, any[]> = {};
+    // 1. Recursive reportingTo downline
+    const rq = [user.id];
+    while (rq.length > 0) {
+      const curr = rq.shift()!;
+      for (const u of allOrgUsers) {
+        if (u.reportingTo === curr && !teamStaffIds.has(u.id)) {
+          teamStaffIds.add(u.id);
+          rq.push(u.id);
+        }
+      }
+    }
+
+    // 2. Designation hierarchy downline
+    if (user.designationId) {
+      const childDesigIds = new Set<string>();
+      const dq = [user.designationId];
+      while (dq.length > 0) {
+        const cd = dq.shift()!;
+        for (const d of allDesignations) {
+          if (d.parentDesignationId === cd && !childDesigIds.has(d.id)) {
+            childDesigIds.add(d.id);
+            dq.push(d.id);
+          }
+        }
+      }
+      for (const u of allOrgUsers) {
+        if (u.designationId && childDesigIds.has(u.designationId)) {
+          const uBranch = u.branchId || u.designationRef?.branchId || allBranchesScope.staffBranchMap[u.id]?.branchId || null;
+          if (!userBranchId || !uBranch || uBranch === userBranchId) {
+            teamStaffIds.add(u.id);
+          }
+        }
+      }
+    }
+
+    // Also include transitive reportingTo of any designation-downline members
+    const rq2 = Array.from(teamStaffIds);
+    while (rq2.length > 0) {
+      const curr = rq2.shift()!;
+      for (const u of allOrgUsers) {
+        if (u.reportingTo === curr && !teamStaffIds.has(u.id)) {
+          teamStaffIds.add(u.id);
+          rq2.push(u.id);
+        }
+      }
+    }
+
+    return { teamStaffIds, extraCenterIds };
+  };
+
+  const userScopesMap = new Map<string, { teamStaffIds: Set<string>; extraCenterIds: Set<string> }>();
+  const unionStaffIds = new Set<string>();
+  const unionExtraCenterIds = new Set<string>();
+  for (const u of salesUsers) {
+    const sc = resolveEffectiveScopeForUser(u);
+    userScopesMap.set(u.id, sc);
+    sc.teamStaffIds.forEach(id => unionStaffIds.add(id));
+    sc.extraCenterIds.forEach(id => unionExtraCenterIds.add(id));
+  }
+
+  const allSalesUserIds = Array.from(unionStaffIds);
+
+  // 2. Fetch all study centers referred by these sales users (or in branch scope)
+  const centerOrClauses: any[] = [];
+  if (allSalesUserIds.length > 0) {
+    centerOrClauses.push({ referredBy: { in: allSalesUserIds } });
+  }
+  if (unionExtraCenterIds.size > 0) {
+    centerOrClauses.push({ id: { in: Array.from(unionExtraCenterIds) } });
+  }
+
+  const allCenters = centerOrClauses.length > 0
+    ? await prisma.studyCenter.findMany({
+        where: {
+          organizationId: orgId,
+          OR: centerOrClauses
+        },
+        include: {
+          wallet: { select: { balance: true } },
+          _count: { select: { enrollments: true, students: true } }
+        }
+      })
+    : [];
+
+  const formattedCenterById = new Map<string, any>();
+  const centersByReferrerId: Record<string, any[]> = {};
   for (const c of allCenters) {
+    const fc = {
+      id: c.id,
+      name: c.name,
+      code: c.code,
+      city: c.city,
+      state: c.state,
+      status: c.status,
+      referredBy: c.referredBy,
+      coordinatorName: c.coordinatorName,
+      contact: c.contact,
+      walletBalance: c.wallet?.balance || 0,
+      enrollmentCount: c._count?.enrollments || 0,
+      studentCount: c._count?.students || 0,
+      createdAt: c.createdAt
+    };
+    formattedCenterById.set(c.id, fc);
     if (c.referredBy) {
-      if (!centersByUserId[c.referredBy]) centersByUserId[c.referredBy] = [];
-      centersByUserId[c.referredBy].push({
-        id: c.id,
-        name: c.name,
-        code: c.code,
-        city: c.city,
-        state: c.state,
-        status: c.status,
-        coordinatorName: c.coordinatorName,
-        contact: c.contact,
-        walletBalance: c.wallet?.balance || 0,
-        enrollmentCount: c._count?.enrollments || 0,
-        studentCount: c._count?.students || 0,
-        createdAt: c.createdAt
-      });
+      if (!centersByReferrerId[c.referredBy]) centersByReferrerId[c.referredBy] = [];
+      centersByReferrerId[c.referredBy].push(fc);
     }
   }
 
@@ -2236,26 +2365,72 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     }
   }
 
-  // Map enrollments to sales users
-  const enrollmentsByUserId: Record<string, any[]> = {};
+  // Map enrollments to sales users (direct leaf mapping + center mapping)
+  const enrollmentsByRepId: Record<string, any[]> = {};
+  const enrollmentsByCenterId: Record<string, any[]> = {};
   for (const e of enrollments) {
     const repId = e.salesUserId || e.studyCenter?.referredBy || e.student?.referredBy;
     if (repId) {
-      if (!enrollmentsByUserId[repId]) enrollmentsByUserId[repId] = [];
-      enrollmentsByUserId[repId].push(e);
+      if (!enrollmentsByRepId[repId]) enrollmentsByRepId[repId] = [];
+      enrollmentsByRepId[repId].push(e);
+    }
+    if (e.studyCenterId) {
+      if (!enrollmentsByCenterId[e.studyCenterId]) enrollmentsByCenterId[e.studyCenterId] = [];
+      enrollmentsByCenterId[e.studyCenterId].push(e);
     }
   }
 
-  // 6. Aggregate data for each sales user
-  const salesUsersData = salesUsers.map(user => {
-    const userCenters = centersByUserId[user.id] || [];
-    const userEnrollments = enrollmentsByUserId[user.id] || [];
-    const userTargets = targetsByUserId[user.id] || [];
+  const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
 
-    const totalAdmissions = userEnrollments.length;
+  // 6. Aggregate data for each sales user (including downline team & branch for TLs, Asst BDMs, BDMs, and Branch Managers)
+  const salesUsersData = salesUsers.map(user => {
+    const scope = userScopesMap.get(user.id) || { teamStaffIds: new Set([user.id]), extraCenterIds: new Set() };
+
+    // Collect unique study centers for this user + downline team / branch
+    const centerSet = new Map<string, any>();
+    for (const sId of scope.teamStaffIds) {
+      for (const c of (centersByReferrerId[sId] || [])) {
+        centerSet.set(c.id, c);
+      }
+    }
+    for (const cId of scope.extraCenterIds) {
+      if (formattedCenterById.has(cId)) {
+        centerSet.set(cId, formattedCenterById.get(cId));
+      }
+    }
+    const userCenters = Array.from(centerSet.values());
+
+    // Collect unique enrollments for this user + downline team / branch
+    const enrollmentSet = new Map<string, any>();
+    for (const sId of scope.teamStaffIds) {
+      for (const e of (enrollmentsByRepId[sId] || [])) {
+        enrollmentSet.set(e.id, e);
+      }
+    }
+    for (const c of userCenters) {
+      for (const e of (enrollmentsByCenterId[c.id] || [])) {
+        enrollmentSet.set(e.id, e);
+      }
+    }
+    const userEnrollments = Array.from(enrollmentSet.values());
+
+    // Collect targets for this user (or sum of team targets if user has none directly)
+    let userTargets = targetsByUserId[user.id] || [];
+    if (userTargets.length === 0 && scope.teamStaffIds.size > 1) {
+      const teamTargets: any[] = [];
+      for (const sId of scope.teamStaffIds) {
+        if (targetsByUserId[sId]) teamTargets.push(...targetsByUserId[sId]);
+      }
+      userTargets = teamTargets;
+    }
+
+    const validEnrollments = userEnrollments.filter(e => !REJECTED_STATUSES.includes(String(e.status || '').toLowerCase()));
+    const activeEnrollments = status === 'rejected' ? userEnrollments : validEnrollments;
+
+    const totalAdmissions = activeEnrollments.length;
     const enrolledCount = userEnrollments.filter(e => e.status === 'enrolled').length;
-    const pendingCount = userEnrollments.filter(e => typeof e.status === 'string' && e.status.includes('pending')).length;
-    const rejectedCount = userEnrollments.filter(e => e.status === 'rejected').length;
+    const rejectedCount = userEnrollments.filter(e => REJECTED_STATUSES.includes(String(e.status || '').toLowerCase())).length;
+    const pendingCount = validEnrollments.filter(e => e.status !== 'enrolled').length;
     const conversionRate = totalAdmissions > 0 ? Number(((enrolledCount / totalAdmissions) * 100).toFixed(1)) : 0;
 
     let totalRevenue = 0;
@@ -2264,7 +2439,7 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     let totalCommissionInReceived = 0;
     let totalCommissionOut = 0;
 
-    const formattedAdmissions = userEnrollments.map(e => {
+    const formattedAdmissions = activeEnrollments.map(e => {
       const fee = Number(e.totalFee || 0);
       const debited = Number(e.payment?.amount || 0);
       const receiptsTotal = (e.studentFeeReceipts || []).reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
@@ -2328,7 +2503,7 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
 
     const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
       const monthNum = i + 1;
-      const monthAdmissions = userEnrollments.filter(e => {
+      const monthAdmissions = activeEnrollments.filter(e => {
         const d = e.admissionDate ? new Date(e.admissionDate) : new Date(e.createdAt);
         return !isNaN(d.getTime()) && d.getFullYear() === targetTrendYear && d.getMonth() === i;
       });
@@ -2376,6 +2551,8 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
         : 0
     };
 
+    const resolvedBranch = allBranchesScope.staffBranchMap[user.id];
+
     return {
       user: {
         id: user.id,
@@ -2383,9 +2560,9 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
         email: user.email,
         phone: user.phone,
         role: user.role,
-        designation: user.designation,
+        designation: user.designation || user.designationRef?.title || null,
         status: user.status,
-        branchName: user.branch?.name || '-',
+        branchName: user.branch?.name || user.designationRef?.branch?.name || resolvedBranch?.branchName || '-',
         departmentName: user.department?.name || '-',
         createdAt: user.createdAt
       },
@@ -2424,23 +2601,66 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     });
   }
 
-  // 7. Overall Summary
+  // Sort by totalAdmissions desc, then totalRevenue desc
+  filteredUsers.sort((a, b) => b.stats.totalAdmissions - a.stats.totalAdmissions || b.stats.totalRevenue - a.stats.totalRevenue);
+
+  // 7. Deduplicated Overall Summary across filteredUsers (so manager roll-ups never double-count totals)
+  const uniqueCentersMap = new Map<string, any>();
+  const uniqueAdmissionsMap = new Map<string, any>();
+  const uniqueRawEnrollmentsMap = new Map<string, any>();
+  for (const uItem of filteredUsers) {
+    for (const c of uItem.centers) uniqueCentersMap.set(c.id, c);
+    for (const a of uItem.admissions) uniqueAdmissionsMap.set(a.id, a);
+    const scope = userScopesMap.get(uItem.user.id);
+    if (scope) {
+      for (const sId of scope.teamStaffIds) {
+        for (const e of (enrollmentsByRepId[sId] || [])) uniqueRawEnrollmentsMap.set(e.id, e);
+      }
+      for (const c of uItem.centers) {
+        for (const e of (enrollmentsByCenterId[c.id] || [])) uniqueRawEnrollmentsMap.set(e.id, e);
+      }
+    }
+  }
+
+  const dedupAdmissions = Array.from(uniqueAdmissionsMap.values());
+  const dedupRawEnrollments = Array.from(uniqueRawEnrollmentsMap.values());
+  const dedupTotalAdmissions = dedupAdmissions.length;
+  const dedupEnrolled = dedupAdmissions.filter(a => a.status === 'enrolled').length;
+  const dedupRejected = dedupRawEnrollments.filter(e => REJECTED_STATUSES.includes(String(e.status || '').toLowerCase())).length;
+  const dedupPending = dedupAdmissions.filter(a => a.status !== 'enrolled' && !REJECTED_STATUSES.includes(String(a.status || '').toLowerCase())).length;
+  const dedupRevenue = dedupAdmissions.reduce((s, a) => s + Number(a.totalFee || 0), 0);
+  const dedupCollected = dedupAdmissions.reduce((s, a) => s + Number(a.collectedAmount || 0), 0);
+  const dedupPendingFee = Math.max(0, dedupRevenue - dedupCollected);
+  const dedupCommInExp = dedupAdmissions.reduce((s, a) => s + Number(a.commissionExpected || 0), 0);
+  const dedupCommInRec = dedupAdmissions.reduce((s, a) => s + Number(a.commissionReceived || 0), 0);
+  let dedupCommOut = 0;
+  for (const e of dedupRawEnrollments) {
+    if (REJECTED_STATUSES.includes(String(e.status || '').toLowerCase()) && status !== 'rejected') continue;
+    const cinList = Array.isArray(e.commissionIn) ? e.commissionIn : (e.commissionIn ? [e.commissionIn] : []);
+    for (const cin of cinList) {
+      if (Array.isArray(cin.commissionOuts)) {
+        for (const cout of cin.commissionOuts) dedupCommOut += Number(cout.amount || 0);
+      }
+    }
+  }
+  const dedupNetMargin = Math.max(0, dedupCollected - dedupCommOut);
+
   const summary = {
     totalSalesUsers: filteredUsers.length,
-    totalCentersOnboarded: filteredUsers.reduce((s, u) => s + u.stats.studyCentersCount, 0),
-    totalAdmissions: filteredUsers.reduce((s, u) => s + u.stats.totalAdmissions, 0),
-    totalEnrolled: filteredUsers.reduce((s, u) => s + u.stats.enrolledCount, 0),
-    totalPending: filteredUsers.reduce((s, u) => s + u.stats.pendingCount, 0),
-    totalRejected: filteredUsers.reduce((s, u) => s + u.stats.rejectedCount, 0),
-    totalRevenue: filteredUsers.reduce((s, u) => s + u.stats.totalRevenue, 0),
-    totalCollected: filteredUsers.reduce((s, u) => s + u.stats.totalCollected, 0),
-    totalPendingFee: filteredUsers.reduce((s, u) => s + u.stats.totalPendingFee, 0),
-    totalCommissionInExpected: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionInExpected, 0),
-    totalCommissionInReceived: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionInReceived, 0),
-    totalCommissionOut: filteredUsers.reduce((s, u) => s + u.stats.totalCommissionOut, 0),
-    totalNetMargin: filteredUsers.reduce((s, u) => s + u.stats.netMargin, 0),
-    avgConversionRate: filteredUsers.length > 0
-      ? Number((filteredUsers.reduce((s, u) => s + u.stats.conversionRate, 0) / filteredUsers.length).toFixed(1))
+    totalCentersOnboarded: uniqueCentersMap.size,
+    totalAdmissions: dedupTotalAdmissions,
+    totalEnrolled: dedupEnrolled,
+    totalPending: dedupPending,
+    totalRejected: dedupRejected,
+    totalRevenue: dedupRevenue,
+    totalCollected: dedupCollected,
+    totalPendingFee: dedupPendingFee,
+    totalCommissionInExpected: dedupCommInExp,
+    totalCommissionInReceived: dedupCommInRec,
+    totalCommissionOut: dedupCommOut,
+    totalNetMargin: dedupNetMargin,
+    avgConversionRate: dedupTotalAdmissions > 0
+      ? Number(((dedupEnrolled / dedupTotalAdmissions) * 100).toFixed(1))
       : 0
   };
 
@@ -2452,15 +2672,6 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     if (!isNaN(d.getFullYear())) yearSet.add(d.getFullYear());
   }
   const availableYears = Array.from(yearSet).sort((a, b) => b - a);
-
-  const allSalesStaff = salesUsers.map(u => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    designation: u.designation,
-    departmentName: u.department?.name || '-'
-  }));
 
   res.json({
     success: true,
