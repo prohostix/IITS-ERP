@@ -487,11 +487,14 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
     return prisma.user.findMany({
       where: {
         organizationId,
-        status: 'active',
+        status: { not: 'deleted' },
         id: { not: user.id },
         OR: [
-          { role: { in: ['sales', 'sales_admin', 'bda', 'counselor'] } },
-          { department: { type: 'sales' } }
+          { role: { in: ['sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'counselor'] } },
+          { department: { type: 'sales' } },
+          { subDepartment: { parentDept: { type: 'sales' } } },
+          { designationRef: { department: { type: 'sales' } } },
+          { designationRef: { subDepartment: { parentDept: { type: 'sales' } } } }
         ]
       },
       select: {
@@ -514,7 +517,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
     const branchStaff = await prisma.user.findMany({
       where: {
         id: { in: scope.staffIds.filter((id: string) => id !== user.id) },
-        status: 'active',
+        status: { not: 'deleted' },
         organizationId
       },
       select: {
@@ -623,7 +626,7 @@ async function resolveSalesTeamUsers(user: any, organizationId: string) {
     }
   }
 
-  return allUsers.filter(u => subordinateIds.has(u.id) && u.status === 'active');
+  return allUsers.filter(u => subordinateIds.has(u.id) && u.status !== 'deleted');
 }
 
 // Performance
@@ -1202,12 +1205,12 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
   const endDateObj = endDateFilter ? new Date(`${endDateFilter}T23:59:59.999Z`) : null;
   const hasDateRange = Boolean(startDateObj || endDateObj);
 
-  // Determine allowed sales staff IDs
+  // Determine allowed sales staff IDs (include both active and resigned sales staff so historical center admissions are preserved)
   let staffWhere: any = {
     organizationId,
-    status: 'active',
+    status: { not: 'deleted' },
     OR: [
-      { role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'branch_manager', 'team_leader'] } },
+      { role: { in: ['sales', 'sales_admin', 'sales_sub_admin', 'bde', 'bda', 'branch_manager', 'team_leader', 'counselor'] } },
       { department: { type: 'sales' } },
       { subDepartment: { parentDept: { type: 'sales' } } },
       { designationRef: { department: { type: 'sales' } } },
@@ -1426,27 +1429,36 @@ export const getSalesStaffAdmissionReport = asyncHandler(async (req: AuthRequest
       matchesDate = matchesYear && matchesMonth;
     }
 
+    const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
+    const isRejectedStatus = REJECTED_STATUSES.includes(String(e.status || '').toLowerCase());
+    const includeRejectedInTotals = Boolean(statusFilter && REJECTED_STATUSES.includes(statusFilter.toLowerCase()));
+
     // Monthly trend is tracked for the selected year (or current year if 'all')
     const trendYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
-    if (admissionYear === trendYear) {
+    if (admissionYear === trendYear && (!isRejectedStatus || includeRejectedInTotals)) {
       const metrics = staffMetricsMap.get(staffId)!;
       metrics.monthlyTrend[admissionMonth - 1] += 1;
     }
 
     if (matchesDate) {
       const metrics = staffMetricsMap.get(staffId)!;
-      metrics.totalAdmissions += 1;
+      const fee = Number(e.totalFee) || 0;
 
       if (e.status === 'enrolled') {
         metrics.enrolledCount += 1;
-      } else if (e.status === 'rejected' || e.status === 'department_rejected') {
+        metrics.totalAdmissions += 1;
+        metrics.totalRevenue += fee;
+      } else if (isRejectedStatus) {
         metrics.rejectedCount += 1;
+        if (includeRejectedInTotals) {
+          metrics.totalAdmissions += 1;
+          metrics.totalRevenue += fee;
+        }
       } else {
         metrics.pendingCount += 1;
+        metrics.totalAdmissions += 1;
+        metrics.totalRevenue += fee;
       }
-
-      const fee = Number(e.totalFee) || 0;
-      metrics.totalRevenue += fee;
 
       const staffObj = salesStaff.find(s => s.id === staffId);
       const admissionItem = {
