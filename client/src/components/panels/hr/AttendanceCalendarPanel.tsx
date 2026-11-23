@@ -73,7 +73,9 @@ export function AttendanceCalendarPanel() {
     return 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400';
   };
 
-  const presentCount = attendanceData.filter(a => a.status === 'present' || (!a.isHalfDay && a.checkIn)).length;
+  const presentCount = attendanceData.filter(
+    a => a.status === 'present' || a.status === 'late' || a.status === 'work_from_home'
+  ).length;
   const lateCount = attendanceData.filter(a => a.isLate || a.status === 'late').length;
   const halfDayCount = attendanceData.filter(a => a.isHalfDay || a.status === 'half_day').length;
   const wfhCount = attendanceData.filter(a => a.isWFH || a.status === 'work_from_home').length;
@@ -174,9 +176,9 @@ export function AttendanceCalendarPanel() {
                       {att ? (
                         <div className={`mt-auto text-[11px] p-1.5 rounded-md border ${colorClass} flex flex-col gap-0.5`}>
                           <span className="font-bold uppercase tracking-wider text-[10px]">{att.status}</span>
-                          {att.checkIn && <span>In: {format(new Date(att.checkIn), 'HH:mm')}</span>}
-                          {att.checkOut && <span>Out: {format(new Date(att.checkOut), 'HH:mm')}</span>}
-                          {att.isLate && <span className="text-amber-600 dark:text-amber-400 font-medium">+{att.lateMinutes}m late</span>}
+                          {att.checkIn && att.status !== 'absent' && att.status !== 'leave' && <span>In: {format(new Date(att.checkIn), 'HH:mm')}</span>}
+                          {att.checkOut && att.status !== 'absent' && att.status !== 'leave' && <span>Out: {format(new Date(att.checkOut), 'HH:mm')}</span>}
+                          {att.isLate && att.status !== 'absent' && att.status !== 'leave' && <span className="text-amber-600 dark:text-amber-400 font-medium">+{att.lateMinutes}m late</span>}
                           {att.isHalfDay && <span>Half Day</span>}
                           {att.isWFH && <span>WFH</span>}
                         </div>

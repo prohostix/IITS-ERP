@@ -280,13 +280,26 @@ export const createAttendance = asyncHandler(async (req: AuthRequest, res: Respo
     return res.status(400).json({ success: false, message: 'Attendance cannot be marked for a future date' });
   }
 
-  const checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
-  const checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
+  let checkIn = req.body.checkIn ? new Date(req.body.checkIn) : null;
+  let checkOut = req.body.checkOut ? new Date(req.body.checkOut) : null;
+
+  if (req.body.status === 'absent' || req.body.status === 'leave') {
+    checkIn = null;
+    checkOut = null;
+  } else if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime()) && checkOut.getTime() <= checkIn.getTime()) {
+    const istOut = new Date(checkOut.getTime() + 5.5 * 60 * 60 * 1000);
+    const outHour = istOut.getUTCHours();
+    if (outHour >= 1 && outHour <= 8) {
+      checkOut = new Date(checkOut.getTime() + 12 * 3600 * 1000);
+    }
+  }
 
   let workingHours = Number(req.body.workingHours) || 0;
   if (checkIn && checkOut && !isNaN(checkIn.getTime()) && !isNaN(checkOut.getTime())) {
     const diffHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
     workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));
+  } else if (req.body.status === 'absent' || req.body.status === 'leave') {
+    workingHours = 0;
   }
 
   const resolvedOrgId = user?.organizationId || req.user.organizationId;
@@ -398,10 +411,24 @@ export const updateAttendance = asyncHandler(async (req: AuthRequest, res: Respo
     updateData.isHalfDay = req.body.status === 'half_day';
   }
 
-  const finalCheckIn = updateData.checkIn !== undefined ? updateData.checkIn : attendance.checkIn;
-  const finalCheckOut = updateData.checkOut !== undefined ? updateData.checkOut : attendance.checkOut;
+  let finalCheckIn = updateData.checkIn !== undefined ? updateData.checkIn : attendance.checkIn;
+  let finalCheckOut = updateData.checkOut !== undefined ? updateData.checkOut : attendance.checkOut;
   const finalDate = updateData.date || attendance.date;
   const finalStatus = updateData.status !== undefined ? updateData.status : attendance.status;
+
+  if (finalStatus === 'absent' || finalStatus === 'leave') {
+    finalCheckIn = null;
+    finalCheckOut = null;
+    updateData.checkIn = null;
+    updateData.checkOut = null;
+  } else if (finalCheckIn && finalCheckOut && !isNaN(finalCheckIn.getTime()) && !isNaN(finalCheckOut.getTime()) && finalCheckOut.getTime() <= finalCheckIn.getTime()) {
+    const istOut = new Date(finalCheckOut.getTime() + 5.5 * 60 * 60 * 1000);
+    const outHour = istOut.getUTCHours();
+    if (outHour >= 1 && outHour <= 8) {
+      finalCheckOut = new Date(finalCheckOut.getTime() + 12 * 3600 * 1000);
+      updateData.checkOut = finalCheckOut;
+    }
+  }
 
   const evaluated = await evaluateLateFromCheckIn(
     attendance.organizationId || req.user.organizationId,
@@ -417,7 +444,9 @@ export const updateAttendance = asyncHandler(async (req: AuthRequest, res: Respo
   updateData.isLate = evaluated.isLate;
   updateData.lateMinutes = evaluated.lateMinutes;
 
-  if (finalCheckIn && finalCheckOut && !isNaN(finalCheckIn.getTime()) && !isNaN(finalCheckOut.getTime())) {
+  if (finalStatus === 'absent' || finalStatus === 'leave') {
+    updateData.workingHours = 0;
+  } else if (finalCheckIn && finalCheckOut && !isNaN(finalCheckIn.getTime()) && !isNaN(finalCheckOut.getTime())) {
     const diffHours = (finalCheckOut.getTime() - finalCheckIn.getTime()) / (1000 * 60 * 60);
     updateData.workingHours = Math.max(0, parseFloat(diffHours.toFixed(2)));
   } else if (req.body.workingHours !== undefined) {

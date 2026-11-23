@@ -520,7 +520,10 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
       return employeeMonthlyAttendance.find(a => isSameDay(new Date(a.date), day));
     };
 
-    const monthlyPresent = employeeMonthlyAttendance.filter(a => a.status === 'present' || (!a.isHalfDay && a.checkIn)).length;
+    const monthlyPresent = employeeMonthlyAttendance.filter(
+      a => a.status === 'present' || a.status === 'late' || a.status === 'work_from_home'
+    ).length;
+    const monthlyAbsent = employeeMonthlyAttendance.filter(a => a.status === 'absent').length;
     const monthlyLeaves = employeeMonthlyAttendance.filter(a => a.status === 'leave').length;
     const monthlyLate = employeeMonthlyAttendance.filter(a => a.isLate || a.status === 'late').length;
     const monthlyHalfDay = employeeMonthlyAttendance.filter(a => a.isHalfDay || a.status === 'half_day').length;
@@ -661,7 +664,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
         </Card>
 
         {/* Monthly KPI Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           <Card className="border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="p-3.5">
               <div className="flex items-center justify-between text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -670,6 +673,17 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
               </div>
               <p className="text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300">{monthlyPresent}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Full day attended</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-rose-500/20 bg-rose-500/5">
+            <CardContent className="p-3.5">
+              <div className="flex items-center justify-between text-xs font-medium text-rose-600 dark:text-rose-400">
+                <span>Absent Days</span>
+                <XCircle className="w-4 h-4" />
+              </div>
+              <p className="text-2xl font-bold mt-1 text-rose-700 dark:text-rose-300">{monthlyAbsent}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Recorded absences</p>
             </CardContent>
           </Card>
 
@@ -797,24 +811,24 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                       </div>
 
                       {att ? (
-                        <div className={cn("mt-1.5 p-1.5 rounded-md border text-[11px] space-y-0.5 shadow-xs", style.bg, style.border, style.text)}>
+                        <div className={cn("mt-1.5 p-1.5 rounded-md border text-[11px] space-y-0.5 shadow-xs", style.bg)}>
                           <div className="flex items-center justify-between font-bold text-[10px] uppercase tracking-wide">
                             <span>{style.label}</span>
-                            {att.workingHours ? <span>{Number(att.workingHours).toFixed(1)}h</span> : null}
+                            {att.workingHours && att.status !== 'absent' && att.status !== 'leave' ? <span>{Number(att.workingHours).toFixed(1)}h</span> : null}
                           </div>
-                          {att.checkIn && (
+                          {att.checkIn && att.status !== 'absent' && att.status !== 'leave' && (
                             <div className="text-[10px] flex items-center justify-between">
                               <span className="opacity-80">In:</span>
                               <span className="font-medium font-mono">{format(new Date(att.checkIn), 'HH:mm')}</span>
                             </div>
                           )}
-                          {att.checkOut && (
+                          {att.checkOut && att.status !== 'absent' && att.status !== 'leave' && (
                             <div className="text-[10px] flex items-center justify-between">
                               <span className="opacity-80">Out:</span>
                               <span className="font-medium font-mono">{format(new Date(att.checkOut), 'HH:mm')}</span>
                             </div>
                           )}
-                          {att.isLate && (
+                          {att.isLate && att.status !== 'absent' && att.status !== 'leave' && (
                             <div className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
                               +{att.lateMinutes || 0}m late
                             </div>
@@ -1121,7 +1135,17 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                     </div>
                     <div>
                       <Label>Attendance Status</Label>
-                      <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => {
+                          if (value === 'absent' || value === 'leave') {
+                            setPunchMode('statusOnly');
+                            setFormData({ ...formData, status: value, checkIn: '', checkOut: '' });
+                          } else {
+                            setFormData({ ...formData, status: value });
+                          }
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>

@@ -484,6 +484,19 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     // Track whether employee has any actual punch or approved leave in this month
     const hasAnyPunchesOrLeaves = userAttMap.size > 0 || userLeaves.length > 0;
 
+    // Track daily statuses to evaluate whether weekly offs/holidays are flanked by worked days
+    const dayMeta: Array<{
+      day: number;
+      dayStr: string;
+      dayOfWeek: string;
+      isPreJoining: boolean;
+      isHoliday: boolean;
+      isWeeklyOff: boolean;
+      isScheduledWorkDay: boolean;
+      workedOrPaidLeave: boolean;
+      explicitAbsent: boolean;
+    }> = [];
+
     // Iterate through every single calendar day of the month
     for (let day = 1; day <= totalDaysInMonth; day++) {
       const dayDate = new Date(Date.UTC(year, m - 1, day, 0, 0, 0, 0));
@@ -497,12 +510,28 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         return dayStr >= startStr && dayStr <= endStr;
       });
 
+      const isPreJoining = Boolean(joinDateStr && dayStr < joinDateStr);
+      const isHoliday = holidayDateSet.has(dayStr);
+      const isWeeklyOff = !workingDays.includes(dayOfWeek);
+      const isScheduledWorkDay = !isHoliday && !isWeeklyOff;
+
       // 1. Always honor actual recorded attendance on this day (even if on a holiday or weekend)
       if (att) {
         if (att.status === 'half_day' || att.isHalfDay) {
           halfDays += 1;
           presentDays += 0.5;
           absentDays += 0.5;
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: true,
+            explicitAbsent: false,
+          });
         } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
           presentDays += 1;
           const derivedLateMins = computeCheckInLateMinutes(att.checkIn, dayOfWeek);
@@ -522,23 +551,78 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
               smartLateDeductions += mins * perMin;
             }
           }
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: true,
+            explicitAbsent: false,
+          });
         } else if (att.status === 'leave') {
           if (matchingLeave && matchingLeave.type === 'unpaid') {
             unpaidLeaveDays += 1;
             absentDays += 1;
+            dayMeta.push({
+              day,
+              dayStr,
+              dayOfWeek,
+              isPreJoining,
+              isHoliday,
+              isWeeklyOff,
+              isScheduledWorkDay,
+              workedOrPaidLeave: false,
+              explicitAbsent: true,
+            });
           } else {
             paidLeaveDays += 1;
+            dayMeta.push({
+              day,
+              dayStr,
+              dayOfWeek,
+              isPreJoining,
+              isHoliday,
+              isWeeklyOff,
+              isScheduledWorkDay,
+              workedOrPaidLeave: true,
+              explicitAbsent: false,
+            });
           }
         } else if (att.status === 'absent') {
           absentDays += 1;
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: false,
+            explicitAbsent: true,
+          });
         }
         continue;
       }
 
       // 2. If employee joined mid-month after this day
-      if (joinDateStr && dayStr < joinDateStr) {
+      if (isPreJoining) {
         absentDays += 1;
         preJoiningDays += 1;
+        dayMeta.push({
+          day,
+          dayStr,
+          dayOfWeek,
+          isPreJoining,
+          isHoliday,
+          isWeeklyOff,
+          isScheduledWorkDay,
+          workedOrPaidLeave: false,
+          explicitAbsent: true,
+        });
         continue;
       }
 
@@ -547,35 +631,114 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         if (matchingLeave.type === 'unpaid') {
           unpaidLeaveDays += 1;
           absentDays += 1;
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: false,
+            explicitAbsent: true,
+          });
         } else if (matchingLeave.isHalfDay) {
           halfDays += 1;
           paidLeaveDays += 0.5;
           absentDays += 0.5;
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: true,
+            explicitAbsent: false,
+          });
         } else {
           paidLeaveDays += 1;
+          dayMeta.push({
+            day,
+            dayStr,
+            dayOfWeek,
+            isPreJoining,
+            isHoliday,
+            isWeeklyOff,
+            isScheduledWorkDay,
+            workedOrPaidLeave: true,
+            explicitAbsent: false,
+          });
         }
         continue;
       }
 
-      // 4. Is Company Holiday? (Paid holiday — not an absent day)
-      if (holidayDateSet.has(dayStr)) {
-        if (dayStr <= todayStr) {
-          paidHolidayDays += 1;
-        }
+      // 4. Company Holiday or Weekly Off (evaluated below based on adjacent working days)
+      if (isHoliday || isWeeklyOff) {
+        dayMeta.push({
+          day,
+          dayStr,
+          dayOfWeek,
+          isPreJoining,
+          isHoliday,
+          isWeeklyOff,
+          isScheduledWorkDay: false,
+          workedOrPaidLeave: false,
+          explicitAbsent: false,
+        });
         continue;
       }
 
-      // 5. Is Weekly Off? (e.g. Sunday — paid weekly off, not an absent day)
-      if (!workingDays.includes(dayOfWeek)) {
-        continue;
-      }
-
-      // 6. Scheduled working day with neither punch nor approved leave
+      // 5. Scheduled working day with neither punch nor approved leave
       absentDays += 1;
+      dayMeta.push({
+        day,
+        dayStr,
+        dayOfWeek,
+        isPreJoining,
+        isHoliday,
+        isWeeklyOff,
+        isScheduledWorkDay: true,
+        workedOrPaidLeave: false,
+        explicitAbsent: true,
+      });
+    }
+
+    // Evaluate unworked Company Holidays and Weekly Offs (Sundays):
+    // A holiday or weekly off is a paid non-working day if the employee worked (or had paid leave)
+    // on the nearest scheduled working day before OR after it.
+    let paidWeeklyOffDays = 0;
+    for (let i = 0; i < dayMeta.length; i++) {
+      const dm = dayMeta[i];
+      if (dm.isPreJoining || dm.workedOrPaidLeave || dm.explicitAbsent) continue;
+      if (!dm.isHoliday && !dm.isWeeklyOff) continue;
+
+      let prevWorked = false;
+      for (let p = i - 1; p >= 0; p--) {
+        if (dayMeta[p].isScheduledWorkDay) {
+          prevWorked = dayMeta[p].workedOrPaidLeave;
+          break;
+        }
+      }
+      let nextWorked = false;
+      for (let n = i + 1; n < dayMeta.length; n++) {
+        if (dayMeta[n].isScheduledWorkDay) {
+          nextWorked = dayMeta[n].workedOrPaidLeave;
+          break;
+        }
+      }
+
+      if (prevWorked || nextWorked) {
+        if (dm.isHoliday) {
+          paidHolidayDays += 1;
+        } else {
+          paidWeeklyOffDays += 1;
+        }
+      }
     }
 
     // Determine payable days & Loss of Pay (LOP):
-    // Sundays (weekly offs) and company holidays are paid non-working days; only actual absent working days deduct LOP.
     let payableDays = 0;
     let lopDeduction = 0;
     const roundedLateDeduction = Math.round(smartLateDeductions);
@@ -584,11 +747,15 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       // Zero attendance in the entire month -> 0 payable days and 100% LOP
       payableDays = 0;
       paidHolidayDays = 0;
+      paidWeeklyOffDays = 0;
       absentDays = totalDaysInMonth;
       lopDeduction = fixedMonthlyGross;
     } else {
-      absentDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat(absentDays.toFixed(1))));
-      payableDays = Math.min(totalDaysInMonth, Math.max(0, parseFloat((totalDaysInMonth - absentDays).toFixed(1))));
+      payableDays = Math.min(
+        totalDaysInMonth,
+        Math.max(0, parseFloat((presentDays + paidLeaveDays + paidHolidayDays + paidWeeklyOffDays).toFixed(1)))
+      );
+      absentDays = Math.max(0, parseFloat((totalDaysInMonth - payableDays).toFixed(1)));
       const earnedGross = Math.round(perDaySalary * payableDays);
       lopDeduction = Math.max(0, Math.min(fixedMonthlyGross, fixedMonthlyGross - earnedGross));
     }
