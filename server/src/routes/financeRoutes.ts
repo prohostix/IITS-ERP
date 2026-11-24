@@ -179,7 +179,7 @@ router.get('/overview-stats', authorize('finance_admin', 'finance_sub_admin', 'f
 router.get('/reports/income-expenditure', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getIncomeExpenditureReport);
 
 // Sales users (for target assignment)
-router.get('/sales-users', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getFinanceSalesUsers);
+router.get('/sales-users', authorize('finance_admin', 'finance_sub_admin', 'finance', 'superadmin', 'org_admin', 'ceo'), getFinanceSalesUsers);
 
 // University Fee Payments
 router.get('/university-fees', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), getUniversityFeePayments);

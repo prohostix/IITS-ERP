@@ -91,7 +91,8 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   const fetchMeta = useCallback(async () => {
     try {
       const isSalesEndpoint = endpoint.startsWith('/sales') || endpoint.includes('sales');
-      const usersEndpoint = isSalesEndpoint ? '/sales/sales-users' : (endpoint.includes('finance') ? '/finance/sales-users' : '/users');
+      const isFinanceEndpoint = endpoint.startsWith('/finance') || endpoint.includes('finance');
+      const usersEndpoint = isSalesEndpoint ? '/sales/sales-users' : (isFinanceEndpoint ? '/finance/sales-users' : '/users');
 
       const [uRes, dRes, uniRes, sessRes] = await Promise.allSettled([
         api.get(usersEndpoint),
@@ -107,9 +108,9 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
         const resData = uRes.value.data;
         salesUsers = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
         branchInfo = resData?.branch || null;
-      } else if (isSalesEndpoint) {
+      } else if (isSalesEndpoint || isFinanceEndpoint) {
         try {
-          const fallbackRes = await api.get('/users');
+          const fallbackRes = await api.get('/sales/sales-users');
           salesUsers = fallbackRes.data?.data || [];
         } catch (e) {
           console.error('Fallback user fetch failed', e);
@@ -120,10 +121,25 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
         setBranchSalesDeptId(branchInfo.salesDeptId);
       }
 
-      // Filter employees: for branch manager, ensure only branch sales users appear
-      let filteredEmployees = salesUsers;
+      // Filter employees: ensure only sales users appear (and for branch manager, only branch sales users)
+      const isSalesUser = (u: any) => {
+        if (!u) return false;
+        const salesRoles = ['sales_admin', 'sales_sub_admin', 'bde', 'bda', 'counselor', 'sales_manager', 'sales', 'team_leader', 'branch_manager', 'telecaller'];
+        if (salesRoles.includes(u.role)) return true;
+        const deptType = u.department?.type?.toLowerCase() || '';
+        const deptName = u.department?.name?.toLowerCase() || '';
+        if (deptType === 'sales' || deptName.includes('sales') || deptName.includes('business')) return true;
+        const desig = (u.designation || u.designationRef?.title || '').toLowerCase();
+        if (['bde', 'bda', 'bdm', 'sales', 'counselor', 'telecaller', 'team leader', 'branch manager'].some(k => desig.includes(k))) return true;
+        return false;
+      };
+
+      let filteredEmployees = (isSalesEndpoint || isFinanceEndpoint)
+        ? salesUsers.filter(isSalesUser)
+        : salesUsers;
+
       if (user?.role === 'branch_manager' && branchInfo?.salesDeptId) {
-        filteredEmployees = salesUsers.filter((u: any) =>
+        filteredEmployees = filteredEmployees.filter((u: any) =>
           u.departmentId === branchInfo.salesDeptId ||
           u.branchId === branchInfo.id ||
           u.department?.id === branchInfo.salesDeptId
@@ -137,7 +153,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
           // For branch manager, prioritize and only show the branch's sales department
           const branchDept = allDepts.filter((d: any) => d.id === branchInfo.salesDeptId);
           allDepts = branchDept.length > 0 ? branchDept : allDepts.filter((d: any) => d.type === 'sales');
-        } else if (isSalesEndpoint) {
+        } else if (isSalesEndpoint || isFinanceEndpoint) {
           allDepts = allDepts.filter((d: any) => d.type === 'sales' || d.name?.toLowerCase().includes('sales'));
         }
         setDepartments(allDepts);

@@ -992,10 +992,56 @@ export const getFinanceSalesUsers = asyncHandler(async (req: AuthRequest, res: R
   const users = await prisma.user.findMany({
     where: {
       organizationId: req.user.organizationId,
-      role: { in: ['sales_admin', 'bde', 'employee'] }
-    }
+      status: { notIn: ['deleted', 'resigned', 'terminated'] as any },
+      role: {
+        notIn: [
+          'student',
+          'center_admin',
+          'superadmin',
+          'org_admin',
+          'ceo',
+          'ops_admin',
+          'ops_sub_admin',
+          'finance_admin',
+          'finance_sub_admin',
+          'finance',
+          'hr_admin',
+          'hr_sub_admin',
+          'hr_executive',
+          'accountant'
+        ] as any
+      },
+      OR: [
+        { role: { in: ['sales_admin', 'sales_sub_admin', 'bde', 'bda', 'counselor', 'sales_manager', 'sales', 'team_leader', 'branch_manager', 'telecaller'] as any } },
+        { department: { type: 'sales' } },
+        { department: { name: { contains: 'Sales', mode: 'insensitive' } } },
+        { department: { name: { contains: 'Business', mode: 'insensitive' } } },
+        { subDepartment: { parentDept: { type: 'sales' } } },
+        { designationRef: { department: { type: 'sales' } } },
+        { designationRef: { subDepartment: { parentDept: { type: 'sales' } } } },
+        { designation: { contains: 'BDE', mode: 'insensitive' } },
+        { designation: { contains: 'BDA', mode: 'insensitive' } },
+        { designation: { contains: 'BDM', mode: 'insensitive' } },
+        { designation: { contains: 'Sales', mode: 'insensitive' } },
+        { designation: { contains: 'Counselor', mode: 'insensitive' } },
+        { designation: { contains: 'Telecaller', mode: 'insensitive' } },
+        { designation: { contains: 'Team Leader', mode: 'insensitive' } },
+        { designation: { contains: 'Branch Manager', mode: 'insensitive' } }
+      ]
+    },
+    include: {
+      department: { select: { id: true, name: true, type: true } },
+      designationRef: { select: { id: true, title: true } }
+    },
+    orderBy: { name: 'asc' }
   });
-  res.json({ success: true, data: users });
+
+  const mapped = users.map(u => ({
+    ...u,
+    designation: u.designation || u.designationRef?.title || null
+  }));
+
+  res.json({ success: true, count: mapped.length, data: mapped });
 });
 
 // University Fee Payments
