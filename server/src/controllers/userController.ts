@@ -145,12 +145,12 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
           }
         });
         const totalJoined = (matchingReq.candidates || []).filter((c: any) =>
-          ['joined', 'appointment_sent', 'induction_pending', 'induction_completed', 'completed'].includes(c.status)
+          ['joined', 'appointment_sent', 'induction_pending', 'induction_completed'].includes(c.status)
         ).length + 1;
         if (totalJoined >= (matchingReq.count || 1)) {
           await prisma.hiringRequest.update({
             where: { id: matchingReq.id },
-            data: { status: 'completed' as any }
+            data: { status: 'induction_completed' as any }
           });
         }
       }

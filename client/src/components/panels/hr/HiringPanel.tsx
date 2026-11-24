@@ -124,6 +124,8 @@ export function HiringPanel() {
       case 'approved':
         return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Approved • Open on Org Chart</Badge>;
       case 'completed':
+      case 'induction_completed':
+      case 'joined':
         return <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30">Fulfilled / Hired</Badge>;
       case 'rejected':
         return <Badge className="bg-rose-500/15 text-rose-600 border-rose-500/30">Rejected</Badge>;

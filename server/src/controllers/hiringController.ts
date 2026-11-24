@@ -303,13 +303,13 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
       const joinedCount = await prisma.candidate.count({
         where: {
           hiringRequestId: candidate.hiringRequestId,
-          status: { in: ['joined', 'appointment_sent', 'induction_pending', 'induction_completed', 'completed'] as any }
+          status: { in: ['joined', 'appointment_sent', 'induction_pending', 'induction_completed'] as any }
         }
       });
       if (joinedCount >= (candidate.hiringRequest.count || 1)) {
         await prisma.hiringRequest.update({
           where: { id: candidate.hiringRequestId },
-          data: { status: 'completed' as any }
+          data: { status: 'induction_completed' as any }
         });
       }
     }
