@@ -160,7 +160,7 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
     { id: 'center_admissions', label: 'Centers Admissions' },
     { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
     { id: '__verification_review', label: 'Verification & Review', isSection: true },
-    { id: 'pending_verification', label: 'Pending Verification' },
+    { id: 'pending_verification', label: 'New Study Center Approvals' },
     { id: 'enrollment_review', label: 'Enrollment Review' },
     { id: 'status_requests', label: 'Status Requests' },
     { id: '__communication_tasks', label: 'Communication & Tasks', isSection: true },

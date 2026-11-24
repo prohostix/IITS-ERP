@@ -15,7 +15,11 @@ import { cn } from '@/lib/utils';
 
 export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: string) => void } = {}) {
   const { user } = useAuth();
-  const canWrite = ['org_admin', 'superadmin', 'sales_admin', 'bde', 'employee'].includes(user?.role || '');
+  const isSalesRole = ['sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'sales', 'counselor'].includes(user?.role || '') ||
+    (user?.role === 'employee' && (user as any)?.department?.type === 'sales');
+  const canApprove = ['org_admin', 'superadmin', 'ceo', 'general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'branch_manager'].includes(user?.role || '') ||
+    (user?.role === 'employee' && (user as any)?.department?.type === 'operations');
+  const canWrite = canApprove || isSalesRole || user?.role === 'employee';
   const [centers, setCenters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -358,7 +362,17 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ name: '', code: '', address: '', contact: '', email: '', status: 'active', referredById: '', branchName: '', coordinatorName: '' });
+    setFormData({
+      name: '',
+      code: '',
+      address: '',
+      contact: '',
+      email: '',
+      status: isSalesRole ? 'pending_verification' : 'active',
+      referredById: '',
+      branchName: '',
+      coordinatorName: ''
+    });
   };
 
   // Helper to get center's effective branch name
@@ -527,18 +541,26 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
                   </Select>
                 </div>
               )}
-              <div>
-                <Label>Status</Label>
-                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isSalesRole ? (
+                <div>
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending_verification">Pending Ops Verification</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending_payment">Pending Payment</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                  New centers created by Sales are automatically sent to <strong>Operations</strong> for verification and approval.
+                </div>
+              )}
               <div>
                 <Label>Branch Name <span className="text-xs text-muted-foreground font-normal">(groups centers together)</span></Label>
                 <Input
@@ -777,7 +799,7 @@ export function StudyCentersPanel({ onViewLedger }: { onViewLedger?: (centerId: 
                               </div>
                               <div className="flex items-center gap-2 flex-wrap justify-end">
                                 <Badge className="text-xs capitalize">{c.status?.replace(/_/g, ' ')}</Badge>
-                                {c.status !== 'active' && canWrite && (
+                                {c.status !== 'active' && canApprove && (
                                   <Button
                                     variant="default"
                                     size="sm"

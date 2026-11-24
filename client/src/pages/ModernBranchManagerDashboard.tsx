@@ -103,7 +103,7 @@ export function getBranchManagerNavItems() {
     { id: 'universities', label: 'Universities' },
     { id: 'programs', label: 'Programs' },
     { id: 'centers', label: 'Study Centers' },
-    { id: 'pending_verification', label: 'Pending Verification' },
+    { id: 'pending_verification', label: 'New Study Center Approvals' },
     { id: 'enrollment_review', label: 'Enrollment Review' },
     { id: 'sessions', label: 'Admission Sessions' },
     { id: '__reports_section', label: 'Reports', isSection: true },

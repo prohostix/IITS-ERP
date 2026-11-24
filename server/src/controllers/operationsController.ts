@@ -330,7 +330,8 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   if (isBranchMgr) {
     branchScopeData = await getBranchScope(req.user);
   }
-  const isSales = req.user.role === 'sales_admin' || req.user.role === 'sales_sub_admin' || req.user.role === 'bde' || req.user.role === 'employee';
+  const SALES_ROLES = ['sales_admin', 'sales_sub_admin', 'bde', 'bda', 'team_leader', 'sales', 'counselor'];
+  const isSales = SALES_ROLES.includes(req.user.role) || (req.user.role === 'employee' && (req.user as any).department?.type === 'sales');
   const { name, referredById, ...restBody } = req.body;
   const email = req.body.email || req.body.contactEmail;
 
@@ -382,14 +383,14 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   // 3. Create in transaction
   const centerWithCreds = await prisma.$transaction(async (tx) => {
     const allowedFields = [
-      'name', 'code', 'address', 'city', 'state', 'status',
+      'name', 'code', 'address', 'city', 'state',
       'universityIds', 'programIds', 'coordinatorName', 'branchName',
       'allowInternalMarks', 'customEnrollmentFields'
     ];
     const initialStatus = isSales ? 'pending_verification' : (req.body.status || 'active');
     const assignedReferrer = isBranchMgr
       ? (referredById && referredById !== '__none__' && referredById !== 'null' ? referredById : req.user.id)
-      : (isSales ? req.user.id : (referredById === 'null' || referredById === '__none__' || !referredById ? null : referredById));
+      : (isSales ? (referredById && referredById !== '__none__' && referredById !== 'null' ? referredById : req.user.id) : (referredById === 'null' || referredById === '__none__' || !referredById ? null : referredById));
     const assignedBranchName = req.body.branchName || branchScopeData?.branchName || null;
 
     const dbData: any = {
@@ -409,6 +410,7 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       if (req.body[field] !== undefined) dbData[field] = req.body[field];
     }
     dbData.code = centerCode; // guarantee validated unique code
+    dbData.status = initialStatus; // guarantee sales-created centers always start as pending_verification
 
     const center = await tx.studyCenter.create({ 
       data: dbData
@@ -874,7 +876,7 @@ export const deleteAnnouncement = asyncHandler(async (req: AuthRequest, res: Res
 export const getPendingVerificationCenters = asyncHandler(async (req: AuthRequest, res: Response) => {
   const where: any = {
     organizationId: req.user.organizationId,
-    status: { in: ['pending_verification', 'pending'] } as any
+    status: { in: ['pending_verification', 'pending', 'pending_payment', 'ops_verified'] } as any
   };
   if (req.user.role === 'branch_manager') {
     const scope = await getBranchScope(req.user);
@@ -883,10 +885,13 @@ export const getPendingVerificationCenters = asyncHandler(async (req: AuthReques
     const scope = await getBranchScopeByBranchId(req.user.organizationId, req.query.branchId as string);
     where.id = { in: scope.centerIds };
   }
-  const [centers, allBranchesScope] = await Promise.all([
+  const [centers, allBranchesScope, universities] = await Promise.all([
     prisma.studyCenter.findMany({
       where,
       include: {
+        verifier: {
+          select: { id: true, name: true, email: true }
+        },
         referrer: {
           select: {
             id: true,
@@ -904,14 +909,31 @@ export const getPendingVerificationCenters = asyncHandler(async (req: AuthReques
       },
       orderBy: { createdAt: 'desc' }
     }),
-    getAllBranchesScope(req.user.organizationId)
+    getAllBranchesScope(req.user.organizationId),
+    prisma.university.findMany({
+      where: { organizationId: req.user.organizationId },
+      select: { id: true, name: true, code: true }
+    })
   ]);
+  const uniMap = new Map(universities.map(u => [u.id, u]));
   const mapped = centers.map(c => {
     const resolvedBranch = allBranchesScope.centerBranchMap[c.id] || (c.referredBy ? allBranchesScope.staffBranchMap[c.referredBy] : null);
     const fallbackName = c.referrer?.branch?.name || c.referrer?.designationRef?.branch?.name || c.branchName?.trim() || '';
+    const uniIds = Array.isArray(c.universityIds) ? c.universityIds : [];
+    const hydratedUnis = uniIds.map((uid: string) => uniMap.get(uid)).filter(Boolean);
+    const docs = Array.isArray(c.pendingDocuments)
+      ? (c.pendingDocuments as any[]).map(d => ({
+          ...d,
+          url: d.url || d.path || (d.filename ? `/uploads/${d.filename}` : '')
+        }))
+      : [];
     return {
       ...c,
       _id: c.id,
+      associatedUniversityIds: hydratedUnis,
+      pendingDocuments: docs,
+      referredByUser: c.referrer || null,
+      verifiedByUser: c.verifier || null,
       resolvedBranchId: resolvedBranch?.branchId || c.referrer?.branch?.id || c.referrer?.designationRef?.branch?.id || null,
       resolvedBranchName: resolvedBranch?.branchName || fallbackName || null,
       branchName: c.branchName || resolvedBranch?.branchName || fallbackName || null
@@ -921,17 +943,41 @@ export const getPendingVerificationCenters = asyncHandler(async (req: AuthReques
 });
 export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
-  const isApproved = action !== 'reject';
-  const newStatus = isApproved ? 'pending_payment' : 'rejected';
+  const isReject = action === 'reject';
+  const isDirectActivate = action === 'activate';
+  const newStatus = isReject ? 'rejected' : isDirectActivate ? 'active' : 'pending_payment';
 
-  const center = await prisma.studyCenter.update({
-    where: { id: req.params.id },
-    data: {
-      status: newStatus as any,
-      verifiedBy: req.user.id,
-      verifiedAt: new Date(),
-      opsRemarks: remarks || null
+  const center = await prisma.$transaction(async (tx) => {
+    const sc = await tx.studyCenter.update({
+      where: { id: req.params.id },
+      data: {
+        status: newStatus as any,
+        verifiedBy: req.user.id,
+        verifiedAt: new Date(),
+        ...(isDirectActivate ? {
+          financeApprovedBy: req.user.id,
+          financeApprovedAt: new Date()
+        } : {}),
+        opsRemarks: remarks || null
+      }
+    });
+
+    if (isDirectActivate) {
+      const existingWallet = await tx.studyCenterWallet.findUnique({
+        where: { centerId: sc.id }
+      });
+      if (!existingWallet) {
+        await tx.studyCenterWallet.create({
+          data: {
+            centerId: sc.id,
+            balance: 0,
+            status: 'active'
+          }
+        });
+      }
     }
+
+    return sc;
   });
   res.json({ success: true, data: center });
 });
