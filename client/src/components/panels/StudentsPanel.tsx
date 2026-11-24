@@ -1654,437 +1654,610 @@ export function StudentsPanel() {
       </Card>
 
       <Dialog open={!!selectedStudent} onOpenChange={o => !o && setSelectedStudent(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {selectedStudent && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center justify-between w-full pr-6">
-                  <div className="flex items-center gap-3">
-                    {(() => {
-                      const photo = getStudentPhotoUrl(selectedStudent);
-                      return photo ? (
-                        <div className="w-11 h-11 rounded-full border-2 border-primary/30 overflow-hidden shrink-0 shadow-sm bg-slate-100">
-                          <img src={photo} alt={selectedStudent.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-5 h-5 text-primary" />
-                        </div>
-                      );
-                    })()}
-                    <div>
-                      <DialogTitle className="text-lg font-bold">{selectedStudent.name || 'Student Details'}</DialogTitle>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-muted-foreground font-mono">Admission: {selectedStudent.enrollmentNo}</span>
-                        <Badge className="bg-primary/10 text-primary text-[10px] uppercase font-bold">
-                          {selectedStudent.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* Operations: Reject by University */}
-                    {isOps && selectedStudent.status !== 'rejected' && selectedStudent.status !== 'rejected_by_university' && selectedStudent.status !== 'dropout' && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="text-rose-600 border-rose-300 hover:bg-rose-50 font-semibold gap-1"
-                        onClick={() => {
-                          setRejectUniStudent(selectedStudent);
-                          setRejectionReason('');
-                        }}
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Reject (Uni)
-                      </Button>
-                    )}
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 gap-0 rounded-2xl border-border/80 shadow-2xl">
+          {selectedStudent && (() => {
+            const photo = getStudentPhotoUrl(selectedStudent);
+            const enrollment = selectedStudent.enrollments?.[0] || {};
+            const programObj = selectedStudent.program || enrollment.program || {};
+            const uniObj = programObj.university || enrollment.session?.university || {};
+            const sessionObj = enrollment.session || {};
+            const centerObj = selectedStudent.center || {};
+            const branchLabel = selectedStudent.branchName || centerObj.branchName || '';
 
-                    {/* Operations: Change University */}
-                    {isOps && (selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
-                      <Button 
-                        size="sm" 
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1"
-                        onClick={() => openChangeUniversityModal(selectedStudent)}
-                      >
-                        <ArrowRightLeft className="w-4 h-4 mr-1" />
-                        Change University
-                      </Button>
-                    )}
+            const totalFeeVal = getStudentDisplayFieldValue(selectedStudent, 0, 'total_fee');
+            const discountVal = getStudentDisplayFieldValue(selectedStudent, 0, 'discount');
+            const remittedVal = getStudentDisplayFieldValue(selectedStudent, 0, 'remitted_fee');
+            const balanceVal = getStudentDisplayFieldValue(selectedStudent, 0, 'balance_fee');
+            const admissionModeVal = getStudentDisplayFieldValue(selectedStudent, 0, 'admission_mode');
+            const courseTypeVal = getStudentDisplayFieldValue(selectedStudent, 0, 'course_type');
+            const durationVal = getStudentDisplayFieldValue(selectedStudent, 0, 'class_duration');
+            const joinDateVal = getStudentDisplayFieldValue(selectedStudent, 0, 'date_of_join');
+            const validUptoVal = getStudentDisplayFieldValue(selectedStudent, 0, 'valid_upto');
 
-                    {/* Study Center Admin: Approve or Decline */}
-                    {isCenter && selectedStudent.universityChangeRequest?.status === 'pending_center_approval' && (
-                      <>
-                        <Button 
-                          size="sm" 
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1"
-                          onClick={() => {
-                            setCenterApprovalStudent(selectedStudent);
-                            setCenterApprovalAction('approve');
-                            setCenterRemarks('');
-                          }}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Approve Change
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="text-rose-600 border-rose-300 hover:bg-rose-50 font-semibold gap-1"
-                          onClick={() => {
-                            setCenterApprovalStudent(selectedStudent);
-                            setCenterApprovalAction('reject');
-                            setCenterRemarks('');
-                          }}
-                        >
-                          Decline
-                        </Button>
-                      </>
-                    )}
+            const fatherName = selectedStudent.fatherName || enrollment.fatherName;
+            const motherName = selectedStudent.motherName || enrollment.motherName;
+            const parentMobile = selectedStudent.parentMobile || enrollment.parentMobile;
+            const altPhone = selectedStudent.alternativePhone || enrollment.alternativePhone;
+            const religion = selectedStudent.religion || enrollment.religion;
+            const caste = selectedStudent.caste || enrollment.caste;
+            const abcId = selectedStudent.abcId || enrollment.abcId;
+            const debId = selectedStudent.debId || enrollment.debId;
+            const fullAddress = [
+              selectedStudent.address || enrollment.studentAddress || enrollment.address,
+              selectedStudent.city || enrollment.city,
+              selectedStudent.state || enrollment.state,
+              selectedStudent.pincode || enrollment.pincode,
+            ].filter(Boolean).join(', ') || 'N/A';
 
-                    {canWrite && selectedStudent.status === 'pending' && (
-                      <Button 
-                        size="sm" 
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                        onClick={async () => {
-                          try {
-                            await api.put(`/students/${selectedStudent.id || selectedStudent.id}`, { status: 'active' });
-                            toast.success(`Student ${selectedStudent.name} activated successfully`);
-                            setSelectedStudent({ ...selectedStudent, status: 'active' });
-                            fetchStudents();
-                          } catch (err: any) {
-                            toast.error(err.response?.data?.message || 'Failed to activate student');
-                          }
-                        }}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1.5" />
-                        Activate Student
-                      </Button>
-                    )}
-                    {['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'employee', 'org_admin', 'superadmin'].includes(user?.role || '') && (
-                      <Button size="sm" variant="outline" onClick={() => {
-                        const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
-                        if (uniEnr !== null) {
-                          api.put(`/students/${selectedStudent.id || selectedStudent.id}`, { uniEnrollmentNumber: uniEnr })
-                            .then(() => {
-                              toast.success('University Enrollment Number saved');
-                              fetchStudents();
-                              setSelectedStudent({ ...selectedStudent, uniEnrollmentNumber: uniEnr });
-                            })
-                            .catch(() => toast.error('Failed to update University Enrollment Number'));
-                        }
-                      }}>
-                        Add Uni Enrollment No
-                      </Button>
-                    )}
-                    {user?.role === 'center_admin' && !['hold', 'dropout'].includes(selectedStudent.status) && (
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => setRequestStatusOpen(true)}
-                      >
-                        Request Hold / Dropout
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-6 py-4">
-                {(selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
-                  <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold text-sm">
-                      <XCircle className="w-4 h-4" />
-                      <span>Student Rejected by University</span>
-                    </div>
-                    <p className="text-xs text-rose-800 dark:text-rose-200">
-                      <strong>Rejection Reason:</strong> {selectedStudent.universityRejectionReason || selectedStudent.universityRejection?.reason || 'No remarks provided.'}
-                    </p>
-                    {selectedStudent.universityRejection?.rejectedByName && (
-                      <p className="text-[11px] text-muted-foreground">
-                        Processed by {selectedStudent.universityRejection.rejectedByName} on {formatDateVal(selectedStudent.universityRejection.rejectedAt)}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {selectedStudent.universityChangeRequest && (
-                  <div className={cn(
-                    "border rounded-xl p-4 space-y-2",
-                    selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? "bg-purple-50/80 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" :
-                    selectedStudent.universityChangeRequest.status === 'approved' ? "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" :
-                    "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800"
-                  )}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-bold text-sm">
-                        <Building2 className="w-4 h-4 text-primary" />
-                        <span>University Change & Re-Admission Request</span>
-                      </div>
-                      <Badge className={cn(
-                        "text-xs uppercase font-semibold",
-                        selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? "bg-purple-600 text-white" :
-                        selectedStudent.universityChangeRequest.status === 'approved' ? "bg-emerald-600 text-white" :
-                        "bg-rose-600 text-white"
-                      )}>
-                        {selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? 'Pending Center Approval' :
-                         selectedStudent.universityChangeRequest.status === 'approved' ? 'Approved by Center' : 'Declined by Center'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                      <div>
-                        <span className="text-muted-foreground block">Proposed University:</span>
-                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newUniversityName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block">Proposed Program:</span>
-                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newProgramName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block">Proposed Session:</span>
-                        <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newSessionName || '-'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block">Operations Remarks:</span>
-                        <span className="text-foreground">{selectedStudent.universityChangeRequest.remarks || 'None'}</span>
-                      </div>
-                    </div>
-                    {selectedStudent.universityChangeRequest.centerRemarks && (
-                      <div className="text-xs pt-2 border-t mt-2">
-                        <span className="text-muted-foreground block">Study Center Remarks:</span>
-                        <span className="font-medium text-foreground">{selectedStudent.universityChangeRequest.centerRemarks}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="relative pt-2">
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                    <span className="w-4 h-4 flex items-center justify-center text-primary text-xs">👤</span> Personal & Contact Details
-                  </h4>
-
-                  {(() => {
-                    const photo = getStudentPhotoUrl(selectedStudent);
-                    if (!photo) return null;
-                    return (
-                      <div className="absolute top-0 right-0 w-24 h-28 border-2 border-primary/20 rounded-lg overflow-hidden shadow-md hidden sm:block bg-slate-100">
-                        <img 
-                          src={photo} 
-                          alt="Student Photo" 
+            return (
+              <>
+                {/* Top Hero Profile Banner */}
+                <div className="relative bg-gradient-to-br from-primary/10 via-indigo-500/5 to-background border-b border-border/70 px-6 pt-6 pb-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4 pr-6">
+                    {/* Avatar / Photo */}
+                    <div className="relative w-20 h-20 rounded-2xl border-2 border-primary/25 overflow-hidden shrink-0 shadow-md bg-muted flex items-center justify-center">
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={selectedStudent.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLElement).parentElement!.style.display = 'none';
+                            (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
-                      </div>
-                    );
-                  })()}
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-black text-2xl">
+                          {selectedStudent.name ? selectedStudent.name.charAt(0).toUpperCase() : <GraduationCap className="w-8 h-8 text-primary" />}
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border text-sm sm:pr-28">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground font-semibold">Email</p>
-                        <p className="font-medium">{selectedStudent.email}</p>
+                    {/* Title, Badges & Quick Identifiers */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <DialogTitle className="text-xl font-black tracking-tight text-foreground truncate">
+                          {selectedStudent.name || 'Student Details'}
+                        </DialogTitle>
+                        <Badge className={cn(
+                          'text-[11px] uppercase font-bold px-2.5 py-0.5 rounded-full',
+                          selectedStudent.status === 'active' ? 'bg-emerald-600 text-white' :
+                          selectedStudent.status === 'pending' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/40' :
+                          selectedStudent.status === 'hold' ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-400/40' :
+                          selectedStudent.status === 'dropout' ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-400/40' :
+                          (selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') ? 'bg-red-600 text-white' :
+                          'bg-primary/10 text-primary'
+                        )}>
+                          {selectedStudent.status?.replace(/_/g, ' ')}
+                        </Badge>
+                        {branchLabel && (
+                          <Badge variant="outline" className="text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25">
+                            🏢 {branchLabel}
+                          </Badge>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground font-semibold">Phone</p>
-                        <p className="font-medium">{selectedStudent.phone || 'N/A'}</p>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/90 border border-border/80 font-mono text-muted-foreground shadow-2xs">
+                          <span className="font-sans font-semibold text-foreground/70">Admission No:</span>
+                          <strong className="text-foreground font-bold">{selectedStudent.enrollmentNo || '-'}</strong>
+                        </span>
+                        {selectedStudent.uniEnrollmentNumber ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/25 font-mono text-primary shadow-2xs">
+                            <span className="font-sans font-semibold">Uni Enrollment No:</span>
+                            <strong className="font-bold">{selectedStudent.uniEnrollmentNumber}</strong>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 font-medium">
+                            Uni Enrollment No: Not Assigned
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    {selectedStudent.dob && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs text-muted-foreground font-semibold">Date of Birth</p>
-                          <p className="font-medium">{selectedStudent.dob}</p>
-                        </div>
-                      </div>
-                    )}
-                    {selectedStudent.gender && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4" />
-                        <div>
-                          <p className="text-xs text-muted-foreground font-semibold">Gender</p>
-                          <p className="font-medium">{selectedStudent.gender}</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="col-span-2 flex items-start gap-2 pt-2 border-t">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-xs text-muted-foreground font-semibold">Address</p>
-                        <p className="font-medium">{selectedStudent.address || 'N/A'}</p>
+
+                      {/* Action Toolbar */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                        {/* Add / Edit Uni Enrollment No */}
+                        {['ops_admin', 'ops_sub_admin', 'general_manager', 'project_manager', 'employee', 'org_admin', 'superadmin', 'branch_manager'].includes(user?.role || '') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-semibold bg-background hover:bg-primary/5 border-primary/30 text-primary gap-1.5 shadow-2xs"
+                            onClick={() => {
+                              const uniEnr = prompt('Enter University Enrollment Number:', selectedStudent.uniEnrollmentNumber || '');
+                              if (uniEnr !== null) {
+                                api.put(`/students/${selectedStudent.id}`, { uniEnrollmentNumber: uniEnr })
+                                  .then(() => {
+                                    toast.success('University Enrollment Number saved');
+                                    fetchStudents();
+                                    setSelectedStudent({ ...selectedStudent, uniEnrollmentNumber: uniEnr });
+                                  })
+                                  .catch(() => toast.error('Failed to update University Enrollment Number'));
+                              }
+                            }}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            {selectedStudent.uniEnrollmentNumber ? 'Edit Uni Enrollment No' : 'Add Uni Enrollment No'}
+                          </Button>
+                        )}
+
+                        {/* Operations: Activate Pending Student */}
+                        {canWrite && selectedStudent.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-2xs"
+                            onClick={async () => {
+                              try {
+                                await api.put(`/students/${selectedStudent.id}`, { status: 'active' });
+                                toast.success(`Student ${selectedStudent.name} activated successfully`);
+                                setSelectedStudent({ ...selectedStudent, status: 'active' });
+                                fetchStudents();
+                              } catch (err: any) {
+                                toast.error(err.response?.data?.message || 'Failed to activate student');
+                              }
+                            }}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Activate Student
+                          </Button>
+                        )}
+
+                        {/* Operations: Reject by University */}
+                        {isOps && selectedStudent.status !== 'rejected' && selectedStudent.status !== 'rejected_by_university' && selectedStudent.status !== 'dropout' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold gap-1.5 bg-background shadow-2xs"
+                            onClick={() => {
+                              setRejectUniStudent(selectedStudent);
+                              setRejectionReason('');
+                            }}
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Reject (Uni)
+                          </Button>
+                        )}
+
+                        {/* Operations: Change University */}
+                        {isOps && (selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold gap-1.5 shadow-2xs"
+                            onClick={() => openChangeUniversityModal(selectedStudent)}
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5" />
+                            Change University
+                          </Button>
+                        )}
+
+                        {/* Study Center Admin: Approve or Decline */}
+                        {isCenter && selectedStudent.universityChangeRequest?.status === 'pending_center_approval' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5"
+                              onClick={() => {
+                                setCenterApprovalStudent(selectedStudent);
+                                setCenterApprovalAction('approve');
+                                setCenterRemarks('');
+                              }}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Approve Change
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs text-rose-600 border-rose-300 hover:bg-rose-50 font-semibold gap-1.5"
+                              onClick={() => {
+                                setCenterApprovalStudent(selectedStudent);
+                                setCenterApprovalAction('reject');
+                                setCenterRemarks('');
+                              }}
+                            >
+                              Decline
+                            </Button>
+                          </>
+                        )}
+
+                        {user?.role === 'center_admin' && !['hold', 'dropout'].includes(selectedStudent.status) && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 text-xs font-semibold"
+                            onClick={() => setRequestStatusOpen(true)}
+                          >
+                            Request Hold / Dropout
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Course Details */}
-                <div>
-                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-primary" /> Program & Session Info
-                  </h4>
-                  <div className="bg-muted/10 p-4 rounded-xl border text-sm space-y-2">
-                    <div>
-                      <span className="text-xs text-muted-foreground block">University</span>
-                      <span className="font-semibold text-primary">
-                        {selectedStudent.program?.university?.name ? `${selectedStudent.program.university.name} (${selectedStudent.program.university.code || ''})` : (selectedStudent.enrollments?.[0]?.program?.university?.name || 'N/A')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground block">Admission Session</span>
-                      <span className="font-semibold text-foreground">
-                        {selectedStudent.enrollments?.[0]?.session?.name || 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground block">Program</span>
-                      <span className="font-semibold">{selectedStudent.program?.name || 'N/A'} ({selectedStudent.program?.code || ''})</span>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground block">Study Center</span>
-                      <span className="font-semibold">{selectedStudent.center?.name || 'N/A'} ({selectedStudent.center?.code || ''})</span>
-                    </div>
-                    {selectedStudent.specialisation && (
-                      <div>
-                        <span className="text-xs text-muted-foreground block">Specialisation Combo</span>
-                        <span className="font-semibold text-indigo-600">{selectedStudent.specialisation}</span>
+                {/* Body Content */}
+                <div className="p-6 space-y-6">
+                  {/* Alert Banners if Rejected or Pending Uni Change */}
+                  {(selectedStudent.status === 'rejected' || selectedStudent.status === 'rejected_by_university') && (
+                    <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 space-y-1.5">
+                      <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold text-sm">
+                        <XCircle className="w-4 h-4 shrink-0" />
+                        <span>Student Rejected by University</span>
                       </div>
-                    )}
-                    <div className="pt-1 border-t mt-2">
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Joined on: {new Date(selectedStudent.createdAt).toLocaleString()}
+                      <p className="text-xs text-rose-800 dark:text-rose-200">
+                        <strong>Rejection Reason:</strong> {selectedStudent.universityRejectionReason || selectedStudent.universityRejection?.reason || 'No remarks provided.'}
                       </p>
+                      {selectedStudent.universityRejection?.rejectedByName && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Processed by {selectedStudent.universityRejection.rejectedByName} on {formatDateVal(selectedStudent.universityRejection.rejectedAt)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedStudent.universityChangeRequest && (
+                    <div className={cn(
+                      'border rounded-xl p-4 space-y-2',
+                      selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? 'bg-purple-50/80 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' :
+                      selectedStudent.universityChangeRequest.status === 'approved' ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' :
+                      'bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'
+                    )}>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          <span>University Change &amp; Re-Admission Request</span>
+                        </div>
+                        <Badge className={cn(
+                          'text-xs uppercase font-semibold',
+                          selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? 'bg-purple-600 text-white' :
+                          selectedStudent.universityChangeRequest.status === 'approved' ? 'bg-emerald-600 text-white' :
+                          'bg-rose-600 text-white'
+                        )}>
+                          {selectedStudent.universityChangeRequest.status === 'pending_center_approval' ? 'Pending Center Approval' :
+                           selectedStudent.universityChangeRequest.status === 'approved' ? 'Approved by Center' : 'Declined by Center'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                        <div>
+                          <span className="text-muted-foreground block">Proposed University:</span>
+                          <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newUniversityName}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Proposed Program:</span>
+                          <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newProgramName}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Proposed Session:</span>
+                          <span className="font-semibold text-foreground">{selectedStudent.universityChangeRequest.newSessionName || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Operations Remarks:</span>
+                          <span className="text-foreground">{selectedStudent.universityChangeRequest.remarks || 'None'}</span>
+                        </div>
+                      </div>
+                      {selectedStudent.universityChangeRequest.centerRemarks && (
+                        <div className="text-xs pt-2 border-t mt-2">
+                          <span className="text-muted-foreground block">Study Center Remarks:</span>
+                          <span className="font-medium text-foreground">{selectedStudent.universityChangeRequest.centerRemarks}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quick Financial Overview Strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-xl border bg-primary/5 border-primary/15">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">Total Course Fee</span>
+                      <span className="text-base font-black text-primary mt-0.5 block">{totalFeeVal}</span>
+                    </div>
+                    <div className="p-3 rounded-xl border bg-emerald-500/5 border-emerald-500/20">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">Remitted Fee</span>
+                      <span className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">{remittedVal}</span>
+                    </div>
+                    <div className="p-3 rounded-xl border bg-amber-500/5 border-amber-500/20">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">Balance Due</span>
+                      <span className="text-base font-black text-amber-600 dark:text-amber-400 mt-0.5 block">{balanceVal}</span>
+                    </div>
+                    <div className="p-3 rounded-xl border bg-muted/30">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">Payment Mode</span>
+                      <span className="text-sm font-bold text-foreground mt-1 block truncate" title={admissionModeVal}>
+                        {admissionModeVal} {discountVal !== '₹0' ? `(Disc: ${discountVal})` : ''}
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* Future Payments & Installments */}
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
-                    <CreditCard className="w-4 h-4 text-primary" /> Fees & Installments
-                  </h4>
-                  {fetchingInstallments ? (
-                    <div className="text-xs text-muted-foreground animate-pulse py-2">Loading installment schedules...</div>
-                  ) : installments.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No installment structure found.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {installments.map((inst, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-muted/5 p-3 rounded-lg border text-sm hover:bg-muted/10 transition-colors">
-                          <div>
-                            <span className="font-semibold text-foreground">{inst.name}</span>
-                            <span className="text-xs text-muted-foreground block">
-                              Due Date: {new Date(inst.dueDate).toLocaleDateString()}
+                  {/* Two-Column Core Cards: Personal Details & Academic Program Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left Card: Personal & Contact Details */}
+                    <div className="rounded-xl border bg-card shadow-2xs overflow-hidden flex flex-col">
+                      <div className="px-4 py-2.5 bg-muted/40 border-b flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">👤</span>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">Personal &amp; Contact Details</h4>
+                      </div>
+                      <div className="p-4 space-y-3 text-xs flex-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="min-w-0">
+                            <span className="text-muted-foreground font-medium flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-primary/70 shrink-0" /> Email
                             </span>
+                            <p className="font-semibold text-foreground mt-0.5 break-all">{selectedStudent.email || enrollment.studentEmail || 'N/A'}</p>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-foreground">₹{inst.amount.toLocaleString()}</span>
-                            {inst.status === 'paid' ? (
-                              <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/30 font-semibold text-xs flex items-center gap-1">
-                                <Check className="w-3.5 h-3.5" /> Paid
-                              </Badge>
-                            ) : (
-                              <div className="flex gap-2">
-                                <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30 font-semibold text-xs flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5" /> Pending
-                                </Badge>
-                                {user?.role === 'center_admin' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs font-semibold text-primary hover:bg-primary/10 border-primary/30"
-                                    onClick={() => handlePayInstallmentClick(inst.name, inst.amount)}
-                                    disabled={payingInstallment}
-                                  >
-                                    Pay Advance
-                                  </Button>
+                          <div>
+                            <span className="text-muted-foreground font-medium flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-primary/70 shrink-0" /> Phone
+                            </span>
+                            <p className="font-semibold text-foreground mt-0.5">{selectedStudent.phone || enrollment.studentPhone || 'N/A'}</p>
+                            {altPhone && <p className="text-[11px] text-muted-foreground">Alt: {altPhone}</p>}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground font-medium flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-primary/70 shrink-0" /> Date of Birth
+                            </span>
+                            <p className="font-semibold text-foreground mt-0.5">{formatDateVal(selectedStudent.dob || enrollment.dob)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground font-medium block">Gender</span>
+                            <p className="font-semibold text-foreground mt-0.5 capitalize">{selectedStudent.gender || enrollment.gender || 'N/A'}</p>
+                          </div>
+                          {(fatherName || motherName) && (
+                            <>
+                              <div>
+                                <span className="text-muted-foreground font-medium block">Father / Parent Name</span>
+                                <p className="font-semibold text-foreground mt-0.5">{fatherName || '-'}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground font-medium block">Mother Name</span>
+                                <p className="font-semibold text-foreground mt-0.5">{motherName || '-'}</p>
+                              </div>
+                            </>
+                          )}
+                          {(parentMobile || religion || caste) && (
+                            <>
+                              {parentMobile && (
+                                <div>
+                                  <span className="text-muted-foreground font-medium block">Parent Mobile</span>
+                                  <p className="font-semibold text-foreground mt-0.5">{parentMobile}</p>
+                                </div>
+                              )}
+                              {(religion || caste) && (
+                                <div>
+                                  <span className="text-muted-foreground font-medium block">Religion / Caste</span>
+                                  <p className="font-semibold text-foreground mt-0.5">{[religion, caste].filter(Boolean).join(' · ')}</p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {(abcId || debId) && (
+                            <div className="sm:col-span-2 flex flex-wrap gap-3 pt-1">
+                              {abcId && (
+                                <span className="px-2 py-0.5 rounded bg-muted font-mono text-[11px]">
+                                  <strong>ABC ID:</strong> {abcId}
+                                </span>
+                              )}
+                              {debId && (
+                                <span className="px-2 py-0.5 rounded bg-muted font-mono text-[11px]">
+                                  <strong>DEB ID:</strong> {debId}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2.5 border-t border-border/60">
+                          <span className="text-muted-foreground font-medium flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-primary/70 shrink-0" /> Present Address
+                          </span>
+                          <p className="font-semibold text-foreground mt-0.5 leading-relaxed">{fullAddress}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Card: Program & Session Info */}
+                    <div className="rounded-xl border bg-card shadow-2xs overflow-hidden flex flex-col">
+                      <div className="px-4 py-2.5 bg-muted/40 border-b flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-primary shrink-0" />
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">Program &amp; Session Info</h4>
+                      </div>
+                      <div className="p-4 space-y-3 text-xs flex-1">
+                        <div>
+                          <span className="text-muted-foreground font-medium block">University / Board</span>
+                          <p className="font-bold text-primary text-sm mt-0.5">
+                            {uniObj.name ? `${uniObj.name}${uniObj.code ? ` (${uniObj.code})` : ''}` : 'N/A'}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <span className="text-muted-foreground font-medium block">Degree Program</span>
+                            <p className="font-semibold text-foreground mt-0.5">
+                              {programObj.name || 'N/A'}{programObj.code ? ` (${programObj.code})` : ''}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground font-medium block">Admission Session</span>
+                            <p className="font-semibold text-foreground mt-0.5">{sessionObj.name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground font-medium block">Study Center</span>
+                            <p className="font-semibold text-foreground mt-0.5">
+                              {centerObj.name || 'N/A'}{centerObj.code ? ` (${centerObj.code})` : ''}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground font-medium block">Course Type &amp; Duration</span>
+                            <p className="font-semibold text-foreground mt-0.5">
+                              {courseTypeVal !== '-' ? `${courseTypeVal} · ` : ''}{durationVal}
+                            </p>
+                          </div>
+                          {(selectedStudent.specialisation || enrollment.specialisation) && (
+                            <div className="sm:col-span-2">
+                              <span className="text-muted-foreground font-medium block">Specialization</span>
+                              <p className="font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                                {selectedStudent.specialisation || enrollment.specialisation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2.5 border-t border-border/60 flex items-center justify-between flex-wrap gap-2 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-primary/70" /> Joined: <strong className="text-foreground">{joinDateVal}</strong>
+                          </span>
+                          {validUptoVal !== '-' && (
+                            <span>Valid Upto: <strong className="text-foreground">{validUptoVal}</strong></span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Future Payments & Installments */}
+                  <div className="rounded-xl border bg-card shadow-2xs overflow-hidden">
+                    <div className="px-4 py-2.5 bg-muted/40 border-b flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-primary" />
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">Fees &amp; Installment Schedule</h4>
+                      </div>
+                      {installments.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] font-semibold">
+                          {installments.filter(i => i.status === 'paid').length}/{installments.length} Paid
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      {fetchingInstallments ? (
+                        <div className="text-xs text-muted-foreground animate-pulse py-2">Loading installment schedules...</div>
+                      ) : installments.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">No installment schedule configured for this enrollment.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {installments.map((inst, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-muted/20 px-3.5 py-2.5 rounded-xl border text-xs hover:border-primary/30 transition-colors">
+                              <div>
+                                <span className="font-bold text-foreground block">{inst.name}</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  Due: {formatDateVal(inst.dueDate)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-black text-sm text-foreground">₹{Number(inst.amount || 0).toLocaleString('en-IN')}</span>
+                                {inst.status === 'paid' ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-semibold text-[10px] flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Paid
+                                  </Badge>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-semibold text-[10px] flex items-center gap-1">
+                                      <Clock className="w-3 h-3" /> Pending
+                                    </Badge>
+                                    {user?.role === 'center_admin' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-[11px] font-semibold text-primary hover:bg-primary/10 border-primary/30"
+                                        onClick={() => handlePayInstallmentClick(inst.name, inst.amount)}
+                                        disabled={payingInstallment}
+                                      >
+                                        Pay
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Educational History & Uploaded Documents */}
+                  {selectedStudent.enrollments && selectedStudent.enrollments.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Educational Details */}
+                      <div className="rounded-xl border bg-card shadow-2xs overflow-hidden flex flex-col">
+                        <div className="px-4 py-2.5 bg-muted/40 border-b flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4 text-primary" />
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">Educational History</h4>
+                        </div>
+                        <div className="p-4 flex-1">
+                          {enrollment.educationalDetails && enrollment.educationalDetails.length > 0 ? (
+                            <div className="space-y-2.5">
+                              {enrollment.educationalDetails.map((edu: any, idx: number) => (
+                                <div key={idx} className="bg-muted/20 p-3 rounded-xl border text-xs flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <span className="font-bold text-foreground block">{edu.qualification}</span>
+                                    <span className="text-muted-foreground truncate block">
+                                      {edu.boardUniversity || edu.institution || '-'} {edu.subject ? `(${edu.subject})` : ''}
+                                    </span>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <Badge variant="secondary" className="text-[10px] font-mono">
+                                      {edu.year || edu.passingYear || '-'} {edu.percentage ? `· ${edu.percentage}%` : ''}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">No educational credentials added.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Uploaded Documents */}
+                      <div className="rounded-xl border bg-card shadow-2xs overflow-hidden flex flex-col">
+                        <div className="px-4 py-2.5 bg-muted/40 border-b flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-primary" />
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">Uploaded Documents</h4>
+                          </div>
+                          {Array.isArray(enrollment.documents) && enrollment.documents.length > 0 && (
+                            <Badge variant="outline" className="text-[10px] font-semibold">
+                              {enrollment.documents.length} {enrollment.documents.length === 1 ? 'File' : 'Files'}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="p-4 flex-1">
+                          {enrollment.documents && enrollment.documents.length > 0 ? (
+                            <div className="space-y-2">
+                              {enrollment.documents.map((doc: any, idx: number) => (
+                                <div key={idx} className="flex flex-col gap-1.5 bg-muted/20 px-3 py-2.5 rounded-xl border text-xs hover:border-primary/30 transition-colors">
+                                  <div className="flex justify-between items-center gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                      <span className="font-semibold text-foreground truncate">{doc.name || doc.reqName || `Document ${idx + 1}`}</span>
+                                      {doc.status === 'approved' && <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] uppercase shrink-0">Approved</Badge>}
+                                      {doc.status === 'rejected' && <Badge className="bg-destructive/15 text-destructive text-[10px] uppercase shrink-0">Rejected</Badge>}
+                                    </div>
+                                    {doc.url && (
+                                      <a
+                                        href={doc.url.startsWith('/') || doc.url.startsWith('http') ? doc.url : `/uploads/${doc.url}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-semibold text-[11px] shrink-0 transition-colors"
+                                      >
+                                        <Eye className="w-3 h-3" /> View
+                                      </a>
+                                    )}
+                                  </div>
+                                  {doc.remarks && <p className="text-[11px] text-destructive pl-5">Remark: {doc.remarks}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">No documents uploaded.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Original Enrollment Info */}
-                {selectedStudent.enrollments && selectedStudent.enrollments.length > 0 && (
-                  <>
-                    {/* Educational Details */}
-                    <div className="border-t pt-4">
-                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-primary" /> Educational History
-                      </h4>
-                      {selectedStudent.enrollments[0].educationalDetails && selectedStudent.enrollments[0].educationalDetails.length > 0 ? (
-                        <div className="space-y-2">
-                          {selectedStudent.enrollments[0].educationalDetails.map((edu: any, idx: number) => (
-                            <div key={idx} className="bg-muted/10 p-3 rounded-lg border text-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                              <div className="col-span-1">
-                                <span className="text-xs text-muted-foreground block">Qualification</span>
-                                <span className="font-semibold">{edu.qualification}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-xs text-muted-foreground block">Board / University & Subject</span>
-                                <span className="font-medium">{edu.boardUniversity || edu.institution} {edu.subject ? `(${edu.subject})` : ''}</span>
-                              </div>
-                              <div className="col-span-1 text-right">
-                                <span className="text-xs text-muted-foreground block">Passing / %</span>
-                                <span className="font-medium">{edu.year || edu.passingYear} {edu.percentage ? `· ${edu.percentage}%` : ''}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No educational credentials added.</p>
-                      )}
-                    </div>
-
-                    {/* Uploaded Documents */}
-                    <div className="border-t pt-4">
-                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                        <FileText className="w-4 h-4 text-primary" /> Uploaded Documents
-                      </h4>
-                      {selectedStudent.enrollments[0].documents && selectedStudent.enrollments[0].documents.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3">
-                          {selectedStudent.enrollments[0].documents.map((doc: any, idx: number) => (
-                            <div key={idx} className="flex flex-col gap-2 bg-muted/10 p-3 rounded-lg border text-sm">
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2 truncate pr-2">
-                                  <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                  <span className="font-medium">{doc.name}</span>
-                                  {doc.status === 'approved' && <Badge className="bg-success/10 text-success text-[10px] uppercase">Approved</Badge>}
-                                  {doc.status === 'rejected' && <Badge className="bg-destructive/10 text-destructive text-[10px] uppercase">Rejected</Badge>}
-                                </div>
-                                <a
-                                  href={doc.url.startsWith('/') ? doc.url : `/uploads/${doc.url}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-primary hover:underline font-semibold flex-shrink-0"
-                                >
-                                  View
-                                </a>
-                              </div>
-                              {doc.remarks && <p className="text-xs text-destructive ml-6">Remark: {doc.remarks}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic bg-muted/10 p-3 rounded-lg border">No documents uploaded.</p>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setSelectedStudent(null)}>Close</Button>
-              </DialogFooter>
-            </>
-          )}
+                <DialogFooter className="px-6 py-3.5 bg-muted/30 border-t">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedStudent(null)}>Close</Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
