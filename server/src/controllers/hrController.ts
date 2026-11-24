@@ -42,8 +42,47 @@ export async function syncApprovedLeaveToAttendance(leave: {
     ? `Half Day (${typeLabel} Leave)${leave.reason ? ': ' + leave.reason : ''}`
     : `${typeLabel} Leave (Approved)${leave.reason ? ': ' + leave.reason : ''}`;
 
+  // Fetch organization holidays in range so Sundays and Holidays are never marked as 'leave'
+  const holidaysInRange = await prisma.holiday.findMany({
+    where: {
+      organizationId: leave.organizationId,
+      date: {
+        gte: cur,
+        lte: new Date(last.getTime() + 24 * 60 * 60 * 1000 - 1)
+      }
+    },
+    select: { date: true }
+  });
+  const holidayDates = new Set(
+    holidaysInRange.map(h => {
+      const hd = new Date(h.date);
+      return `${hd.getUTCFullYear()}-${String(hd.getUTCMonth() + 1).padStart(2, '0')}-${String(hd.getUTCDate()).padStart(2, '0')}`;
+    })
+  );
+
   while (cur.getTime() <= last.getTime()) {
     const dayDate = new Date(cur.getTime());
+    const dateKey = `${dayDate.getUTCFullYear()}-${String(dayDate.getUTCMonth() + 1).padStart(2, '0')}-${String(dayDate.getUTCDate()).padStart(2, '0')}`;
+    const isSunday = dayDate.getUTCDay() === 0;
+    const isHoliday = holidayDates.has(dateKey);
+
+    if (isSunday || isHoliday) {
+      // Do not mark Sundays or multi-day span Holidays as 'leave'; if a synthetic leave row without checkIn exists on Sunday or a multi-day span Holiday, remove it
+      const isMultiDay = last.getTime() > cur.getTime();
+      if (isSunday || (isMultiDay && isHoliday)) {
+        await prisma.attendance.deleteMany({
+          where: {
+            userId: leave.userId,
+            date: dayDate,
+            status: 'leave' as any,
+            checkIn: null
+          }
+        });
+        cur.setUTCDate(cur.getUTCDate() + 1);
+        continue;
+      }
+    }
+
     const existing = await prisma.attendance.findUnique({
       where: { userId_date: { userId: leave.userId, date: dayDate } }
     });
@@ -134,14 +173,30 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     });
   }
 
-  const leaves = await prisma.leaveRequest.findMany({
-    where: {
-      userId,
-      status: { in: ['pending', 'dept_approved', 'approved'] },
-      startDate: { lte: yearEnd },
-      endDate: { gte: yearStart }
-    }
-  });
+  const [leaves, orgHolidays] = await Promise.all([
+    prisma.leaveRequest.findMany({
+      where: {
+        userId,
+        status: { in: ['pending', 'dept_approved', 'approved'] },
+        startDate: { lte: yearEnd },
+        endDate: { gte: yearStart }
+      }
+    }),
+    prisma.holiday.findMany({
+      where: {
+        organizationId,
+        date: { gte: yearStart, lte: yearEnd }
+      },
+      select: { date: true }
+    })
+  ]);
+
+  const holidayKeySet = new Set(
+    orgHolidays.map(h => {
+      const hd = new Date(h.date);
+      return `${hd.getUTCFullYear()}-${String(hd.getUTCMonth() + 1).padStart(2, '0')}-${String(hd.getUTCDate()).padStart(2, '0')}`;
+    })
+  );
 
   const countDaysInRange = (lr: any, rangeStart: Date, rangeEnd: Date) => {
     const s = new Date(Math.max(new Date(lr.startDate).getTime(), rangeStart.getTime()));
@@ -150,7 +205,21 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     const eDay = Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate());
     if (eDay < sDay) return 0;
     if (lr.isHalfDay) return 0.5;
-    return Math.round((eDay - sDay) / (1000 * 60 * 60 * 24)) + 1;
+
+    let workingLeaveDays = 0;
+    const totalDaysSpan = Math.round((eDay - sDay) / (1000 * 60 * 60 * 24)) + 1;
+    const cur = new Date(sDay);
+    while (cur.getTime() <= eDay) {
+      const k = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
+      const isSunday = cur.getUTCDay() === 0;
+      const isHol = holidayKeySet.has(k);
+      // Exclude Sundays (and exclude multi-day span holidays) from leave deduction
+      if (!isSunday && !(totalDaysSpan > 1 && isHol)) {
+        workingLeaveDays += 1;
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return workingLeaveDays;
   };
 
   const buildTypeBalance = (typeKey: string, allocatedVal: number) => {

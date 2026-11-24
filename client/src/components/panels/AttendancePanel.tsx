@@ -41,6 +41,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
   
   const [attendance, setAttendance] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Employee Selection & Monthly Attendance States
@@ -71,8 +72,16 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
 
   useEffect(() => {
     fetchAttendance();
+    fetchHolidays();
     if (canViewAll) fetchEmployees();
   }, []);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await api.get('/hr/holidays');
+      setHolidays(res.data.data || []);
+    } catch (_e) {}
+  };
 
   useEffect(() => {
     if (selectedEmployeeId !== 'all') {
@@ -525,18 +534,35 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
       return employeeMonthlyAttendance.find(a => isSameDay(new Date(a.date), day));
     };
 
+    const getHolidayForDay = (day: Date) => {
+      return holidays.find(h => h.date && isSameDay(new Date(h.date), day));
+    };
+
     const monthlyPresent = employeeMonthlyAttendance.filter(
       a => a.status === 'present' || a.status === 'late' || a.status === 'work_from_home'
     ).length;
     const monthlyAbsent = employeeMonthlyAttendance.filter(a => a.status === 'absent').length;
-    const monthlyLeaves = employeeMonthlyAttendance.filter(a => a.status === 'leave').length;
+    const monthlyLeaves = employeeMonthlyAttendance.filter(a => {
+      if (a.status !== 'leave') return false;
+      const d = new Date(a.date);
+      if (getDay(d) === 0) return false;
+      return true;
+    }).length;
     const monthlyLate = employeeMonthlyAttendance.filter(a => a.isLate || a.status === 'late').length;
     const monthlyHalfDay = employeeMonthlyAttendance.filter(a => a.isHalfDay || a.status === 'half_day').length;
     const monthlyWFH = employeeMonthlyAttendance.filter(a => a.isWFH || a.status === 'work_from_home').length;
     const monthlyLateMins = employeeMonthlyAttendance.reduce((acc, a) => acc + (a.lateMinutes || 0), 0);
     const totalHours = employeeMonthlyAttendance.reduce((acc, a) => acc + (a.workingHours ? Number(a.workingHours) : 0), 0);
 
-    const getStatusStyle = (record: any, isFutureDate: boolean, isSunday: boolean) => {
+    const getStatusStyle = (record: any, isFutureDate: boolean, isSunday: boolean, holiday?: any) => {
+      // If it's a Sunday and there is no actual punch-in, always display Weekend
+      if (isSunday && (!record || (!record.checkIn && (record.status === 'leave' || record.status === 'absent')))) {
+        return { bg: 'bg-slate-500/5 border-slate-500/10 text-slate-500', label: 'Weekend', badge: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200' };
+      }
+      // If it's an organization Holiday and there is no record (or unpunched absent), display Holiday
+      if (holiday && (!record || (!record.checkIn && record.status === 'absent'))) {
+        return { bg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300', label: holiday.name || 'Holiday', badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border-indigo-200' };
+      }
       if (!record) {
         if (isFutureDate) return { bg: 'bg-muted/20 border-dashed border-border/40 text-muted-foreground/60', label: 'Upcoming', badge: 'bg-muted/40 text-muted-foreground border-border/40' };
         if (isSunday) return { bg: 'bg-slate-500/5 border-slate-500/10 text-slate-500', label: 'Weekend', badge: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200' };
@@ -786,10 +812,13 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                 ))}
                 {daysInMonth.map(day => {
                   const att = getAttendanceForDay(day);
+                  const holiday = getHolidayForDay(day);
                   const isToday = isSameDay(day, new Date());
                   const isSunday = getDay(day) === 0;
                   const isFuture = day > new Date();
-                  const style = getStatusStyle(att, isFuture, isSunday);
+                  const style = getStatusStyle(att, isFuture, isSunday, holiday);
+                  const showAsWeekendOrHolidayBadge = (isSunday && (!att || (!att.checkIn && (att.status === 'leave' || att.status === 'absent')))) ||
+                    (Boolean(holiday) && (!att || (!att.checkIn && att.status === 'absent')));
 
                   return (
                     <div
@@ -815,7 +844,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                         )}
                       </div>
 
-                      {att ? (
+                      {att && !showAsWeekendOrHolidayBadge ? (
                         <div className={cn("mt-1.5 p-1.5 rounded-md border text-[11px] space-y-0.5 shadow-xs", style.bg)}>
                           <div className="flex items-center justify-between font-bold text-[10px] uppercase tracking-wide">
                             <span>{style.label}</span>
@@ -884,10 +913,11 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                   <TableBody>
                     {daysInMonth.map((day) => {
                       const att = getAttendanceForDay(day);
+                      const holiday = getHolidayForDay(day);
                       const isToday = isSameDay(day, new Date());
                       const isSunday = getDay(day) === 0;
                       const isFuture = day > new Date();
-                      const style = getStatusStyle(att, isFuture, isSunday);
+                      const style = getStatusStyle(att, isFuture, isSunday, holiday);
 
                       return (
                         <TableRow key={day.toISOString()} className={cn(isToday && "bg-primary/5 font-medium")}>

@@ -13,10 +13,19 @@ export function AttendanceCalendarPanel() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
 
   useEffect(() => {
     fetchEmployees();
+    fetchHolidays();
   }, []);
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await api.get('/hr/holidays');
+      setHolidays(res.data.data || []);
+    } catch (_e) {}
+  };
 
   useEffect(() => {
     if (selectedEmployee !== 'all') {
@@ -61,6 +70,10 @@ export function AttendanceCalendarPanel() {
 
   const getAttendanceForDay = (day: Date) => {
     return attendanceData.find(a => isSameDay(new Date(a.date), day));
+  };
+
+  const getHolidayForDay = (day: Date) => {
+    return holidays.find(h => h.date && isSameDay(new Date(h.date), day));
   };
 
   const getStatusColor = (attendance: any) => {
@@ -159,8 +172,12 @@ export function AttendanceCalendarPanel() {
                 ))}
                 {days.map((day) => {
                   const att = getAttendanceForDay(day);
+                  const holiday = getHolidayForDay(day);
+                  const isSunday = getDay(day) === 0;
                   const colorClass = getStatusColor(att);
                   const isToday = isSameDay(day, new Date());
+                  const isWeekendNoPunch = isSunday && (!att || (!att.checkIn && (att.status === 'leave' || att.status === 'absent')));
+                  const isHolidayNoPunch = Boolean(holiday) && (!att || (!att.checkIn && att.status === 'absent'));
 
                   return (
                     <div
@@ -178,7 +195,15 @@ export function AttendanceCalendarPanel() {
                           {format(day, 'd')}
                         </span>
                       </div>
-                      {att ? (
+                      {isWeekendNoPunch ? (
+                        <div className="mt-auto text-[10px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 rounded px-1.5 py-0.5 text-center font-medium">
+                          Weekend
+                        </div>
+                      ) : isHolidayNoPunch ? (
+                        <div className="mt-auto text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 rounded px-1.5 py-0.5 text-center font-medium truncate" title={holiday?.name}>
+                          {holiday?.name || 'Holiday'}
+                        </div>
+                      ) : att ? (
                         <div className={`mt-auto text-[11px] p-1.5 rounded-md border ${colorClass} flex flex-col gap-0.5`}>
                           <span className="font-bold uppercase tracking-wider text-[10px]">{att.status === 'leave' ? 'ON LEAVE' : att.status}</span>
                           {att.checkIn && att.status !== 'absent' && att.status !== 'leave' && <span>In: {format(new Date(att.checkIn), 'HH:mm')}</span>}
