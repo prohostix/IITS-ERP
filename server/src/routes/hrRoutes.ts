@@ -11,6 +11,7 @@ import {
   hrApproveLeave,
   getLeaveStats,
   getMyLeaves,
+  getMyLeaveBalance,
   getVacancies,
   getVacancy,
   createVacancy,
@@ -81,6 +82,7 @@ router.use(protect);
 router.route('/leaves').get(getLeaveRequests).post(createLeaveRequest);
 router.route('/leaves/stats').get(authorize('hr_admin', 'dept_admin', 'ceo', 'org_admin', 'superadmin'), getLeaveStats);
 router.get('/leaves/my', getMyLeaves);
+router.get('/leaves/my-balance', getMyLeaveBalance);
 router.route('/leaves/:id')
   .get(getLeaveRequest)
   .put(updateLeaveRequest)

@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { syncApprovedLeaveToAttendance } from './hrController.js';
 
 async function evaluateLateFromCheckIn(
   organizationId: string | null | undefined,
@@ -187,6 +188,29 @@ export const getAttendances = asyncHandler(async (req: AuthRequest, res: Respons
         where.date.lte = new Date(Date.UTC(ed.getUTCFullYear(), ed.getUTCMonth(), ed.getUTCDate(), 23, 59, 59, 999));
       }
     }
+  }
+
+  // Auto-sync any approved leave requests in the requested range so approved leaves always appear as 'leave'
+  try {
+    const leaveWhere: any = {
+      organizationId: req.user.organizationId,
+      status: 'approved',
+    };
+    if (targetUser && targetUser !== 'all') {
+      leaveWhere.userId = targetUser as string;
+    }
+    if (where.date?.gte) {
+      leaveWhere.endDate = { gte: where.date.gte };
+    }
+    if (where.date?.lte) {
+      leaveWhere.startDate = { lte: where.date.lte };
+    }
+    const approvedLeaves = await prisma.leaveRequest.findMany({ where: leaveWhere });
+    for (const lr of approvedLeaves) {
+      await syncApprovedLeaveToAttendance(lr);
+    }
+  } catch (e) {
+    console.error('Failed to auto-sync approved leaves in getAttendances:', e);
   }
 
   const attendances = await prisma.attendance.findMany({ 
@@ -618,6 +642,15 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 export const getMyAttendance = asyncHandler(async (req: AuthRequest, res: Response) => {
+  try {
+    const approvedLeaves = await prisma.leaveRequest.findMany({
+      where: { userId: req.user.id, status: 'approved' }
+    });
+    for (const lr of approvedLeaves) {
+      await syncApprovedLeaveToAttendance(lr);
+    }
+  } catch (_e) {}
+
   const attendances = await prisma.attendance.findMany({ 
     where: { userId: req.user.id }, 
     include: { user: true },

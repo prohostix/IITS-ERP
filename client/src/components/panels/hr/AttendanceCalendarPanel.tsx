@@ -76,6 +76,7 @@ export function AttendanceCalendarPanel() {
   const presentCount = attendanceData.filter(
     a => a.status === 'present' || a.status === 'late' || a.status === 'work_from_home'
   ).length;
+  const leaveCount = attendanceData.filter(a => a.status === 'leave').length;
   const lateCount = attendanceData.filter(a => a.isLate || a.status === 'late').length;
   const halfDayCount = attendanceData.filter(a => a.isHalfDay || a.status === 'half_day').length;
   const wfhCount = attendanceData.filter(a => a.isWFH || a.status === 'work_from_home').length;
@@ -116,10 +117,14 @@ export function AttendanceCalendarPanel() {
         {selectedEmployee !== 'all' ? (
           <div className="space-y-6">
             {/* Monthly KPI Stats Strip (Req 39: SalaryBox style overview) */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
               <div className="p-3 rounded-xl border bg-green-500/10 border-green-500/20 text-center">
                 <p className="text-xs text-muted-foreground">Present Days</p>
                 <p className="text-xl font-bold text-green-600 dark:text-green-400">{presentCount}</p>
+              </div>
+              <div className="p-3 rounded-xl border bg-blue-500/10 border-blue-500/20 text-center">
+                <p className="text-xs text-muted-foreground">On Leave</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{leaveCount}</p>
               </div>
               <div className="p-3 rounded-xl border bg-amber-500/10 border-amber-500/20 text-center">
                 <p className="text-xs text-muted-foreground">Late Days</p>
@@ -133,7 +138,7 @@ export function AttendanceCalendarPanel() {
                 <p className="text-xs text-muted-foreground">Work From Home</p>
                 <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{wfhCount}</p>
               </div>
-              <div className="p-3 rounded-xl border bg-red-500/10 border-red-500/20 text-center col-span-2 sm:col-span-1">
+              <div className="p-3 rounded-xl border bg-red-500/10 border-red-500/20 text-center">
                 <p className="text-xs text-muted-foreground">Total Late Mins</p>
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">{totalLateMins}m</p>
               </div>
@@ -175,7 +180,7 @@ export function AttendanceCalendarPanel() {
                       </div>
                       {att ? (
                         <div className={`mt-auto text-[11px] p-1.5 rounded-md border ${colorClass} flex flex-col gap-0.5`}>
-                          <span className="font-bold uppercase tracking-wider text-[10px]">{att.status}</span>
+                          <span className="font-bold uppercase tracking-wider text-[10px]">{att.status === 'leave' ? 'ON LEAVE' : att.status}</span>
                           {att.checkIn && att.status !== 'absent' && att.status !== 'leave' && <span>In: {format(new Date(att.checkIn), 'HH:mm')}</span>}
                           {att.checkOut && att.status !== 'absent' && att.status !== 'leave' && <span>Out: {format(new Date(att.checkOut), 'HH:mm')}</span>}
                           {att.isLate && att.status !== 'absent' && att.status !== 'leave' && <span className="text-amber-600 dark:text-amber-400 font-medium">+{att.lateMinutes}m late</span>}

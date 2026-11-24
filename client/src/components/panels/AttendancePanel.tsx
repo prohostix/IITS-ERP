@@ -52,7 +52,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
   // Date Filtering & View Mode States
   const [dateFilter, setDateFilter] = useState<Date | undefined>(new Date());
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [statusTab, setStatusTab] = useState<'all' | 'present' | 'absent' | 'late'>('all');
+  const [statusTab, setStatusTab] = useState<'all' | 'present' | 'absent' | 'late' | 'leave'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Punch mode: both, checkInOnly, checkOutOnly, statusOnly
@@ -313,12 +313,15 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
     if (!isRecorded && status === 'absent') {
       return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-200">Not Checked In (Absent)</Badge>;
     }
+    if (status === 'leave') {
+      return <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/60 dark:text-blue-200">On Leave</Badge>;
+    }
     const variants: any = {
       present: 'bg-green-100 text-green-800 border-green-200',
       absent: 'bg-red-100 text-red-800 border-red-200',
       late: 'bg-amber-100 text-amber-800 border-amber-200',
-      half_day: 'bg-blue-100 text-blue-800 border-blue-200',
-      leave: 'bg-purple-100 text-purple-800 border-purple-200'
+      half_day: 'bg-orange-100 text-orange-800 border-orange-200',
+      leave: 'bg-blue-100 text-blue-800 border-blue-200'
     };
     return <Badge className={variants[status] || ''}>{status?.replace('_', ' ')}</Badge>;
   };
@@ -388,13 +391,15 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
   })();
 
   const presentCount = combinedRecords.filter(r => r.isRecorded && ['present', 'late', 'half_day'].includes(r.status)).length;
-  const absentCount = combinedRecords.filter(r => !r.isRecorded || r.status === 'absent').length;
+  const leaveCount = combinedRecords.filter(r => r.isRecorded && r.status === 'leave').length;
+  const absentCount = combinedRecords.filter(r => (!r.isRecorded || r.status === 'absent') && r.status !== 'leave').length;
   const lateCount = combinedRecords.filter(r => r.isRecorded && (r.isLate || r.status === 'late')).length;
 
   const filteredAttendance = combinedRecords.filter(rec => {
     if (statusTab === 'present' && (!rec.isRecorded || !['present', 'late', 'half_day'].includes(rec.status))) return false;
-    if (statusTab === 'absent' && (rec.isRecorded && rec.status !== 'absent')) return false;
+    if (statusTab === 'absent' && ((rec.isRecorded && rec.status !== 'absent') || rec.status === 'leave')) return false;
     if (statusTab === 'late' && (!rec.isRecorded || (!rec.isLate && rec.status !== 'late'))) return false;
+    if (statusTab === 'leave' && (!rec.isRecorded || rec.status !== 'leave')) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -1257,6 +1262,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                     <TabsList className="h-9">
                       <TabsTrigger value="all" className="text-xs">All ({combinedRecords.length})</TabsTrigger>
                       <TabsTrigger value="present" className="text-xs text-emerald-600 dark:text-emerald-400">Present ({presentCount})</TabsTrigger>
+                      <TabsTrigger value="leave" className="text-xs text-blue-600 dark:text-blue-400">On Leave ({leaveCount})</TabsTrigger>
                       <TabsTrigger value="absent" className="text-xs text-red-600 dark:text-red-400">Absent ({absentCount})</TabsTrigger>
                       <TabsTrigger value="late" className="text-xs text-amber-600 dark:text-amber-400">Late ({lateCount})</TabsTrigger>
                     </TabsList>
@@ -1322,7 +1328,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
               <CardHeader className="pb-3">
                 <CardTitle>{dateFilter ? format(dateFilter, "PPP") : 'All Dates'} Attendance</CardTitle>
                 <CardDescription>
-                  Showing {filteredAttendance.length} records • {presentCount} Present, {absentCount} Absent
+                  Showing {filteredAttendance.length} records • {presentCount} Present, {leaveCount} On Leave, {absentCount} Absent
                 </CardDescription>
               </CardHeader>
               <CardContent>

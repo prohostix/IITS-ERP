@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp, Paperclip, Upload } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronUp, Paperclip, Upload, HeartPulse, CalendarCheck2, Award, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,9 +60,31 @@ const DEPT_MANAGER_ROLES = [
   'org_admin', 'superadmin', 'ceo', 'general_manager'
 ];
 
+interface LeaveTypeBalance {
+  allocated: number;
+  isMonthlyQuota: boolean;
+  usedThisMonth: number;
+  pendingThisMonth: number;
+  availableThisMonth: number;
+  remainingAfterApproved: number;
+  usedThisYear: number;
+  pendingThisYear: number;
+}
+
+interface LeaveBalanceResponse {
+  year: number;
+  month: number;
+  monthLabel: string;
+  sick: LeaveTypeBalance;
+  casual: LeaveTypeBalance;
+  earned: LeaveTypeBalance;
+  compensatory: LeaveTypeBalance;
+}
+
 export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boolean }) {
   const { user } = useAuth();
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
@@ -103,8 +125,16 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
     try {
       // Employees only see their own leaves; managers/HR see all
       const endpoint = (isEmployee) ? '/hr/leaves/my' : '/hr/leaves';
-      const res = await api.get(endpoint);
+      const [res, balRes] = await Promise.all([
+        api.get(endpoint),
+        api.get('/hr/leaves/my-balance').catch(() => null),
+      ]);
       setLeaves(res.data.data || []);
+      if (res.data.balance) {
+        setLeaveBalance(res.data.balance);
+      } else if (balRes?.data?.data) {
+        setLeaveBalance(balRes.data.data);
+      }
     } catch {
       toast.error('Failed to fetch leave requests');
     } finally {
@@ -220,6 +250,145 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
           )}
         </div>
       </div>
+
+      {/* Available Leave Balances for Current Month */}
+      {leaveBalance && (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Available Leave Balance — {leaveBalance.monthLabel}
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              Monthly Quota & Usage
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Sick Leave Card */}
+            <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                      <HeartPulse className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Sick Leave</p>
+                      <p className="text-[11px] text-muted-foreground">Available this month</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                      {leaveBalance.sick.availableThisMonth}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {' '}/ {leaveBalance.sick.allocated}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+                  <span>Used this month: <strong className="text-foreground">{leaveBalance.sick.usedThisMonth}</strong></span>
+                  {leaveBalance.sick.pendingThisMonth > 0 ? (
+                    <span className="text-amber-600 font-medium">Pending: {leaveBalance.sick.pendingThisMonth}</span>
+                  ) : (
+                    <span>Remaining: <strong className="text-emerald-600">{leaveBalance.sick.availableThisMonth}</strong></span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Casual Leave Card */}
+            <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                      <CalendarCheck2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Casual Leave</p>
+                      <p className="text-[11px] text-muted-foreground">Available this month</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {leaveBalance.casual.availableThisMonth}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {' '}/ {leaveBalance.casual.allocated}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+                  <span>Used this month: <strong className="text-foreground">{leaveBalance.casual.usedThisMonth}</strong></span>
+                  {leaveBalance.casual.pendingThisMonth > 0 ? (
+                    <span className="text-amber-600 font-medium">Pending: {leaveBalance.casual.pendingThisMonth}</span>
+                  ) : (
+                    <span>Remaining: <strong className="text-emerald-600">{leaveBalance.casual.availableThisMonth}</strong></span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Earned Leave Card */}
+            <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Earned Leave</p>
+                      <p className="text-[11px] text-muted-foreground">Available balance</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {leaveBalance.earned.availableThisMonth}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {' '}/ {leaveBalance.earned.allocated}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+                  <span>Used this month: <strong className="text-foreground">{leaveBalance.earned.usedThisMonth}</strong></span>
+                  <span>Remaining: <strong className="text-emerald-600">{leaveBalance.earned.availableThisMonth}</strong></span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Compensatory Leave Card */}
+            <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Compensatory Off</p>
+                      <p className="text-[11px] text-muted-foreground">Available balance</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {leaveBalance.compensatory.availableThisMonth}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {' '}/ {leaveBalance.compensatory.allocated}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+                  <span>Used this month: <strong className="text-foreground">{leaveBalance.compensatory.usedThisMonth}</strong></span>
+                  <span>Remaining: <strong className="text-emerald-600">{leaveBalance.compensatory.availableThisMonth}</strong></span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -436,14 +605,32 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
               <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sick">Sick Leave</SelectItem>
-                  <SelectItem value="casual">Casual Leave</SelectItem>
-                  <SelectItem value="earned">Earned Leave</SelectItem>
+                  <SelectItem value="sick">
+                    Sick Leave {leaveBalance ? `(${leaveBalance.sick.availableThisMonth} available this month)` : ''}
+                  </SelectItem>
+                  <SelectItem value="casual">
+                    Casual Leave {leaveBalance ? `(${leaveBalance.casual.availableThisMonth} available this month)` : ''}
+                  </SelectItem>
+                  <SelectItem value="earned">
+                    Earned Leave {leaveBalance ? `(${leaveBalance.earned.availableThisMonth} available)` : ''}
+                  </SelectItem>
                   <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                  <SelectItem value="compensatory">Compensatory Off</SelectItem>
+                  <SelectItem value="compensatory">
+                    Compensatory Off {leaveBalance ? `(${leaveBalance.compensatory.availableThisMonth} available)` : ''}
+                  </SelectItem>
                   <SelectItem value="bereavement">Bereavement Leave</SelectItem>
                 </SelectContent>
               </Select>
+              {leaveBalance && (
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                  <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20">
+                    Sick Available: {leaveBalance.sick.availableThisMonth} / {leaveBalance.sick.allocated}
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20">
+                    Casual Available: {leaveBalance.casual.availableThisMonth} / {leaveBalance.casual.allocated}
+                  </Badge>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

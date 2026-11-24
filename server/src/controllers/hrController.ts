@@ -21,6 +21,192 @@ const mapLeaveRequest = (leave: any) => ({
   hrApprovedBy: leave.hrApprover ? { name: leave.hrApprover.name } : null,
 });
 
+export async function syncApprovedLeaveToAttendance(leave: {
+  id?: string;
+  userId: string;
+  organizationId: string;
+  type: string;
+  reason?: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  isHalfDay?: boolean | null;
+}) {
+  const start = new Date(leave.startDate);
+  const end = new Date(leave.endDate);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+
+  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 0, 0, 0, 0));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate(), 0, 0, 0, 0));
+  const typeLabel = leave.type ? leave.type.charAt(0).toUpperCase() + leave.type.slice(1) : 'Approved';
+  const noteText = leave.isHalfDay
+    ? `Half Day (${typeLabel} Leave)${leave.reason ? ': ' + leave.reason : ''}`
+    : `${typeLabel} Leave (Approved)${leave.reason ? ': ' + leave.reason : ''}`;
+
+  while (cur.getTime() <= last.getTime()) {
+    const dayDate = new Date(cur.getTime());
+    const existing = await prisma.attendance.findUnique({
+      where: { userId_date: { userId: leave.userId, date: dayDate } }
+    });
+
+    if (leave.isHalfDay) {
+      await prisma.attendance.upsert({
+        where: { userId_date: { userId: leave.userId, date: dayDate } },
+        update: {
+          status: 'half_day' as any,
+          isHalfDay: true,
+          notes: existing?.notes || noteText,
+        },
+        create: {
+          userId: leave.userId,
+          organizationId: leave.organizationId,
+          date: dayDate,
+          status: 'half_day' as any,
+          isHalfDay: true,
+          checkIn: null,
+          checkOut: null,
+          workingHours: 0,
+          isLate: false,
+          lateMinutes: 0,
+          notes: noteText,
+        }
+      });
+    } else {
+      // Only overwrite if no punch exists or if existing record was marked absent/leave
+      const hasRealPunch = existing && existing.checkIn && !['absent', 'leave'].includes(existing.status);
+      if (!hasRealPunch) {
+        await prisma.attendance.upsert({
+          where: { userId_date: { userId: leave.userId, date: dayDate } },
+          update: {
+            status: 'leave' as any,
+            checkIn: null,
+            checkOut: null,
+            workingHours: 0,
+            isLate: false,
+            lateMinutes: 0,
+            isHalfDay: false,
+            notes: noteText,
+          },
+          create: {
+            userId: leave.userId,
+            organizationId: leave.organizationId,
+            date: dayDate,
+            status: 'leave' as any,
+            checkIn: null,
+            checkOut: null,
+            workingHours: 0,
+            isLate: false,
+            lateMinutes: 0,
+            isHalfDay: false,
+            notes: noteText,
+          }
+        });
+      }
+    }
+
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+
+export async function computeUserLeaveBalance(userId: string, organizationId: string, refDate?: Date) {
+  const now = refDate || new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+  const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+  const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+  let allocation = await prisma.leaveAllocation.findUnique({
+    where: { userId_year: { userId, year } }
+  });
+
+  if (!allocation) {
+    allocation = await prisma.leaveAllocation.create({
+      data: {
+        userId,
+        organizationId,
+        year,
+        sickLeave: 2,
+        casualLeave: 2,
+        earnedLeave: 0,
+        complementaryLeave: 0
+      }
+    });
+  }
+
+  const leaves = await prisma.leaveRequest.findMany({
+    where: {
+      userId,
+      status: { in: ['pending', 'dept_approved', 'approved'] },
+      startDate: { lte: yearEnd },
+      endDate: { gte: yearStart }
+    }
+  });
+
+  const countDaysInRange = (lr: any, rangeStart: Date, rangeEnd: Date) => {
+    const s = new Date(Math.max(new Date(lr.startDate).getTime(), rangeStart.getTime()));
+    const e = new Date(Math.min(new Date(lr.endDate).getTime(), rangeEnd.getTime()));
+    const sDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+    const eDay = Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate());
+    if (eDay < sDay) return 0;
+    if (lr.isHalfDay) return 0.5;
+    return Math.round((eDay - sDay) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  const buildTypeBalance = (typeKey: string, allocatedVal: number) => {
+    let usedThisMonth = 0;
+    let pendingThisMonth = 0;
+    let usedThisYear = 0;
+    let pendingThisYear = 0;
+
+    for (const lr of leaves) {
+      if (lr.type !== typeKey) continue;
+      const mDays = countDaysInRange(lr, monthStart, monthEnd);
+      const yDays = countDaysInRange(lr, yearStart, yearEnd);
+      if (lr.status === 'approved') {
+        usedThisMonth += mDays;
+        usedThisYear += yDays;
+      } else {
+        pendingThisMonth += mDays;
+        pendingThisYear += yDays;
+      }
+    }
+
+    // If allocated <= 4, it represents a monthly allowance (e.g., 2 per month); otherwise yearly
+    const isMonthlyQuota = allocatedVal <= 4;
+    const effectiveUsed = isMonthlyQuota ? usedThisMonth : usedThisYear;
+    const effectivePending = isMonthlyQuota ? pendingThisMonth : pendingThisYear;
+    const availableThisMonth = Math.max(0, Number((allocatedVal - effectiveUsed - effectivePending).toFixed(1)));
+    const remainingAfterApproved = Math.max(0, Number((allocatedVal - effectiveUsed).toFixed(1)));
+
+    return {
+      allocated: allocatedVal,
+      isMonthlyQuota,
+      usedThisMonth,
+      pendingThisMonth,
+      availableThisMonth,
+      remainingAfterApproved,
+      usedThisYear,
+      pendingThisYear,
+    };
+  };
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  return {
+    year,
+    month: month + 1,
+    monthLabel: `${monthNames[month]} ${year}`,
+    sick: buildTypeBalance('sick', Number(allocation.sickLeave ?? 2)),
+    casual: buildTypeBalance('casual', Number(allocation.casualLeave ?? 0)),
+    earned: buildTypeBalance('earned', Number(allocation.earnedLeave ?? 0)),
+    compensatory: buildTypeBalance('compensatory', Number(allocation.complementaryLeave ?? 0)),
+  };
+}
+
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
   const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
   const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
@@ -148,45 +334,19 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
   
   // Skip balance check for unpaid and bereavement (or do custom check if needed)
   if (type !== 'unpaid' && type !== 'bereavement') {
-    const allocation = await prisma.leaveAllocation.findUnique({
-      where: { userId_year: { userId: req.user.id, year: currentYear } }
-    });
-
-    if (!allocation) {
-      return res.status(400).json({ success: false, message: 'Leave allocation not found for this year.' });
-    }
-
-    // Check previously approved/pending leaves
-    const usedLeaves = await prisma.leaveRequest.findMany({
-      where: { 
-        userId: req.user.id, 
-        type: type, 
-        startDate: { gte: new Date(`${currentYear}-01-01`) },
-        status: { in: ['pending', 'dept_approved', 'approved'] }
-      }
-    });
-
-    let usedDays = 0;
-    usedLeaves.forEach(l => {
-      if (l.isHalfDay) usedDays += 0.5;
-      else {
-        let diff = Math.abs(l.endDate.getTime() - l.startDate.getTime());
-        usedDays += Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-      }
-    });
-
-    const fieldMap: Record<string, string> = {
-      'sick': 'sickLeave',
-      'casual': 'casualLeave',
-      'earned': 'earnedLeave',
-      'compensatory': 'complementaryLeave'
-    };
-    
-    const balanceField = fieldMap[type];
-    if (balanceField) {
-      const allowed = (allocation as any)[balanceField];
-      if (usedDays + requiredDays > allowed) {
-        return res.status(400).json({ success: false, message: `Insufficient leave balance for ${type}. Allowed: ${allowed}, Used/Pending: ${usedDays}, Requested: ${requiredDays}` });
+    const balanceInfo = await computeUserLeaveBalance(req.user.id, req.user.organizationId, start);
+    const typeKey = type as 'sick' | 'casual' | 'earned' | 'compensatory';
+    const typeBal = (balanceInfo as any)[typeKey];
+    if (typeBal) {
+      const allowed = typeBal.allocated;
+      const usedAndPending = typeBal.isMonthlyQuota
+        ? (typeBal.usedThisMonth + typeBal.pendingThisMonth)
+        : (typeBal.usedThisYear + typeBal.pendingThisYear);
+      if (usedAndPending + requiredDays > allowed) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient ${type} leave balance for ${balanceInfo.monthLabel}. Allowed: ${allowed}, Used/Pending: ${usedAndPending}, Requested: ${requiredDays}`
+        });
       }
     }
   }
@@ -331,6 +491,15 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
     include: { user: { select: { name: true } } }
   });
 
+  // Automatically sync approved leave dates to the Attendance table so employee shows as 'On Leave' instead of 'Absent'
+  if (leave.status === 'approved') {
+    try {
+      await syncApprovedLeaveToAttendance(leave);
+    } catch (err) {
+      console.error('Failed to sync approved leave to attendance:', err);
+    }
+  }
+
   // Notify the employee
   try {
     const actionLabel = action === 'approve' ? (isHr ? 'fully approved' : 'approved by department') : 'rejected';
@@ -368,18 +537,27 @@ export const getLeaveStats = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: stats });
 });
 export const getMyLeaves = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const leaves = await prisma.leaveRequest.findMany({ 
-    where: { userId: req.user.id },
-    include: { 
-      user: { select: { name: true, email: true, designation: true } },
-      department: { select: { name: true } },
-      deptApprover: { select: { name: true } },
-      hrApprover: { select: { name: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  const [leaves, balance] = await Promise.all([
+    prisma.leaveRequest.findMany({ 
+      where: { userId: req.user.id },
+      include: { 
+        user: { select: { name: true, email: true, designation: true } },
+        department: { select: { name: true } },
+        deptApprover: { select: { name: true } },
+        hrApprover: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    computeUserLeaveBalance(req.user.id, req.user.organizationId)
+  ]);
   const mappedLeaves = leaves.map(mapLeaveRequest);
-  res.json({ success: true, data: mappedLeaves });
+  res.json({ success: true, data: mappedLeaves, balance });
+});
+
+export const getMyLeaveBalance = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const targetUserId = (req.query.userId as string) || req.user.id;
+  const balance = await computeUserLeaveBalance(targetUserId, req.user.organizationId);
+  res.json({ success: true, data: balance });
 });
 
 // --- Vacancies ---
