@@ -418,12 +418,14 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
 
     // Provision wallet if active
     if (initialStatus === 'active') {
-      await tx.studyCenterWallet.create({
-        data: {
-          centerId: center.id,
-          balance: 0,
-          status: 'active'
-        }
+      await tx.studyCenterWallet.upsert({
+        where: { studyCenterId: center.id },
+        create: {
+          studyCenterId: center.id,
+          organizationId: req.user.organizationId,
+          balance: 0
+        },
+        update: {}
       });
     }
 
@@ -540,10 +542,14 @@ export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
   }
 
   await prisma.$transaction(async (tx) => {
-    // 1. Unlink universities
+    // 1. Unlink universities, programs, and sub-departments
     await tx.studyCenter.update({
       where: { id: req.params.id },
-      data: { universities: { set: [] } }
+      data: {
+        associatedUniversities: { set: [] },
+        allowedPrograms: { set: [] },
+        assignedSubDepts: { set: [] }
+      }
     });
 
     // 2. Unlink any users tied to this study center
@@ -552,12 +558,13 @@ export const deleteStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       data: { studyCenterId: null }
     });
 
-    // 3. Delete center assignments & commissions & wallet
-    await tx.centerUniversityAssignment.deleteMany({ where: { centerId: req.params.id } });
-    await tx.centerProgramAssignment.deleteMany({ where: { centerId: req.params.id } });
-    await tx.centerCommissionConfig.deleteMany({ where: { studyCenterId: req.params.id } });
-    await tx.walletTransaction.deleteMany({ where: { studyCenterId: req.params.id } });
-    await tx.centerWallet.deleteMany({ where: { studyCenterId: req.params.id } });
+    // 3. Delete center allocations, top-ups, and wallet
+    await tx.universityAllocation.deleteMany({ where: { centerId: req.params.id } });
+    await tx.programAllocation.deleteMany({ where: { centerId: req.params.id } });
+    await tx.commissionOut.deleteMany({ where: { studyCenterId: req.params.id } });
+    await tx.walletTopUp.deleteMany({ where: { studyCenterId: req.params.id } });
+    await tx.enrollmentPayment.deleteMany({ where: { studyCenterId: req.params.id } });
+    await tx.studyCenterWallet.deleteMany({ where: { studyCenterId: req.params.id } });
 
     // 4. Delete invoices if any remaining with 0 students
     await tx.invoice.deleteMany({ where: { centerId: req.params.id } });
@@ -585,14 +592,14 @@ export const approveStudyCenter = asyncHandler(async (req: AuthRequest, res: Res
 
     // Ensure wallet exists
     const existingWallet = await tx.studyCenterWallet.findUnique({
-      where: { centerId: sc.id }
+      where: { studyCenterId: sc.id }
     });
     if (!existingWallet) {
       await tx.studyCenterWallet.create({
         data: {
-          centerId: sc.id,
-          balance: 0,
-          status: 'active'
+          studyCenterId: sc.id,
+          organizationId: sc.organizationId || req.user.organizationId,
+          balance: 0
         }
       });
     }
@@ -964,14 +971,14 @@ export const verifyCenter = asyncHandler(async (req: AuthRequest, res: Response)
 
     if (isDirectActivate) {
       const existingWallet = await tx.studyCenterWallet.findUnique({
-        where: { centerId: sc.id }
+        where: { studyCenterId: sc.id }
       });
       if (!existingWallet) {
         await tx.studyCenterWallet.create({
           data: {
-            centerId: sc.id,
-            balance: 0,
-            status: 'active'
+            studyCenterId: sc.id,
+            organizationId: sc.organizationId || req.user.organizationId,
+            balance: 0
           }
         });
       }

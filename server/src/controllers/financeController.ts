@@ -684,14 +684,14 @@ export const financeVerifyCenter = asyncHandler(async (req: AuthRequest, res: Re
 
     if (isApproved) {
       const existingWallet = await tx.studyCenterWallet.findUnique({
-        where: { centerId: sc.id }
+        where: { studyCenterId: sc.id }
       });
       if (!existingWallet) {
         await tx.studyCenterWallet.create({
           data: {
-            centerId: sc.id,
-            balance: 0,
-            status: 'active'
+            studyCenterId: sc.id,
+            organizationId: sc.organizationId || req.user.organizationId,
+            balance: 0
           }
         });
       }
@@ -763,12 +763,14 @@ export const createStudyCenter = asyncHandler(async (req: AuthRequest, res: Resp
       }
     });
 
-    await tx.studyCenterWallet.create({
-      data: {
-        centerId: center.id,
-        balance: 0,
-        status: 'active'
-      }
+    await tx.studyCenterWallet.upsert({
+      where: { studyCenterId: center.id },
+      create: {
+        studyCenterId: center.id,
+        organizationId: req.user.organizationId,
+        balance: 0
+      },
+      update: {}
     });
 
     const user = await tx.user.create({
