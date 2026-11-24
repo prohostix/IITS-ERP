@@ -397,22 +397,31 @@ export const approveSalesEnrollmentFinance = asyncHandler(async (req: AuthReques
   });
 
   // Create/find User
-  let user = await prisma.user.findUnique({ where: { email: enrollment.studentEmail } });
+  const studentEmail = (enrollment.studentEmail || '').trim().toLowerCase();
+  let user = await prisma.user.findFirst({
+    where: { email: { equals: studentEmail, mode: 'insensitive' } }
+  });
   if (!user) {
     const rawPassword = 'password123';
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
     const userId = `STD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    user = await prisma.user.create({
-      data: {
-        userId,
-        email: enrollment.studentEmail,
-        password: hashedPassword,
-        name: enrollment.studentName,
-        role: 'student',
-        organizationId: req.user.organizationId,
-        status: 'active'
-      }
-    });
+    try {
+      user = await prisma.user.create({
+        data: {
+          userId,
+          email: studentEmail,
+          password: hashedPassword,
+          name: enrollment.studentName,
+          role: 'student',
+          organizationId: req.user.organizationId,
+          status: 'active'
+        }
+      });
+    } catch {
+      user = await prisma.user.findFirst({
+        where: { email: { equals: studentEmail, mode: 'insensitive' } }
+      });
+    }
   }
 
   // Generate a fresh unique enrollment number for this enrollment record

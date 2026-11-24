@@ -77,6 +77,21 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
     }
   }
 
+  // Clean and normalize email
+  if (userData.email) {
+    userData.email = userData.email.trim().toLowerCase();
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: userData.email, mode: 'insensitive' } }
+    });
+    if (existingUser) {
+      res.status(400).json({
+        success: false,
+        message: `A user with email "${userData.email}" already exists.`
+      });
+      return;
+    }
+  }
+
   // Generate userId and hash password if not provided
   if (!userData.userId) {
     userData.userId = await generateUserId();
@@ -86,9 +101,21 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
     userData.password = await hashPassword(userData.password);
   }
 
-  let user = await prisma.user.create({
-    data: userData
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: userData
+    });
+  } catch (err: any) {
+    if (err.code === 'P2002' || err.message?.includes('Unique constraint')) {
+      res.status(400).json({
+        success: false,
+        message: `A user with email "${userData.email}" already exists.`
+      });
+      return;
+    }
+    throw err;
+  }
 
   // Automatically place the hired user into the open position on the Org Chart, set reportingTo, and create EmployeeProfile
   if (vacancy || userData.designationId || userData.designation) {
@@ -132,6 +159,13 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
       });
       if (matchingReq) {
         const empProfile = await prisma.employeeProfile.findUnique({ where: { userId: user.id } });
+        let canLinkEmp = false;
+        if (empProfile) {
+          const existingCandidateWithEmp = await prisma.candidate.findUnique({ where: { employeeId: empProfile.id } });
+          if (!existingCandidateWithEmp) {
+            canLinkEmp = true;
+          }
+        }
         await prisma.candidate.create({
           data: {
             organizationId: user.organizationId,
@@ -141,7 +175,7 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
             phone: user.phone || '',
             status: 'joined' as any,
             joinDate: new Date(),
-            ...(empProfile ? { employeeId: empProfile.id } : {})
+            ...(canLinkEmp && empProfile ? { employeeId: empProfile.id } : {})
           }
         });
         const totalJoined = (matchingReq.candidates || []).filter((c: any) =>
@@ -186,6 +220,24 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
   for (const key of allowedFields) {
     if (req.body[key] !== undefined) {
       updateData[key] = req.body[key];
+    }
+  }
+
+  // If email is being updated, normalize and check uniqueness
+  if (updateData.email) {
+    updateData.email = updateData.email.trim().toLowerCase();
+    const duplicate = await prisma.user.findFirst({
+      where: {
+        id: { not: req.params.id },
+        email: { equals: updateData.email, mode: 'insensitive' }
+      }
+    });
+    if (duplicate) {
+      res.status(400).json({
+        success: false,
+        message: `Another user with email "${updateData.email}" already exists.`
+      });
+      return;
     }
   }
 

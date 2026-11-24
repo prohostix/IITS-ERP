@@ -148,6 +148,8 @@ export function VacanciesPanel() {
         : selectedVacancy.departmentId;
       await api.post('/users', {
         ...hireFormData,
+        name: hireFormData.name.trim(),
+        email: hireFormData.email.trim().toLowerCase(),
         departmentId: deptId,
         designation: selectedVacancy.designation,
         vacancyId: selectedVacancy.id,

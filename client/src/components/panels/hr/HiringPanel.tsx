@@ -97,9 +97,9 @@ export function HiringPanel() {
     try {
       await api.post('/hiring/candidates', {
         hiringRequestId: selectedRequest.id,
-        name: candidateForm.name,
-        email: candidateForm.email,
-        phone: candidateForm.phone,
+        name: candidateForm.name.trim(),
+        email: candidateForm.email.trim().toLowerCase(),
+        phone: candidateForm.phone.trim(),
         hireImmediately: candidateForm.hireImmediately,
         password: candidateForm.password || 'password123',
         role: candidateForm.role,

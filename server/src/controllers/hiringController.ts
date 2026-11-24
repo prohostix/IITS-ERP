@@ -176,13 +176,18 @@ export const addCandidate = async (req: AuthRequest, res: Response) => {
     const { hiringRequestId, name, email, phone, offerLetterUrl, hireImmediately, password, role, joinDate, employmentRole } = req.body;
     const organizationId = req.user.organizationId;
 
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return res.status(400).json({ success: false, message: 'Valid candidate email is required.' });
+    }
+
     const candidate = await prisma.candidate.create({
       data: {
         organizationId,
         hiringRequestId,
-        name,
-        email,
-        phone: phone || '',
+        name: (name || '').trim(),
+        email: cleanEmail,
+        phone: (phone || '').trim(),
         offerLetterUrl,
         status: 'offer_sent'
       }
@@ -228,29 +233,40 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
     if (!candidate) throw new Error('Candidate not found');
 
     if (status === 'joined' && !candidate.employeeId) {
+      const cleanEmail = (candidate.email || '').trim().toLowerCase();
       const passwordHash = await bcrypt.hash(password || 'password123', 10);
       const empCode = `EMP-${Date.now().toString().slice(-6)}`;
 
-      // Check if user with this email already exists
+      // Check if user with this email already exists (case-insensitive)
       let targetUser = await prisma.user.findFirst({
-        where: { email: candidate.email }
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } }
       });
 
       if (!targetUser) {
-        targetUser = await prisma.user.create({
-          data: {
-            organizationId,
-            userId: empCode,
-            name: candidate.name,
-            email: candidate.email,
-            phone: candidate.phone || null,
-            password: passwordHash,
-            role: (role as any) || 'employee',
-            departmentId: candidate.hiringRequest.departmentId,
-            designation: candidate.hiringRequest.title,
-            status: 'active'
+        try {
+          targetUser = await prisma.user.create({
+            data: {
+              organizationId,
+              userId: empCode,
+              name: candidate.name,
+              email: cleanEmail,
+              phone: candidate.phone || null,
+              password: passwordHash,
+              role: (role as any) || 'employee',
+              departmentId: candidate.hiringRequest.departmentId,
+              designation: candidate.hiringRequest.title,
+              status: 'active'
+            }
+          });
+        } catch (e: any) {
+          // If collision or concurrent creation, re-fetch
+          targetUser = await prisma.user.findFirst({
+            where: { email: { equals: cleanEmail, mode: 'insensitive' } }
+          });
+          if (!targetUser) {
+            throw new Error(`Failed to create user: ${e.message}`);
           }
-        });
+        }
       }
 
       // Assign hired user to the open position on the Org Chart & set reportingTo + EmployeeProfile
@@ -268,7 +284,13 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
         where: { userId: targetUser.id }
       });
       if (empProfile) {
-        updateData.employeeId = empProfile.id;
+        // Only set employeeId on candidate if not already linked to another candidate record
+        const existingCandidateWithEmp = await prisma.candidate.findUnique({
+          where: { employeeId: empProfile.id }
+        });
+        if (!existingCandidateWithEmp || existingCandidateWithEmp.id === candidate.id) {
+          updateData.employeeId = empProfile.id;
+        }
       }
 
       // Update corresponding open Vacancy count if present

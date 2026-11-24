@@ -285,22 +285,31 @@ export const createStudent = asyncHandler(async (req: AuthRequest, res: Response
   }
 
   // Create User if not exists
-  let user = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = email.trim().toLowerCase();
+  let user = await prisma.user.findFirst({
+    where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
+  });
   if (!user) {
     const rawPassword = 'password123';
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
     const userId = `STD-${Date.now()}`;
-    user = await prisma.user.create({
-      data: {
-        userId,
-        email,
-        password: hashedPassword,
-        name: finalName,
-        role: 'student',
-        organizationId: req.user.organizationId,
-        status: 'active'
-      }
-    });
+    try {
+      user = await prisma.user.create({
+        data: {
+          userId,
+          email: normalizedEmail,
+          password: hashedPassword,
+          name: finalName,
+          role: 'student',
+          organizationId: req.user.organizationId,
+          status: 'active'
+        }
+      });
+    } catch {
+      user = await prisma.user.findFirst({
+        where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
+      });
+    }
   }
 
   // Check if Student already exists
