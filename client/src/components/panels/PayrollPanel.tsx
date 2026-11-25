@@ -277,10 +277,17 @@ export function PayrollPanel({ isEmployeeView: isEmployeeViewProp = false }: Pay
       if (element) {
         html2pdf()
           .set({
-            margin: 10,
-            filename: `Payslip_${p.month}_${p.employeeId?.name || 'Employee'}.pdf`,
+            margin: [8, 8, 8, 8],
+            filename: `Payslip_${p.month}_${p.employeeId?.name || p.user?.name || 'Employee'}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              width: 710,
+              windowWidth: 710,
+              scrollX: 0,
+              scrollY: 0,
+            },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           })
           .from(element)
@@ -701,13 +708,16 @@ export function PayrollPanel({ isEmployeeView: isEmployeeViewProp = false }: Pay
       </Tabs>
 
       {/* Offscreen PDF Container */}
-      <div style={{ position: 'fixed', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', left: '-10000px', top: 0, width: '710px', pointerEvents: 'none', zIndex: -1 }}>
         {pdfPayroll && (
           <PayslipDocument
             payroll={{
               ...pdfPayroll,
               createdAt: pdfPayroll.createdAt || new Date().toISOString(),
-              user: pdfPayroll.employeeId?.userId || pdfPayroll.employeeId || pdfPayroll.user,
+              user:
+                (typeof pdfPayroll.user === 'object' && pdfPayroll.user) ||
+                (typeof pdfPayroll.employeeId === 'object' && pdfPayroll.employeeId) ||
+                undefined,
             }}
           />
         )}
