@@ -1082,13 +1082,15 @@ export const biometricSync = asyncHandler(async (req: AuthRequest, res: Response
 export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
     const { date, departmentId } = req.query;
-    const targetDate = date ? new Date(date as string) : new Date();
+    const dateStr = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? date
+      : new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const [yy, mm, dd] = dateStr.split('-').map(Number);
 
-    const startOfDay = new Date(targetDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(targetDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    const startOfDay = new Date(Date.UTC(yy, mm - 1, dd, 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(yy, mm - 1, dd, 23, 59, 59, 999));
+    // Include IST midnight (prev day 18:30 UTC) in attendance lookup
+    const attQueryStart = new Date(startOfDay.getTime() - 6 * 60 * 60 * 1000);
 
     const userWhere: any = {
       organizationId: req.user.organizationId,
@@ -1100,28 +1102,51 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
       userWhere.departmentId = departmentId as string;
     }
 
-    const users = await prisma.user.findMany({
-      where: userWhere,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        designation: true,
-        avatar: true,
-        department: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } },
-        attendances: {
-          where: { date: { gte: startOfDay, lte: endOfDay } },
-          take: 1,
+    const [hrSettings, users] = await Promise.all([
+      req.user.organizationId
+        ? prisma.hRSettings.findFirst({ where: { organizationId: req.user.organizationId } })
+        : Promise.resolve(null),
+      prisma.user.findMany({
+        where: userWhere,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          designation: true,
+          avatar: true,
+          department: { select: { id: true, name: true } },
+          branch: { select: { id: true, name: true } },
+          attendances: {
+            where: { date: { gte: attQueryStart, lte: endOfDay } },
+            orderBy: { date: 'desc' },
+          },
         },
-      },
-      orderBy: { name: 'asc' },
-    });
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    const oh = parseJsonObj(hrSettings?.officeHours, DEFAULT_HR_SETTINGS.officeHours);
+    const inMins = parseTimeMinutes(oh?.checkInTime || '09:00', 9, 0);
+    const outMins = parseTimeMinutes(oh?.checkOutTime || '18:00', 18, 0);
+    const rawSpanMins = outMins >= inMins ? outMins - inMins : outMins + 1440 - inMins;
+    const scheduledHours = Number((Math.max(240, rawSpanMins) / 60).toFixed(2));
+    const breakMinutes = Number(oh?.breakDurationMinutes ?? 60) || 0;
 
     const userIds = users.map((u) => u.id);
 
-    const [tasksCompleted, tasksUpdated, leadsCreated, enrollmentsCreated, auditLogs] = await Promise.all([
+    const [allUserTasks, tasksCompleted, tasksUpdated, leadsCreated, enrollmentsCreated, auditLogs] = await Promise.all([
+      prisma.task.findMany({
+        where: {
+          organizationId: req.user.organizationId,
+          assignedTo: { in: userIds },
+          OR: [
+            { status: { in: ['pending', 'in_progress'] } },
+            { completedAt: { gte: startOfDay, lte: endOfDay } },
+          ],
+        },
+        select: { id: true, title: true, status: true, priority: true, dueDate: true, assignedTo: true, completedAt: true },
+      }),
       prisma.task.groupBy({
         by: ['assignedTo'],
         where: {
@@ -1170,21 +1195,128 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
       }),
     ]);
 
+    const tasksByUser = new Map<string, any[]>();
+    for (const t of allUserTasks) {
+      if (!t.assignedTo) continue;
+      if (!tasksByUser.has(t.assignedTo)) tasksByUser.set(t.assignedTo, []);
+      tasksByUser.get(t.assignedTo)!.push(t);
+    }
+
     const tcMap = new Map(tasksCompleted.map((i) => [i.assignedTo, i._count.id]));
     const tuMap = new Map(tasksUpdated.map((i) => [i.assignedTo, i._count.id]));
     const lcMap = new Map(leadsCreated.map((i) => [i.referredBy, i._count.id]));
     const ecMap = new Map(enrollmentsCreated.map((i) => [i.salesUserId, i._count.id]));
     const alMap = new Map(auditLogs.map((i) => [i.userId, i._count.id]));
 
+    const nowTs = Date.now();
+    const deptBuckets = new Map<
+      string,
+      {
+        departmentId: string;
+        name: string;
+        totalEmployees: number;
+        present: number;
+        absent: number;
+        late: number;
+        totalProductiveHours: number;
+        totalErpActions: number;
+        totalTasksCompleted: number;
+      }
+    >();
+
     const report = users.map((u) => {
-      const att = u.attendances[0] || null;
+      // Match attendance whose IST calendar date equals dateStr
+      const att =
+        u.attendances.find((a: any) => {
+          const d = new Date(a.date);
+          const adj =
+            d.getUTCHours() === 18 && d.getUTCMinutes() === 30
+              ? new Date(d.getTime() + 5.5 * 60 * 60 * 1000)
+              : d;
+          return adj.toISOString().slice(0, 10) === dateStr;
+        }) || null;
+
       const tc = tcMap.get(u.id) || 0;
       const tu = tuMap.get(u.id) || 0;
       const lc = lcMap.get(u.id) || 0;
       const ec = ecMap.get(u.id) || 0;
       const al = alMap.get(u.id) || 0;
+      const totalErp = tc + tu + lc + ec + al;
+
+      const erpActivity: Record<string, number> = {};
+      if (tc > 0) erpActivity['Tasks Completed'] = tc;
+      if (tu > 0) erpActivity['Tasks Updated'] = tu;
+      if (lc > 0) erpActivity['Leads Created'] = lc;
+      if (ec > 0) erpActivity['Enrollments'] = ec;
+      if (al > 0) erpActivity['System Actions'] = al;
+
+      const userTaskList = tasksByUser.get(u.id) || [];
+      const inProgressCount = userTaskList.filter((t) => t.status === 'in_progress').length;
+      const overdueCount = userTaskList.filter(
+        (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate).getTime() < nowTs
+      ).length;
+
+      const rawWorkHrs = Number(att?.workingHours || 0);
+      const breakHrs = rawWorkHrs > 4 ? breakMinutes / 60 : 0;
+      const productiveHours =
+        att && att.status !== 'absent' && att.status !== 'leave'
+          ? Math.max(0, Number((rawWorkHrs - breakHrs).toFixed(2)))
+          : 0;
+      const netScheduled = Math.max(0, Number((scheduledHours - breakMinutes / 60).toFixed(2)));
+      const timeWasted =
+        att && att.checkIn && att.status !== 'absent' && att.status !== 'leave'
+          ? Math.max(0, Number((netScheduled - productiveHours).toFixed(2)))
+          : null;
+
+      const deptId = u.department?.id || 'unassigned';
+      const deptName = u.department?.name || 'Unassigned';
+      if (!deptBuckets.has(deptId)) {
+        deptBuckets.set(deptId, {
+          departmentId: deptId,
+          name: deptName,
+          totalEmployees: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          totalProductiveHours: 0,
+          totalErpActions: 0,
+          totalTasksCompleted: 0,
+        });
+      }
+      const bucket = deptBuckets.get(deptId)!;
+      bucket.totalEmployees += 1;
+      if (!att || att.status === 'absent') {
+        bucket.absent += 1;
+      } else if (att.status !== 'leave') {
+        bucket.present += 1;
+        if (att.isLate || att.status === 'late') bucket.late += 1;
+      }
+      bucket.totalProductiveHours += productiveHours;
+      bucket.totalErpActions += totalErp;
+      bucket.totalTasksCompleted += tc;
 
       return {
+        userId: u.id,
+        name: u.name || u.email || 'Unknown',
+        email: u.email || '',
+        role: u.role || '',
+        designation: u.designation || '',
+        department: deptName,
+        departmentId: u.department?.id || null,
+        attendance: att,
+        productiveHours,
+        scheduledHours: netScheduled,
+        timeWasted,
+        breakMinutes,
+        erpActions: totalErp,
+        erpActivity,
+        tasks: {
+          total: userTaskList.length,
+          completedToday: tc,
+          inProgress: inProgressCount,
+          overdue: overdueCount,
+          list: userTaskList,
+        },
         user: {
           id: u.id,
           name: u.name,
@@ -1195,19 +1327,38 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
           department: u.department,
           branch: u.branch,
         },
-        attendance: att,
         metrics: {
           tasksCompleted: tc,
           tasksInProgress: tu,
           leadsCreated: lc,
           enrollmentsSubmitted: ec,
           systemActions: al,
-          totalActivities: tc + tu + lc + ec + al,
+          totalActivities: totalErp,
         },
       };
     });
 
-    res.json({ success: true, count: report.length, data: report });
+    const departments = Array.from(deptBuckets.values()).map((b) => ({
+      departmentId: b.departmentId,
+      name: b.name,
+      totalEmployees: b.totalEmployees,
+      present: b.present,
+      absent: b.absent,
+      late: b.late,
+      avgProductiveHours:
+        b.present > 0 ? Number((b.totalProductiveHours / b.present).toFixed(2)) : 0,
+      totalErpActions: b.totalErpActions,
+      totalTasksCompleted: b.totalTasksCompleted,
+    }));
+
+    res.json({
+      success: true,
+      count: report.length,
+      scheduledHours,
+      breakMinutes,
+      departments,
+      data: report,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Failed to generate activity report' });
   }
