@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
     breakEndTime: '14:00',
     breakDurationMinutes: 60,
     dayOverrides: [] as any[],
+    sandwichRuleEnabled: false,
   },
   latePolicy: {
     maxLateMinutesPerMonth: 60,
@@ -502,6 +503,28 @@ export function HRSettingsPanel() {
                     <Input type="number" min="0" max="180" value={settings.officeHours.breakDurationMinutes ?? 60}
                       onChange={e => setHours({ breakDurationMinutes: Number(e.target.value) })} />
                   </div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t">
+                <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl bg-muted/40 border">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">Sandwich Rule (Weekly Offs &amp; Holidays)</p>
+                      <Badge variant={settings.officeHours.sandwichRuleEnabled ? 'destructive' : 'secondary'} className="text-[10px]">
+                        {settings.officeHours.sandwichRuleEnabled ? 'Enabled' : 'Disabled (Default)'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {settings.officeHours.sandwichRuleEnabled
+                        ? 'Sundays and National/Company holidays are unpaid (LOP) if the employee is absent on both the preceding and following working days.'
+                        : 'All Sundays and National/Company holidays are paid for any employee who worked at least 1 day in the month (excluding pre-joining and post-resignation days).'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={Boolean(settings.officeHours.sandwichRuleEnabled)}
+                    onCheckedChange={v => setHours({ sandwichRuleEnabled: v })}
+                  />
                 </div>
               </div>
             </CardContent>

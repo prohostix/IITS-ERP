@@ -15,6 +15,7 @@ const DEFAULT_HR_SETTINGS = {
     breakEndTime: '14:00',
     breakDurationMinutes: 60,
     dayOverrides: [],
+    sandwichRuleEnabled: false,
   },
   latePolicy: {
     maxLateMinutesPerMonth: 60,

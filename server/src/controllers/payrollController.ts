@@ -528,6 +528,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
   let defaultBreakMins = 60;
   let defaultGraceMinutes = 15;
   let dayOverrides: any[] = [];
+  let sandwichRuleEnabled = false;
   let latePolicyDeductionPerMinute = 0;
   let maxLateMinutesPerMonth = 0;
   let deductMode: 'beyond_grace' | 'from_start' = 'beyond_grace';
@@ -564,6 +565,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     if (oh?.breakDurationMinutes !== undefined) defaultBreakMins = Number(oh.breakDurationMinutes) || 0;
     if (oh?.graceMinutes !== undefined) defaultGraceMinutes = Math.max(0, Number(oh.graceMinutes) || 0);
     if (Array.isArray(oh?.dayOverrides)) dayOverrides = oh.dayOverrides;
+    if (oh?.sandwichRuleEnabled !== undefined) sandwichRuleEnabled = Boolean(oh.sandwichRuleEnabled);
   }
   if (hrSettings?.latePolicy) {
     const lp: any = typeof hrSettings.latePolicy === 'string'
@@ -1055,29 +1057,37 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
 
     // Evaluate paid Company Holidays & Weekly Offs (excluding pre-joining and post-resignation days)
     let paidWeeklyOffDays = 0;
+    const hasWorkedInMonth = presentDays >= 1;
     for (let i = 0; i < dayMeta.length; i++) {
       const dm = dayMeta[i];
       if (dm.isPreJoining || dm.isPostResignation || dm.workedOrPaidLeave || dm.explicitAbsent) continue;
       if (!dm.isHoliday && !dm.isWeeklyOff) continue;
 
-      let prevWorked = false;
-      for (let p = i - 1; p >= 0; p--) {
-        if (dayMeta[p].isPostResignation) break;
-        if (dayMeta[p].isScheduledWorkDay) {
-          prevWorked = dayMeta[p].workedOrPaidLeave;
-          break;
+      let isPaidOff = false;
+      if (!sandwichRuleEnabled) {
+        // Default: no sandwich rule — all Sundays & holidays are paid if employee worked at least 1 day in the month
+        isPaidOff = hasWorkedInMonth;
+      } else {
+        let prevWorked = false;
+        for (let p = i - 1; p >= 0; p--) {
+          if (dayMeta[p].isPostResignation) break;
+          if (dayMeta[p].isScheduledWorkDay) {
+            prevWorked = dayMeta[p].workedOrPaidLeave;
+            break;
+          }
         }
-      }
-      let nextWorked = false;
-      for (let n = i + 1; n < dayMeta.length; n++) {
-        if (dayMeta[n].isPostResignation) break;
-        if (dayMeta[n].isScheduledWorkDay) {
-          nextWorked = dayMeta[n].workedOrPaidLeave;
-          break;
+        let nextWorked = false;
+        for (let n = i + 1; n < dayMeta.length; n++) {
+          if (dayMeta[n].isPostResignation) break;
+          if (dayMeta[n].isScheduledWorkDay) {
+            nextWorked = dayMeta[n].workedOrPaidLeave;
+            break;
+          }
         }
+        isPaidOff = prevWorked || nextWorked;
       }
 
-      if (prevWorked || nextWorked) {
+      if (isPaidOff) {
         if (dm.isHoliday) paidHolidayDays += 1;
         else paidWeeklyOffDays += 1;
       }
