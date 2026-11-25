@@ -368,6 +368,16 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     })
   );
 
+  let orgWorkingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  if (hrSettings?.officeHours) {
+    const oh: any = typeof hrSettings.officeHours === 'string'
+      ? JSON.parse(hrSettings.officeHours)
+      : hrSettings.officeHours;
+    if (Array.isArray(oh?.workingDays) && oh.workingDays.length > 0) {
+      orgWorkingDays = oh.workingDays;
+    }
+  }
+
   const countDaysInRange = (lr: any, rangeStart: Date, rangeEnd: Date) => {
     const s = new Date(Math.max(new Date(lr.startDate).getTime(), rangeStart.getTime()));
     const e = new Date(Math.min(new Date(lr.endDate).getTime(), rangeEnd.getTime()));
@@ -380,9 +390,10 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     const cur = new Date(sDay);
     while (cur.getTime() <= eDay) {
       const k = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
-      const isSunday = cur.getUTCDay() === 0;
+      const dow = cur.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const isWorkingDay = orgWorkingDays.includes(dow);
       const isHol = holidayKeySet.has(k);
-      if (!isSunday && !isHol) {
+      if (isWorkingDay && !isHol) {
         workingLeaveDays += 1;
       }
       cur.setUTCDate(cur.getUTCDate() + 1);

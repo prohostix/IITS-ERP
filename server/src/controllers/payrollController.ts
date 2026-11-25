@@ -888,20 +888,30 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       if (att) {
         if (att.status === 'half_day' || att.isHalfDay) {
           halfDays += 1;
-          presentDays += 0.5;
-          // If employee also has an approved leave on this day, pair the other 0.5 day against paid quota
+          // Distinguish real half-day work (has punch / workingHours or manual half-day without a half-day leave)
+          // from an auto-synced half-day leave row with no punch (checkIn === null && workingHours === 0)
+          const workedHalfDay =
+            Boolean(att.checkIn) ||
+            Number(att.workingHours || 0) > 0 ||
+            !matchingLeave?.isHalfDay;
+
+          if (workedHalfDay) {
+            presentDays += 0.5;
+          }
+
           if (matchingLeave && !isHoliday && !isWeeklyOff) {
             const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave.type, 0.5);
             paidLeaveDays += paid;
             unpaidLeaveDays += unpaid;
-            absentDays += unpaid;
+            absentDays += unpaid + (workedHalfDay ? 0 : 0.5);
           } else {
             absentDays += 0.5;
           }
           dayMeta.push({
             day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
             isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: true, explicitAbsent: false,
+            workedOrPaidLeave: workedHalfDay || paidLeaveDays > 0,
+            explicitAbsent: false,
           });
         } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
           presentDays += 1;
