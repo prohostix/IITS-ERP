@@ -739,7 +739,7 @@ export function HRSettingsPanel() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Early Leave Grace Period (min)</Label>
                   <Input
@@ -749,33 +749,7 @@ export function HRSettingsPanel() {
                     value={settings.latePolicy.earlyLeaveGraceMinutes ?? 0}
                     onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveGraceMinutes: Math.max(0, Number(e.target.value)) } }))}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Allowed buffer before check-out time (e.g., 0 or 15 min)</p>
-                </div>
-
-                <div>
-                  <Label>Deduction Calculation Mode</Label>
-                  <Select
-                    value={settings.latePolicy.earlyLeaveDeductMode || 'beyond_grace'}
-                    onValueChange={v => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveDeductMode: v } }))}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="beyond_grace">Deduct Minutes Beyond Grace</SelectItem>
-                      <SelectItem value="from_start">Deduct Full Early Minutes (Once Grace Crossed)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">How billable early minutes are counted</p>
-                </div>
-
-                <div>
-                  <Label>Monthly Free Allowance (min)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={settings.latePolicy.maxEarlyLeaveMinutesPerMonth ?? 0}
-                    onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, maxEarlyLeaveMinutesPerMonth: Math.max(0, Number(e.target.value)) } }))}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Set 0 to deduct from the first early check-out</p>
+                  <p className="text-xs text-muted-foreground mt-1">Allowed daily buffer before check-out time (e.g., 0 or 15 min) before flagging early leaving</p>
                 </div>
 
                 <div>
@@ -787,9 +761,12 @@ export function HRSettingsPanel() {
                     value={settings.latePolicy.earlyLeaveDeductionPerMinute ?? 0}
                     onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveDeductionPerMinute: Math.max(0, Number(e.target.value)) } }))}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Leave 0 to auto-calculate pro-rata from salary</p>
+                  <p className="text-xs text-muted-foreground mt-1">Leave 0 to auto-calculate pro-rata from full shift hours (e.g., per-day salary ÷ 8h ÷ 60)</p>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground bg-muted/40 border rounded-lg px-3 py-2">
+                <strong>Combined Pool:</strong> Early leaving minutes are combined with late arrival minutes (<code>Late + Early</code>) and the <strong>Monthly Combined Grace Allowance</strong> above is subtracted once before computing the deduction.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
