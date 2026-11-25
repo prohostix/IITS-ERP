@@ -825,8 +825,12 @@ export const getMyCenters = asyncHandler(async (req: AuthRequest, res: Response)
     include: {
       referrer: {
         select: { id: true, name: true, email: true, role: true }
+      },
+      associatedUniversities: {
+        select: { id: true, name: true, code: true }
       }
-    }
+    },
+    orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, data: centers });
 });

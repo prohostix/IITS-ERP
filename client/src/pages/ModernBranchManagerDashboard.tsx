@@ -98,7 +98,7 @@ export function getBranchManagerNavItems() {
     { id: 'targets', label: 'Targets' },
     { id: 'invite_links', label: 'Invite Links' },
     { id: 'my_team', label: 'My Team' },
-    { id: 'branch_centers_sales', label: 'Study Centers (Sales)' },
+    { id: 'associated_centers', label: 'Associated Centers' },
     { id: '__ops_section', label: 'Operations', isSection: true },
     { id: 'students', label: 'Students' },
     { id: 'universities', label: 'Universities' },
@@ -212,6 +212,8 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'invite_links': return <SalesInvitePanel />;
       case 'team':
       case 'my_team': return <TeamPerformancePanel />;
+      case 'associated_centers':
+      case 'associated-centers':
       case 'branch_centers_sales': return <SalesCentersPanel />;
       // Ops
       case 'students': return <StudentsPanel />;

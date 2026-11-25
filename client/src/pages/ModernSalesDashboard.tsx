@@ -32,6 +32,7 @@ import { NoticeBoardPanel } from '@/components/panels/NoticeBoardPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { TeamPerformancePanel } from '@/components/panels/TeamPerformancePanel';
 import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
+import { SalesCentersPanel } from '@/components/panels/SalesCentersPanel';
 import { CenterOnboardingOverviewPanel } from '@/components/panels/CenterOnboardingOverviewPanel';
 import { CentersAdmissionsPanel } from '@/components/panels/CentersAdmissionsPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
@@ -153,6 +154,8 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'team':
       case 'my_team': return <TeamPerformancePanel />;
       case 'study_centers': return <StudyCentersPanel />;
+      case 'associated_centers':
+      case 'associated-centers': return <SalesCentersPanel />;
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'sales_admission_report': return <SalesStaffAdmissionReportPanel />;
       case 'sales_users_report': return <FinanceSalesUsersReportPanel />;
@@ -221,6 +224,7 @@ export function getSalesNavItems(isManager: boolean = true) {
     { id: 'targets', label: 'Targets' },
     { id: 'invite_links', label: 'Invite Links' },
     { id: '__center_acquisition', label: 'Center Acquisition', isSection: true },
+    { id: 'associated_centers', label: 'Associated Centers' },
     { id: 'center_onboarding', label: 'Center Onboarding Status' },
     { id: 'study_centers', label: 'Manual Center Creation' },
     { id: 'center_admissions', label: 'Centers Admissions' },

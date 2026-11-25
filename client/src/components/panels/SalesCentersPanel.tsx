@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Building2, GraduationCap, RefreshCw, ChevronRight, ArrowLeft, BookOpen, Users } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Building2, GraduationCap, RefreshCw, ChevronRight, ArrowLeft, BookOpen, Users, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
@@ -333,6 +334,8 @@ export function SalesCentersPanel() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('centers');
   const [selectedCenterId, setSelectedCenterId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchAll = async () => {
     setLoading(true);
@@ -353,20 +356,42 @@ export function SalesCentersPanel() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  const filteredCenters = useMemo(() => {
+    return centers.filter(c => {
+      if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const hay = [
+          c.name,
+          c.code,
+          c.email,
+          c.city,
+          c.state,
+          c.referrer?.name,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [centers, searchQuery, statusFilter]);
+
   if (selectedCenterId) {
     return <CenterDetailView centerId={selectedCenterId} onBack={() => setSelectedCenterId(null)} />;
   }
 
   const activeCount = centers.filter(c => c.status === 'active').length;
-  const pendingCount = centers.filter(c => c.status === 'pending_verification').length;
+  const pendingCount = centers.filter(c => c.status === 'pending_verification' || c.status === 'pending_payment' || c.status === 'ops_verified').length;
   const enrolledCount = admissions.filter(a => a.status === 'enrolled').length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold">Study Centers</h2>
-          <p className="text-sm text-muted-foreground">Centers onboarded via your invite links and your team's links</p>
+          <h2 className="text-xl font-bold">Associated Centers</h2>
+          <p className="text-sm text-muted-foreground">Study centers associated with you and your downline team</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchAll} disabled={loading}>
           <RefreshCw className={cn('w-4 h-4 mr-2', loading && 'animate-spin')} />
@@ -411,49 +436,85 @@ export function SalesCentersPanel() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="centers">Study Centers ({centers.length})</TabsTrigger>
+          <TabsTrigger value="centers">Associated Centers ({centers.length})</TabsTrigger>
           <TabsTrigger value="admissions">Admissions ({admissions.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="centers" className="mt-4">
           <Card className="border-none shadow-xl bg-card/60 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle>Onboarded Centers</CardTitle>
-              <CardDescription>Study centers registered through your invite links or your team's links</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle>Associated Centers ({filteredCenters.length})</CardTitle>
+                <CardDescription>Study centers linked to your account and your team</CardDescription>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative w-56">
+                  <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search center, code, city, agent..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-8 h-8 text-xs"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-36 h-8 text-xs">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending_verification">Pending Verification</SelectItem>
+                    <SelectItem value="ops_verified">Ops Verified</SelectItem>
+                    <SelectItem value="pending_payment">Pending Payment</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
                 </div>
-              ) : centers.length === 0 ? (
+              ) : filteredCenters.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   <Building2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                  <p className="font-medium">No centers yet</p>
-                  <p className="text-sm mt-1">Share invite links to onboard study centers.</p>
+                  <p className="font-medium">No associated centers found</p>
+                  <p className="text-sm mt-1">
+                    {centers.length > 0 ? 'Try adjusting your search or status filter.' : 'Share invite links to onboard study centers.'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {centers.map(c => (
+                  {filteredCenters.map(c => {
+                    const unis = c.associatedUniversities || c.associatedUniversityIds || [];
+                    return (
                     <button
                       key={c.id}
                       onClick={() => setSelectedCenterId(c.id)}
                       className="w-full flex items-center gap-4 p-4 rounded-xl border bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all text-left group"
                     >
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                        {c.name[0].toUpperCase()}
+                        {(c.name || '?')[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-sm">{c.name}</p>
                           <span className="text-xs text-muted-foreground">({c.code})</span>
+                          {c.referrer?.name && (
+                            <Badge variant="secondary" className="text-[10px] font-medium">
+                              Agent: {c.referrer.name}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          {c.email}{c.city ? ` · ${c.city}` : ''}
+                          {c.email}{c.city ? ` · ${c.city}` : ''}{c.phone ? ` · ${c.phone}` : ''}
                         </p>
-                        {c.associatedUniversityIds?.length > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {c.associatedUniversityIds.map((u: any) => u.name || u).join(', ')}
+                        {unis.length > 0 && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                            Universities: {unis.map((u: any) => u.name || u).join(', ')}
                           </p>
                         )}
                       </div>
@@ -467,7 +528,8 @@ export function SalesCentersPanel() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -501,7 +563,7 @@ export function SalesCentersPanel() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm">{a.studentName}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {a.programId?.name || 'Program'} · {a.studyCenterId?.name || 'Center'}
+                          {a.program?.name || a.programId?.name || 'Program'} · {a.studyCenter?.name || a.studyCenterId?.name || 'Center'}
                         </p>
                         <p className="text-[10px] text-muted-foreground">{a.enrollmentNumber}</p>
                       </div>

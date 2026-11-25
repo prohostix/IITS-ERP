@@ -121,6 +121,8 @@ const TABLE_TO_TAB: Record<string, string> = {
   universities: 'universities',
   programs: 'programs',
   study_centers: 'centers',
+  associated_centers: 'associated_centers',
+  'associated-centers': 'associated_centers',
   admission_sessions: 'admission_sessions',
   internal_marks: 'marks',
   announcements: 'announcements',
