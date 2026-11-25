@@ -1474,8 +1474,8 @@ export function StudentsPanel() {
                           "w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-sm photo-fallback",
                           photoUrl ? "hidden" : ""
                         )}>
-                          {student.name ? (
-                            student.name.charAt(0).toUpperCase()
+                          {student?.name ? (
+                            (student.name || '?').charAt(0).toUpperCase()
                           ) : (
                             <GraduationCap className="w-5 h-5 text-primary" />
                           )}

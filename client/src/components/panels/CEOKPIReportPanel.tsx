@@ -82,11 +82,11 @@ function EmployeeKPICard({ emp }: { emp: EmployeeReport }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
-              {emp.name.charAt(0)}
+              {(emp?.name || '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-sm truncate">{emp.name}</p>
-              <p className="text-xs text-muted-foreground">{emp.designation || emp.role.replace(/_/g, ' ')} · {emp.department}</p>
+              <p className="font-semibold text-sm truncate">{emp?.name || 'Unknown'}</p>
+              <p className="text-xs text-muted-foreground">{emp?.designation || (emp?.role || '').replace(/_/g, ' ')} · {emp?.department || ''}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

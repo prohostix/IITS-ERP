@@ -117,7 +117,7 @@ function HROrgNode({
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                     style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
                   >
-                    {u.name.charAt(0)}
+                    {(u?.name || '?').charAt(0)}
                   </div>
                   <span className="text-xs text-foreground truncate flex-1 text-left">{u.name}</span>
                   <span className="text-[9px] text-muted-foreground capitalize hidden group-hover/person:inline">
@@ -433,7 +433,7 @@ export function HROrgChartPanel() {
                   className="w-4 h-4 rounded-full inline-flex items-center justify-center text-white text-[9px] font-bold"
                   style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
                 >
-                  {u.name.charAt(0)}
+                  {(u?.name || '?').charAt(0)}
                 </span>
                 {u.name}
                 <span className="text-gray-400">({formatRoleLabel(u.role)})</span>
@@ -505,7 +505,7 @@ export function HROrgChartPanel() {
                             className="w-5 h-5 rounded-full inline-flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                             style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
                           >
-                            {u.name.charAt(0)}
+                            {(u?.name || '?').charAt(0)}
                           </span>
                           <span>{u.name}</span>
                           <span className="text-xs text-muted-foreground">— {formatRoleLabel(u.role)}</span>
@@ -527,7 +527,7 @@ export function HROrgChartPanel() {
                     className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold"
                     style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}
                   >
-                    {u.name.charAt(0)}
+                    {(u?.name || '?').charAt(0)}
                   </div>
                   <div>
                     <p className="font-semibold text-sm">{u.name}</p>

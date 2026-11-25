@@ -165,11 +165,11 @@ function EmployeeRow({ emp, scheduled }: { emp: EmployeeReport; scheduled: numbe
         <td className="px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-              {emp.name.charAt(0).toUpperCase()}
+              {(emp?.name || emp?.email || '?').charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-semibold">{emp.name}</p>
-              <p className="text-[11px] text-muted-foreground">{emp.designation || emp.role}</p>
+              <p className="text-sm font-semibold">{emp?.name || emp?.email || 'Unknown'}</p>
+              <p className="text-[11px] text-muted-foreground">{emp?.designation || emp?.role || ''}</p>
             </div>
           </div>
         </td>
@@ -280,7 +280,9 @@ export function EmployeeActivityReportPanel() {
   };
 
   const filtered = report.filter(e =>
-    !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase())
+    !search ||
+    (e?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e?.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const totalPresent = departments.reduce((s, d) => s + d.present, 0);

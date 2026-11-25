@@ -603,7 +603,7 @@ function LiveLeaveItem({ leave, onRefresh, onViewAll }: { leave: any; onRefresh:
     >
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-          {name.charAt(0).toUpperCase()}
+          {(name || '?').charAt(0).toUpperCase()}
         </div>
         <div>
           <p className="text-sm font-bold group-hover:text-primary transition-colors">{name}</p>

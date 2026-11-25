@@ -279,7 +279,7 @@ export function BranchesPanel() {
                 {b.branchManagerId ? (
                   <div className="flex items-center gap-2 mt-2">
                     <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                      {b.branchManagerId.name.charAt(0)}
+                      {(b.branchManagerId?.name || '?').charAt(0)}
                     </div>
                     <div>
                       <p className="text-sm font-medium">{b.branchManagerId.name}</p>

@@ -192,7 +192,7 @@ function OrgNode({
                       className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shadow-xs shrink-0"
                       style={{ background: ROLE_COLORS[u.role] || boxColor }}
                     >
-                      {u.name.charAt(0).toUpperCase()}
+                      {(u?.name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
@@ -949,7 +949,7 @@ export function OrgHierarchyPanel() {
               <span key={u.id} className="text-xs bg-white border rounded-full px-3 py-1 flex items-center gap-1">
                 <span className="w-4 h-4 rounded-full inline-flex items-center justify-center text-white text-[9px] font-bold"
                   style={{ background: ROLE_COLORS[u.role] || '#6366f1' }}>
-                  {u.name.charAt(0)}
+                  {(u?.name || '?').charAt(0)}
                 </span>
                 {u.name}
                 <span className="text-gray-400">({(u.designation || u.role).replace(/_/g, ' ')})</span>
