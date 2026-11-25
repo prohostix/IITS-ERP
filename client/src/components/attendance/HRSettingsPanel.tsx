@@ -613,14 +613,14 @@ export function HRSettingsPanel() {
                 </div>
 
                 <div>
-                  <Label>Monthly Free Late Allowance (min)</Label>
+                  <Label>Monthly Combined Grace Allowance (min)</Label>
                   <Input
                     type="number"
                     min="0"
                     value={settings.latePolicy.maxLateMinutesPerMonth ?? 0}
                     onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, maxLateMinutesPerMonth: Math.max(0, Number(e.target.value)) } }))}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Set 0 to deduct from the first late punch beyond daily grace</p>
+                  <p className="text-xs text-muted-foreground mt-1">Subtracted once from combined (Late + Early) monthly minutes (e.g., 45m)</p>
                 </div>
 
                 <div>

@@ -867,7 +867,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     let postResignationDays = 0;
     const baseShiftStartMins = parseTimeMins(empShift?.startTime || defaultCheckInTime, 9, 0);
     const baseShiftEndMins = parseTimeMins(empShift?.endTime || defaultCheckOutTime, 18, 0);
-    const defaultNetShiftMins = Math.max(240, baseShiftEndMins - baseShiftStartMins - defaultBreakMins);
+    const defaultFullShiftMins = Math.max(240, baseShiftEndMins - baseShiftStartMins);
 
     const dayMeta: Array<{
       day: number;
@@ -1149,43 +1149,49 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       }
     }
 
-    // Compute total Late Arrival Deduction (honoring grace period, monthly free pool, late-count rule, and per-employee toggle)
-    let smartLateDeductions = 0;
-    if (isLateDeductionEnabled) {
-      smartLateDeductions += slabOrFixedLateDeductions;
+    // Compute combined Late Arrival + Early Leaving Deduction
+    // Pool: (totalLateMinutes + totalEarlyLeaveMinutes) - monthly grace allowance (once), divided by full shift minutes
+    let smartCombinedDeductions = 0;
+    let roundedCombinedDeduction = 0;
+    let roundedLateDeduction = 0;
+    let roundedEarlyLeaveDeduction = 0;
 
-      const netBillableLateMins = Math.max(0, totalDeductibleLateMinutes - maxLateMinutesPerMonth);
-      if (netBillableLateMins > 0) {
+    if (isLateDeductionEnabled) {
+      smartCombinedDeductions += slabOrFixedLateDeductions;
+
+      const pooledLateMins = slabOrFixedLateDeductions > 0 ? totalDeductibleLateMinutes : totalLateMinutes;
+      const pooledEarlyMins = earlyLeaveDeductionEnabled ? totalEarlyLeaveMinutes : 0;
+      const combinedPoolMins = pooledLateMins + pooledEarlyMins;
+      const netBillableCombinedMins = Math.max(0, combinedPoolMins - maxLateMinutesPerMonth);
+
+      if (netBillableCombinedMins > 0) {
         const perMin =
           Number(lateDeductionPerMinute) > 0
             ? Number(lateDeductionPerMinute)
             : latePolicyDeductionPerMinute > 0
             ? latePolicyDeductionPerMinute
-            : perDaySalary / Math.max(240, defaultNetShiftMins);
-        smartLateDeductions += netBillableLateMins * perMin;
+            : pooledLateMins === 0 && earlyLeaveDeductionPerMinute > 0
+            ? earlyLeaveDeductionPerMinute
+            : perDaySalary / Math.max(240, defaultFullShiftMins);
+        smartCombinedDeductions += netBillableCombinedMins * perMin;
       }
 
       if (lateCountForHalfDay > 0 && lateDays >= lateCountForHalfDay) {
         const halfDayPenalties = Math.floor(lateDays / lateCountForHalfDay);
-        smartLateDeductions += halfDayPenalties * 0.5 * perDaySalary;
+        smartCombinedDeductions += halfDayPenalties * 0.5 * perDaySalary;
       }
-    }
-    const roundedLateDeduction = isLateDeductionEnabled ? Math.round(smartLateDeductions) : 0;
 
-    // Compute total Early Leaving Deduction (honoring early-leave toggle, grace period, monthly free pool, and rate)
-    let smartEarlyLeaveDeductions = 0;
-    const isEarlyLeaveDeductible = earlyLeaveDeductionEnabled && isLateDeductionEnabled;
-    if (isEarlyLeaveDeductible && totalDeductibleEarlyMinutes > 0) {
-      const netBillableEarlyMins = Math.max(0, totalDeductibleEarlyMinutes - maxEarlyLeaveMinutesPerMonth);
-      if (netBillableEarlyMins > 0) {
-        const earlyPerMin =
-          earlyLeaveDeductionPerMinute > 0
-            ? earlyLeaveDeductionPerMinute
-            : perDaySalary / Math.max(240, defaultNetShiftMins);
-        smartEarlyLeaveDeductions = netBillableEarlyMins * earlyPerMin;
+      const totalPenalty = Math.round(smartCombinedDeductions);
+      if (totalPenalty > 0) {
+        if (lateDays > 0 && earlyLeaveDays > 0 && earlyLeaveDeductionEnabled) {
+          roundedCombinedDeduction = totalPenalty;
+        } else if (earlyLeaveDays > 0 && lateDays === 0 && earlyLeaveDeductionEnabled) {
+          roundedEarlyLeaveDeduction = totalPenalty;
+        } else {
+          roundedLateDeduction = totalPenalty;
+        }
       }
     }
-    const roundedEarlyLeaveDeduction = isEarlyLeaveDeductible ? Math.round(smartEarlyLeaveDeductions) : 0;
 
     let payableDays = 0;
     let lopDeduction = 0;
@@ -1211,9 +1217,11 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         d.name !== 'Loss of Pay (Absenteeism)' &&
         d.name !== 'Late Arrival Penalty' &&
         d.name !== 'Late Deduction (Attendance)' &&
-        d.name !== 'Early Leaving Penalty'
+        d.name !== 'Early Leaving Penalty' &&
+        d.name !== 'Late / Early Deduction'
       );
       if (lopDeduction > 0) finalDeductions.push({ name: 'Loss of Pay (Absenteeism)', amount: lopDeduction });
+      if (roundedCombinedDeduction > 0) finalDeductions.push({ name: 'Late / Early Deduction', amount: roundedCombinedDeduction });
       if (roundedLateDeduction > 0) finalDeductions.push({ name: 'Late Arrival Penalty', amount: roundedLateDeduction });
       if (roundedEarlyLeaveDeduction > 0) finalDeductions.push({ name: 'Early Leaving Penalty', amount: roundedEarlyLeaveDeduction });
     } else {
@@ -1222,8 +1230,10 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       delete finalDeductions.late_arrival;
       delete finalDeductions.late_deduction;
       delete finalDeductions.early_leaving;
+      delete finalDeductions.late_early_deduction;
       delete finalDeductions.tax;
       if (lopDeduction > 0) finalDeductions.loss_of_pay = lopDeduction;
+      if (roundedCombinedDeduction > 0) finalDeductions.late_early_deduction = roundedCombinedDeduction;
       if (roundedLateDeduction > 0) finalDeductions.late_arrival = roundedLateDeduction;
       if (roundedEarlyLeaveDeduction > 0) finalDeductions.early_leaving = roundedEarlyLeaveDeduction;
     }
@@ -1252,11 +1262,12 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       let summary = pList.join(', ');
       summary += ` | Payable: ${payableDays}/${totalDaysInMonth} days`;
       if (lopDeduction > 0) summary += ` | LOP: -₹${lopDeduction.toLocaleString('en-IN')}`;
+      if (roundedCombinedDeduction > 0) summary += ` | Late/Early: -₹${roundedCombinedDeduction.toLocaleString('en-IN')}`;
       if (roundedLateDeduction > 0) summary += ` | Late: -₹${roundedLateDeduction.toLocaleString('en-IN')}`;
       if (roundedEarlyLeaveDeduction > 0) summary += ` | Early: -₹${roundedEarlyLeaveDeduction.toLocaleString('en-IN')}`;
-      if (!isLateDeductionEnabled && lateDays > 0 && isSmart) summary += ` (Late Exempt)`;
+      if (!isLateDeductionEnabled && (lateDays > 0 || earlyLeaveDays > 0) && isSmart) summary += ` (Late Exempt)`;
       if (preservedArrears > 0) summary += ` | Arrears: +₹${preservedArrears.toLocaleString('en-IN')}`;
-      if (lopDeduction === 0 && roundedLateDeduction === 0 && roundedEarlyLeaveDeduction === 0) summary += ` (Full attendance)`;
+      if (lopDeduction === 0 && roundedCombinedDeduction === 0 && roundedLateDeduction === 0 && roundedEarlyLeaveDeduction === 0) summary += ` (Full attendance)`;
       if (preJoiningDays > 0) summary += ` (Joined: ${joinDateStr})`;
       if (resignDateStr) summary += ` (Resigned: ${resignDateStr})`;
       remarks = summary;
