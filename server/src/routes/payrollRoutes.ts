@@ -20,21 +20,21 @@ import {
   markBatchPaymentInProgress,
   completeBatchPayment,
 } from '../controllers/payrollController.js';
-import { protect, requirePayrollAccess } from '../middleware/auth.js';
+import { protect, requirePayrollAccess, requirePayrollFinanceApprover } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(protect);
 
-// All Payroll management & batch operations restricted exclusively to Shaju Sir & Pramod Sir
+// Payroll batches: HR + Shaju Sir + Pramod Sir can view; Finance approval & payment strictly Shaju Sir & Pramod Sir
 router.get('/batches', requirePayrollAccess, getPayrollBatches);
 router.get('/batches/:id', requirePayrollAccess, getPayrollBatch);
-router.post('/batches/:id/approve', requirePayrollAccess, financeApprovePayrollBatch);
-router.post('/batches/:id/reject', requirePayrollAccess, financeRejectPayrollBatch);
-router.put('/batches/:id/payment-in-progress', requirePayrollAccess, markBatchPaymentInProgress);
-router.put('/batches/:id/complete-payment', requirePayrollAccess, completeBatchPayment);
+router.post('/batches/:id/approve', requirePayrollFinanceApprover, financeApprovePayrollBatch);
+router.post('/batches/:id/reject', requirePayrollFinanceApprover, financeRejectPayrollBatch);
+router.put('/batches/:id/payment-in-progress', requirePayrollFinanceApprover, markBatchPaymentInProgress);
+router.put('/batches/:id/complete-payment', requirePayrollFinanceApprover, completeBatchPayment);
 
-// Payroll actions (must come before /:id)
+// Payroll actions (HR + Shaju Sir + Pramod Sir)
 router.post('/generate', requirePayrollAccess, generateMonthlyPayroll);
 router.post('/generate-smart', requirePayrollAccess, generateSmartPayroll);
 router.post('/arrears', requirePayrollAccess, processSalaryArrears);
@@ -47,6 +47,6 @@ router.route('/:id').get(getPayroll).put(requirePayrollAccess, updatePayroll).de
 // Payroll instance actions
 router.put('/:id/process', requirePayrollAccess, processPayroll);
 router.put('/:id/confirm', requirePayrollAccess, confirmPayroll);
-router.put('/:id/pay', requirePayrollAccess, markPayrollPaid);
+router.put('/:id/pay', requirePayrollFinanceApprover, markPayrollPaid);
 
 export default router;

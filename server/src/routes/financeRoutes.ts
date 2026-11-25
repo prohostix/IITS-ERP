@@ -98,7 +98,7 @@ import {
   getCenterLedgerDetails,
   getRefundReport,
 } from '../controllers/financeLedgerReportsController.js';
-import { protect, authorize, requirePayrollAccess } from '../middleware/auth.js';
+import { protect, authorize, requirePayrollAccess, requirePayrollFinanceApprover } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -191,16 +191,16 @@ router.get('/university-fees/transaction/:identifier', authorize('finance_admin'
 router.post('/university-fees/:id/pay', authorize('finance_admin', 'finance', 'superadmin', 'org_admin'), upload.single('screenshot'), payUniversityFee);
 
 // Salary Config Approval — Restricted exclusively to Shaju Sir & Pramod Sir
-router.get('/salary-configs', requirePayrollAccess, getFinanceSalaryConfigs);
-router.put('/salary-configs/:id/approve', requirePayrollAccess, approveSalaryConfig);
+router.get('/salary-configs', requirePayrollFinanceApprover, getFinanceSalaryConfigs);
+router.put('/salary-configs/:id/approve', requirePayrollFinanceApprover, approveSalaryConfig);
 
-// Payroll Batches — Restricted exclusively to Shaju Sir & Pramod Sir
+// Payroll Batches — Viewable by HR & Finance Payroll Approvers; Approval/Disbursement strictly Shaju Sir & Pramod Sir
 router.get('/payroll-batches', requirePayrollAccess, getPayrollBatches);
 router.get('/payroll-batches/:id', requirePayrollAccess, getPayrollBatch);
-router.post('/payroll-batches/:id/approve', requirePayrollAccess, financeApprovePayrollBatch);
-router.post('/payroll-batches/:id/reject', requirePayrollAccess, financeRejectPayrollBatch);
-router.put('/payroll-batches/:id/payment-in-progress', requirePayrollAccess, markBatchPaymentInProgress);
-router.put('/payroll-batches/:id/complete-payment', requirePayrollAccess, completeBatchPayment);
+router.post('/payroll-batches/:id/approve', requirePayrollFinanceApprover, financeApprovePayrollBatch);
+router.post('/payroll-batches/:id/reject', requirePayrollFinanceApprover, financeRejectPayrollBatch);
+router.put('/payroll-batches/:id/payment-in-progress', requirePayrollFinanceApprover, markBatchPaymentInProgress);
+router.put('/payroll-batches/:id/complete-payment', requirePayrollFinanceApprover, completeBatchPayment);
 
 // Total Data Report
 router.get('/total-report', getTotalReport);

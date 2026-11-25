@@ -143,8 +143,8 @@ export const authorize = (...roles: string[]) => {
   };
 };
 
-// Exclusive Payroll Module Authorization: strictly Shaju Sir & Pramod Sir
-export const isPayrollAuthorizedUser = (user: any): boolean => {
+// Exclusive Finance Payroll Approvers: strictly Shaju Sir & Pramod Sir
+export const isPayrollFinanceApprover = (user: any): boolean => {
   if (!user) return false;
   const email = String(user.email || '').trim().toLowerCase();
   const name = String(user.name || '').trim().toLowerCase();
@@ -166,11 +166,44 @@ export const isPayrollAuthorizedUser = (user: any): boolean => {
   return /\bshaju\b/i.test(name) || /\bpramod\b/i.test(name);
 };
 
+// HR Payroll Team: HR Admins, HR Sub-Admins, and HR Department Employees
+export const isHRPayrollUser = (user: any): boolean => {
+  if (!user) return false;
+  const role = String(user.role || '').toLowerCase();
+  if (role === 'hr_admin' || role === 'hr_sub_admin') return true;
+
+  if (role === 'employee') {
+    const deptType = String(user.department?.type || user.subDepartment?.parentDept?.type || '').toLowerCase();
+    const deptName = String(user.department?.name || user.subDepartment?.parentDept?.name || '').toLowerCase();
+    const desig = String(user.designation || user.designationRef?.title || '').toLowerCase();
+    if (deptType === 'hr') return true;
+    if (/\bhr\b|human\s*resource/i.test(deptName)) return true;
+    if (/\bhr\b|human\s*resource/i.test(desig)) return true;
+  }
+  return false;
+};
+
+// Payroll Module Authorization: HR (Admins & HR Employees) + Shaju Sir & Pramod Sir
+export const isPayrollAuthorizedUser = (user: any): boolean => {
+  return isPayrollFinanceApprover(user) || isHRPayrollUser(user);
+};
+
 export const requirePayrollAccess = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user || !isPayrollAuthorizedUser(req.user)) {
     res.status(403).json({
       success: false,
-      message: 'Payroll module access is restricted exclusively to Shaju Sir and Pramod Sir.'
+      message: 'Payroll module access is restricted to HR team, Shaju Sir, and Pramod Sir.'
+    });
+    return;
+  }
+  next();
+};
+
+export const requirePayrollFinanceApprover = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user || !isPayrollFinanceApprover(req.user)) {
+    res.status(403).json({
+      success: false,
+      message: 'Finance payroll approval & disbursement is restricted exclusively to Shaju Sir and Pramod Sir.'
     });
     return;
   }

@@ -17,7 +17,7 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
-import { canAccessPayroll } from '@/lib/payrollAccess';
+import { isPayrollFinanceApprover } from '@/lib/payrollAccess';
 
 interface PayrollBatch {
   id?: string;
@@ -35,7 +35,7 @@ interface PayrollBatch {
 
 export function PayrollBatchesPanel() {
   const { user } = useAuth();
-  const isFinance = canAccessPayroll(user);
+  const isFinance = isPayrollFinanceApprover(user);
   const [batches, setBatches] = useState<PayrollBatch[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
