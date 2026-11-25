@@ -867,7 +867,11 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     let postResignationDays = 0;
     const baseShiftStartMins = parseTimeMins(empShift?.startTime || defaultCheckInTime, 9, 0);
     const baseShiftEndMins = parseTimeMins(empShift?.endTime || defaultCheckOutTime, 18, 0);
-    const defaultFullShiftMins = Math.max(240, baseShiftEndMins - baseShiftStartMins);
+    const rawShiftSpan =
+      baseShiftEndMins >= baseShiftStartMins
+        ? baseShiftEndMins - baseShiftStartMins
+        : baseShiftEndMins + 1440 - baseShiftStartMins;
+    const defaultFullShiftMins = Math.max(240, rawShiftSpan);
 
     const dayMeta: Array<{
       day: number;
@@ -934,10 +938,12 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
             presentDays += 0.5;
           }
 
+          let dayHadPaidLeave = false;
           if (matchingLeave && !isHoliday && !isWeeklyOff) {
             const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave.type, 0.5);
             paidLeaveDays += paid;
             unpaidLeaveDays += unpaid;
+            if (paid > 0) dayHadPaidLeave = true;
             absentDays += unpaid + (workedHalfDay ? 0 : 0.5);
           } else {
             absentDays += 0.5;
@@ -945,7 +951,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
           dayMeta.push({
             day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
             isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: workedHalfDay || paidLeaveDays > 0,
+            workedOrPaidLeave: workedHalfDay || dayHadPaidLeave,
             explicitAbsent: false,
           });
         } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
@@ -1165,15 +1171,26 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       const netBillableCombinedMins = Math.max(0, combinedPoolMins - maxLateMinutesPerMonth);
 
       if (netBillableCombinedMins > 0) {
-        const perMin =
+        const proRataPerMin = perDaySalary / Math.max(240, defaultFullShiftMins);
+        const latePerMin =
           Number(lateDeductionPerMinute) > 0
             ? Number(lateDeductionPerMinute)
             : latePolicyDeductionPerMinute > 0
             ? latePolicyDeductionPerMinute
-            : pooledLateMins === 0 && earlyLeaveDeductionPerMinute > 0
-            ? earlyLeaveDeductionPerMinute
-            : perDaySalary / Math.max(240, defaultFullShiftMins);
-        smartCombinedDeductions += netBillableCombinedMins * perMin;
+            : proRataPerMin;
+        const earlyPerMin =
+          earlyLeaveDeductionPerMinute > 0 ? earlyLeaveDeductionPerMinute : latePerMin;
+
+        if (latePerMin === earlyPerMin) {
+          smartCombinedDeductions += netBillableCombinedMins * latePerMin;
+        } else {
+          // Consume monthly grace from late minutes first, then early minutes
+          const graceUsedOnLate = Math.min(pooledLateMins, maxLateMinutesPerMonth);
+          const remainingGrace = Math.max(0, maxLateMinutesPerMonth - graceUsedOnLate);
+          const billableLate = Math.max(0, pooledLateMins - graceUsedOnLate);
+          const billableEarly = Math.max(0, pooledEarlyMins - remainingGrace);
+          smartCombinedDeductions += billableLate * latePerMin + billableEarly * earlyPerMin;
+        }
       }
 
       if (lateCountForHalfDay > 0 && lateDays >= lateCountForHalfDay) {

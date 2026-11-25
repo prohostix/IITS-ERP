@@ -178,7 +178,11 @@ export async function evaluateLateFromCheckIn(
 
   const expectedMins = parseTimeMinutes(expTimeStr, 9, 0);
   const expectedOutMins = parseTimeMinutes(expOutStr, 18, 0);
-  const netShiftMins = Math.max(240, expectedOutMins - expectedMins - breakMins);
+  const rawShiftSpan =
+    expectedOutMins >= expectedMins
+      ? expectedOutMins - expectedMins
+      : expectedOutMins + 1440 - expectedMins;
+  const netShiftMins = Math.max(240, rawShiftSpan);
 
   // Convert checkIn timestamp to IST (UTC+5:30)
   const istCheckIn = new Date(checkIn.getTime() + 5.5 * 60 * 60 * 1000);
