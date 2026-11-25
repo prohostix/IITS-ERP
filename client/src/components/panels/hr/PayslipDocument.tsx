@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 
 interface Payroll {
   id: string;
-  user?: { name?: string; email?: string; userId?: string; designation?: string };
+  organization?: { name?: string; address?: string; email?: string; phone?: string };
+  user?: { name?: string; email?: string; userId?: string; designation?: string; departmentName?: string; department?: { name?: string } };
   employeeId?: any;
   month: string;
   basicSalary: number;
@@ -52,16 +53,20 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
     (payroll.employeeId && typeof payroll.employeeId === 'object' ? payroll.employeeId : null) ||
     {};
 
-  // Normalize allowances (supports both object map and array of { name, amount })
+  // Normalize allowances (supports both object map and array of { name, amount }; omit ₹0 rows)
   const allowanceRows: Array<{ label: string; amount: number }> = [];
   if (Array.isArray(payroll.allowances)) {
     payroll.allowances.forEach((a: any) => {
-      if (a && a.name) allowanceRows.push({ label: a.name, amount: Number(a.amount) || 0 });
+      const amt = Number(a?.amount) || 0;
+      if (a?.name && amt > 0) allowanceRows.push({ label: a.name, amount: amt });
     });
   } else if (payroll.allowances && typeof payroll.allowances === 'object') {
     Object.entries(payroll.allowances).forEach(([key, val]: any) => {
-      const label = key === 'hra' ? 'HRA' : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      allowanceRows.push({ label, amount: Number(val) || 0 });
+      const amt = Number(val) || 0;
+      if (amt > 0) {
+        const label = key === 'hra' ? 'HRA' : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        allowanceRows.push({ label, amount: amt });
+      }
     });
   }
 
@@ -107,8 +112,14 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
       {/* Header */}
       <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-4 mb-5 gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-indigo-600">PYPE ERP</h1>
-          <p className="text-xs text-gray-500 mt-0.5">123 Tech Park, Innovation Hub, City - 400001</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-indigo-600">
+            {payroll.organization?.name || 'IITS Education'}
+          </h1>
+          {(payroll.organization?.address || payroll.organization?.email) && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              {payroll.organization?.address || payroll.organization?.email}
+            </p>
+          )}
         </div>
         <div className="text-right shrink-0">
           <h2 className="text-xl font-extrabold uppercase tracking-wide text-gray-800">Payslip</h2>
@@ -147,6 +158,12 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
             <div className="flex items-baseline gap-2">
               <span className="font-semibold text-gray-600 w-24 shrink-0 whitespace-nowrap">Designation:</span>
               <span className="text-gray-800 truncate">{empObj.designation}</span>
+            </div>
+          )}
+          {(empObj.departmentName || empObj.department?.name) && (
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold text-gray-600 w-24 shrink-0 whitespace-nowrap">Department:</span>
+              <span className="text-gray-800 truncate">{empObj.departmentName || empObj.department?.name}</span>
             </div>
           )}
         </div>

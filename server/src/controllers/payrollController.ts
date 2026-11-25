@@ -70,13 +70,16 @@ export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) 
   const payrolls = await prisma.payroll.findMany({
     where,
     include: {
+      organization: { select: { id: true, name: true, address: true, email: true, phone: true } },
       user: {
         select: {
           id: true,
+          userId: true,
           name: true,
           email: true,
           designation: true,
           departmentId: true,
+          department: { select: { id: true, name: true } },
           status: true,
           remarks: true,
           employeeProfileDetail: { select: { resignationDate: true } },
@@ -95,9 +98,11 @@ export const getPayrolls = asyncHandler(async (req: AuthRequest, res: Response) 
     arrears: Number(p.arrears || 0),
     employeeId: {
       id: p.user?.id || p.employeeId,
+      userId: p.user?.userId || '',
       name: p.user?.name || 'Employee',
       email: p.user?.email || '',
       designation: p.user?.designation || '',
+      departmentName: p.user?.department?.name || '',
       status: p.user?.status || 'active',
       remarks: p.user?.remarks || '',
       resignationDate: p.user?.employeeProfileDetail?.resignationDate || null,
