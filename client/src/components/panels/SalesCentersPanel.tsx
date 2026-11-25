@@ -304,7 +304,7 @@ function CenterDetailView({ centerId, onBack }: { centerId: string; onBack: () =
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold">{e.studentName}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {e.studentEmail} · {e.programId?.name || 'Program'}
+                          {e.studentEmail} · {e.program?.name || e.programId?.name || 'Program'}
                         </p>
                         <p className="text-[10px] text-muted-foreground">{e.enrollmentNumber}</p>
                       </div>
@@ -426,7 +426,7 @@ export function SalesCentersPanel() {
             <div>
               <p className="text-xs text-muted-foreground uppercase font-medium">Pending Review</p>
               <p className="text-2xl font-bold">
-                {loading ? '...' : admissions.filter(a => ['payment_pending', 'document_review', 'finance_review'].includes(a.status)).length}
+                {loading ? '...' : admissions.filter(a => ['payment_pending', 'document_review', 'pending_doc_review', 'finance_review', 'pending_finance_review'].includes(a.status)).length}
               </p>
               <p className="text-[10px] text-muted-foreground">awaiting processing</p>
             </div>

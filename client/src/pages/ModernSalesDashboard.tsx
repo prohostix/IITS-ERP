@@ -470,7 +470,7 @@ function OverviewContent({ user, metrics, leads, targets, enrollments, centers, 
           { label: 'My Team', sub: `${team.length} Downline Staff`, icon: <Users className="w-4 h-4 text-indigo-500" />, tab: 'my_team' },
           { label: 'Admission Hierarchy', sub: 'Center & TL Rollup', icon: <FileBarChart className="w-4 h-4 text-emerald-500" />, tab: 'admission_report' },
           { label: 'Session Report', sub: 'All Intake Sessions', icon: <Calendar className="w-4 h-4 text-sky-500" />, tab: 'session_report' },
-          { label: 'Study Centers', sub: `${totalCenters} Registered`, icon: <Building2 className="w-4 h-4 text-purple-500" />, tab: 'study_centers' },
+          { label: 'Associated Centers', sub: `${totalCenters} Registered`, icon: <Building2 className="w-4 h-4 text-purple-500" />, tab: 'associated_centers' },
           { label: 'Invite Links', sub: 'Onboard Centers', icon: <Link2 className="w-4 h-4 text-amber-500" />, tab: 'invite_links' },
           { label: 'Financial Report', sub: 'Revenue & Commissions', icon: <IndianRupee className="w-4 h-4 text-rose-500" />, tab: 'sales_users_report' },
         ].map(action => (
@@ -518,7 +518,7 @@ function OverviewContent({ user, metrics, leads, targets, enrollments, centers, 
           trend={`${topCenters.length} Contributing`}
           icon={<Building2 className="w-5 h-5" />}
           color="info"
-          onClick={() => onNavigate('center_onboarding')}
+          onClick={() => onNavigate('associated_centers')}
         />
         <SalesMetric
           title="Target Achievement"

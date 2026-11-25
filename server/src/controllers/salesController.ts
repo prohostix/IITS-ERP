@@ -811,12 +811,15 @@ export const getMyCenters = asyncHandler(async (req: AuthRequest, res: Response)
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let whereClause: any = { organizationId: req.user.organizationId };
   
-  if (req.user.role === 'branch_manager') {
+  if (req.user.role === 'branch_manager' || Boolean((req.user as any).managedBranch)) {
     const scope = await getBranchScope(req.user);
     whereClause.id = { in: scope.centerIds };
   } else if (!isAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
-    const visibleUserIds = [req.user.id, ...subordinateIds];
+    const [subordinateIds, teamUsers] = await Promise.all([
+      getAllSubordinateIds(req.user.id),
+      resolveSalesTeamUsers(req.user, req.user.organizationId)
+    ]);
+    const visibleUserIds = Array.from(new Set([req.user.id, ...subordinateIds, ...teamUsers.map(u => u.id)]));
     whereClause.referredBy = { in: visibleUserIds };
   }
 
@@ -839,12 +842,15 @@ export const getMyCenterAdmissions = asyncHandler(async (req: AuthRequest, res: 
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
   let whereCenterClause: any = { organizationId: req.user.organizationId };
   
-  if (req.user.role === 'branch_manager') {
+  if (req.user.role === 'branch_manager' || Boolean((req.user as any).managedBranch)) {
     const scope = await getBranchScope(req.user);
     whereCenterClause.id = { in: scope.centerIds };
   } else if (!isAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
-    const visibleUserIds = [req.user.id, ...subordinateIds];
+    const [subordinateIds, teamUsers] = await Promise.all([
+      getAllSubordinateIds(req.user.id),
+      resolveSalesTeamUsers(req.user, req.user.organizationId)
+    ]);
+    const visibleUserIds = Array.from(new Set([req.user.id, ...subordinateIds, ...teamUsers.map(u => u.id)]));
     whereCenterClause.referredBy = { in: visibleUserIds };
   }
 
@@ -862,7 +868,8 @@ export const getMyCenterAdmissions = asyncHandler(async (req: AuthRequest, res: 
     include: {
       program: { select: { name: true } },
       studyCenter: { select: { name: true } }
-    }
+    },
+    orderBy: { createdAt: 'desc' }
   });
   res.json({ success: true, data: admissions });
 });
@@ -883,15 +890,18 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
   }
 
   const isAuth = ['superadmin', 'org_admin', 'ceo'].includes(req.user.role);
-  if (req.user.role === 'branch_manager') {
+  if (req.user.role === 'branch_manager' || Boolean((req.user as any).managedBranch)) {
     const scope = await getBranchScope(req.user);
     if (!scope.centerIds.includes(center.id)) {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
   } else if (!isAuth) {
-    const subordinateIds = await getAllSubordinateIds(req.user.id);
-    const visibleUserIds = [req.user.id, ...subordinateIds];
+    const [subordinateIds, teamUsers] = await Promise.all([
+      getAllSubordinateIds(req.user.id),
+      resolveSalesTeamUsers(req.user, req.user.organizationId)
+    ]);
+    const visibleUserIds = Array.from(new Set([req.user.id, ...subordinateIds, ...teamUsers.map(u => u.id)]));
     if (!center.referredBy || !visibleUserIds.includes(center.referredBy)) {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
@@ -900,7 +910,8 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
 
   const enrollments = await prisma.enrollment.findMany({
     where: { studyCenterId: center.id },
-    include: { program: true }
+    include: { program: true },
+    orderBy: { createdAt: 'desc' }
   });
 
   // Group by program
@@ -923,11 +934,12 @@ export const getMyCenterDetail = asyncHandler(async (req: AuthRequest, res: Resp
   }
   const byProgram = Array.from(byProgramMap.values());
 
+  const REJECTED_SET = new Set(['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded']);
   const stats = {
     totalStudents: enrollments.length,
     enrolled: enrollments.filter(e => e.status === 'enrolled').length,
-    pending: enrollments.filter(e => ['payment_pending', 'document_review', 'finance_review'].includes(e.status)).length,
-    rejected: enrollments.filter(e => e.status === 'rejected' || e.status === 'department_rejected').length
+    pending: enrollments.filter(e => !REJECTED_SET.has(e.status) && e.status !== 'enrolled').length,
+    rejected: enrollments.filter(e => REJECTED_SET.has(e.status)).length
   };
 
   res.json({
