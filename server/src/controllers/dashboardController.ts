@@ -92,8 +92,23 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
       enrollmentWhere.sessionId = sessionId;
     }
 
-    if (role === 'branch_manager') {
+    const GLOBAL_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'];
+    const userAssignedBranchId = !GLOBAL_ROLES.includes(role)
+      ? (req.user.branchId || req.user.designationRef?.branchId || null)
+      : null;
+
+    if (role === 'branch_manager' || Boolean(req.user.managedBranch)) {
       const scope = await getBranchScope(req.user);
+      studentAnd.push({
+        OR: [
+          { centerId: { in: scope.centerIds } },
+          { enrollments: { some: { studyCenterId: { in: scope.centerIds } } } }
+        ]
+      });
+      enrollmentWhere.studyCenterId = { in: scope.centerIds };
+      centerWhere.id = { in: scope.centerIds };
+    } else if (userAssignedBranchId) {
+      const scope = await getBranchScopeByBranchId(organizationId, userAssignedBranchId);
       studentAnd.push({
         OR: [
           { centerId: { in: scope.centerIds } },
@@ -188,8 +203,8 @@ export const getDashboardMetrics = asyncHandler(async (req: AuthRequest, res: Re
       where: { ...enrollmentWhere, status: 'rejected' as any }
     });
 
-    // Compute per-branch breakdown for Project Manager / Operations Admin / CEO
-    if (['general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'ceo', 'org_admin'].includes(role)) {
+    // Compute per-branch breakdown for global Project Manager / Operations Admin / CEO (not branch-scoped staff)
+    if (!userAssignedBranchId && ['general_manager', 'project_manager', 'ops_admin', 'ops_sub_admin', 'ceo', 'org_admin'].includes(role)) {
       const allBranches = await getAllBranchesScope(organizationId);
       const branchBreakdown = await Promise.all(allBranches.branches.map(async (b: any) => {
         const bScope = allBranches.branchScopes[b.id];

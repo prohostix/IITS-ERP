@@ -185,6 +185,19 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
 }
 
 function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
+  const { user } = useAuth();
+  const GLOBAL_OPS_ROLES = ['superadmin', 'org_admin', 'ceo', 'general_manager', 'project_manager'];
+  const assignedBranchId =
+    (user as any)?.branchId ||
+    (user as any)?.branch?.id ||
+    (user as any)?.designationRef?.branchId ||
+    null;
+  const assignedBranchName =
+    (user as any)?.branch?.name ||
+    (user as any)?.designationRef?.branch?.name ||
+    null;
+  const isBranchScopedUser = Boolean(assignedBranchId) && !GLOBAL_OPS_ROLES.includes(user?.role || '');
+
   const [sessions, setSessions] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
@@ -204,22 +217,25 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         setSessions(sList);
       })
       .catch(() => {});
-    api.get('/org/branches')
-      .then(res => {
-        setBranches(res.data.data || []);
-      })
-      .catch(() => {});
-  }, []);
+    if (!isBranchScopedUser) {
+      api.get('/org/branches')
+        .then(res => {
+          setBranches(res.data.data || []);
+        })
+        .catch(() => {});
+    }
+  }, [isBranchScopedUser]);
 
   useEffect(() => {
-    if (selectedSessionId === 'all' && selectedBranchId === 'all') {
+    const effectiveBranchId = isBranchScopedUser ? 'all' : selectedBranchId;
+    if (selectedSessionId === 'all' && effectiveBranchId === 'all') {
       setSessionMetrics(metrics);
       return;
     }
     setLoadingSession(true);
     const params = new URLSearchParams();
     if (selectedSessionId !== 'all') params.set('sessionId', selectedSessionId);
-    if (selectedBranchId !== 'all') params.set('branchId', selectedBranchId);
+    if (effectiveBranchId !== 'all') params.set('branchId', effectiveBranchId);
     api.get(`/dashboard/metrics?${params.toString()}`)
       .then(res => {
         if (res.data.data) {
@@ -228,7 +244,7 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
       })
       .catch(() => {})
       .finally(() => setLoadingSession(false));
-  }, [selectedSessionId, selectedBranchId, metrics]);
+  }, [selectedSessionId, selectedBranchId, isBranchScopedUser, metrics]);
 
   const activeSession = sessions.find(s => s.id === selectedSessionId);
   const activeBranch = branches.find(b => b.id === selectedBranchId);
@@ -307,31 +323,41 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Branch Filter */}
-          <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
-            <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-muted-foreground shrink-0">Branch:</span>
-            <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
-              <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-auto min-w-[150px] max-w-[260px] focus:ring-0">
-                <SelectValue placeholder="All Branches">
-                  {activeBranch ? `${activeBranch.name}${activeBranch.code ? ` (${activeBranch.code})` : ''}` : 'All Branches'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  <span className="font-semibold text-xs">All Branches</span>
-                </SelectItem>
-                {branches.map((b: any) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs">{b.name}</span>
-                      {b.code && <span className="text-[10px] text-muted-foreground font-mono">({b.code})</span>}
-                    </div>
+          {/* Branch Filter — hidden for branch-scoped users (show read-only branch badge instead) */}
+          {isBranchScopedUser ? (
+            assignedBranchName && (
+              <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20">
+                <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-xs font-semibold text-muted-foreground shrink-0">Branch:</span>
+                <span className="text-xs font-bold text-primary">{assignedBranchName}</span>
+              </div>
+            )
+          ) : (
+            <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
+              <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-xs font-semibold text-muted-foreground shrink-0">Branch:</span>
+              <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                <SelectTrigger className="h-7 border-none bg-transparent shadow-none text-xs font-bold w-auto min-w-[150px] max-w-[260px] focus:ring-0">
+                  <SelectValue placeholder="All Branches">
+                    {activeBranch ? `${activeBranch.name}${activeBranch.code ? ` (${activeBranch.code})` : ''}` : 'All Branches'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <span className="font-semibold text-xs">All Branches</span>
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                  {branches.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs">{b.name}</span>
+                        {b.code && <span className="text-[10px] text-muted-foreground font-mono">({b.code})</span>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/70 shadow-2xs">
             <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -559,8 +585,8 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
         />
       </div>
 
-      {/* Branch-wise Operations Breakdown & Sorting */}
-      {sortedBranchBreakdown.length > 0 && (
+      {/* Branch-wise Operations Breakdown & Sorting (global / multi-branch users only) */}
+      {!isBranchScopedUser && sortedBranchBreakdown.length > 0 && (
         <Card className="glass-card border-border/70">
           <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
