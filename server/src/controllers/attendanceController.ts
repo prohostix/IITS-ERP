@@ -23,6 +23,11 @@ const DEFAULT_HR_SETTINGS = {
     deductionPerExtraMinute: 0,
     deductMode: 'beyond_grace', // 'beyond_grace' | 'from_start'
     lateCountForHalfDay: 0,     // 0 = disabled, e.g. 3 = every 3 lates -> 0.5 day LOP
+    earlyLeaveDeductionEnabled: true,
+    earlyLeaveGraceMinutes: 0,
+    earlyLeaveDeductionPerMinute: 0, // 0 = auto pro-rata from salary
+    earlyLeaveDeductMode: 'beyond_grace', // 'beyond_grace' | 'from_start'
+    maxEarlyLeaveMinutesPerMonth: 0,
   },
   lateDeductionRules: [],
   leaveCarryForwardRules: [
@@ -499,41 +504,89 @@ export const getAttendances = asyncHandler(async (req: AuthRequest, res: Respons
     console.error('Failed to auto-sync approved leaves in getAttendances:', e);
   }
 
-  const attendances = await prisma.attendance.findMany({
-    where,
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          designation: true,
-          status: true,
-          role: true,
-          department: { select: { id: true, name: true } },
-          employeeProfileDetail: { select: { shiftId: true, shift: true, lateDeductionEnabled: true } },
-          salaryConfig: { select: { lateDeductionEnabled: true, lateDeductionPerMinute: true } },
+  const [attendances, hrSettings] = await Promise.all([
+    prisma.attendance.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            designation: true,
+            status: true,
+            role: true,
+            department: { select: { id: true, name: true } },
+            employeeProfileDetail: { select: { shiftId: true, shift: true, lateDeductionEnabled: true } },
+            salaryConfig: { select: { lateDeductionEnabled: true, lateDeductionPerMinute: true } },
+          },
         },
       },
-    },
-    orderBy: { date: 'desc' },
-  });
-  const mapped = attendances.map((a) => ({
-    ...a,
-    employeeId: a.user
-      ? {
-          id: a.user.id,
-          name: a.user.name,
-          email: a.user.email,
-          designation: a.user.designation,
-          shift: a.user.employeeProfileDetail?.shift || null,
-          lateDeductionEnabled:
-            (a.user.salaryConfig?.lateDeductionEnabled ??
-              a.user.employeeProfileDetail?.lateDeductionEnabled ??
-              true) !== false,
+      orderBy: { date: 'desc' },
+    }),
+    req.user.organizationId
+      ? prisma.hRSettings.findFirst({ where: { organizationId: req.user.organizationId } })
+      : Promise.resolve(null),
+  ]);
+
+  const oh = parseJsonObj(hrSettings?.officeHours, DEFAULT_HR_SETTINGS.officeHours);
+  const lp = parseJsonObj(hrSettings?.latePolicy, DEFAULT_HR_SETTINGS.latePolicy);
+  const defaultOutTime = oh?.checkOutTime || '18:00';
+  const dayOverrides: any[] = Array.isArray(oh?.dayOverrides) ? oh.dayOverrides : [];
+  const earlyLeaveGraceMins = Math.max(0, Number(lp?.earlyLeaveGraceMinutes ?? 0) || 0);
+
+  const mapped = attendances.map((a) => {
+    const empShift = a.user?.employeeProfileDetail?.shift || null;
+    let isEarlyLeave = false;
+    let earlyLeaveMinutes = 0;
+
+    if (
+      a.checkOut &&
+      !['absent', 'leave', 'half_day'].includes(a.status) &&
+      !a.isHalfDay &&
+      !empShift?.isOpenShift
+    ) {
+      const attDate = new Date(a.date);
+      const adjustedDate =
+        attDate.getUTCHours() === 18 && attDate.getUTCMinutes() === 30
+          ? new Date(attDate.getTime() + 5.5 * 60 * 60 * 1000)
+          : attDate;
+      const dow = adjustedDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const ov = dayOverrides.find((o: any) => o?.day === dow);
+      const expOutStr = ov?.checkOutTime || empShift?.endTime || defaultOutTime;
+      const expectedOutMins = parseTimeMinutes(expOutStr, 18, 0);
+
+      const outDate = new Date(a.checkOut);
+      if (!isNaN(outDate.getTime())) {
+        const istOut = new Date(outDate.getTime() + 5.5 * 60 * 60 * 1000);
+        const outMins = istOut.getUTCHours() * 60 + istOut.getUTCMinutes();
+        const earlyDiff = expectedOutMins - outMins;
+        if (earlyDiff > earlyLeaveGraceMins) {
+          isEarlyLeave = true;
+          earlyLeaveMinutes = earlyDiff;
         }
-      : null,
-  }));
+      }
+    }
+
+    return {
+      ...a,
+      isEarlyLeave,
+      earlyLeaveMinutes,
+      employeeId: a.user
+        ? {
+            id: a.user.id,
+            name: a.user.name,
+            email: a.user.email,
+            designation: a.user.designation,
+            shift: empShift,
+            lateDeductionEnabled:
+              (a.user.salaryConfig?.lateDeductionEnabled ??
+                a.user.employeeProfileDetail?.lateDeductionEnabled ??
+                true) !== false,
+          }
+        : null,
+    };
+  });
   res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getAttendance = getAttendances;

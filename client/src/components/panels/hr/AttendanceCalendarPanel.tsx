@@ -228,6 +228,7 @@ export function AttendanceCalendarPanel() {
                           {att.checkIn && att.status !== 'absent' && att.status !== 'leave' && <span>In: {format(new Date(att.checkIn), 'HH:mm')}</span>}
                           {att.checkOut && att.status !== 'absent' && att.status !== 'leave' && <span>Out: {format(new Date(att.checkOut), 'HH:mm')}</span>}
                           {att.isLate && att.status !== 'absent' && att.status !== 'leave' && <span className="text-amber-600 dark:text-amber-400 font-medium">+{att.lateMinutes}m late</span>}
+                          {att.isEarlyLeave && Number(att.earlyLeaveMinutes || 0) > 0 && att.status !== 'absent' && att.status !== 'leave' && att.status !== 'half_day' && !att.isHalfDay && <span className="text-rose-600 dark:text-rose-400 font-medium">-{att.earlyLeaveMinutes}m early</span>}
                           {att.isHalfDay && <span>Half Day</span>}
                           {att.isWFH && <span>WFH</span>}
                         </div>

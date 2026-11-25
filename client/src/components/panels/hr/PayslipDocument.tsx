@@ -30,6 +30,8 @@ const formatDeductionLabel = (key: string) => {
     case 'late_arrival':
     case 'late_deduction':
       return 'Late Arrival Penalty';
+    case 'early_leaving':
+      return 'Early Leaving Penalty';
     case 'pf':
       return 'Provident Fund (PF)';
     case 'tax':

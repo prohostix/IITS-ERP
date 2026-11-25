@@ -941,6 +941,11 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                               +{att.lateMinutes || 0}m late
                             </div>
                           )}
+                          {att.isEarlyLeave && Number(att.earlyLeaveMinutes || 0) > 0 && att.status !== 'absent' && att.status !== 'leave' && att.status !== 'half_day' && !att.isHalfDay && (
+                            <div className="text-[10px] text-rose-700 dark:text-rose-400 font-semibold">
+                              -{att.earlyLeaveMinutes}m early
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="mt-auto py-1 text-center">

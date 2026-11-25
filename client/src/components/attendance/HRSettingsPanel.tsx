@@ -47,6 +47,11 @@ const DEFAULT_SETTINGS = {
     deductionPerExtraMinute: 0,
     deductMode: 'beyond_grace',
     lateCountForHalfDay: 0,
+    earlyLeaveDeductionEnabled: true,
+    earlyLeaveGraceMinutes: 0,
+    earlyLeaveDeductionPerMinute: 0,
+    earlyLeaveDeductMode: 'beyond_grace',
+    maxEarlyLeaveMinutesPerMonth: 0,
   },
   lateDeductionRules: [] as any[],
   leaveCarryForwardRules: DEFAULT_CARRY_FORWARD_RULES,
@@ -709,6 +714,81 @@ export function HRSettingsPanel() {
                     ))}
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">Early Leaving Deduction Policy</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Deduct salary when an employee checks out earlier than their expected shift or day check-out time (skips half-day records and open shifts).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant={settings.latePolicy.earlyLeaveDeductionEnabled !== false ? 'default' : 'secondary'} className="text-[10px]">
+                    {settings.latePolicy.earlyLeaveDeductionEnabled !== false ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                  <Switch
+                    checked={settings.latePolicy.earlyLeaveDeductionEnabled !== false}
+                    onCheckedChange={v => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveDeductionEnabled: v } }))}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label>Early Leave Grace Period (min)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={settings.latePolicy.earlyLeaveGraceMinutes ?? 0}
+                    onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveGraceMinutes: Math.max(0, Number(e.target.value)) } }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Allowed buffer before check-out time (e.g., 0 or 15 min)</p>
+                </div>
+
+                <div>
+                  <Label>Deduction Calculation Mode</Label>
+                  <Select
+                    value={settings.latePolicy.earlyLeaveDeductMode || 'beyond_grace'}
+                    onValueChange={v => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveDeductMode: v } }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="beyond_grace">Deduct Minutes Beyond Grace</SelectItem>
+                      <SelectItem value="from_start">Deduct Full Early Minutes (Once Grace Crossed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">How billable early minutes are counted</p>
+                </div>
+
+                <div>
+                  <Label>Monthly Free Allowance (min)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={settings.latePolicy.maxEarlyLeaveMinutesPerMonth ?? 0}
+                    onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, maxEarlyLeaveMinutesPerMonth: Math.max(0, Number(e.target.value)) } }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Set 0 to deduct from the first early check-out</p>
+                </div>
+
+                <div>
+                  <Label>Early Leave Rate (₹ / min)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={settings.latePolicy.earlyLeaveDeductionPerMinute ?? 0}
+                    onChange={e => setSettings((p: any) => ({ ...p, latePolicy: { ...p.latePolicy, earlyLeaveDeductionPerMinute: Math.max(0, Number(e.target.value)) } }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave 0 to auto-calculate pro-rata from salary</p>
+                </div>
               </div>
             </CardContent>
           </Card>
