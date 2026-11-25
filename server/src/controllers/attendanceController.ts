@@ -1145,7 +1145,7 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
             { completedAt: { gte: startOfDay, lte: endOfDay } },
           ],
         },
-        select: { id: true, title: true, status: true, priority: true, dueDate: true, assignedTo: true, completedAt: true },
+        select: { id: true, title: true, status: true, priority: true, deadline: true, targetDate: true, assignedTo: true, completedAt: true },
       }),
       prisma.task.groupBy({
         by: ['assignedTo'],
@@ -1252,9 +1252,10 @@ export const getActivityReport = asyncHandler(async (req: AuthRequest, res: Resp
 
       const userTaskList = tasksByUser.get(u.id) || [];
       const inProgressCount = userTaskList.filter((t) => t.status === 'in_progress').length;
-      const overdueCount = userTaskList.filter(
-        (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate).getTime() < nowTs
-      ).length;
+      const overdueCount = userTaskList.filter((t) => {
+        const due = t.deadline || t.targetDate;
+        return t.status !== 'completed' && due && new Date(due).getTime() < nowTs;
+      }).length;
 
       const rawWorkHrs = Number(att?.workingHours || 0);
       const breakHrs = rawWorkHrs > 4 ? breakMinutes / 60 : 0;
