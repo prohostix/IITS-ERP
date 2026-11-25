@@ -287,6 +287,9 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
                   <span>Used this month: <strong className="text-foreground">{leaveBalance.sick.usedThisMonth}</strong></span>
+                  {Number(leaveBalance.sick.carriedForward || 0) > 0 && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">+{leaveBalance.sick.carriedForward} CF</span>
+                  )}
                   {leaveBalance.sick.pendingThisMonth > 0 ? (
                     <span className="text-amber-600 font-medium">Pending: {leaveBalance.sick.pendingThisMonth}</span>
                   ) : (
@@ -320,6 +323,9 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
                   <span>Used this month: <strong className="text-foreground">{leaveBalance.casual.usedThisMonth}</strong></span>
+                  {Number(leaveBalance.casual.carriedForward || 0) > 0 && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">+{leaveBalance.casual.carriedForward} CF</span>
+                  )}
                   {leaveBalance.casual.pendingThisMonth > 0 ? (
                     <span className="text-amber-600 font-medium">Pending: {leaveBalance.casual.pendingThisMonth}</span>
                   ) : (
@@ -353,6 +359,9 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
                   <span>Used this month: <strong className="text-foreground">{leaveBalance.earned.usedThisMonth}</strong></span>
+                  {Number(leaveBalance.earned.carriedForward || 0) > 0 && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">+{leaveBalance.earned.carriedForward} CF</span>
+                  )}
                   <span>Remaining: <strong className="text-emerald-600">{leaveBalance.earned.availableThisMonth}</strong></span>
                 </div>
               </CardContent>
@@ -382,6 +391,9 @@ export function LeavesPanel({ isPersonalView = false }: { isPersonalView?: boole
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/50 pt-2">
                   <span>Used this month: <strong className="text-foreground">{leaveBalance.compensatory.usedThisMonth}</strong></span>
+                  {Number(leaveBalance.compensatory.carriedForward || 0) > 0 && (
+                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">+{leaveBalance.compensatory.carriedForward} CF</span>
+                  )}
                   <span>Remaining: <strong className="text-emerald-600">{leaveBalance.compensatory.availableThisMonth}</strong></span>
                 </div>
               </CardContent>

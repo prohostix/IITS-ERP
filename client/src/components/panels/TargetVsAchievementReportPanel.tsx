@@ -269,6 +269,7 @@ export function TargetVsAchievementReportPanel() {
                 <SelectItem value="all">All Target Types</SelectItem>
                 <SelectItem value="admission">Admissions</SelectItem>
                 <SelectItem value="revenue">Revenue</SelectItem>
+                <SelectItem value="centers">Study Centers</SelectItem>
               </SelectContent>
             </Select>
 
@@ -320,7 +321,8 @@ export function TargetVsAchievementReportPanel() {
                 </TableRow>
               ) : (
                 data.targets.map((t, idx) => {
-                  const isRevenue = t.type.toLowerCase().includes('revenue');
+                  const isRevenue = /revenue|fee|amount|sales/i.test(t.type || '');
+                  const isCenters = /center/i.test(t.type || '');
                   const isPositive = t.variance >= 0;
 
                   return (
@@ -360,11 +362,11 @@ export function TargetVsAchievementReportPanel() {
                       </TableCell>
 
                       <TableCell className="text-right font-semibold text-xs">
-                        {isRevenue ? formatCurrency(t.targetValue) : t.targetValue}
+                        {isRevenue ? formatCurrency(t.targetValue) : `${t.targetValue} ${isCenters ? 'centers' : 'adm.'}`}
                       </TableCell>
 
                       <TableCell className="text-right font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                        {isRevenue ? formatCurrency(t.achievedValue) : t.achievedValue}
+                        {isRevenue ? formatCurrency(t.achievedValue) : `${t.achievedValue} ${isCenters ? 'centers' : 'adm.'}`}
                       </TableCell>
 
                       <TableCell className="text-right font-medium text-xs">

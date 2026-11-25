@@ -55,6 +55,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
   const [userFilter, setUserFilter] = useState<string>('all');
   const [universityFilter, setUniversityFilter] = useState<string>('all');
 
+  const [periodMode, setPeriodMode] = useState<'monthly' | 'quarterly' | 'yearly' | 'session'>('monthly');
   const [formData, setFormData] = useState({
     employeeId: 'none',
     departmentId: 'none',
@@ -63,9 +64,28 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     target: '',
     achieved: '0',
     incentive: '',
-    period: 'monthly',
+    period: new Date().toISOString().slice(0, 7),
     type: 'revenue'
   });
+
+  const detectPeriodMode = (p: string): 'monthly' | 'quarterly' | 'yearly' | 'session' => {
+    const trimmed = String(p || '').trim();
+    if (trimmed === 'session' || trimmed === 'all') return 'session';
+    if (/^\d{4}-Q[1-4]$/i.test(trimmed) || trimmed === 'quarterly') return 'quarterly';
+    if (/^\d{4}$/.test(trimmed) || trimmed === 'yearly') return 'yearly';
+    return 'monthly';
+  };
+
+  const handlePeriodModeChange = (mode: 'monthly' | 'quarterly' | 'yearly' | 'session') => {
+    setPeriodMode(mode);
+    const now = new Date();
+    const y = now.getFullYear();
+    const q = Math.floor(now.getMonth() / 3) + 1;
+    if (mode === 'monthly') setFormData(f => ({ ...f, period: now.toISOString().slice(0, 7) }));
+    else if (mode === 'quarterly') setFormData(f => ({ ...f, period: `${y}-Q${q}` }));
+    else if (mode === 'yearly') setFormData(f => ({ ...f, period: String(y) }));
+    else setFormData(f => ({ ...f, period: 'session' }));
+  };
 
   const fetchTargets = useCallback(async () => {
     setLoading(true);
@@ -341,6 +361,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
     const sId = typeof t.sessionId === 'object' ? (t.sessionId?.id || t.sessionId?._id) : (t.session?.id || t.sessionId);
 
     setEditingId(t.id || t._id);
+    setPeriodMode(detectPeriodMode(t.period || ''));
     setFormData({
       employeeId: empId?.toString() || 'none',
       departmentId: deptId?.toString() || 'none',
@@ -349,7 +370,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
       target: t.target?.toString() || '',
       achieved: t.achieved?.toString() || '0',
       incentive: t.incentive != null ? String(t.incentive) : '',
-      period: t.period || 'monthly',
+      period: t.period || new Date().toISOString().slice(0, 7),
       type: t.type || 'revenue'
     });
     setDialogOpen(true);
@@ -368,6 +389,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
 
   const resetForm = () => {
     setEditingId(null);
+    setPeriodMode('monthly');
     setFormData({
       employeeId: 'none',
       departmentId: branchSalesDeptId || 'none',
@@ -376,7 +398,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
       target: '',
       achieved: '0',
       incentive: '',
-      period: 'monthly',
+      period: new Date().toISOString().slice(0, 7),
       type: 'revenue'
     });
   };
@@ -483,7 +505,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Target Type</Label>
                   <Select value={formData.type} onValueChange={(v) => setFormData({ ...formData, type: v })}>
@@ -496,29 +518,70 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                   </Select>
                 </div>
                 <div>
-                  <Label>Period</Label>
-                  <Input
-                    className="mt-1"
-                    placeholder="e.g. 2026-11, monthly, 2026"
-                    value={formData.period}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                    required
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">Use 'YYYY-MM' (e.g. 2026-11) or 'monthly' / 'yearly'</p>
+                  <Label>Period Type</Label>
+                  <Select value={periodMode} onValueChange={(v) => handlePeriodModeChange(v as any)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly (YYYY-MM)</SelectItem>
+                      <SelectItem value="quarterly">Quarterly (YYYY-QN)</SelectItem>
+                      <SelectItem value="yearly">Yearly (YYYY)</SelectItem>
+                      <SelectItem value="session">Admission Session</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>
+                    {periodMode === 'monthly' ? 'Month' : periodMode === 'quarterly' ? 'Quarter' : periodMode === 'yearly' ? 'Year' : 'Period'}
+                  </Label>
+                  {periodMode === 'monthly' ? (
+                    <Input
+                      type="month"
+                      className="mt-1"
+                      value={/^\d{4}-\d{2}$/.test(formData.period) ? formData.period : new Date().toISOString().slice(0, 7)}
+                      onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+                      required
+                    />
+                  ) : periodMode === 'quarterly' ? (
+                    <Select value={formData.period} onValueChange={(v) => setFormData({ ...formData, period: v })}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[new Date().getFullYear() + 1, new Date().getFullYear(), new Date().getFullYear() - 1].flatMap(yr =>
+                          ['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                            <SelectItem key={`${yr}-${q}`} value={`${yr}-${q}`}>{yr}-{q}</SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  ) : periodMode === 'yearly' ? (
+                    <Select value={formData.period} onValueChange={(v) => setFormData({ ...formData, period: v })}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[new Date().getFullYear() + 1, new Date().getFullYear(), new Date().getFullYear() - 1].map(yr => (
+                          <SelectItem key={yr} value={String(yr)}>{yr}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input className="mt-1 bg-muted/50" value="session" readOnly />
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Target Value</Label>
-                  <Input type="number" min="0" value={formData.target} onChange={(e) => setFormData({ ...formData, target: e.target.value })} placeholder="e.g. 10" required className="mt-1" />
+                  <Label>Target Value *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.target}
+                    onChange={(e) => setFormData({ ...formData, target: e.target.value })}
+                    placeholder={formData.type === 'revenue' ? 'e.g. 500000' : formData.type === 'centers' ? 'e.g. 5 centers' : 'e.g. 10 admissions'}
+                    required
+                    className="mt-1"
+                  />
                 </div>
                 <div>
-                  <Label>Achieved (manual override)</Label>
-                  <Input type="number" min="0" value={formData.achieved} onChange={(e) => setFormData({ ...formData, achieved: e.target.value })} className="mt-1" />
-                </div>
-                <div>
-                  <Label>Incentive (₹)</Label>
+                  <Label>Incentive (₹ optional)</Label>
                   <Input type="number" min="0" value={formData.incentive} onChange={(e) => setFormData({ ...formData, incentive: e.target.value })} placeholder="optional" className="mt-1" />
                 </div>
               </div>

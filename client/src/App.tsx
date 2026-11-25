@@ -359,6 +359,8 @@ function App() {
         { id: 'commission_university_report', label: 'University Commission' },
         { id: 'university_fee_report', label: 'University Fee Payments' },
         { id: 'rereg_payment_report', label: 'Re-Registration Fees' },
+        { id: 'tada_management', label: 'TA/DA Management' },
+        { id: 'tada-approvals', label: 'TA/DA Verification (HR)' },
         { id: '__reports', label: 'Reports', isSection: true },
         { id: 'sales_admission_report', label: 'Sales Staff Admission Report' },
         { id: 'activity_report', label: 'Activity Report' },

@@ -69,6 +69,7 @@ import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceRereg
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { PayrollBatchesPanel } from '@/components/panels/PayrollBatchesPanel';
 import { SalaryConfigPanel } from '@/components/panels/SalaryConfigPanel';
@@ -348,6 +349,8 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
         {activeTab === 'pending_payment' && <FinanceCenterVerificationPanel />}
         {(activeTab === 'leave_approvals' || activeTab === 'leave-approvals') && <LeaveApprovalsPanel />}
         {activeTab === 'holidays' && <HolidaysPanel />}
+        {(activeTab === 'tada_management' || activeTab === 'tada-management') && <TADAClaimsPanel mode="finance" />}
+        {(activeTab === 'tada_approvals' || activeTab === 'tada-approvals') && <TADAClaimsPanel mode="hr" />}
         {activeTab === 'payroll' && hasPayrollAccess && <PayrollPanel />}
         {activeTab === 'payroll-batches' && hasPayrollAccess && <PayrollBatchesPanel />}
         {(activeTab === 'salary-config' || activeTab === 'salary_config') && hasPayrollAccess && <SalaryConfigPanel />}
