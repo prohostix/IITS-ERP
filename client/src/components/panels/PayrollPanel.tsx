@@ -963,11 +963,13 @@ export function PayrollPanel({ isEmployeeView: isEmployeeViewProp = false }: Pay
               <div>
                 <p className="text-sm font-semibold mb-2">Deductions</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {Array.from(new Set(['loss_of_pay', 'late_arrival', 'pf', 'insurance', 'other', ...Object.keys(editForm.deductions || {}).filter(k => k !== 'tax')])).map(key => {
+                  {Array.from(new Set(['loss_of_pay', 'late_arrival', 'early_leaving', 'pf', 'insurance', 'other', ...Object.keys(editForm.deductions || {}).filter(k => k !== 'tax')])).map(key => {
                     const label = key === 'loss_of_pay'
                       ? 'Loss of Pay (LOP) (₹)'
                       : key === 'late_arrival' || key === 'late_deduction'
                       ? 'Late Arrival (₹)'
+                      : key === 'early_leaving'
+                      ? 'Early Leaving (₹)'
                       : key === 'pf'
                       ? 'Provident Fund (PF) (₹)'
                       : `${key.replace(/_/g, ' ')} (₹)`;

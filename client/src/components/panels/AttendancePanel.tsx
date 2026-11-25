@@ -984,7 +984,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                       <TableHead className="text-xs">Check In</TableHead>
                       <TableHead className="text-xs">Check Out</TableHead>
                       <TableHead className="text-xs">Working Hours</TableHead>
-                      <TableHead className="text-xs">Late Minutes</TableHead>
+                      <TableHead className="text-xs">Late / Early</TableHead>
                       <TableHead className="text-xs">Notes / Remarks</TableHead>
                       {isHR && <TableHead className="w-[90px] text-right text-xs">Action</TableHead>}
                     </TableRow>
@@ -1024,11 +1024,17 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                             {att?.workingHours ? `${Number(att.workingHours).toFixed(1)} hrs` : <span className="text-muted-foreground/50">--</span>}
                           </TableCell>
                           <TableCell className="text-xs">
-                            {att?.lateMinutes ? (
-                              <span className="text-amber-600 dark:text-amber-400 font-semibold">+{att.lateMinutes}m</span>
-                            ) : (
-                              <span className="text-muted-foreground/50">0m</span>
-                            )}
+                            <div className="flex flex-col gap-0.5">
+                              {att?.lateMinutes ? (
+                                <span className="text-amber-600 dark:text-amber-400 font-semibold">+{att.lateMinutes}m late</span>
+                              ) : null}
+                              {att?.isEarlyLeave && Number(att?.earlyLeaveMinutes || 0) > 0 && att.status !== 'absent' && att.status !== 'leave' && att.status !== 'half_day' && !att.isHalfDay ? (
+                                <span className="text-rose-600 dark:text-rose-400 font-semibold">-{att.earlyLeaveMinutes}m early</span>
+                              ) : null}
+                              {!att?.lateMinutes && !(att?.isEarlyLeave && Number(att?.earlyLeaveMinutes || 0) > 0) && (
+                                <span className="text-muted-foreground/50">0m</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                             {att?.notes || <span className="text-muted-foreground/40 italic">None</span>}

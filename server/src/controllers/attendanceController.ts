@@ -553,11 +553,13 @@ export const getAttendances = asyncHandler(async (req: AuthRequest, res: Respons
           : attDate;
       const dow = adjustedDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
       const ov = dayOverrides.find((o: any) => o?.day === dow);
+      const expInStr = ov?.checkInTime || empShift?.startTime || oh?.checkInTime || '09:00';
       const expOutStr = ov?.checkOutTime || empShift?.endTime || defaultOutTime;
+      const expectedInMins = parseTimeMinutes(expInStr, 9, 0);
       const expectedOutMins = parseTimeMinutes(expOutStr, 18, 0);
 
       const outDate = new Date(a.checkOut);
-      if (!isNaN(outDate.getTime())) {
+      if (expectedOutMins > expectedInMins && !isNaN(outDate.getTime())) {
         const istOut = new Date(outDate.getTime() + 5.5 * 60 * 60 * 1000);
         const outMins = istOut.getUTCHours() * 60 + istOut.getUTCMinutes();
         const earlyDiff = expectedOutMins - outMins;

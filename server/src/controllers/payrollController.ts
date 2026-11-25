@@ -865,7 +865,9 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     let totalDeductibleEarlyMinutes = 0;
     let preJoiningDays = 0;
     let postResignationDays = 0;
-    let defaultNetShiftMins = 480;
+    const baseShiftStartMins = parseTimeMins(empShift?.startTime || defaultCheckInTime, 9, 0);
+    const baseShiftEndMins = parseTimeMins(empShift?.endTime || defaultCheckOutTime, 18, 0);
+    const defaultNetShiftMins = Math.max(240, baseShiftEndMins - baseShiftStartMins - defaultBreakMins);
 
     const dayMeta: Array<{
       day: number;
@@ -949,7 +951,6 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         } else if (att.status === 'present' || att.status === 'late' || att.status === 'work_from_home' || att.isWFH) {
           presentDays += 1;
           const sched = getDayShiftSchedule(dayOfWeek);
-          defaultNetShiftMins = sched.netShiftMins;
 
           if (!sched.isOpen) {
             let dayLateMins = Number(att.lateMinutes) || 0;
@@ -989,8 +990,8 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
               }
             }
 
-            // Evaluate Early Leaving (checkOut earlier than expected shift/day checkOutTime beyond grace)
-            if (att.checkOut && sched.expectedOutMins > 0) {
+            // Evaluate Early Leaving (checkOut earlier than expected shift/day checkOutTime beyond grace; skip overnight shifts)
+            if (att.checkOut && sched.expectedOutMins > sched.expectedMins) {
               const outD = new Date(att.checkOut);
               if (!isNaN(outD.getTime())) {
                 const istOut = new Date(outD.getTime() + 5.5 * 60 * 60 * 1000);
