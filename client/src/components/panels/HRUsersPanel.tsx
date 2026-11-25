@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Plus, Edit, Trash2, Key, Users, ArrowRightLeft, TrendingUp, TrendingDown, 
-  Upload, Loader2, Image as ImageIcon, Search, Filter, Ban, UserX, UserMinus, RotateCcw, CheckCircle2, ShieldAlert 
+  Upload, Loader2, Image as ImageIcon, Search, Filter, Ban, UserX, UserMinus, RotateCcw, CheckCircle2, ShieldAlert, FileText, UserCircle 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { EmployeeProfilePanel } from '@/components/panels/EmployeeProfilePanel';
 
 interface User {
   id?: string;
@@ -93,6 +94,15 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
 
   // Suspend & Resign Dialog States
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileInitialTab, setProfileInitialTab] = useState<string>('overview');
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const openEmployeeProfile = (uid: string, tabName: string = 'overview') => {
+    setProfileUserId(uid);
+    setProfileInitialTab(tabName);
+    setProfileOpen(true);
+  };
   const [userToSuspend, setUserToSuspend] = useState<User | null>(null);
   const [suspendReason, setSuspendReason] = useState('');
   const [suspending, setSuspending] = useState(false);
@@ -393,6 +403,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
     try {
       await api.put(`/users/${userToResign.id}`, {
         status: 'resigned',
+        resignationDate,
         remarks: resignationReason ? `Resigned on ${resignationDate}: ${resignationReason}` : `Resigned on ${resignationDate}`
       });
       toast.success(`${userToResign.name} has been marked as resigned and moved to Resigned Staff.`);
@@ -839,7 +850,6 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                     {[
                       { id: 'attendance', label: 'Attendance' },
                       { id: 'leaves', label: 'Leaves' },
-                      { id: 'payroll', label: 'Payroll' },
                       { id: 'invoices', label: 'Invoices' },
                       { id: 'users', label: 'Users' },
                       { id: 'employees', label: 'Employees' },
@@ -1287,6 +1297,32 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap self-end md:self-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEmployeeProfile(userId, 'documents')}
+                      title="Upload & Maintain Employee Documents"
+                      className="h-8 px-2.5 text-primary border-primary/30 hover:bg-primary/5 text-xs font-medium flex items-center gap-1"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>
+                        Docs
+                        {Array.isArray((user as any).employeeProfileDetail?.documents) &&
+                        (user as any).employeeProfileDetail.documents.length > 0
+                          ? ` (${(user as any).employeeProfileDetail.documents.length})`
+                          : ''}
+                      </span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEmployeeProfile(userId, 'overview')}
+                      title="View Full Employee Profile"
+                      className="h-8 px-2 text-xs flex items-center gap-1"
+                    >
+                      <UserCircle className="w-3.5 h-3.5" />
+                      <span>Profile</span>
+                    </Button>
                     {/* Suspend / Resign / Reactivate Actions */}
                     {isSuspended ? (
                       <>
@@ -1722,7 +1758,7 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
                 <p className="font-semibold text-foreground">{userToResign.name}</p>
                 <p className="text-xs text-muted-foreground">{userToResign.email} &bull; {userToResign.designation || userToResign.role}</p>
                 <div className="mt-2 text-xs text-rose-800 dark:text-rose-300">
-                  <strong>Notice:</strong> Marking this employee as resigned will block their login access immediately, move them into the <strong>Resigned Staff Directory</strong>, and automatically exclude them from regular monthly payroll processing.
+                  <strong>Notice:</strong> Marking this employee as resigned will block their login access immediately and move them into the <strong>Resigned Staff Directory</strong>. Payroll for their effective month of resignation remains enabled (prorated up to their resignation date).
                 </div>
               </div>
 
@@ -1783,6 +1819,16 @@ export function HRUsersPanel({ defaultStatus = 'all' }: { defaultStatus?: string
           )}
         </DialogContent>
       </Dialog>
+
+      <EmployeeProfilePanel
+        userId={profileUserId}
+        initialTab={profileInitialTab}
+        open={profileOpen}
+        onClose={() => {
+          setProfileOpen(false);
+          fetchUsers();
+        }}
+      />
     </Card>
   );
 }

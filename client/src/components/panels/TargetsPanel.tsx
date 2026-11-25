@@ -179,6 +179,10 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
 
   // Helper to determine active / completed / failed status
   const getTargetStatus = (t: any): 'active' | 'completed' | 'failed' => {
+    const backendStatus = (t.computedStatus || t.status || '').toLowerCase();
+    if (backendStatus === 'completed' || backendStatus === 'failed' || backendStatus === 'active') {
+      return backendStatus as 'active' | 'completed' | 'failed';
+    }
     const isCompleted = Number(t.achieved) >= Number(t.target) && Number(t.target) > 0;
     if (isCompleted) return 'completed';
 
@@ -192,6 +196,10 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
       const [y, m] = periodStr.split('-').map(Number);
       const endOfMonth = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
       return now.getTime() > endOfMonth.getTime() ? 'failed' : 'active';
+    } else if (/^\d{4}-Q([1-4])$/i.test(periodStr)) {
+      const m = periodStr.match(/^(\d{4})-Q([1-4])$/i)!;
+      const endOfQuarter = new Date(Date.UTC(Number(m[1]), Number(m[2]) * 3, 0, 23, 59, 59, 999));
+      return now.getTime() > endOfQuarter.getTime() ? 'failed' : 'active';
     } else if (/^\d{4}$/.test(periodStr)) {
       const y = Number(periodStr);
       const endOfYear = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
@@ -242,21 +250,32 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
 
       // Period filters
       const periodStr = String(t.period || '').trim();
+      const hasExplicitYear = /^\d{4}/.test(periodStr);
       if (yearFilter !== 'all') {
-        const targetYear = periodStr.slice(0, 4);
-        const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
-        if (targetYear !== yearFilter && createdYear !== yearFilter) return false;
+        if (hasExplicitYear) {
+          if (periodStr.slice(0, 4) !== yearFilter) return false;
+        } else if (periodStr !== 'session' && periodStr !== 'all') {
+          const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
+          if (createdYear && createdYear !== yearFilter) return false;
+        }
       }
 
       if (monthFilter !== 'all') {
         const paddedMonth = monthFilter.padStart(2, '0');
-        let targetMonth = '';
         if (/^\d{4}-\d{2}/.test(periodStr)) {
-          targetMonth = periodStr.slice(5, 7);
-        } else if (t.createdAt) {
-          targetMonth = String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0');
+          if (periodStr.slice(5, 7) !== paddedMonth) return false;
+        } else if (/^\d{4}-Q([1-4])$/i.test(periodStr)) {
+          const q = Number(periodStr.match(/Q([1-4])$/i)![1]);
+          const qMonths = [
+            String((q - 1) * 3 + 1).padStart(2, '0'),
+            String((q - 1) * 3 + 2).padStart(2, '0'),
+            String(q * 3).padStart(2, '0'),
+          ];
+          if (!qMonths.includes(paddedMonth)) return false;
+        } else if (periodStr === 'monthly' || periodStr === 'weekly') {
+          const createdMonth = t.createdAt ? String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0') : '';
+          if (createdMonth && createdMonth !== paddedMonth) return false;
         }
-        if (targetMonth && targetMonth !== paddedMonth) return false;
       }
 
       return true;
@@ -657,6 +676,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
               {filteredTargets.map((t) => {
                 const tid = t.id || t._id;
                 const isRevenue = /revenue|fee|amount|sales/i.test(t.type || '');
+                const isCenters = /center/i.test(t.type || '');
                 const rawPct = t.target > 0 ? Math.round(((Number(t.achieved) || 0) / Number(t.target)) * 100) : 0;
                 const pct = Math.min(100, rawPct);
                 const status = getTargetStatus(t);
@@ -769,7 +789,7 @@ export function TargetsPanel({ endpoint, title = 'Target Management' }: TargetsP
                         <span className="font-semibold text-foreground">
                           {formatVal(Number(t.achieved) || 0)}{' '}
                           <span className="font-normal text-muted-foreground text-xs">
-                            / {formatVal(Number(t.target))} {isRevenue ? '' : 'admissions'}
+                            / {formatVal(Number(t.target))} {isRevenue ? '' : isCenters ? 'centers' : 'admissions'}
                           </span>
                         </span>
                         <span className={`font-bold text-sm ${

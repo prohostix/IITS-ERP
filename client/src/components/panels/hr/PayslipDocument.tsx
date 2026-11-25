@@ -12,6 +12,10 @@ interface Payroll {
   deductions: any;
   bonus: number;
   overtime: number;
+  arrears?: number;
+  professionalTax?: number;
+  labourWelfareFund?: number;
+  tds?: number;
   status: string;
   remarks?: string;
   createdAt: string;
@@ -41,7 +45,14 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
   if (!payroll) return null;
 
   const totalAllowances = Object.values(payroll.allowances || {}).reduce((acc: number, val: any) => acc + Number(val), 0);
-  const totalDeductions = Object.values(payroll.deductions || {}).reduce((acc: number, val: any) => acc + Number(val), 0);
+  const totalDeductions =
+    Object.entries(payroll.deductions || {}).reduce((acc: number, [k, val]: any) => {
+      if (k === 'tax' && Number(payroll.tds || 0) > 0) return acc;
+      return acc + Number(val || 0);
+    }, 0) +
+    Number(payroll.professionalTax || 0) +
+    Number(payroll.labourWelfareFund || 0) +
+    Number(payroll.tds || 0);
 
   return (
     <div id={`payslip-${payroll.id}`} className="bg-white p-8 font-sans text-gray-800 w-[800px] h-auto border">
@@ -82,6 +93,12 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
                 <span className="font-semibold">₹{Number(val).toLocaleString()}</span>
               </div>
             ))}
+            {Number(payroll.arrears || 0) > 0 && (
+              <div className="flex justify-between">
+                <span>Salary Arrears</span>
+                <span className="font-semibold">₹{Number(payroll.arrears).toLocaleString()}</span>
+              </div>
+            )}
             {payroll.bonus > 0 && (
               <div className="flex justify-between">
                 <span>Bonus</span>
@@ -105,13 +122,35 @@ export function PayslipDocument({ payroll }: { payroll: Payroll }) {
         <div className="flex flex-col">
           <div className="bg-gray-100 font-bold p-2 border-b border-gray-300 uppercase text-sm tracking-wider">Deductions</div>
           <div className="p-4 space-y-2 text-sm flex-grow">
-            {Object.entries(payroll.deductions || {}).map(([key, val]: any) => (
-              <div key={key} className="flex justify-between">
-                <span>{formatDeductionLabel(key)}</span>
-                <span className="font-semibold text-red-600">-₹{Number(val).toLocaleString()}</span>
+            {Object.entries(payroll.deductions || {}).map(([key, val]: any) => {
+              if (key === 'tax' && Number(payroll.tds || 0) > 0) return null;
+              if (Number(val || 0) <= 0) return null;
+              return (
+                <div key={key} className="flex justify-between">
+                  <span>{formatDeductionLabel(key)}</span>
+                  <span className="font-semibold text-red-600">-₹{Number(val).toLocaleString()}</span>
+                </div>
+              );
+            })}
+            {Number(payroll.professionalTax || 0) > 0 && (
+              <div className="flex justify-between">
+                <span>Professional Tax (PT)</span>
+                <span className="font-semibold text-red-600">-₹{Number(payroll.professionalTax).toLocaleString()}</span>
               </div>
-            ))}
-            {Object.keys(payroll.deductions || {}).length === 0 && (
+            )}
+            {Number(payroll.labourWelfareFund || 0) > 0 && (
+              <div className="flex justify-between">
+                <span>Labour Welfare Fund (LWF)</span>
+                <span className="font-semibold text-red-600">-₹{Number(payroll.labourWelfareFund).toLocaleString()}</span>
+              </div>
+            )}
+            {Number(payroll.tds || 0) > 0 && (
+              <div className="flex justify-between">
+                <span>Income Tax / TDS</span>
+                <span className="font-semibold text-red-600">-₹{Number(payroll.tds).toLocaleString()}</span>
+              </div>
+            )}
+            {totalDeductions === 0 && (
               <div className="text-gray-400 italic">No deductions</div>
             )}
           </div>

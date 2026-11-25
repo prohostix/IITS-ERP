@@ -363,10 +363,26 @@ export const getManagerHiringRequests = async (req: AuthRequest, res: Response) 
 
 export const getMyDocuments = async (req: AuthRequest, res: Response) => {
   try {
-    const candidate = await prisma.candidate.findFirst({
-      where: { email: req.user.email }
+    const cleanEmail = String(req.user.email || '').trim();
+    const [candidate, profile] = await Promise.all([
+      prisma.candidate.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.employeeProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { documents: true },
+      }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        ...(candidate || {}),
+        offerLetterUrl: candidate?.offerLetterUrl || null,
+        appointmentLetterUrl: candidate?.appointmentLetterUrl || null,
+        profileDocuments: Array.isArray(profile?.documents) ? profile.documents : [],
+      },
     });
-    res.json({ success: true, data: candidate });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch documents' });
   }

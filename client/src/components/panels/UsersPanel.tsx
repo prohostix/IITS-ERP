@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Building2, Shield, Upload, Download, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Building2, Shield, Upload, Download, AlertTriangle, CheckCircle2, Search, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import * as XLSX from 'xlsx';
+import { EmployeeProfilePanel } from '@/components/panels/EmployeeProfilePanel';
 
 interface User {
   id: string;
@@ -64,6 +65,9 @@ export function UsersPanel() {
   const [importErrors, setImportErrors] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<any | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileInitialTab, setProfileInitialTab] = useState<string>('overview');
+  const [profileOpen, setProfileOpen] = useState(false);
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -416,14 +420,27 @@ export function UsersPanel() {
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-3 border-t">
+              <div className="flex gap-2 pt-3 border-t flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-primary border-primary/30"
+                  onClick={() => {
+                    setProfileUserId(user.id);
+                    setProfileInitialTab('documents');
+                    setProfileOpen(true);
+                  }}
+                >
+                  <FileText className="w-3 h-3 mr-1.5" />
+                  Profile & Docs
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="flex-1"
                   onClick={() => handleEdit(user)}
                 >
-                  <Edit className="w-3 h-3 mr-2" />
+                  <Edit className="w-3 h-3 mr-1.5" />
                   Edit
                 </Button>
                 <Button
@@ -598,7 +615,6 @@ export function UsersPanel() {
                     {[
                       { id: 'attendance', label: 'Attendance' },
                       { id: 'leaves', label: 'Leaves' },
-                      { id: 'payroll', label: 'Payroll' },
                       { id: 'invoices', label: 'Invoices' },
                       { id: 'users', label: 'Users' },
                       { id: 'employees', label: 'Employees' },
@@ -835,6 +851,16 @@ export function UsersPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EmployeeProfilePanel
+        userId={profileUserId}
+        initialTab={profileInitialTab}
+        open={profileOpen}
+        onClose={() => {
+          setProfileOpen(false);
+          fetchData();
+        }}
+      />
     </div>
   );
 }

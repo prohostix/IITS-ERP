@@ -76,9 +76,15 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { SalaryConfigPanel } from '@/components/panels/SalaryConfigPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
+import { useAuth } from '@/hooks/useAuth';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 
 
 export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+  const { user } = useAuth();
+  const hasPayrollAccess = canAccessPayroll(user);
   const [metrics, setMetrics] = useState<any>({});
   const [overviewStats, setOverviewStats] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -112,7 +118,9 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
         api.get('/dashboard/metrics').catch(() => ({ data: { data: {} } })),
         api.get('/finance/invoices').catch(() => ({ data: { data: [] } })),
         api.get('/finance/expenses').catch(() => ({ data: { data: [] } })),
-        api.get('/finance/payroll-batches').catch(() => ({ data: { data: [] } })),
+        hasPayrollAccess
+          ? api.get('/finance/payroll-batches').catch(() => ({ data: { data: [] } }))
+          : Promise.resolve({ data: { data: [] } }),
       ]);
       setOverviewStats(statsRes.data?.data || null);
       setMetrics(metricsRes.data?.data || {});
@@ -132,16 +140,36 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
           stats={overviewStats}
           metrics={metrics} invoices={invoices} expenses={expenses}
           payrollBatches={payrollBatches} loading={loading} onNavigate={setActiveTab}
+          hasPayrollAccess={hasPayrollAccess}
         />
       );
       case 'invoices': return <InvoicesPanel />;
       case 'payments': return <PaymentsPanel />;
       case 'university_fees': return <FinanceUniversityFeePanel />;
+      case 'tada_management':
+      case 'tada-management': return <TADAClaimsPanel mode="finance" />;
       case 'expenses': return <ExpensesPanel />;
       case 'targets': return <TargetsPanel endpoint="/finance/targets" title="Finance Targets" />;
       case 'fees': return <ProgramFeeStructurePanel />;
-      case 'payroll': return <PayrollPanel />;
-      case 'payroll-batches': return <PayrollBatchesPanel />;
+      case 'payroll':
+      case 'payroll-batches':
+      case 'salary-config':
+      case 'salary_config':
+      case 'salary_approvals':
+      case 'salary-approvals':
+        if (!hasPayrollAccess) {
+          return (
+            <Card className="border-border/70">
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Payroll module access is restricted exclusively to authorized Finance leadership (Shaju Sir &amp; Pramod Sir).
+              </CardContent>
+            </Card>
+          );
+        }
+        if (activeTab === 'payroll') return <PayrollPanel />;
+        if (activeTab === 'payroll-batches') return <PayrollBatchesPanel />;
+        if (activeTab === 'salary-config' || activeTab === 'salary_config') return <SalaryConfigPanel />;
+        return <FinanceSalaryApprovalPanel />;
       case 'students': return <StudentsPanel />;
       case 'centers': return <StudyCentersPanel onViewLedger={handleOpenCenterLedger} />;
       case 'broadcast_notifications': return <BroadcastNotificationsPanel />;
@@ -155,7 +183,6 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'center_admissions': return <CentersAdmissionsPanel />;
       case 'income_expenditure': return <IncomeExpenditurePanel />;
       case 'profit_loss': return <ProfitLossPanel />;
-      case 'salary_approvals': return <FinanceSalaryApprovalPanel />;
       case 'sales_targets': return <FinanceSalesTargetsPanel />;
       case 'leaves': return <LeavesPanel />;
       case 'leave_approvals':
@@ -166,6 +193,8 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'payslips':
       case 'my_payslips': return <PayrollPanel isEmployeeView />;
+      case 'my_tada':
+      case 'my-tada': return <TADAClaimsPanel mode="employee" />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'holidays': return <HolidaysPanel />;
       case 'notice-board': return <NoticeBoardPanel />;
@@ -186,6 +215,7 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
         <OverviewContent
           metrics={metrics} invoices={invoices} expenses={expenses}
           payrollBatches={payrollBatches} loading={loading} onNavigate={setActiveTab}
+          hasPayrollAccess={hasPayrollAccess}
         />
       );
     }
@@ -198,7 +228,8 @@ export function ModernFinanceDashboard({ initialTab, onNavigate: _onNavigate }: 
   );
 }
 
-export function getFinanceNavItems(isManager: boolean = true) {
+export function getFinanceNavItems(isManager: boolean = true, user?: any) {
+  const showPayroll = canAccessPayroll(user);
   return [
     { id: '__finance_section', label: 'Finance Management', isSection: true },
     { id: 'overview', label: 'Overview' },
@@ -208,13 +239,17 @@ export function getFinanceNavItems(isManager: boolean = true) {
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
     { id: 'university_fees', label: 'University Fees' },
+    { id: 'tada_management', label: 'TA/DA Management' },
     { id: 'expenses', label: 'Expenses' },
     { id: 'targets', label: 'Targets' },
     { id: 'fees', label: 'Fee Structures' },
-    { id: '__payroll_section', label: 'Payroll & HR', isSection: true },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'payroll-batches', label: 'Payroll Batches' },
-    { id: 'salary_approvals', label: 'Salary Approvals' },
+    { id: '__payroll_section', label: showPayroll ? 'Payroll & HR' : 'Leave & HR', isSection: true },
+    ...(showPayroll ? [
+      { id: 'payroll', label: 'Payroll' },
+      { id: 'payroll-batches', label: 'Payroll Batches' },
+      { id: 'salary-config', label: 'Salary Config' },
+      { id: 'salary_approvals', label: 'Salary Approvals' },
+    ] : []),
     { id: 'leaves', label: 'Leave Requests' },
     ...(isManager ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: '__academic_section', label: 'Academics & Admissions', isSection: true },
@@ -248,6 +283,7 @@ export function getFinanceNavItems(isManager: boolean = true) {
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'My Attendance' },
+    { id: 'my_tada', label: 'My TA/DA Claims' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },
     { id: 'holidays', label: 'Holidays' },
@@ -258,7 +294,7 @@ export function getFinanceNavItems(isManager: boolean = true) {
 
 // ─── Overview Content ─────────────────────────────────────────────────────────
 
-function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, loading, onNavigate }: any) {
+function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, loading, onNavigate, hasPayrollAccess }: any) {
   const hasStats = Boolean(stats && stats.totals);
 
   // Authoritative live numbers from backend or fallback to array reduce
@@ -361,7 +397,9 @@ function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, l
           { label: 'Total Receivables', value: formatINR(totalReceivables), icon: DollarSign },
           { label: 'Total Collected', value: formatINR(totalCollected), icon: CreditCard, change: `${collectionRate}% rate`, isPositive: true },
           { label: 'Operational Outflow', value: formatINR(totalExpenses), icon: TrendingUp },
-          { label: 'Pending Batches', value: pendingBatches, icon: Users, change: pendingBatches > 0 ? 'Requires review' : 'All clear', isPositive: pendingBatches === 0 },
+          ...(hasPayrollAccess
+            ? [{ label: 'Pending Batches', value: pendingBatches, icon: Users, change: pendingBatches > 0 ? 'Requires review' : 'All clear', isPositive: pendingBatches === 0 }]
+            : [{ label: 'Pending Claims', value: pendingExpensesCount, icon: Receipt, change: pendingExpensesCount > 0 ? 'Requires review' : 'All clear', isPositive: pendingExpensesCount === 0 }]),
         ]}
         primaryAction={{
           label: 'Student Ledger',
@@ -403,19 +441,21 @@ function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, l
           title="Operational Expenses"
           value={formatINR(totalExpenses)}
           fullValue={formatFullINR(totalExpenses)}
-          sub={`${hasStats ? stats.counts.payrolls : payrollBatches.length} payrolls • ${hasStats ? stats.counts.expenseClaims : expenses.length} claims • ${formatINR(totalUniFees)} uni fees`}
-          trend={pendingBatches > 0 ? `${pendingBatches} pending approval` : 'All reviewed'}
-          trendType={pendingBatches > 0 ? 'down' : 'up'}
+          sub={`${hasStats ? stats.counts.expenseClaims : expenses.length} claims • ${formatINR(totalUniFees)} uni fees`}
+          trend={hasPayrollAccess && pendingBatches > 0 ? `${pendingBatches} pending approval` : (pendingExpensesCount > 0 ? `${pendingExpensesCount} pending claims` : 'All reviewed')}
+          trendType={(hasPayrollAccess && pendingBatches > 0) || pendingExpensesCount > 0 ? 'down' : 'up'}
           icon={<TrendingUp className="w-5 h-5" />}
           color="warning"
-          onClick={() => onNavigate('payroll-batches')}
+          onClick={() => onNavigate(hasPayrollAccess ? 'payroll-batches' : 'expenses')}
         />
       </div>
 
       {/* Secondary quick-nav row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Payroll Batches', value: pendingBatches, sub: 'Pending approval', icon: <Users className="w-4 h-4" />, tab: 'payroll-batches', urgent: pendingBatches > 0 },
+          hasPayrollAccess
+            ? { label: 'Payroll Batches', value: pendingBatches, sub: 'Pending approval', icon: <Users className="w-4 h-4" />, tab: 'payroll-batches', urgent: pendingBatches > 0 }
+            : { label: 'Expense Claims', value: pendingExpensesCount, sub: 'Awaiting review', icon: <Receipt className="w-4 h-4" />, tab: 'expenses', urgent: pendingExpensesCount > 0 },
           { label: 'Wallet Top-Ups', value: (hasStats ? stats.counts.pendingWalletTopUps : metrics.pendingWalletTopUps) || 0, sub: 'Awaiting review', icon: <Wallet className="w-4 h-4" />, tab: 'wallet_topups', urgent: ((hasStats ? stats.counts.pendingWalletTopUps : metrics.pendingWalletTopUps) || 0) > 0 },
           { label: 'Enrollments', value: (hasStats ? stats.counts.pendingEnrollments : metrics.pendingEnrollments) || 0, sub: 'Pending review', icon: <FileText className="w-4 h-4" />, tab: 'enrollments_finance', urgent: ((hasStats ? stats.counts.pendingEnrollments : metrics.pendingEnrollments) || 0) > 0 },
           { label: 'Pending Centers', value: (hasStats ? stats.counts.pendingCenters : metrics.pendingCenters) || 0, sub: 'Payment verification', icon: <Receipt className="w-4 h-4" />, tab: 'pending_payment', urgent: ((hasStats ? stats.counts.pendingCenters : metrics.pendingCenters) || 0) > 0 },
@@ -578,7 +618,7 @@ function OverviewContent({ stats, metrics, invoices, expenses, payrollBatches, l
             <CardDescription className="text-xs">Pending items requiring Accounts review</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {pendingBatches > 0 && (
+            {hasPayrollAccess && pendingBatches > 0 && (
               <div
                 className="p-4 rounded-xl border border-warning/20 bg-warning/5 flex items-start gap-3 cursor-pointer hover:bg-warning/10 transition-colors"
                 onClick={() => onNavigate('payroll-batches')}

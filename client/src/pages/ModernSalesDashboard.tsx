@@ -62,6 +62,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 
 const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -167,6 +168,8 @@ export function ModernSalesDashboard({ initialTab, isSubDeptManager, onNavigate 
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'payslips':
       case 'my_payslips': return <PayrollPanel isEmployeeView />;
+      case 'my_tada':
+      case 'my-tada': return <TADAClaimsPanel mode="employee" />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
@@ -234,6 +237,7 @@ export function getSalesNavItems(isManager: boolean = true) {
     { id: 'my_leaves', label: 'My Leaves' },
     ...(isManager ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: 'my_attendance', label: 'Attendance' },
+    { id: 'my_tada', label: 'My TA/DA Claims' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },
     { id: 'manager_hiring', label: 'My Hiring Requests' },
@@ -311,11 +315,10 @@ function OverviewContent({ user, metrics, leads, targets, enrollments, centers, 
   }, [user?.id, team]);
 
   const scopedTargets = useMemo(() => {
-    const mineOrTeam = (targets || []).filter((t: any) => {
+    return (targets || []).filter((t: any) => {
       const empId = typeof t.employeeId === 'object' ? t.employeeId?.id : (t.employee?.id || t.employeeId);
       return !empId || teamIdsSet.has(empId);
     });
-    return mineOrTeam.length > 0 ? mineOrTeam : (targets || []);
   }, [targets, teamIdsSet]);
 
   const completedTargetsCount = scopedTargets.filter((t: any) => Number(t.achieved || 0) >= Number(t.target || 1)).length;

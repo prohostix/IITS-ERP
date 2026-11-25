@@ -71,6 +71,7 @@ import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 
 // Report panels
 import { AdmissionHierarchyReportPanel } from '@/components/panels/AdmissionHierarchyReportPanel';
@@ -79,7 +80,7 @@ import { SessionReportPanel } from '@/components/panels/SessionReportPanel';
 import { SalesStaffAdmissionReportPanel } from '@/components/panels/SalesStaffAdmissionReportPanel';
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6'];
-const REJECTED_STATUSES = ['rejected', 'department_rejected', 'cancelled', 'dropout', 'refunded'];
+const REJECTED_STATUSES = ['rejected', 'department_rejected', 'ops_rejected', 'university_rejected', 'cancelled', 'dropout', 'refunded'];
 
 const formatCurrency = (amount: number) => {
   if (!amount || isNaN(amount)) return '₹0';
@@ -118,6 +119,7 @@ export function getBranchManagerNavItems() {
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'leave_approvals', label: 'Leave Approvals' },
     { id: 'my_attendance', label: 'Attendance' },
+    { id: 'my_tada', label: 'My TA/DA Claims' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },
     { id: 'manager_hiring', label: 'My Hiring Requests' },
@@ -237,6 +239,8 @@ export function ModernBranchManagerDashboard({ initialTab, onNavigate }: { initi
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'payslips':
       case 'my_payslips': return <PayrollPanel isEmployeeView />;
+      case 'my_tada':
+      case 'my-tada': return <TADAClaimsPanel mode="employee" />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
@@ -311,26 +315,22 @@ function BranchOverview({
   );
   const pendingCentersCount = Math.max(0, totalCenters - verifiedCenters);
 
-  // 3. Targets & Quotas (both active and completed)
+  // 3. Targets & Quotas (average progress across targets to avoid mixing admissions + revenue + centers)
   const totalTargetsCount = targets.length;
   const completedTargetsCount = useMemo(
     () => targets.filter((t: any) => Number(t.target) > 0 && Number(t.achieved || 0) >= Number(t.target)).length,
     [targets]
   );
-  const totalTargetGoal = useMemo(
-    () => targets.reduce((sum: number, t: any) => sum + (Number(t.target) || 0), 0),
-    [targets]
-  );
-  const totalTargetAchieved = useMemo(
-    () => targets.reduce((sum: number, t: any) => sum + (Number(t.achieved) || 0), 0),
-    [targets]
-  );
-  const overallTargetProgress =
-    totalTargetGoal > 0
-      ? Math.min(100, Math.round((totalTargetAchieved / totalTargetGoal) * 100))
-      : completedTargetsCount > 0
-      ? 100
-      : 0;
+  const overallTargetProgress = useMemo(() => {
+    if (targets.length === 0) return 0;
+    const sumPct = targets.reduce((sum: number, t: any) => {
+      const targetVal = Number(t.target) || 0;
+      const achievedVal = Number(t.achieved) || 0;
+      const pct = targetVal > 0 ? Math.min(100, (achievedVal / targetVal) * 100) : 0;
+      return sum + pct;
+    }, 0);
+    return Math.round(sumPct / targets.length);
+  }, [targets]);
 
   // 4. Team & Leads
   const teamCount = team.length;

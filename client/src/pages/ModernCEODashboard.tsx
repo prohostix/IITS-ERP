@@ -68,9 +68,15 @@ import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniv
 import { FinanceReregPaymentReportPanel } from '@/components/panels/FinanceReregPaymentReportPanel';
 import { FinanceSalesUsersReportPanel } from '@/components/panels/FinanceSalesUsersReportPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
+import { PayrollPanel } from '@/components/panels/PayrollPanel';
+import { PayrollBatchesPanel } from '@/components/panels/PayrollBatchesPanel';
+import { SalaryConfigPanel } from '@/components/panels/SalaryConfigPanel';
 import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { OpsCenterVerificationPanel } from '@/components/panels/OpsCenterVerificationPanel';
 import { FinanceCenterVerificationPanel } from '@/components/panels/FinanceCenterVerificationPanel';
+import { useAuth } from '@/hooks/useAuth';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 
 const DEPT_COLORS: Record<string, string> = {
   hr: 'hsl(var(--info))', finance: 'hsl(var(--success))',
@@ -78,6 +84,8 @@ const DEPT_COLORS: Record<string, string> = {
 };
 
 export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+  const { user } = useAuth();
+  const hasPayrollAccess = canAccessPayroll(user);
   const [metrics, setMetrics] = useState<any>({});
   const [analytics, setAnalytics] = useState<any>({ employeePerformance: [], departmentEfficiency: [] });
   const [loadingMetrics, setLoadingMetrics] = useState(true);
@@ -339,6 +347,10 @@ export function ModernCEODashboard({ initialTab, onNavigate }: { initialTab?: st
         {activeTab === 'pending_verification' && <OpsCenterVerificationPanel />}
         {activeTab === 'pending_payment' && <FinanceCenterVerificationPanel />}
         {(activeTab === 'leave_approvals' || activeTab === 'leave-approvals') && <LeaveApprovalsPanel />}
+        {activeTab === 'holidays' && <HolidaysPanel />}
+        {activeTab === 'payroll' && hasPayrollAccess && <PayrollPanel />}
+        {activeTab === 'payroll-batches' && hasPayrollAccess && <PayrollBatchesPanel />}
+        {(activeTab === 'salary-config' || activeTab === 'salary_config') && hasPayrollAccess && <SalaryConfigPanel />}
       </div>
     </div>
   );

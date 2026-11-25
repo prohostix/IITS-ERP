@@ -11,6 +11,7 @@ import { getHRNavItems } from '@/pages/ModernHRDashboard';
 import { getFinanceNavItems } from '@/pages/ModernFinanceDashboard';
 import { getSalesNavItems } from '@/pages/ModernSalesDashboard';
 import { getBranchManagerNavItems } from '@/pages/ModernBranchManagerDashboard';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { useLocation, Router } from 'wouter';
@@ -23,6 +24,8 @@ const EMPLOYEE_NAV_ITEMS = [
   { id: '__employee_portal', label: 'My Portal', isSection: true },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'tasks', label: 'My Tasks' },
+  { id: 'my_documents', label: 'My Documents' },
+  { id: 'my_tada', label: 'My TA/DA Claims' },
   { id: '__hr_attendance', label: 'Attendance & Leave', isSection: true },
   { id: 'leaves', label: 'My Leaves' },
   { id: 'attendance', label: 'Attendance' },
@@ -78,10 +81,21 @@ const TABLE_TO_TAB: Record<string, string> = {
   payments: 'payments',
   university_fees: 'university_fees',
   expenses: 'expenses',
+  tada_management: 'tada_management',
+  'tada-management': 'tada_management',
+  tada_approvals: 'tada-approvals',
+  'tada-approvals': 'tada-approvals',
+  my_tada: 'my_tada',
+  'my-tada': 'my_tada',
   targets: 'targets',
   fee_structures: 'fees',
   payroll: 'payroll',
   payroll_batches: 'payroll-batches',
+  'payroll-batches': 'payroll-batches',
+  salary_config: 'salary-config',
+  'salary-config': 'salary-config',
+  salary_approvals: 'salary_approvals',
+  'salary-approvals': 'salary_approvals',
   auth_fees: 'auth_fees',
   pending_payment: 'pending_payment',
   'pending-payment': 'pending_payment',
@@ -328,6 +342,12 @@ function App() {
         { id: 'tasks', label: 'Tasks' },
         { id: 'escalations', label: 'Escalations' },
         { id: 'leave_approvals', label: 'Leave Approvals' },
+        { id: 'holidays', label: 'Holiday Calendar' },
+        ...(canAccessPayroll(user) ? [
+          { id: 'payroll', label: 'Payroll' },
+          { id: 'payroll-batches', label: 'Payroll Batches' },
+          { id: 'salary-config', label: 'Salary Config' },
+        ] : []),
         { id: '__operations_sales', label: 'Operations & Sales', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'invoices', label: 'Invoices' },
@@ -358,6 +378,18 @@ function App() {
         { id: 'employees', label: 'Employees' },
         { id: 'leave_requests', label: 'Leave Requests' },
         { id: 'leave_approvals', label: 'Leave Approvals' },
+        { id: 'holidays', label: 'Holiday Calendar' },
+        ...(canAccessPayroll(user) ? [
+          { id: 'payroll', label: 'Payroll' },
+          { id: 'payroll-batches', label: 'Payroll Batches' },
+          { id: 'salary-config', label: 'Salary Config' },
+        ] : []),
+        { id: 'holidays', label: 'Holiday Calendar' },
+        ...(canAccessPayroll(user) ? [
+          { id: 'payroll', label: 'Payroll' },
+          { id: 'payroll-batches', label: 'Payroll Batches' },
+          { id: 'salary-config', label: 'Salary Config' },
+        ] : []),
         { id: '__academic_ops', label: 'Academic Operations', isSection: true },
         { id: 'students', label: 'Students' },
         { id: 'universities', label: 'Universities' },
@@ -373,6 +405,8 @@ function App() {
         { id: 'rereg_payment_report', label: 'Re-Registration Fees' },
         { id: 'invoices', label: 'Invoices' },
         { id: 'payments', label: 'Payments' },
+        { id: 'tada_management', label: 'TA/DA Management' },
+        { id: 'tada-approvals', label: 'TA/DA Verification (HR)' },
         { id: 'expenses', label: 'Expenses' },
         { id: '__sales_management', label: 'Sales & CRM', isSection: true },
         { id: 'leads', label: 'Leads' },
@@ -393,11 +427,11 @@ function App() {
     }
 
     if (user.role === 'finance_admin' || user.role === 'finance_sub_admin') {
-      return getFinanceNavItems(true);
+      return getFinanceNavItems(true, user);
     }
 
     if (user.role === 'hr_admin' || user.role === 'hr_sub_admin') {
-      return getHRNavItems();
+      return getHRNavItems(user);
     }
 
     if (user.role === 'sales_admin' || user.role === 'sales_sub_admin') {
@@ -414,6 +448,8 @@ function App() {
         { id: '__employee_portal', label: 'My Portal', isSection: true },
         { id: 'attendance', label: 'My Attendance' },
         { id: 'leaves', label: 'My Leaves' },
+        { id: 'my_tada', label: 'My TA/DA Claims' },
+        { id: 'my_documents', label: 'My Documents' },
         { id: 'holidays', label: 'Holiday List' },
         { id: 'announcements', label: 'Announcements' },
       ];
@@ -446,8 +482,8 @@ function App() {
       if (deptType) {
         switch (deptType) {
           case 'operations': return getOpsNavItems(isSubDeptManager, isManager);
-          case 'hr': return getHRNavItems();
-          case 'finance': return getFinanceNavItems(isManager);
+          case 'hr': return getHRNavItems(user);
+          case 'finance': return getFinanceNavItems(isManager, user);
           case 'sales': return getSalesNavItems(isManager);
         }
       }
@@ -457,7 +493,7 @@ function App() {
     return baseTables;
   };
 
-  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, (user as any)?.subDepartmentId, (user as any)?.branchId, (user as any)?.managedBranch, deptType]);
+  const tables = useMemo(() => isRegisterPage ? [] : getAvailableTables(), [isRegisterPage, user?.role, user?.email, (user as any)?.userId, (user as any)?.subDepartmentId, (user as any)?.branchId, (user as any)?.managedBranch, deptType]);
 
   // Fetch data for active table — only when in table view mode
   useEffect(() => {
@@ -566,10 +602,10 @@ function App() {
           response = await api.get('/users'); // Placeholder
           break;
         case 'payroll':
-          response = await api.get('/payroll');
+          response = canAccessPayroll(user) ? await api.get('/payroll') : { data: { data: [] } };
           break;
         case 'payroll_batches':
-          response = await api.get('/payroll/batches');
+          response = canAccessPayroll(user) ? await api.get('/payroll/batches') : { data: { data: [] } };
           break;
         default:
           response = { data: { data: [] } };
@@ -882,7 +918,7 @@ function App() {
   // Branch managers are excluded — they always get the branch dashboard
   const shouldUseDepartmentDashboard = Boolean(
     user.role === 'employee' &&
-    !(user as any)?.branchId &&
+    !(user as any)?.managedBranch &&
     ((user as any)?.departmentId || (user as any)?.subDepartmentId) &&
     viewMode === 'dashboard'
   );

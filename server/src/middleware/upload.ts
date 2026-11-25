@@ -24,14 +24,31 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx|csv/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const allowedExts = /^\.(jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|csv|txt|zip)$/i;
+  const allowedMimes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv',
+    'text/plain',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/octet-stream',
+  ];
+  const extOk = allowedExts.test(path.extname(file.originalname || '').toLowerCase());
+  const mimeOk = allowedMimes.includes((file.mimetype || '').toLowerCase());
 
-  if (mimetype && extname) {
+  if (extOk && mimeOk) {
     return cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images and documents are allowed.'));
+    cb(new Error('Invalid file type. Allowed formats: PDF, JPG, PNG, WEBP, DOC, DOCX, XLS, XLSX, CSV.'));
   }
 };
 

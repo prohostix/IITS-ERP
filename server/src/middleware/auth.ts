@@ -41,7 +41,9 @@ export const protect = async (
           studyCenter: true,
           subDepartment: { include: { parentDept: true } },
           managedDepartments: true,
+          managedSubDepartments: { select: { id: true, name: true } },
           managedBranch: { select: { id: true, name: true, code: true } },
+          subordinates: { select: { id: true } },
         }
       });
 
@@ -121,9 +123,14 @@ export const authorize = (...roles: string[]) => {
       (req.path.startsWith('/programs') || req.path.includes('/programs/')) &&
       ['POST', 'PUT', 'DELETE'].includes(req.method);
 
-    // Allow department managers, sub-department managers, or branch managers to perform department leave approvals
+    // Allow department managers, sub-department managers, branch managers, or direct reporting managers to perform department leave approvals
     const isLeaveDeptApproval = req.baseUrl.includes('/hr') && (req.path.includes('/dept-approve') || req.path.endsWith('/approve'));
-    const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
+    const isAssignedDeptManager =
+      Boolean(req.user.department?.managerId === req.user.id) ||
+      Boolean((req.user as any).managedDepartments?.length > 0) ||
+      Boolean((req.user as any).managedSubDepartments?.length > 0) ||
+      Boolean((req.user as any).subordinates?.length > 0) ||
+      Boolean(req.user.isDepartmentManager);
     if (isLeaveDeptApproval && (isAssignedDeptManager || Boolean(req.user.subDepartmentId) || Boolean(req.user.branchId))) {
       return next();
     }
@@ -134,4 +141,38 @@ export const authorize = (...roles: string[]) => {
 
     res.status(403).json({ success: false, message: 'Access denied' });
   };
+};
+
+// Exclusive Payroll Module Authorization: strictly Shaju Sir & Pramod Sir
+export const isPayrollAuthorizedUser = (user: any): boolean => {
+  if (!user) return false;
+  const email = String(user.email || '').trim().toLowerCase();
+  const name = String(user.name || '').trim().toLowerCase();
+
+  const allowedEnv = (process.env.PAYROLL_ALLOWED_USERS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (allowedEnv.length > 0 && (allowedEnv.includes(email) || allowedEnv.includes(name))) {
+    return true;
+  }
+
+  const allowedEmails = [
+    'accountsmanager@iitseducation.org', // Shaju A
+    'groupaccounts@iitseducation.org',   // Pramod P P
+  ];
+  if (allowedEmails.includes(email)) return true;
+
+  return /\bshaju\b/i.test(name) || /\bpramod\b/i.test(name);
+};
+
+export const requirePayrollAccess = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user || !isPayrollAuthorizedUser(req.user)) {
+    res.status(403).json({
+      success: false,
+      message: 'Payroll module access is restricted exclusively to Shaju Sir and Pramod Sir.'
+    });
+    return;
+  }
+  next();
 };

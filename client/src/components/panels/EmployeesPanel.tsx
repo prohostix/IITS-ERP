@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Mail, Phone, UserCircle, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, UserCircle, Search, Filter, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -18,6 +18,7 @@ export function EmployeesPanel() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileInitialTab, setProfileInitialTab] = useState<string>('overview');
   const [profileOpen, setProfileOpen] = useState(false);
 
   // Search & Filter States
@@ -197,8 +198,12 @@ export function EmployeesPanel() {
     <div className="space-y-6">
       <EmployeeProfilePanel
         userId={profileUserId}
+        initialTab={profileInitialTab}
         open={profileOpen}
-        onClose={() => setProfileOpen(false)}
+        onClose={() => {
+          setProfileOpen(false);
+          fetchEmployees();
+        }}
       />
       <div className="flex items-center justify-between">
         <div>
@@ -304,7 +309,6 @@ export function EmployeesPanel() {
                     {[
                       { id: 'attendance', label: 'Attendance' },
                       { id: 'leaves', label: 'Leaves' },
-                      { id: 'payroll', label: 'Payroll' },
                       { id: 'invoices', label: 'Invoices' },
                       { id: 'users', label: 'Users' },
                       { id: 'employees', label: 'Employees' },
@@ -565,8 +569,31 @@ export function EmployeesPanel() {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(employee.status)}
-                      <Button variant="ghost" size="sm" onClick={() => openProfile(empId)} title="View Profile">
-                        <UserCircle className="w-4 h-4" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs gap-1 text-primary border-primary/30"
+                        onClick={() => {
+                          setProfileUserId(empId);
+                          setProfileInitialTab('documents');
+                          setProfileOpen(true);
+                        }}
+                        title="Upload & Maintain Employee Documents"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Docs
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs gap-1"
+                        onClick={() => {
+                          setProfileUserId(empId);
+                          setProfileInitialTab('overview');
+                          setProfileOpen(true);
+                        }}
+                        title="View Employee Profile"
+                      >
+                        <UserCircle className="w-3.5 h-3.5" /> Profile
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(employee)}>
                         <Edit className="w-4 h-4" />

@@ -73,7 +73,15 @@ export function AttendanceCalendarPanel() {
   };
 
   const getHolidayForDay = (day: Date) => {
-    return holidays.find(h => h.date && isSameDay(new Date(h.date), day));
+    return holidays.find(h => {
+      if (!h?.date) return false;
+      const hd = new Date(h.date);
+      return (
+        hd.getUTCFullYear() === day.getFullYear() &&
+        hd.getUTCMonth() === day.getMonth() &&
+        hd.getUTCDate() === day.getDate()
+      );
+    });
   };
 
   const getStatusColor = (attendance: any) => {
@@ -177,7 +185,8 @@ export function AttendanceCalendarPanel() {
                   const colorClass = getStatusColor(att);
                   const isToday = isSameDay(day, new Date());
                   const isWeekendNoPunch = isSunday && (!att || (!att.checkIn && (att.status === 'leave' || att.status === 'absent')));
-                  const isHolidayNoPunch = Boolean(holiday) && (!att || (!att.checkIn && att.status === 'absent'));
+                  const isHolidayNoPunch = Boolean(holiday) && (!att || (!att.checkIn && (att.status === 'absent' || att.status === 'leave')));
+                  const isNationalHoliday = holiday?.type === 'national';
 
                   return (
                     <div
@@ -200,8 +209,18 @@ export function AttendanceCalendarPanel() {
                           Weekend
                         </div>
                       ) : isHolidayNoPunch ? (
-                        <div className="mt-auto text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 rounded px-1.5 py-0.5 text-center font-medium truncate" title={holiday?.name}>
-                          {holiday?.name || 'Holiday'}
+                        <div
+                          className={`mt-auto text-[10px] rounded px-1.5 py-1 text-center font-medium border ${
+                            isNationalHoliday
+                              ? 'text-rose-700 dark:text-rose-300 bg-rose-500/15 border-rose-500/30'
+                              : 'text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border-indigo-500/30'
+                          }`}
+                          title={`${holiday?.name || 'Holiday'}${isNationalHoliday ? ' (National Holiday)' : ''}`}
+                        >
+                          {isNationalHoliday && (
+                            <div className="font-bold uppercase tracking-wider text-[9px]">National Holiday</div>
+                          )}
+                          <div className="truncate font-semibold">{holiday?.name || 'Holiday'}</div>
                         </div>
                       ) : att ? (
                         <div className={`mt-auto text-[11px] p-1.5 rounded-md border ${colorClass} flex flex-col gap-0.5`}>

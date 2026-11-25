@@ -83,6 +83,7 @@ export function FinanceSalesTargetsPanel() {
     universities: [] as string[],
   });
 
+  const [periodMode, setPeriodMode] = useState<'monthly' | 'quarterly' | 'yearly' | 'session'>('monthly');
   const [form, setForm] = useState({
     employeeId: '',
     universityId: 'none',
@@ -120,7 +121,9 @@ export function FinanceSalesTargetsPanel() {
           (usersRes.status === 'fulfilled' ? usersRes.value.data.data || [] : []).map((u: SalesUser) => u.id)
         );
         const allTargets: SalesTarget[] = targetsRes.value.data.data || [];
-        setTargets(allTargets.filter(t => t.employeeId && (salesUserIds.has(t.employeeId.id) || salesUserIds.size === 0)));
+        setTargets(
+          allTargets.filter(t => !t.employeeId || salesUserIds.has(t.employeeId.id) || salesUserIds.size === 0)
+        );
       }
     } catch (e: any) {
       toast.error('Failed to load data');
@@ -133,7 +136,11 @@ export function FinanceSalesTargetsPanel() {
     fetchAll();
   }, []);
 
-  const getTargetStatus = (t: SalesTarget): 'active' | 'completed' | 'failed' => {
+  const getTargetStatus = (t: SalesTarget & { status?: string; computedStatus?: string }): 'active' | 'completed' | 'failed' => {
+    const backendStatus = (t.computedStatus || t.status || '').toLowerCase();
+    if (backendStatus === 'completed' || backendStatus === 'failed' || backendStatus === 'active') {
+      return backendStatus as 'active' | 'completed' | 'failed';
+    }
     const isCompleted = Number(t.achieved) >= Number(t.target) && Number(t.target) > 0;
     if (isCompleted) return 'completed';
 
@@ -147,6 +154,10 @@ export function FinanceSalesTargetsPanel() {
       const [y, m] = periodStr.split('-').map(Number);
       const endOfMonth = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
       return now.getTime() > endOfMonth.getTime() ? 'failed' : 'active';
+    } else if (/^\d{4}-Q([1-4])$/i.test(periodStr)) {
+      const m = periodStr.match(/^(\d{4})-Q([1-4])$/i)!;
+      const endOfQuarter = new Date(Date.UTC(Number(m[1]), Number(m[2]) * 3, 0, 23, 59, 59, 999));
+      return now.getTime() > endOfQuarter.getTime() ? 'failed' : 'active';
     } else if (/^\d{4}$/.test(periodStr)) {
       const y = Number(periodStr);
       const endOfYear = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
@@ -197,22 +208,33 @@ export function FinanceSalesTargetsPanel() {
 
       // Year
       const periodStr = String(t.period || '').trim();
+      const hasExplicitYear = /^\d{4}/.test(periodStr);
       if (filters.years.length > 0) {
-        const targetYear = periodStr.slice(0, 4);
-        const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
-        if (!filters.years.includes(targetYear) && !filters.years.includes(createdYear)) return false;
+        if (hasExplicitYear) {
+          if (!filters.years.includes(periodStr.slice(0, 4))) return false;
+        } else if (periodStr !== 'session' && periodStr !== 'all') {
+          const createdYear = t.createdAt ? new Date(t.createdAt).getFullYear().toString() : '';
+          if (createdYear && !filters.years.includes(createdYear)) return false;
+        }
       }
 
       // Month
       if (filters.months.length > 0) {
         const paddedMonths = filters.months.map(m => m.padStart(2, '0'));
-        let targetMonth = '';
         if (/^\d{4}-\d{2}/.test(periodStr)) {
-          targetMonth = periodStr.slice(5, 7);
-        } else if (t.createdAt) {
-          targetMonth = String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0');
+          if (!paddedMonths.includes(periodStr.slice(5, 7))) return false;
+        } else if (/^\d{4}-Q([1-4])$/i.test(periodStr)) {
+          const q = Number(periodStr.match(/Q([1-4])$/i)![1]);
+          const qMonths = [
+            String((q - 1) * 3 + 1).padStart(2, '0'),
+            String((q - 1) * 3 + 2).padStart(2, '0'),
+            String(q * 3).padStart(2, '0'),
+          ];
+          if (!paddedMonths.some(m => qMonths.includes(m))) return false;
+        } else if (periodStr === 'monthly' || periodStr === 'weekly') {
+          const createdMonth = t.createdAt ? String(new Date(t.createdAt).getMonth() + 1).padStart(2, '0') : '';
+          if (createdMonth && !paddedMonths.includes(createdMonth)) return false;
         }
-        if (!targetMonth || !paddedMonths.includes(targetMonth)) return false;
       }
 
       return true;
@@ -230,8 +252,28 @@ export function FinanceSalesTargetsPanel() {
     return Array.from(years).sort().reverse();
   }, [targets]);
 
+  const detectPeriodMode = (p: string): 'monthly' | 'quarterly' | 'yearly' | 'session' => {
+    const trimmed = String(p || '').trim();
+    if (trimmed === 'session' || trimmed === 'all') return 'session';
+    if (/^\d{4}-Q[1-4]$/i.test(trimmed) || trimmed === 'quarterly') return 'quarterly';
+    if (/^\d{4}$/.test(trimmed) || trimmed === 'yearly') return 'yearly';
+    return 'monthly';
+  };
+
+  const handlePeriodModeChange = (mode: 'monthly' | 'quarterly' | 'yearly' | 'session') => {
+    setPeriodMode(mode);
+    const now = new Date();
+    const y = now.getFullYear();
+    const q = Math.floor(now.getMonth() / 3) + 1;
+    if (mode === 'monthly') setForm(f => ({ ...f, period: now.toISOString().slice(0, 7) }));
+    else if (mode === 'quarterly') setForm(f => ({ ...f, period: `${y}-Q${q}` }));
+    else if (mode === 'yearly') setForm(f => ({ ...f, period: String(y) }));
+    else setForm(f => ({ ...f, period: 'session' }));
+  };
+
   const openCreate = () => {
     setEditTarget(null);
+    setPeriodMode('monthly');
     setForm({
       employeeId: '',
       universityId: 'none',
@@ -247,6 +289,7 @@ export function FinanceSalesTargetsPanel() {
 
   const openEdit = (t: SalesTarget) => {
     setEditTarget(t);
+    setPeriodMode(detectPeriodMode(t.period));
     setForm({
       employeeId: t.employeeId?.id || '',
       universityId: t.university?.id || t.universityId || 'none',
@@ -434,13 +477,60 @@ export function FinanceSalesTargetsPanel() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Period (YYYY-MM)</label>
-                <input
-                  type="month"
+                <label className="text-xs font-medium text-muted-foreground uppercase">Period Type</label>
+                <select
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
-                  value={form.period}
-                  onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
-                />
+                  value={periodMode}
+                  onChange={e => handlePeriodModeChange(e.target.value as any)}
+                >
+                  <option value="monthly">Monthly (YYYY-MM)</option>
+                  <option value="quarterly">Quarterly (YYYY-QN)</option>
+                  <option value="yearly">Yearly (YYYY)</option>
+                  <option value="session">Admission Session (All Time)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  {periodMode === 'monthly' ? 'Month (YYYY-MM)' : periodMode === 'quarterly' ? 'Quarter (YYYY-QN)' : periodMode === 'yearly' ? 'Year (YYYY)' : 'Period'}
+                </label>
+                {periodMode === 'monthly' ? (
+                  <input
+                    type="month"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                    value={/^\d{4}-\d{2}$/.test(form.period) ? form.period : new Date().toISOString().slice(0, 7)}
+                    onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
+                  />
+                ) : periodMode === 'quarterly' ? (
+                  <select
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                    value={form.period}
+                    onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
+                  >
+                    {[new Date().getFullYear() + 1, new Date().getFullYear(), new Date().getFullYear() - 1].flatMap(yr =>
+                      ['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+                        <option key={`${yr}-${q}`} value={`${yr}-${q}`}>{yr}-{q}</option>
+                      ))
+                    )}
+                  </select>
+                ) : periodMode === 'yearly' ? (
+                  <select
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                    value={form.period}
+                    onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
+                  >
+                    {[new Date().getFullYear() + 1, new Date().getFullYear(), new Date().getFullYear() - 1].map(yr => (
+                      <option key={yr} value={String(yr)}>{yr}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-muted/50 text-muted-foreground"
+                    value="session"
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
@@ -449,21 +539,9 @@ export function FinanceSalesTargetsPanel() {
                   type="number"
                   min="0"
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
-                  placeholder="e.g. 10 admissions or ₹100000"
+                  placeholder={form.type === 'revenue' ? 'e.g. 500000' : form.type === 'centers' ? 'e.g. 5 centers' : 'e.g. 10 admissions'}
                   value={form.target}
                   onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Achieved (manual override)</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
-                  placeholder="0"
-                  value={form.achieved}
-                  onChange={e => setForm(f => ({ ...f, achieved: e.target.value }))}
                 />
               </div>
 
@@ -592,8 +670,8 @@ export function FinanceSalesTargetsPanel() {
             <div className="py-12 text-center text-muted-foreground">
               <Target className="w-10 h-10 mx-auto mb-3 opacity-20" />
               <p className="font-medium">No targets match the current filters</p>
-              {hasActiveFilters && (
-                <Button variant="outline" size="sm" onClick={resetFilters} className="mt-2 text-xs">
+              {isFiltered && (
+                <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2 text-xs">
                   Clear Filters
                 </Button>
               )}
@@ -602,6 +680,7 @@ export function FinanceSalesTargetsPanel() {
             <div className="space-y-3">
               {filteredTargets.map(t => {
                 const isRevenue = t.type === 'revenue';
+                const isCenters = t.type === 'centers';
                 const pct = t.target > 0 ? Math.min(100, Math.round((t.achieved / t.target) * 100)) : 0;
                 const status = getTargetStatus(t);
 
@@ -613,7 +692,7 @@ export function FinanceSalesTargetsPanel() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm">{t.employeeId?.name || 'Unknown'}</span>
+                          <span className="font-semibold text-sm">{t.employeeId?.name || 'Organization-wide Target'}</span>
                           
                           {/* Status Badge */}
                           {status === 'completed' && (
@@ -667,7 +746,9 @@ export function FinanceSalesTargetsPanel() {
                             {pct}%
                           </span>
                           <span className="text-xs text-muted-foreground shrink-0">
-                            {isRevenue ? `₹${Number(t.achieved).toLocaleString('en-IN')}` : t.achieved.toLocaleString()} / {isRevenue ? `₹${Number(t.target).toLocaleString('en-IN')}` : `${t.target.toLocaleString()} admissions`}
+                            {isRevenue
+                              ? `₹${Number(t.achieved).toLocaleString('en-IN')} / ₹${Number(t.target).toLocaleString('en-IN')}`
+                              : `${Number(t.achieved).toLocaleString()} / ${Number(t.target).toLocaleString()} ${isCenters ? 'centers' : 'admissions'}`}
                           </span>
                         </div>
                       </div>

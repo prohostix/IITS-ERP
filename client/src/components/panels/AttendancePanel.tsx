@@ -357,6 +357,19 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
     }
 
     // HR / Manager View: match all active employees against attendance for selected date
+    const activeDayHoliday = dateFilter
+      ? holidays.find(h => {
+          if (!h?.date) return false;
+          const hd = new Date(h.date);
+          return (
+            hd.getUTCFullYear() === dateFilter.getFullYear() &&
+            hd.getUTCMonth() === dateFilter.getMonth() &&
+            hd.getUTCDate() === dateFilter.getDate()
+          );
+        })
+      : null;
+    const isFilterSunday = dateFilter ? getDay(dateFilter) === 0 : false;
+
     const activeStaff = employees.filter(emp => emp.status !== 'resigned');
     return activeStaff.map(emp => {
       const empId = emp.id;
@@ -365,12 +378,12 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
         if (String(recEmpId) !== String(empId)) return false;
         if (!dateFilter) return true;
         const recDate = new Date(rec.date);
-        return recDate.getDate() === dateFilter.getDate() && 
-               recDate.getMonth() === dateFilter.getMonth() && 
-               recDate.getFullYear() === dateFilter.getFullYear();
+        return recDate.getUTCDate() === dateFilter.getDate() && 
+               recDate.getUTCMonth() === dateFilter.getMonth() && 
+               recDate.getUTCFullYear() === dateFilter.getFullYear();
       });
 
-      if (existingRec) {
+      if (existingRec && (existingRec.checkIn || !activeDayHoliday)) {
         return {
           ...existingRec,
           employeeName: emp.name,
@@ -378,6 +391,48 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
           employeeDesignation: emp.designation,
           departmentName: emp.department?.name,
           isRecorded: true,
+        };
+      }
+
+      if (activeDayHoliday) {
+        const holLabel =
+          activeDayHoliday.type === 'national'
+            ? `National Holiday — ${activeDayHoliday.name}`
+            : `Holiday — ${activeDayHoliday.name}`;
+        return {
+          id: `holiday-${empId}`,
+          employeeId: { id: empId, name: emp.name, email: emp.email, designation: emp.designation },
+          employeeName: emp.name,
+          employeeEmail: emp.email,
+          employeeDesignation: emp.designation,
+          departmentName: emp.department?.name,
+          userId: empId,
+          date: dateFilter || new Date(),
+          status: 'holiday',
+          holidayType: activeDayHoliday.type,
+          holidayName: activeDayHoliday.name,
+          checkIn: null,
+          checkOut: null,
+          notes: holLabel,
+          isRecorded: false,
+        };
+      }
+
+      if (isFilterSunday) {
+        return {
+          id: `weekend-${empId}`,
+          employeeId: { id: empId, name: emp.name, email: emp.email, designation: emp.designation },
+          employeeName: emp.name,
+          employeeEmail: emp.email,
+          employeeDesignation: emp.designation,
+          departmentName: emp.department?.name,
+          userId: empId,
+          date: dateFilter || new Date(),
+          status: 'weekend',
+          checkIn: null,
+          checkOut: null,
+          notes: 'Sunday (Weekly Off)',
+          isRecorded: false,
         };
       }
 
@@ -401,7 +456,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
 
   const presentCount = combinedRecords.filter(r => r.isRecorded && ['present', 'late', 'half_day'].includes(r.status)).length;
   const leaveCount = combinedRecords.filter(r => r.isRecorded && r.status === 'leave').length;
-  const absentCount = combinedRecords.filter(r => (!r.isRecorded || r.status === 'absent') && r.status !== 'leave').length;
+  const absentCount = combinedRecords.filter(r => (!r.isRecorded || r.status === 'absent') && !['leave', 'holiday', 'weekend'].includes(r.status)).length;
   const lateCount = combinedRecords.filter(r => r.isRecorded && (r.isLate || r.status === 'late')).length;
 
   const filteredAttendance = combinedRecords.filter(rec => {
@@ -535,7 +590,15 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
     };
 
     const getHolidayForDay = (day: Date) => {
-      return holidays.find(h => h.date && isSameDay(new Date(h.date), day));
+      return holidays.find(h => {
+        if (!h?.date) return false;
+        const hd = new Date(h.date);
+        return (
+          hd.getUTCFullYear() === day.getFullYear() &&
+          hd.getUTCMonth() === day.getMonth() &&
+          hd.getUTCDate() === day.getDate()
+        );
+      });
     };
 
     const monthlyPresent = employeeMonthlyAttendance.filter(
@@ -559,9 +622,20 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
       if (isSunday && (!record || (!record.checkIn && (record.status === 'leave' || record.status === 'absent')))) {
         return { bg: 'bg-slate-500/5 border-slate-500/10 text-slate-500', label: 'Weekend', badge: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 border-slate-200' };
       }
-      // If it's an organization Holiday and there is no record (or unpunched absent), display Holiday
-      if (holiday && (!record || (!record.checkIn && record.status === 'absent'))) {
-        return { bg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300', label: holiday.name || 'Holiday', badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border-indigo-200' };
+      // If it's an organization Holiday and there is no actual punch, display National Holiday / Holiday clearly
+      if (holiday && (!record || (!record.checkIn && (record.status === 'absent' || record.status === 'leave')))) {
+        const isNational = holiday.type === 'national';
+        return {
+          bg: isNational
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+            : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300',
+          label: isNational
+            ? `National Holiday${holiday.name ? ': ' + holiday.name : ''}`
+            : (holiday.name || 'Holiday'),
+          badge: isNational
+            ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200 border-rose-300 font-semibold'
+            : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border-indigo-200',
+        };
       }
       if (!record) {
         if (isFutureDate) return { bg: 'bg-muted/20 border-dashed border-border/40 text-muted-foreground/60', label: 'Upcoming', badge: 'bg-muted/40 text-muted-foreground border-border/40' };
@@ -818,7 +892,7 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                   const isFuture = day > new Date();
                   const style = getStatusStyle(att, isFuture, isSunday, holiday);
                   const showAsWeekendOrHolidayBadge = (isSunday && (!att || (!att.checkIn && (att.status === 'leave' || att.status === 'absent')))) ||
-                    (Boolean(holiday) && (!att || (!att.checkIn && att.status === 'absent')));
+                    (Boolean(holiday) && (!att || (!att.checkIn && (att.status === 'absent' || att.status === 'leave'))));
 
                   return (
                     <div
@@ -1333,6 +1407,14 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                       late: attendance.filter(a => a.status === 'late').map(a => new Date(a.date)),
                       half_day: attendance.filter(a => a.status === 'half_day').map(a => new Date(a.date)),
                       leave: attendance.filter(a => a.status === 'leave').map(a => new Date(a.date)),
+                      nationalHoliday: holidays.filter(h => h?.date && h.type === 'national').map(h => {
+                        const hd = new Date(h.date);
+                        return new Date(hd.getUTCFullYear(), hd.getUTCMonth(), hd.getUTCDate());
+                      }),
+                      holiday: holidays.filter(h => h?.date && h.type !== 'national').map(h => {
+                        const hd = new Date(h.date);
+                        return new Date(hd.getUTCFullYear(), hd.getUTCMonth(), hd.getUTCDate());
+                      }),
                     }}
                     modifiersClassNames={{
                       present: 'bg-green-100 text-green-900 font-bold',
@@ -1340,6 +1422,8 @@ export function AttendancePanel({ isPersonalView = false }: { isPersonalView?: b
                       late: 'bg-yellow-100 text-yellow-900 font-bold',
                       half_day: 'bg-blue-100 text-blue-900 font-bold',
                       leave: 'bg-purple-100 text-purple-900 font-bold',
+                      nationalHoliday: 'bg-rose-100 text-rose-900 font-bold ring-1 ring-rose-400',
+                      holiday: 'bg-indigo-100 text-indigo-900 font-bold',
                     }}
                   />
                 </CardContent>

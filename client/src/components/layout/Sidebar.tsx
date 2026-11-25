@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 import type { UserRole, DepartmentType } from '@/types/erp';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -359,6 +360,9 @@ function NavItemComponent({ item, isCollapsed, isActive, activeChild, onClick, l
 
   const visibleChildren = item.children?.filter(child => {
     if (!user) return false;
+    if (['payroll', 'payroll-batches', 'salary-config', 'salary_approvals'].includes(child.id) && !canAccessPayroll(user)) {
+      return false;
+    }
     let hasRoleAccess = child.roles.includes(user.role as any);
     if (!hasRoleAccess) {
       if (user.role === 'hr_sub_admin' && child.roles.includes('hr_admin' as any)) hasRoleAccess = true;

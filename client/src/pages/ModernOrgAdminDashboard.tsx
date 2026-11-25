@@ -10,9 +10,16 @@ import { StudyCentersPanel } from '@/components/panels/StudyCentersPanel';
 import { InvoicesPanel } from '@/components/panels/InvoicesPanel';
 import { PaymentsPanel } from '@/components/panels/PaymentsPanel';
 import { ExpensesPanel } from '@/components/panels/ExpensesPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 import { EmployeesPanel } from '@/components/panels/EmployeesPanel';
 import { LeavesPanel } from '@/components/panels/LeavesPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
+import { PayrollPanel } from '@/components/panels/PayrollPanel';
+import { PayrollBatchesPanel } from '@/components/panels/PayrollBatchesPanel';
+import { SalaryConfigPanel } from '@/components/panels/SalaryConfigPanel';
+import { useAuth } from '@/hooks/useAuth';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 import { LeadsPanel } from '@/components/panels/LeadsPanel';
 import { OrgHierarchyPanel } from '@/components/panels/OrgHierarchyPanel';
 import { BranchesPanel } from '@/components/panels/BranchesPanel';
@@ -32,6 +39,8 @@ import { Button } from '@/components/ui/button';
 import { DashboardHero } from '@/components/dashboard/DashboardHero';
 import { Users, GraduationCap, MapPin, Building2, Target, FileText, ArrowRight, ArrowUpRight, Search, Activity, BookOpen, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initialTab, onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+  const { user } = useAuth();
+  const hasPayrollAccess = canAccessPayroll(user);
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
@@ -87,10 +96,16 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
             <TabsTrigger value="centers" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Study Centers</TabsTrigger>
             <TabsTrigger value="invoices" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Invoices</TabsTrigger>
             <TabsTrigger value="payments" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Payments</TabsTrigger>
+            <TabsTrigger value="tada_management" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">TA/DA Management</TabsTrigger>
+            <TabsTrigger value="tada-approvals" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">TA/DA HR Verify</TabsTrigger>
             <TabsTrigger value="expenses" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Expenses</TabsTrigger>
             <TabsTrigger value="employees" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Employees</TabsTrigger>
             <TabsTrigger value="leaves" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leave Requests</TabsTrigger>
             <TabsTrigger value="leave_approvals" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leave Approvals</TabsTrigger>
+            <TabsTrigger value="holidays" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Holidays</TabsTrigger>
+            {hasPayrollAccess && <TabsTrigger value="payroll" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Payroll</TabsTrigger>}
+            {hasPayrollAccess && <TabsTrigger value="payroll-batches" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Payroll Batches</TabsTrigger>}
+            {hasPayrollAccess && <TabsTrigger value="salary-config" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Salary Config</TabsTrigger>}
             <TabsTrigger value="leads" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Leads</TabsTrigger>
             <TabsTrigger value="center_admissions" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Centers Admissions</TabsTrigger>
             <TabsTrigger value="sales_admission_report" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg">Sales Admissions Report</TabsTrigger>
@@ -224,11 +239,17 @@ import { cn } from '@/lib/utils';export function ModernOrgAdminDashboard({ initi
         <TabsContent value="centers"><StudyCentersPanel /></TabsContent>
         <TabsContent value="invoices"><InvoicesPanel /></TabsContent>
         <TabsContent value="payments"><PaymentsPanel /></TabsContent>
+        <TabsContent value="tada_management"><TADAClaimsPanel mode="finance" /></TabsContent>
+        <TabsContent value="tada-approvals"><TADAClaimsPanel mode="hr" /></TabsContent>
         <TabsContent value="expenses"><ExpensesPanel /></TabsContent>
         <TabsContent value="employees"><EmployeesPanel /></TabsContent>
         <TabsContent value="leaves"><LeavesPanel /></TabsContent>
         <TabsContent value="leave_approvals"><LeaveApprovalsPanel /></TabsContent>
         <TabsContent value="leave-approvals"><LeaveApprovalsPanel /></TabsContent>
+        <TabsContent value="holidays"><HolidaysPanel /></TabsContent>
+        {hasPayrollAccess && <TabsContent value="payroll"><PayrollPanel /></TabsContent>}
+        {hasPayrollAccess && <TabsContent value="payroll-batches"><PayrollBatchesPanel /></TabsContent>}
+        {hasPayrollAccess && <TabsContent value="salary-config"><SalaryConfigPanel /></TabsContent>}
         <TabsContent value="leads"><LeadsPanel /></TabsContent>
         <TabsContent value="center_admissions"><CentersAdmissionsPanel /></TabsContent>
         <TabsContent value="sales_admission_report"><SalesStaffAdmissionReportPanel /></TabsContent>

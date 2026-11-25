@@ -4,6 +4,119 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ensureOpenPositionInHierarchy } from './orgAdminController.js';
+import { emitToUser } from '../config/socket.js';
+
+function parseCarryForwardRules(raw: any) {
+  const defaults = [
+    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
+    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
+    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
+    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
+  ];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return defaults;
+  return defaults.map((def) => {
+    const found = parsed.find((r: any) => r?.leaveType === def.leaveType);
+    return found ? { ...def, ...found } : def;
+  });
+}
+
+async function resolveLeaveStakeholders(organizationId: string, employeeUserId: string) {
+  const employee = await prisma.user.findUnique({
+    where: { id: employeeUserId },
+    include: {
+      department: { include: { assistantManagers: { select: { id: true } } } },
+      subDepartment: { select: { id: true, managerId: true } },
+      branch: { select: { id: true, branchManagerId: true } },
+      designationRef: { select: { id: true, parentDesignationId: true } },
+    },
+  });
+
+  const managerIds = new Set<string>();
+  if (employee) {
+    if (employee.reportingTo) managerIds.add(employee.reportingTo);
+    if (employee.subDepartment?.managerId) managerIds.add(employee.subDepartment.managerId);
+    if (employee.department?.managerId) managerIds.add(employee.department.managerId);
+    if (Array.isArray(employee.department?.assistantManagers)) {
+      for (const am of employee.department.assistantManagers) {
+        if (am?.id) managerIds.add(am.id);
+      }
+    }
+    if (employee.branch?.branchManagerId) {
+      managerIds.add(employee.branch.branchManagerId);
+    }
+    if (employee.designationRef?.parentDesignationId) {
+      const parentHolders = await prisma.user.findMany({
+        where: {
+          organizationId,
+          designationId: employee.designationRef.parentDesignationId,
+          status: 'active',
+        },
+        select: { id: true },
+      });
+      for (const ph of parentHolders) {
+        managerIds.add(ph.id);
+      }
+    }
+  }
+  managerIds.delete(employeeUserId);
+
+  const hrUsers = await prisma.user.findMany({
+    where: {
+      organizationId,
+      status: 'active',
+      OR: [
+        { role: { in: ['hr_admin', 'hr_sub_admin'] } },
+        { department: { type: 'hr' } },
+      ],
+    },
+    select: { id: true },
+  });
+  const hrIds = new Set<string>(hrUsers.map((u) => u.id));
+  hrIds.delete(employeeUserId);
+
+  return { employee, managerIds: Array.from(managerIds), hrIds: Array.from(hrIds) };
+}
+
+async function sendLeaveNotification(params: {
+  organizationId: string;
+  recipientIds: string[];
+  title: string;
+  message: string;
+  link?: string;
+  priority?: 'low' | 'medium' | 'high';
+}) {
+  const uniqueIds = Array.from(new Set(params.recipientIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return;
+
+  await Promise.all(
+    uniqueIds.map(async (uid) => {
+      try {
+        const notif = await prisma.notification.create({
+          data: {
+            organizationId: params.organizationId,
+            userId: uid,
+            title: params.title,
+            message: params.message,
+            type: 'leave' as any,
+            priority: (params.priority || 'high') as any,
+            link: params.link || 'leave_approvals',
+          },
+        });
+        emitToUser(uid, 'notification', notif);
+      } catch (err) {
+        console.error('Failed to send leave notification to', uid, err);
+      }
+    })
+  );
+}
 
 const mapLeaveRequest = (leave: any) => ({
   ...leave,
@@ -155,20 +268,77 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
   const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
   const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
+  const [hrSettings, empProfile] = await Promise.all([
+    organizationId ? prisma.hRSettings.findFirst({ where: { organizationId } }) : Promise.resolve(null),
+    prisma.employeeProfile.findUnique({ where: { userId }, select: { joinDate: true } }),
+  ]);
+  const cfRules = parseCarryForwardRules(hrSettings?.leaveCarryForwardRules);
+
   let allocation = await prisma.leaveAllocation.findUnique({
     where: { userId_year: { userId, year } }
   });
 
   if (!allocation) {
+    // Check previous year allocation to apply year-to-year carry-forward automatically
+    const prevYear = year - 1;
+    const prevAllocation = await prisma.leaveAllocation.findUnique({
+      where: { userId_year: { userId, year: prevYear } },
+    });
+
+    let initSick = 12;
+    let initCasual = 12;
+    let initEarned = 15;
+    let initComp = 0;
+
+    if (prevAllocation) {
+      const prevStart = new Date(Date.UTC(prevYear, 0, 1, 0, 0, 0, 0));
+      const prevEnd = new Date(Date.UTC(prevYear, 11, 31, 23, 59, 59, 999));
+      const prevLeaves = await prisma.leaveRequest.findMany({
+        where: {
+          userId,
+          status: 'approved',
+          startDate: { lte: prevEnd },
+          endDate: { gte: prevStart },
+        },
+      });
+      const countSimple = (t: string) =>
+        prevLeaves
+          .filter((l) => l.type === t)
+          .reduce((acc, l) => {
+            if (l.isHalfDay) return acc + 0.5;
+            const s = Math.max(new Date(l.startDate).getTime(), prevStart.getTime());
+            const e = Math.min(new Date(l.endDate).getTime(), prevEnd.getTime());
+            return acc + Math.max(0, Math.round((e - s) / 86400000) + 1);
+          }, 0);
+
+      const getCfAdd = (typeKey: string, prevAllocVal: number) => {
+        const rule = cfRules.find((r: any) => r.leaveType === typeKey);
+        if (!rule || rule.enabled === false) return 0;
+        // If prevAllocVal <= 4 it was a monthly quota (annualized = prevAllocVal * 12)
+        const annualTotal = prevAllocVal <= 4 ? prevAllocVal * 12 : prevAllocVal;
+        const unused = Math.max(0, Math.floor(annualTotal - countSimple(typeKey)));
+        return Math.min(unused, Math.max(0, Number(rule.maxDays ?? 0)));
+      };
+
+      const baseSick = prevAllocation.sickLeave <= 4 ? prevAllocation.sickLeave : 12;
+      const baseCasual = prevAllocation.casualLeave <= 4 ? prevAllocation.casualLeave : 12;
+      const baseEarned = prevAllocation.earnedLeave || 15;
+
+      initSick = baseSick + (baseSick <= 4 ? 0 : getCfAdd('sick', prevAllocation.sickLeave));
+      initCasual = baseCasual + (baseCasual <= 4 ? 0 : getCfAdd('casual', prevAllocation.casualLeave));
+      initEarned = baseEarned + getCfAdd('earned', prevAllocation.earnedLeave);
+      initComp = getCfAdd('compensatory', prevAllocation.complementaryLeave);
+    }
+
     allocation = await prisma.leaveAllocation.create({
       data: {
         userId,
         organizationId,
         year,
-        sickLeave: 2,
-        casualLeave: 2,
-        earnedLeave: 0,
-        complementaryLeave: 0
+        sickLeave: initSick,
+        casualLeave: initCasual,
+        earnedLeave: initEarned,
+        complementaryLeave: initComp,
       }
     });
   }
@@ -207,14 +377,12 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     if (lr.isHalfDay) return 0.5;
 
     let workingLeaveDays = 0;
-    const totalDaysSpan = Math.round((eDay - sDay) / (1000 * 60 * 60 * 24)) + 1;
     const cur = new Date(sDay);
     while (cur.getTime() <= eDay) {
       const k = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
       const isSunday = cur.getUTCDay() === 0;
       const isHol = holidayKeySet.has(k);
-      // Exclude Sundays (and exclude multi-day span holidays) from leave deduction
-      if (!isSunday && !(totalDaysSpan > 1 && isHol)) {
+      if (!isSunday && !isHol) {
         workingLeaveDays += 1;
       }
       cur.setUTCDate(cur.getUTCDate() + 1);
@@ -222,34 +390,63 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     return workingLeaveDays;
   };
 
+  // Determine start month in current year for monthly carry-forward accrual
+  let accrualStartMonth = 0;
+  if (empProfile?.joinDate) {
+    const jd = new Date(empProfile.joinDate);
+    if (!isNaN(jd.getTime()) && jd.getUTCFullYear() === year) {
+      accrualStartMonth = jd.getUTCMonth();
+    } else if (!isNaN(jd.getTime()) && jd.getUTCFullYear() > year) {
+      accrualStartMonth = 12;
+    }
+  }
+
+  const priorMonthsEnd = month > 0 ? new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)) : null;
+
   const buildTypeBalance = (typeKey: string, allocatedVal: number) => {
     let usedThisMonth = 0;
     let pendingThisMonth = 0;
     let usedThisYear = 0;
     let pendingThisYear = 0;
+    let usedPriorMonths = 0;
 
     for (const lr of leaves) {
       if (lr.type !== typeKey) continue;
       const mDays = countDaysInRange(lr, monthStart, monthEnd);
       const yDays = countDaysInRange(lr, yearStart, yearEnd);
+      const pDays = priorMonthsEnd ? countDaysInRange(lr, yearStart, priorMonthsEnd) : 0;
       if (lr.status === 'approved') {
         usedThisMonth += mDays;
         usedThisYear += yDays;
+        usedPriorMonths += pDays;
       } else {
         pendingThisMonth += mDays;
         pendingThisYear += yDays;
       }
     }
 
-    // If allocated <= 4, it represents a monthly allowance (e.g., 2 per month); otherwise yearly
-    const isMonthlyQuota = allocatedVal <= 4;
+    const rule = cfRules.find((r: any) => r.leaveType === typeKey);
+    const isMonthlyQuota = allocatedVal > 0 && allocatedVal <= 4;
+    let effectiveAllocated = allocatedVal;
+    let carriedForward = 0;
+
+    if (isMonthlyQuota && rule?.monthlyCarryForward !== false && month > accrualStartMonth) {
+      const priorElapsedMonths = Math.max(0, month - accrualStartMonth);
+      const rawCarried = Math.max(0, priorElapsedMonths * allocatedVal - usedPriorMonths);
+      const maxCap = rule?.maxDays !== undefined && Number(rule.maxDays) > 0 ? Number(rule.maxDays) : rawCarried;
+      carriedForward = Number(Math.min(rawCarried, maxCap).toFixed(1));
+      effectiveAllocated = Number((allocatedVal + carriedForward).toFixed(1));
+    }
+
     const effectiveUsed = isMonthlyQuota ? usedThisMonth : usedThisYear;
     const effectivePending = isMonthlyQuota ? pendingThisMonth : pendingThisYear;
-    const availableThisMonth = Math.max(0, Number((allocatedVal - effectiveUsed - effectivePending).toFixed(1)));
-    const remainingAfterApproved = Math.max(0, Number((allocatedVal - effectiveUsed).toFixed(1)));
+    const availableThisMonth = Math.max(0, Number((effectiveAllocated - effectiveUsed - effectivePending).toFixed(1)));
+    const remainingAfterApproved = Math.max(0, Number((effectiveAllocated - effectiveUsed).toFixed(1)));
 
     return {
-      allocated: allocatedVal,
+      allocated: effectiveAllocated,
+      baseAllocated: allocatedVal,
+      carriedForward,
       isMonthlyQuota,
       usedThisMonth,
       pendingThisMonth,
@@ -269,20 +466,22 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     year,
     month: month + 1,
     monthLabel: `${monthNames[month]} ${year}`,
-    sick: buildTypeBalance('sick', Number(allocation.sickLeave ?? 2)),
-    casual: buildTypeBalance('casual', Number(allocation.casualLeave ?? 0)),
-    earned: buildTypeBalance('earned', Number(allocation.earnedLeave ?? 0)),
+    sick: buildTypeBalance('sick', Number(allocation.sickLeave ?? 12)),
+    casual: buildTypeBalance('casual', Number(allocation.casualLeave ?? 12)),
+    earned: buildTypeBalance('earned', Number(allocation.earnedLeave ?? 15)),
     compensatory: buildTypeBalance('compensatory', Number(allocation.complementaryLeave ?? 0)),
   };
 }
 
 export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role);
-  const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
-  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || isAssignedDeptManager || Boolean(req.user.subDepartmentId);
+  const isGodMode = ['hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin', 'ceo', 'general_manager', 'project_manager'].includes(req.user.role) ||
+    (req.user.role === 'employee' && req.user.department?.type === 'hr');
+  const hasDirectSubordinates = Boolean((req.user as any).subordinates?.length > 0);
+  const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean((req.user as any).managedSubDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
+  const isDeptManager = ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'sales_admin', 'sales_sub_admin', 'center_admin', 'branch_manager'].includes(req.user.role) || isAssignedDeptManager || Boolean(req.user.subDepartmentId) || hasDirectSubordinates;
   const whereClause: any = { organizationId: req.user.organizationId };
 
-  // Dept managers only see their own department's leaves
+  // Dept / Reporting managers see their own department's and direct subordinates' leaves
   if (!isGodMode && isDeptManager) {
     let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
     const managedIds = ((req.user as any).managedDepartments || []).map((d: any) => d.id);
@@ -303,14 +502,22 @@ export const getLeaveRequests = asyncHandler(async (req: AuthRequest, res: Respo
       }
     }
 
+    const orFilters: any[] = [{ user: { reportingTo: req.user.id } }];
     const allDepts = Array.from(new Set([userDeptId, ...managedIds].filter(Boolean)));
-    if (allDepts.length > 1) {
-      whereClause.departmentId = { in: allDepts };
-    } else if (allDepts.length === 1) {
-      whereClause.departmentId = allDepts[0];
-    } else if (req.user.branchId) {
-      whereClause.user = { branchId: req.user.branchId };
+    if (isAssignedDeptManager || ['ops_admin', 'ops_sub_admin', 'finance_admin', 'finance_sub_admin', 'sales_admin', 'sales_sub_admin'].includes(req.user.role)) {
+      if (allDepts.length > 0) {
+        orFilters.push({ departmentId: { in: allDepts } });
+      }
     }
+    if (req.user.branchId && req.user.role === 'branch_manager') {
+      orFilters.push({ user: { branchId: req.user.branchId } });
+    }
+    if (req.user.subDepartmentId && Boolean((req.user as any).managedSubDepartments?.length > 0)) {
+      orFilters.push({ user: { subDepartmentId: req.user.subDepartmentId } });
+    }
+    whereClause.OR = orFilters;
+  } else if (!isGodMode && !isDeptManager) {
+    whereClause.userId = req.user.id;
   }
 
   // Support ?status= filter (e.g. status=pending)
@@ -391,18 +598,40 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
     }
   }
 
-  // Calculate required days
+  // Calculate required working days (excluding Sundays & org Holidays)
   const start = new Date(startDate);
   const end = new Date(endDate);
-  // naive calculation (including weekends), can be improved
-  let diffTime = Math.abs(end.getTime() - start.getTime());
-  let requiredDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  if (isHalfDay) requiredDays = 0.5;
+  let requiredDays = 0;
+  if (isHalfDay) {
+    requiredDays = 0.5;
+  } else {
+    const sDay = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+    const eDay = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+    const hols = await prisma.holiday.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        date: { gte: new Date(sDay), lte: new Date(eDay + 86399999) },
+      },
+      select: { date: true },
+    });
+    const holKeys = new Set(
+      hols.map((h) => {
+        const hd = new Date(h.date);
+        return `${hd.getUTCFullYear()}-${String(hd.getUTCMonth() + 1).padStart(2, '0')}-${String(hd.getUTCDate()).padStart(2, '0')}`;
+      })
+    );
+    const cur = new Date(sDay);
+    while (cur.getTime() <= eDay) {
+      const k = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
+      if (cur.getUTCDay() !== 0 && !holKeys.has(k)) {
+        requiredDays += 1;
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+  }
 
-  const currentYear = new Date().getFullYear();
-  
-  // Skip balance check for unpaid and bereavement (or do custom check if needed)
-  if (type !== 'unpaid' && type !== 'bereavement') {
+  // Skip balance check for unpaid and bereavement (or if 0 working days)
+  if (type !== 'unpaid' && type !== 'bereavement' && requiredDays > 0) {
     const balanceInfo = await computeUserLeaveBalance(req.user.id, req.user.organizationId, start);
     const typeKey = type as 'sick' | 'casual' | 'earned' | 'compensatory';
     const typeBal = (balanceInfo as any)[typeKey];
@@ -423,17 +652,38 @@ export const createLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
   const leave = await prisma.leaveRequest.create({
     data: { 
       type,
-      reason,
-      isHalfDay,
-      attachmentUrl,
+      reason: reason || '',
+      isHalfDay: Boolean(isHalfDay),
+      attachmentUrl: attachmentUrl || null,
       startDate: start,
       endDate: end,
       userId: req.user.id, 
       organizationId: req.user.organizationId,
       departmentId: deptId,
-      status: 'pending' // pending manager approval
+      status: 'pending'
     }
   });
+
+  // Automatically notify BOTH Reporting Managers AND HR Team
+  try {
+    const { managerIds, hrIds } = await resolveLeaveStakeholders(req.user.organizationId, req.user.id);
+    const dateRangeStr =
+      start.toISOString().slice(0, 10) === end.toISOString().slice(0, 10)
+        ? start.toISOString().slice(0, 10)
+        : `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`;
+    const allRecipients = Array.from(new Set([...managerIds, ...hrIds]));
+    await sendLeaveNotification({
+      organizationId: req.user.organizationId,
+      recipientIds: allRecipients,
+      title: `New Leave Approval Request — ${req.user.name}`,
+      message: `${req.user.name} applied for ${isHalfDay ? 'Half-Day ' : ''}${type} leave (${dateRangeStr})${reason ? ': ' + reason : ''}.`,
+      link: 'leave_approvals',
+      priority: 'high',
+    });
+  } catch (e) {
+    console.error('Failed to notify HR & managers on leave creation:', e);
+  }
+
   res.status(201).json({ success: true, data: leave });
 });
 
@@ -490,9 +740,22 @@ export const deleteLeaveRequest = asyncHandler(async (req: AuthRequest, res: Res
 
 export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { action, remarks } = req.body;
-  const isHr = req.path.includes('hr-approve');
+  const isHr = req.path.includes('hr-approve') || ['hr_admin', 'hr_sub_admin'].includes(req.user.role) && req.path.includes('hr-approve');
 
-  const existing = await prisma.leaveRequest.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.leaveRequest.findUnique({
+    where: { id: req.params.id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          branchId: true,
+          reportingTo: true,
+          subDepartmentId: true,
+        },
+      },
+    },
+  });
   if (!existing) {
     res.status(404).json({ success: false, message: 'Leave request not found' });
     return;
@@ -508,8 +771,9 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
     return;
   }
 
-  // Verify department manager's department
-  if (!isHr && !isGodMode) {
+  // Verify department / reporting manager's authority
+  if (!isHr && !isGodMode && !['hr_admin', 'hr_sub_admin'].includes(req.user.role)) {
+    const isDirectReportingMgr = existing.user?.reportingTo === req.user.id;
     const isAssignedDeptManager = Boolean(req.user.department?.managerId === req.user.id) || Boolean((req.user as any).managedDepartments?.length > 0) || Boolean(req.user.isDepartmentManager);
     let userDeptId = req.user.departmentId || req.user.subDepartment?.parentDeptId;
     const managedIds = ((req.user as any).managedDepartments || []).map((d: any) => d.id);
@@ -531,13 +795,13 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
     }
 
     const allDepts = Array.from(new Set([userDeptId, ...managedIds].filter(Boolean)));
-    const isBranchMatch = Boolean(req.user.branchId && (existing as any).user?.branchId === req.user.branchId);
+    const isBranchMatch = Boolean(req.user.branchId && existing.user?.branchId === req.user.branchId);
     const isDeptMatch = Boolean(existing.departmentId && allDepts.includes(existing.departmentId));
 
-    if (!isDeptMatch && !isBranchMatch && !isAssignedDeptManager) {
+    if (!isDirectReportingMgr && !isDeptMatch && !isBranchMatch && !isAssignedDeptManager) {
       res.status(403).json({
         success: false,
-        message: 'You can only approve leave requests within your own department.'
+        message: 'You can only approve leave requests for your reporting team or department.'
       });
       return;
     }
@@ -557,7 +821,7 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
   const leave = await prisma.leaveRequest.update({
     where: { id: req.params.id },
     data: updateData,
-    include: { user: { select: { name: true } } }
+    include: { user: { select: { id: true, name: true } } }
   });
 
   // Automatically sync approved leave dates to the Attendance table so employee shows as 'On Leave' instead of 'Absent'
@@ -569,21 +833,50 @@ export const approveLeave = asyncHandler(async (req: AuthRequest, res: Response)
     }
   }
 
-  // Notify the employee
+  // Notify Employee + Both HR Team and Reporting Managers
   try {
-    const actionLabel = action === 'approve' ? (isHr ? 'fully approved' : 'approved by department') : 'rejected';
-    await prisma.notification.create({
-      data: {
-        organizationId: req.user.organizationId,
-        userId: leave.userId,
-        title: `Leave Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-        message: `Your ${leave.type} leave request has been ${actionLabel}.${remarks ? ' Remarks: ' + remarks : ''}`,
-        type: 'general' as any,
-        priority: 'medium',
-        link: 'leaves'
-      }
+    const sStr = new Date(leave.startDate).toISOString().slice(0, 10);
+    const eStr = new Date(leave.endDate).toISOString().slice(0, 10);
+    const dateRangeStr = sStr === eStr ? sStr : `${sStr} to ${eStr}`;
+    const empName = leave.user?.name || existing.user?.name || 'Employee';
+    const actionLabel = action === 'approve' ? (isHr ? 'fully approved by HR' : 'approved by reporting manager') : 'rejected';
+
+    // 1. Notify requesting employee
+    await sendLeaveNotification({
+      organizationId: existing.organizationId,
+      recipientIds: [leave.userId],
+      title: `Leave Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+      message: `Your ${leave.type} leave (${dateRangeStr}) has been ${actionLabel} by ${req.user.name}.${remarks ? ' Remarks: ' + remarks : ''}`,
+      link: 'leaves',
+      priority: 'medium',
     });
-  } catch (_) { /* non-fatal */ }
+
+    // 2. Notify HR Team and Reporting Managers
+    const { managerIds, hrIds } = await resolveLeaveStakeholders(existing.organizationId, leave.userId);
+    const otherStakeholders = Array.from(new Set([...managerIds, ...hrIds])).filter((uid) => uid !== req.user.id);
+
+    if (!isHr && action === 'approve') {
+      await sendLeaveNotification({
+        organizationId: existing.organizationId,
+        recipientIds: otherStakeholders,
+        title: `Leave Manager-Approved — ${empName} (Awaiting HR)`,
+        message: `${req.user.name} approved ${empName}'s ${leave.type} leave (${dateRangeStr}). Final HR approval is pending.`,
+        link: 'leave_approvals',
+        priority: 'high',
+      });
+    } else {
+      await sendLeaveNotification({
+        organizationId: existing.organizationId,
+        recipientIds: otherStakeholders,
+        title: `Leave ${action === 'approve' ? 'Approved' : 'Rejected'} — ${empName}`,
+        message: `${empName}'s ${leave.type} leave (${dateRangeStr}) was ${action === 'approve' ? 'approved' : 'rejected'} by ${req.user.name}.${remarks ? ' Remarks: ' + remarks : ''}`,
+        link: 'leave_approvals',
+        priority: 'medium',
+      });
+    }
+  } catch (err) {
+    console.error('Failed to send leave approval notifications:', err);
+  }
 
   res.json({ success: true, data: leave });
 });
@@ -802,34 +1095,123 @@ export const resolveComplaint = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 // --- Holidays ---
+function parseHolidayDateUtc(rawDate: any): Date | null {
+  if (!rawDate) return null;
+  const str = String(rawDate).trim();
+  const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    return new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 0, 0, 0, 0));
+  }
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+}
+
 export const getHolidays = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const holidays = await prisma.holiday.findMany({ where: { organizationId: req.user.organizationId } });
-  res.json({ success: true, data: holidays });
+  const where: any = {};
+  if (req.user?.organizationId) {
+    where.organizationId = req.user.organizationId;
+  }
+  if (req.query.year) {
+    const y = Number(req.query.year);
+    if (Number.isFinite(y)) {
+      where.date = {
+        gte: new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0)),
+        lte: new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999)),
+      };
+    }
+  }
+  const holidays = await prisma.holiday.findMany({
+    where,
+    orderBy: { date: 'asc' },
+  });
+  res.json({ success: true, count: holidays.length, data: holidays });
 });
+
 export const getHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
   const holiday = await prisma.holiday.findUnique({ where: { id: req.params.id } });
+  if (!holiday) {
+    return res.status(404).json({ success: false, message: 'Holiday not found' });
+  }
   res.json({ success: true, data: holiday });
 });
+
 export const createHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { date, ...rest } = req.body;
-  const holiday = await prisma.holiday.create({ 
-    data: { 
-      ...rest, 
-      date: new Date(date),
-      organizationId: req.user.organizationId 
-    } 
+  const { name, date, type, description } = req.body;
+  const cleanName = String(name || '').trim();
+  if (!cleanName) {
+    return res.status(400).json({ success: false, message: 'Holiday name is required' });
+  }
+  const parsedDate = parseHolidayDateUtc(date);
+  if (!parsedDate) {
+    return res.status(400).json({ success: false, message: 'Valid holiday date is required' });
+  }
+  let orgId = req.user?.organizationId;
+  if (!orgId) {
+    const firstOrg = await prisma.organization.findFirst({ select: { id: true } });
+    orgId = firstOrg?.id;
+  }
+  if (!orgId) {
+    return res.status(400).json({ success: false, message: 'Organization not found' });
+  }
+
+  const validTypes = ['national', 'regional', 'company', 'public'];
+  const cleanType = validTypes.includes(String(type || '').toLowerCase())
+    ? String(type).toLowerCase()
+    : 'national';
+
+  const holiday = await prisma.holiday.create({
+    data: {
+      name: cleanName,
+      date: parsedDate,
+      type: cleanType,
+      description: description ? String(description).trim() : null,
+      organizationId: orgId,
+    },
   });
   res.status(201).json({ success: true, data: holiday });
 });
+
 export const updateHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { date, ...rest } = req.body;
-  const updateData: any = { ...rest };
-  if (date) updateData.date = new Date(date);
+  const existing = await prisma.holiday.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    return res.status(404).json({ success: false, message: 'Holiday not found' });
+  }
+  if (req.user?.organizationId && existing.organizationId !== req.user.organizationId) {
+    return res.status(403).json({ success: false, message: 'Not authorized to modify this holiday' });
+  }
+
+  const { name, date, type, description } = req.body;
+  const updateData: Record<string, any> = {};
+  if (name !== undefined) {
+    const cleanName = String(name).trim();
+    if (!cleanName) return res.status(400).json({ success: false, message: 'Holiday name cannot be empty' });
+    updateData.name = cleanName;
+  }
+  if (date !== undefined) {
+    const parsedDate = parseHolidayDateUtc(date);
+    if (!parsedDate) return res.status(400).json({ success: false, message: 'Invalid holiday date' });
+    updateData.date = parsedDate;
+  }
+  if (type !== undefined) {
+    updateData.type = String(type).toLowerCase();
+  }
+  if (description !== undefined) {
+    updateData.description = description ? String(description).trim() : null;
+  }
 
   const holiday = await prisma.holiday.update({ where: { id: req.params.id }, data: updateData });
   res.json({ success: true, data: holiday });
 });
+
 export const deleteHoliday = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const existing = await prisma.holiday.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    return res.status(404).json({ success: false, message: 'Holiday not found' });
+  }
+  if (req.user?.organizationId && existing.organizationId !== req.user.organizationId) {
+    return res.status(403).json({ success: false, message: 'Not authorized to delete this holiday' });
+  }
   await prisma.holiday.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });
 });

@@ -72,13 +72,22 @@ export const convertLead = asyncHandler(async (req: AuthRequest, res: Response) 
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status, sessionId, year, month, userId, universityId } = req.query as any;
 
+  const GLOBAL_TARGET_ROLES = ['superadmin', 'org_admin', 'ceo', 'sales_admin', 'sales_sub_admin', 'finance_admin', 'finance_sub_admin', 'ops_admin'];
   const where: any = { organizationId: req.user.organizationId };
-  if (req.user.role === 'branch_manager') {
+  if (req.user.role === 'branch_manager' || Boolean((req.user as any).managedBranch)) {
     const scope = await getBranchScope(req.user);
     where.OR = [
       { employeeId: { in: scope.staffIds } },
       ...(scope.centerIds.length > 0 ? [{ centerId: { in: scope.centerIds } }] : []),
       ...(scope.deptIds.length > 0 ? [{ departmentId: { in: scope.deptIds } }] : [])
+    ];
+  } else if (!GLOBAL_TARGET_ROLES.includes(req.user.role)) {
+    const teamUsers = await resolveSalesTeamUsers(req.user, req.user.organizationId);
+    const allowedEmpIds = Array.from(new Set([req.user.id, ...teamUsers.map(u => u.id)]));
+    where.OR = [
+      { employeeId: { in: allowedEmpIds } },
+      ...(req.user.departmentId ? [{ departmentId: req.user.departmentId, employeeId: null }] : []),
+      { employeeId: null, departmentId: null, centerId: null }
     ];
   }
   const targets = await prisma.target.findMany({
@@ -643,20 +652,20 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
   const nameById = new Map<string, string>(teamUsers.map(u => [u.id, u.name]));
   nameById.set(req.user.id, req.user.name);
 
-  const [leads, targets, centers] = await Promise.all([
+  const [leads, rawTargets, centers] = await Promise.all([
     prisma.lead.findMany({
       where: { organizationId: orgId, referredBy: { in: userIds } },
       select: { referredBy: true, status: true }
     }),
     prisma.target.findMany({
-      where: { organizationId: orgId, employeeId: { in: userIds } },
-      select: { employeeId: true, target: true, achieved: true, status: true }
+      where: { organizationId: orgId, employeeId: { in: userIds } }
     }),
     prisma.studyCenter.findMany({
       where: { organizationId: orgId, referredBy: { in: userIds } },
       select: { id: true, referredBy: true }
     })
   ]);
+  const targets = await calculateAndSyncTargets(rawTargets, orgId);
 
   // Admissions credited to each team member (via centers they referred, or students assigned directly)
   const centerOwner = new Map<string, string>();
@@ -723,12 +732,23 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
 
     const userTargets = targets.filter(t => t.employeeId === u.id);
     const targetCount = userTargets.length;
-    const targetTotal = userTargets.reduce((sum, t) => sum + (t.target || 0), 0);
-    const targetAchieved = userTargets.reduce((sum, t) => sum + (t.achieved || 0), 0);
-    const targetProgress = targetTotal > 0 ? Math.round((targetAchieved / targetTotal) * 100) : 0;
+    // Average progress across targets so mixed units (admissions + revenue + centers) never skew progress
+    const targetProgress = targetCount > 0
+      ? Math.round(
+          userTargets.reduce((sum, t) => {
+            const pct = Number(t.target) > 0 ? Math.min(100, (Number(t.achieved || 0) / Number(t.target)) * 100) : 0;
+            return sum + pct;
+          }, 0) / targetCount
+        )
+      : 0;
+    const admissionTargets = userTargets.filter(t => /student|admission/i.test(t.type || ''));
+    const revenueTargets = userTargets.filter(t => /revenue|fee|amount|sales/i.test(t.type || ''));
+    const centerTargets = userTargets.filter(t => /center/i.test(t.type || ''));
+    const targetTotal = admissionTargets.reduce((sum, t) => sum + (Number(t.target) || 0), 0);
+    const targetAchieved = admissionTargets.reduce((sum, t) => sum + (Number(t.achieved) || 0), 0);
 
     let score = 0;
-    if (targetTotal > 0) {
+    if (targetCount > 0) {
       score = Math.round(targetProgress * 0.6 + conversionRate * 0.4);
     } else if (leadCount > 0) {
       score = conversionRate;
@@ -748,6 +768,10 @@ export const getTeamPerformance = asyncHandler(async (req: AuthRequest, res: Res
       targetCount,
       targetAchieved,
       targetTotal,
+      revenueTargetTotal: revenueTargets.reduce((s, t) => s + (Number(t.target) || 0), 0),
+      revenueTargetAchieved: revenueTargets.reduce((s, t) => s + (Number(t.achieved) || 0), 0),
+      centerTargetTotal: centerTargets.reduce((s, t) => s + (Number(t.target) || 0), 0),
+      centerTargetAchieved: centerTargets.reduce((s, t) => s + (Number(t.achieved) || 0), 0),
       targetProgress,
       score,
       reportingTo: u.reportingTo || null,

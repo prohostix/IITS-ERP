@@ -789,6 +789,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
         email: emp.email,
         role: emp.role,
         designation: getUserTitle(userMap.get(emp.id) || emp) || 'Staff',
+        branchId: emp.branchId || emp.branch?.id || null,
         branch: emp.branch?.name || 'N/A'
       } : null,
       reportingTL: hierarchy[0] || null,
@@ -803,7 +804,7 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
   // Apply filters
   let filtered = compiledTargets;
   if (branchId && branchId !== 'all') {
-    filtered = filtered.filter(t => t.employee?.branch === branchId || t.center?.name.includes(branchId));
+    filtered = filtered.filter(t => t.employee?.branchId === branchId || t.employee?.branch === branchId || t.center?.name.includes(branchId));
   }
 
   if (status && status !== 'all') {
@@ -832,7 +833,8 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
   if (type && type !== 'all') {
     filtered = filtered.filter(t => {
       if (type === 'admission' || type === 'students' || type === 'admissions') return /student|admission/i.test(t.type || '');
-      if (type === 'revenue' || type === 'sales') return !/student|admission/i.test(t.type || '');
+      if (type === 'revenue' || type === 'sales') return /revenue|fee|amount|sales/i.test(t.type || '');
+      if (type === 'centers' || type === 'center') return /center/i.test(t.type || '');
       return (t.type || '').toLowerCase().includes(type.toLowerCase());
     });
   }
@@ -849,12 +851,29 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
 
   filtered.sort((a, b) => b.percentage - a.percentage);
 
-  // Overall KPI cards
+  // Overall KPI cards — separate admissions, revenue, and centers cleanly and avoid manager+subordinate double-counting
   const isAdmissionType = (tType: string) => /student|admission/i.test(tType || '');
-  const totalTargetAdmissions = filtered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
-  const totalAchievedAdmissions = filtered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
-  const totalTargetRevenue = filtered.filter(t => !isAdmissionType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
-  const totalAchievedRevenue = filtered.filter(t => !isAdmissionType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
+  const isRevenueType = (tType: string) => /revenue|fee|amount|sales/i.test(tType || '');
+  const isCenterType = (tType: string) => /center/i.test(tType || '');
+
+  // Deduplicate subordinate targets whose manager already has a target of the same type & period in `filtered`
+  const managerKeys = new Set(
+    filtered
+      .filter(t => t.employee?.id)
+      .map(t => `${t.employee!.id}::${t.type}::${t.period}`)
+  );
+  const topLevelFiltered = filtered.filter(t => {
+    if (!t.employee?.id) return true;
+    const chain = resolveChain(t.employee.id);
+    return !chain.some((mgr: any) => managerKeys.has(`${mgr.id}::${t.type}::${t.period}`));
+  });
+
+  const totalTargetAdmissions = topLevelFiltered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
+  const totalAchievedAdmissions = topLevelFiltered.filter(t => isAdmissionType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
+  const totalTargetRevenue = topLevelFiltered.filter(t => isRevenueType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
+  const totalAchievedRevenue = topLevelFiltered.filter(t => isRevenueType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
+  const totalTargetCenters = topLevelFiltered.filter(t => isCenterType(t.type)).reduce((acc, t) => acc + t.targetValue, 0);
+  const totalAchievedCenters = topLevelFiltered.filter(t => isCenterType(t.type)).reduce((acc, t) => acc + t.achievedValue, 0);
 
   const overall = {
     totalTargetsCount: filtered.length,
@@ -866,7 +885,10 @@ export const getTargetVsAchievementReport = asyncHandler(async (req: AuthRequest
     admissionAchievementRate: totalTargetAdmissions > 0 ? Math.round((totalAchievedAdmissions / totalTargetAdmissions) * 100) : 0,
     totalTargetRevenue,
     totalAchievedRevenue,
-    revenueAchievementRate: totalTargetRevenue > 0 ? Math.round((totalAchievedRevenue / totalTargetRevenue) * 100) : 0
+    revenueAchievementRate: totalTargetRevenue > 0 ? Math.round((totalAchievedRevenue / totalTargetRevenue) * 100) : 0,
+    totalTargetCenters,
+    totalAchievedCenters,
+    centerAchievementRate: totalTargetCenters > 0 ? Math.round((totalAchievedCenters / totalTargetCenters) * 100) : 0
   };
 
   res.json({

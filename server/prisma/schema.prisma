@@ -195,6 +195,7 @@ model User {
   handledEscalations            Escalation[]           @relation("EscalationHandledBy")
   resolvedEscalations           Escalation[]           @relation("EscalatedResolvedBy")
   approvedExpenseClaims         ExpenseClaim[]         @relation("ExpenseApprovedBy")
+  hrApprovedExpenseClaims       ExpenseClaim[]         @relation("ExpenseHrApprovedBy")
   expenseClaims                 ExpenseClaim[]         @relation("EmployeeExpenses")
   createdGstSettings            GSTSetting[]           @relation("GstSettingCreatedBy")
   approvedIncentives            IncentiveStructure[]   @relation("IncentiveApprovedBy")
@@ -700,6 +701,7 @@ model SalaryConfig {
   allowances             Json?          @default("{}")
   deductions             Json?          @default("{}")
   lateDeductionPerMinute Float?         @default(0)
+  lateDeductionEnabled   Boolean        @default(true)
   effectiveFrom          DateTime?
   approvalStatus         ApprovalStatus @default(pending_approval)
   approvedBy             String?
@@ -729,6 +731,7 @@ model Payroll {
   deductions             Json?
   bonus                  Float?         @default(0)
   overtime               Float?         @default(0)
+  arrears                Float?         @default(0)
   grossSalary            Float
   netSalary              Float
   status                 PayrollStatus  @default(draft)
@@ -958,23 +961,40 @@ model Enrollment {
 }
 
 model ExpenseClaim {
-  id             String        @id @default(uuid())
-  organizationId String
-  employeeId     String
-  amount         Float
-  category       String
-  description    String
-  receipts       Json          @default("[]")
-  status         ExpenseStatus @default(pending)
-  approvedBy     String?
-  approvedAt     DateTime?
-  remarks        String?
-  submittedAt    DateTime      @default(now())
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  approver       User?         @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
-  user           User          @relation("EmployeeExpenses", fields: [employeeId], references: [id], onDelete: Cascade)
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id               String        @id @default(uuid())
+  organizationId   String
+  employeeId       String
+  claimType        String        @default("TA_DA")
+  amount           Float
+  taAmount         Float?        @default(0)
+  daAmount         Float?        @default(0)
+  otherAmount      Float?        @default(0)
+  travelDate       DateTime?
+  endDate          DateTime?
+  fromLocation     String?
+  toLocation       String?
+  travelMode       String?
+  distanceKm       Float?
+  category         String
+  description      String
+  receipts         Json          @default("[]")
+  status           ExpenseStatus @default(pending)
+  hrApprovedBy     String?
+  hrApprovedAt     DateTime?
+  hrRemarks        String?
+  approvedBy       String?
+  approvedAt       DateTime?
+  remarks          String?
+  paymentMethod    String?
+  paymentReference String?
+  reimbursedAt     DateTime?
+  submittedAt      DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  hrApprover       User?         @relation("ExpenseHrApprovedBy", fields: [hrApprovedBy], references: [id])
+  approver         User?         @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
+  user             User          @relation("EmployeeExpenses", fields: [employeeId], references: [id], onDelete: Cascade)
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([employeeId])
@@ -1092,8 +1112,10 @@ model EmployeeProfile {
   updatedAt          DateTime        @updatedAt
   organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shift              Shift?          @relation(fields: [shiftId], references: [id])
+  shift              Shift?          @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   shiftId            String?
+  lateDeductionEnabled Boolean       @default(true)
+  resignationDate    DateTime?
 
   @@index([userId, organizationId])
 }
@@ -1689,8 +1711,11 @@ enum ComplaintPriority {
 enum NotificationType {
   announcement
   task
+  escalation
   leave
   complaint
+  payroll
+  expense
   system
   general
 }
@@ -1740,6 +1765,8 @@ enum PaymentMethod {
 
 enum ExpenseStatus {
   pending
+  hr_approved
+  hr_rejected
   approved
   rejected
   reimbursed

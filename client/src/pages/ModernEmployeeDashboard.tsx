@@ -32,6 +32,8 @@ import { SubOpsPortalPanel } from '@/components/panels/SubOpsPortalPanel';
 import { SubSalesPortalPanel } from '@/components/panels/SubSalesPortalPanel';
 import { EmployeeEscalationsPanel } from '@/components/panels/EmployeeEscalationsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 import { PayrollPanel } from '@/components/panels/PayrollPanel';
 import { UserMeetingBookingsWidget } from '@/components/dashboard/UserMeetingBookingsWidget';
 
@@ -148,6 +150,8 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
           <TabsTrigger value="tasks">My Tasks</TabsTrigger>
           <TabsTrigger value="leaves">My Leaves</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="my_tada">My TA/DA Claims</TabsTrigger>
+          <TabsTrigger value="my_documents">My Documents</TabsTrigger>
           <TabsTrigger value="notice-board">Notice Board</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="holidays">Holiday List</TabsTrigger>
@@ -361,6 +365,14 @@ export function ModernEmployeeDashboard({ initialTab, onNavigate }: { initialTab
 
         <TabsContent value="payslips">
           <PayrollPanel isEmployeeView />
+        </TabsContent>
+
+        <TabsContent value="my_documents">
+          <MyDocumentsPanel />
+        </TabsContent>
+
+        <TabsContent value="my_tada">
+          <TADAClaimsPanel mode="employee" />
         </TabsContent>
 
         <TabsContent value="ld-portal">

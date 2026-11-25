@@ -43,6 +43,8 @@ import { LeavesPanel } from '@/components/panels/LeavesPanel';
 import { AttendancePanel } from '@/components/panels/AttendancePanel';
 import { HolidaysPanel } from '@/components/panels/HolidaysPanel';
 import { AnnouncementsPanel } from '@/components/panels/AnnouncementsPanel';
+import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
@@ -419,6 +421,12 @@ export function ModernFrontOfficeDashboard({
             </TabsTrigger>
             <TabsTrigger value="leaves" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg font-medium">
               My Leaves
+            </TabsTrigger>
+            <TabsTrigger value="my_tada" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg font-medium">
+              My TA/DA Claims
+            </TabsTrigger>
+            <TabsTrigger value="my_documents" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg font-medium">
+              My Documents
             </TabsTrigger>
             <TabsTrigger value="holidays" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg font-medium">
               Holidays
@@ -852,6 +860,14 @@ export function ModernFrontOfficeDashboard({
 
         <TabsContent value="leaves">
           <LeavesPanel />
+        </TabsContent>
+
+        <TabsContent value="my_documents">
+          <MyDocumentsPanel />
+        </TabsContent>
+
+        <TabsContent value="my_tada">
+          <TADAClaimsPanel mode="employee" />
         </TabsContent>
 
         <TabsContent value="holidays">

@@ -27,7 +27,24 @@ export const getUsers = asyncHandler(async (req: AuthRequest, res: Response) => 
     where,
     include: {
       organization: { select: { name: true } },
-      department: { select: { name: true } },
+      department: { select: { id: true, name: true } },
+      employeeProfileDetail: {
+        select: {
+          id: true,
+          shiftId: true,
+          shift: true,
+          lateDeductionEnabled: true,
+          joinDate: true,
+          resignationDate: true,
+          documents: true,
+        },
+      },
+      salaryConfig: {
+        select: {
+          lateDeductionEnabled: true,
+          lateDeductionPerMinute: true,
+        },
+      },
     }
   });
 
@@ -250,6 +267,47 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     where: { id: req.params.id },
     data: updateData
   });
+
+  // Sync resignationDate and/or lateDeductionEnabled into EmployeeProfile & SalaryConfig
+  try {
+    const orgId = user.organizationId || req.user?.organizationId;
+    if (orgId) {
+      let parsedResignDate: Date | undefined;
+      if (req.body.resignationDate) {
+        const d = new Date(req.body.resignationDate);
+        if (!isNaN(d.getTime())) parsedResignDate = d;
+      } else if (req.body.status === 'resigned') {
+        const m = String(req.body.remarks || '').match(/Resigned on (\d{4}-\d{2}-\d{2})/i);
+        parsedResignDate = m ? new Date(`${m[1]}T00:00:00.000Z`) : new Date();
+      }
+
+      const profilePatch: Record<string, any> = {};
+      if (parsedResignDate) {
+        profilePatch.resignationDate = parsedResignDate;
+      } else if (req.body.status === 'active' && userExists.status === 'resigned') {
+        profilePatch.resignationDate = null;
+      }
+      if (req.body.lateDeductionEnabled !== undefined) {
+        profilePatch.lateDeductionEnabled = Boolean(req.body.lateDeductionEnabled);
+      }
+
+      if (Object.keys(profilePatch).length > 0) {
+        await prisma.employeeProfile.upsert({
+          where: { userId: user.id },
+          update: profilePatch,
+          create: { userId: user.id, organizationId: orgId, ...profilePatch },
+        });
+      }
+      if (req.body.lateDeductionEnabled !== undefined) {
+        await prisma.salaryConfig.updateMany({
+          where: { userId: user.id },
+          data: { lateDeductionEnabled: Boolean(req.body.lateDeductionEnabled) },
+        });
+      }
+    }
+  } catch {
+    // non-fatal
+  }
 
   // Log audit if status was changed
   if (req.body.status && req.body.status !== userExists.status && req.user?.organizationId) {

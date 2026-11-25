@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -18,6 +19,7 @@ interface SalaryConfig {
   allowances: { hra: number; transport: number; medical: number; other: number };
   deductions: { pf: number; tax: number; insurance: number; other: number };
   lateDeductionPerMinute: number;
+  lateDeductionEnabled?: boolean;
   effectiveFrom?: string;
   professionalTax: number;
   labourWelfareFund: number;
@@ -40,6 +42,7 @@ const EMPTY_CONFIG = {
   allowances: { hra: 0, transport: 0, medical: 0, other: 0 },
   deductions: { pf: 0, tax: 0, insurance: 0, other: 0 },
   lateDeductionPerMinute: 0,
+  lateDeductionEnabled: true,
   professionalTax: 0,
   labourWelfareFund: 0,
   tds: 0,
@@ -55,26 +58,27 @@ export function SalaryConfigPanel() {
   const [form, setForm] = useState<any>(EMPTY_CONFIG);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [showResigned, setShowResigned] = useState(false);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [showResigned]);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
       const [cfgRes, usersRes] = await Promise.all([
-        api.get('/hr/salary-configs'),
-        api.get('/users?status=active'),
+        api.get(`/hr/salary-configs?includeResigned=${showResigned}`),
+        api.get(showResigned ? '/users' : '/users?status=active'),
       ]);
       const rawConfigs = cfgRes.data.data || [];
-      setConfigs(rawConfigs.filter((c: any) => {
-        const u = typeof c.userId === 'object' ? c.userId : null;
+      setConfigs(showResigned ? rawConfigs : rawConfigs.filter((c: any) => {
+        const u = (c as any).user || (typeof c.userId === 'object' ? c.userId : null);
         return u?.status !== 'resigned';
       }));
       const allUsers: User[] = usersRes.data.data || [];
-      setUsers(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role) && u.status !== 'resigned'));
+      setUsers(allUsers.filter((u: any) => !['ceo', 'org_admin', 'superadmin', 'center_admin', 'student'].includes(u.role) && (showResigned || u.status !== 'resigned')));
     } catch {
       toast.error('Failed to load salary data');
     } finally {
@@ -102,6 +106,7 @@ export function SalaryConfigPanel() {
           tax: 0,
         },
         lateDeductionPerMinute: config.lateDeductionPerMinute || 0,
+        lateDeductionEnabled: config.lateDeductionEnabled !== false,
         professionalTax: config.professionalTax || 0,
         labourWelfareFund: config.labourWelfareFund || 0,
         tds: config.tds || (deductions as any).tax || 0,
@@ -151,9 +156,9 @@ export function SalaryConfigPanel() {
   const unconfiguredUsers = users.filter(u => !configuredUserIds.has(u.id));
 
   const filtered = configs.filter(c => {
-    const u = typeof c.userId === 'object' ? c.userId : null;
-    if (u?.status === 'resigned') return false;
-    const name = (typeof c.userId === 'object' ? c.userId.name : '') || '';
+    const u = (c as any).user || (typeof c.userId === 'object' ? c.userId : null);
+    if (!showResigned && u?.status === 'resigned') return false;
+    const name = u?.name || '';
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
@@ -212,7 +217,13 @@ export function SalaryConfigPanel() {
         </div>
       </div>
 
-      <Input placeholder="Search employee..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+      <div className="flex items-center gap-4 flex-wrap">
+        <Input placeholder="Search employee..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <Switch checked={showResigned} onCheckedChange={setShowResigned} />
+          Include Resigned Employees
+        </label>
+      </div>
 
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
@@ -281,8 +292,14 @@ export function SalaryConfigPanel() {
                           <p className="font-semibold text-green-600">₹{netAmt.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Late/min</p>
-                          <p className="font-semibold text-orange-600">₹{config.lateDeductionPerMinute || 0}</p>
+                          <p className="text-xs text-muted-foreground">Late Deduction</p>
+                          {config.lateDeductionEnabled === false ? (
+                            <p className="font-semibold text-emerald-600 text-xs mt-0.5">Disabled (Exempt)</p>
+                          ) : (
+                            <p className="font-semibold text-orange-600">
+                              {config.lateDeductionPerMinute ? `₹${config.lateDeductionPerMinute}/min` : 'Auto Pro-Rata'}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -548,15 +565,26 @@ export function SalaryConfigPanel() {
                   <p className="text-[11px] text-muted-foreground">Any company-specific advances, loans, or equipment deductions</p>
                 </div>
 
-                <div className="space-y-2 border p-3 rounded-lg bg-muted/20">
+                <div className="space-y-3 border p-3 rounded-lg bg-muted/20">
+                  <div className="flex items-center justify-between pb-2 border-b">
+                    <div>
+                      <p className="text-xs font-semibold">Enable Late Arrival Deduction</p>
+                      <p className="text-[11px] text-muted-foreground">Turn off to exempt this employee from late arrival salary deductions</p>
+                    </div>
+                    <Switch
+                      checked={form.lateDeductionEnabled !== false}
+                      onCheckedChange={v => setForm((f: any) => ({ ...f, lateDeductionEnabled: v }))}
+                    />
+                  </div>
                   <div className="flex items-center justify-between">
                     <Label className="font-semibold text-xs">Late Deduction per Minute (₹)</Label>
-                    <span className="text-[10px] text-muted-foreground">Auto-calc based on month days:</span>
+                    <span className="text-[10px] text-muted-foreground">Leave 0 for auto pro-rata:</span>
                   </div>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
+                    disabled={form.lateDeductionEnabled === false}
                     value={form.lateDeductionPerMinute}
                     onChange={e => setForm((f: any) => ({ ...f, lateDeductionPerMinute: Number(e.target.value) }))}
                   />

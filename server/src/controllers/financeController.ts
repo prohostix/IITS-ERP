@@ -7,6 +7,37 @@ import { filterBreakdownsForMethod } from '../utils/feeStructureHelper.js';
 import { hashPassword, generateUserId } from '../utils/authUtils.js';
 import { calculateAndSyncTargets, filterTargets } from '../utils/targetHelper.js';
 import { getBranchScopeByBranchId, getAllBranchesScope } from '../utils/branchScope.js';
+import { emitToUser } from '../config/socket.js';
+
+async function sendExpenseNotification(
+  organizationId: string,
+  userIds: string[],
+  title: string,
+  message: string,
+  link: string
+) {
+  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return;
+  await Promise.allSettled(
+    uniqueIds.map(async (uid) => {
+      const notif = await prisma.notification.create({
+        data: {
+          organizationId,
+          userId: uid,
+          title,
+          message,
+          type: 'expense' as any,
+          link,
+        },
+      });
+      try {
+        emitToUser(uid, 'notification', notif);
+      } catch (_err) {
+        // socket non-fatal
+      }
+    })
+  );
+}
 
 // Invoices
 export const getInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -166,150 +197,476 @@ export const deletePayment = asyncHandler(async (req: AuthRequest, res: Response
   res.json({ success: true, data: {} });
 });
 
-// Expenses
-export const getExpenses = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expenses = await prisma.expenseClaim.findMany({
-    where: { organizationId: req.user.organizationId },
-    include: {
-      user: { select: { id: true, name: true, email: true } }
-    }
-  });
-  const mapped = expenses.map(exp => ({
+// Expenses & TA/DA Claims (Employee -> HR Verification -> Finance Approval & Disbursement)
+const EXPENSE_INCLUDE = {
+  user: {
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      email: true,
+      role: true,
+      designation: true,
+      department: { select: { id: true, name: true, type: true } },
+    },
+  },
+  hrApprover: { select: { id: true, name: true, email: true } },
+  approver: { select: { id: true, name: true, email: true } },
+};
+
+function mapExpenseRecord(exp: any) {
+  return {
     ...exp,
-    employeeId: exp.user || exp.employeeId
-  }));
+    employee: exp.user || null,
+    employeeId: exp.user || exp.employeeId,
+  };
+}
+
+export const getExpenses = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { mine, status, claimType } = req.query as Record<string, string>;
+  const privilegedRoles = [
+    'finance_admin', 'finance_sub_admin', 'finance',
+    'hr_admin', 'hr_sub_admin',
+    'ceo', 'org_admin', 'superadmin',
+  ];
+  const userDeptType = (req.user as any)?.department?.type?.toLowerCase?.() || '';
+  const isPrivileged = privilegedRoles.includes(req.user.role) || ['finance', 'hr'].includes(userDeptType);
+
+  const where: any = { organizationId: req.user.organizationId };
+  if (mine === 'true' || !isPrivileged) {
+    where.employeeId = req.user.id;
+  }
+  if (status && status !== 'all') {
+    where.status = status;
+  }
+  if (claimType && claimType !== 'all') {
+    where.claimType = claimType;
+  }
+
+  const expenses = await prisma.expenseClaim.findMany({
+    where,
+    include: EXPENSE_INCLUDE,
+    orderBy: { submittedAt: 'desc' },
+  });
+  const mapped = expenses.map(mapExpenseRecord);
   res.json({ success: true, count: mapped.length, data: mapped });
 });
+
+export const getHRTadaClaims = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { status, claimType } = req.query as Record<string, string>;
+  const where: any = { organizationId: req.user.organizationId };
+  if (status && status !== 'all') {
+    where.status = status;
+  }
+  if (claimType && claimType !== 'all') {
+    where.claimType = claimType;
+  }
+
+  const claims = await prisma.expenseClaim.findMany({
+    where,
+    include: EXPENSE_INCLUDE,
+    orderBy: { submittedAt: 'desc' },
+  });
+  const mapped = claims.map(mapExpenseRecord);
+  res.json({ success: true, count: mapped.length, data: mapped });
+});
+
 export const getExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expense = await prisma.expenseClaim.findUnique({
-    where: { id: req.params.id },
-    include: {
-      user: { select: { id: true, name: true, email: true } }
-    }
+  const expense = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+    include: EXPENSE_INCLUDE,
   });
   if (!expense) {
-    res.status(404).json({ success: false, message: 'Expense not found' });
+    res.status(404).json({ success: false, message: 'Expense claim not found' });
     return;
   }
-  const mapped = {
-    ...expense,
-    employeeId: expense.user || expense.employeeId
-  };
-  res.json({ success: true, data: mapped });
+  res.json({ success: true, data: mapExpenseRecord(expense) });
 });
+
 export const createExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { amount, category, description, receipts, status } = req.body;
+  const {
+    amount,
+    category,
+    claimType,
+    taAmount,
+    daAmount,
+    otherAmount,
+    travelDate,
+    endDate,
+    fromLocation,
+    toLocation,
+    travelMode,
+    distanceKm,
+    description,
+    receipts,
+  } = req.body;
+
+  const parsedTa = taAmount !== undefined && taAmount !== '' ? Math.max(0, parseFloat(taAmount) || 0) : 0;
+  const parsedDa = daAmount !== undefined && daAmount !== '' ? Math.max(0, parseFloat(daAmount) || 0) : 0;
+  const parsedOther = otherAmount !== undefined && otherAmount !== '' ? Math.max(0, parseFloat(otherAmount) || 0) : 0;
+  const breakdownSum = parsedTa + parsedDa + parsedOther;
+  const parsedAmount = breakdownSum > 0
+    ? breakdownSum
+    : (amount !== undefined && amount !== '' ? Math.max(0, parseFloat(amount) || 0) : 0);
+
+  if (!parsedAmount || parsedAmount <= 0) {
+    res.status(400).json({ success: false, message: 'Claim amount must be greater than 0' });
+    return;
+  }
+
+  const normalizedReceipts = Array.isArray(receipts)
+    ? receipts.filter(Boolean).map(String)
+    : typeof receipts === 'string' && receipts.trim()
+    ? [receipts.trim()]
+    : [];
+
   const expense = await prisma.expenseClaim.create({
     data: {
-      amount: amount !== undefined ? parseFloat(amount) : 0,
-      category,
-      description,
-      receipts: receipts || [],
-      status: status || 'pending',
       organizationId: req.user.organizationId,
-      employeeId: req.user.id
-    }
+      employeeId: req.user.id,
+      claimType: claimType || 'tada',
+      category: category || 'travel',
+      amount: parsedAmount,
+      taAmount: parsedTa,
+      daAmount: parsedDa,
+      otherAmount: parsedOther,
+      travelDate: travelDate ? new Date(travelDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      fromLocation: fromLocation ? String(fromLocation).trim() : null,
+      toLocation: toLocation ? String(toLocation).trim() : null,
+      travelMode: travelMode ? String(travelMode).trim() : null,
+      distanceKm: distanceKm !== undefined && distanceKm !== '' && !isNaN(parseFloat(distanceKm)) ? parseFloat(distanceKm) : null,
+      description: description ? String(description).trim() : 'TA/DA Claim',
+      receipts: normalizedReceipts,
+      status: 'pending' as any,
+    },
+    include: EXPENSE_INCLUDE,
   });
-  res.status(201).json({ success: true, data: expense });
-});
-export const updateExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const exists = await prisma.expenseClaim.findUnique({ where: { id: req.params.id } });
-  if (!exists) {
-    res.status(404).json({ success: false, message: 'Expense not found' });
-    return;
-  }
-  const { amount, category, description, receipts, status, approvedBy, remarks } = req.body;
-  const data: any = {};
-  if (amount !== undefined) data.amount = parseFloat(amount);
-  if (category !== undefined) data.category = category;
-  if (description !== undefined) data.description = description;
-  if (receipts !== undefined) data.receipts = receipts;
-  if (status !== undefined) data.status = status;
-  if (approvedBy !== undefined) data.approvedBy = approvedBy;
-  if (remarks !== undefined) data.remarks = remarks;
 
-  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data });
-  res.json({ success: true, data: expense });
+  // Notify HR team for verification
+  const hrUsers = await prisma.user.findMany({
+    where: {
+      organizationId: req.user.organizationId,
+      status: 'active',
+      OR: [
+        { role: { in: ['hr_admin', 'hr_sub_admin'] } },
+        { department: { type: 'hr' } },
+      ],
+    },
+    select: { id: true },
+  });
+  await sendExpenseNotification(
+    req.user.organizationId,
+    hrUsers.map(u => u.id).filter(id => id !== req.user.id),
+    'New TA/DA Claim Awaiting HR Verification',
+    `${req.user.name} submitted a ${(claimType || 'TA/DA').toUpperCase()} claim of ₹${parsedAmount.toLocaleString('en-IN')} for HR verification.`,
+    '/tada-approvals'
+  );
+
+  res.status(201).json({ success: true, data: mapExpenseRecord(expense) });
 });
-export const deleteExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const exists = await prisma.expenseClaim.findUnique({ where: { id: req.params.id } });
+
+export const updateExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const exists = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+  });
   if (!exists) {
-    res.status(404).json({ success: false, message: 'Expense not found' });
+    res.status(404).json({ success: false, message: 'Expense claim not found' });
     return;
   }
+
+  const isOwner = exists.employeeId === req.user.id;
+  const isAdmin = ['finance_admin', 'finance_sub_admin', 'finance', 'hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin'].includes(req.user.role);
+  if (!isOwner && !isAdmin) {
+    res.status(403).json({ success: false, message: 'Not authorized to edit this claim' });
+    return;
+  }
+  if (isOwner && !['pending', 'hr_rejected'].includes(exists.status)) {
+    res.status(400).json({ success: false, message: 'Cannot edit a claim after HR verification' });
+    return;
+  }
+
+  const {
+    amount,
+    category,
+    claimType,
+    taAmount,
+    daAmount,
+    otherAmount,
+    travelDate,
+    endDate,
+    fromLocation,
+    toLocation,
+    travelMode,
+    distanceKm,
+    description,
+    receipts,
+    remarks,
+  } = req.body;
+
+  const data: any = {};
+  if (claimType !== undefined) data.claimType = claimType;
+  if (category !== undefined) data.category = category;
+  if (description !== undefined) data.description = String(description).trim();
+  if (receipts !== undefined) data.receipts = Array.isArray(receipts) ? receipts.filter(Boolean).map(String) : [];
+  if (travelDate !== undefined) data.travelDate = travelDate ? new Date(travelDate) : null;
+  if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null;
+  if (fromLocation !== undefined) data.fromLocation = fromLocation ? String(fromLocation).trim() : null;
+  if (toLocation !== undefined) data.toLocation = toLocation ? String(toLocation).trim() : null;
+  if (travelMode !== undefined) data.travelMode = travelMode ? String(travelMode).trim() : null;
+  if (distanceKm !== undefined) {
+    data.distanceKm = distanceKm !== '' && distanceKm !== null && !isNaN(parseFloat(distanceKm)) ? parseFloat(distanceKm) : null;
+  }
+
+  const nextTa = taAmount !== undefined ? (parseFloat(taAmount) || 0) : (exists.taAmount || 0);
+  const nextDa = daAmount !== undefined ? (parseFloat(daAmount) || 0) : (exists.daAmount || 0);
+  const nextOther = otherAmount !== undefined ? (parseFloat(otherAmount) || 0) : (exists.otherAmount || 0);
+  if (taAmount !== undefined) data.taAmount = nextTa;
+  if (daAmount !== undefined) data.daAmount = nextDa;
+  if (otherAmount !== undefined) data.otherAmount = nextOther;
+
+  if (taAmount !== undefined || daAmount !== undefined || otherAmount !== undefined) {
+    const sum = nextTa + nextDa + nextOther;
+    if (sum > 0) data.amount = sum;
+    else if (amount !== undefined) data.amount = parseFloat(amount) || 0;
+  } else if (amount !== undefined) {
+    data.amount = parseFloat(amount) || 0;
+  }
+
+  if (isAdmin && remarks !== undefined) {
+    data.remarks = remarks;
+  }
+
+  // If employee edits an hr_rejected claim, resubmit to HR
+  if (isOwner && exists.status === 'hr_rejected') {
+    data.status = 'pending';
+    data.hrRemarks = null;
+  }
+
+  const expense = await prisma.expenseClaim.update({
+    where: { id: req.params.id },
+    data,
+    include: EXPENSE_INCLUDE,
+  });
+  res.json({ success: true, data: mapExpenseRecord(expense) });
+});
+
+export const deleteExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const exists = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+  });
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'Expense claim not found' });
+    return;
+  }
+  const isOwner = exists.employeeId === req.user.id;
+  const isFinanceOrAdmin = ['finance_admin', 'finance_sub_admin', 'finance', 'hr_admin', 'org_admin', 'superadmin'].includes(req.user.role);
+  if (!isOwner && !isFinanceOrAdmin) {
+    res.status(403).json({ success: false, message: 'Not authorized to delete this claim' });
+    return;
+  }
+  if (isOwner && !isFinanceOrAdmin && !['pending', 'hr_rejected'].includes(exists.status)) {
+    res.status(400).json({ success: false, message: 'Cannot withdraw a claim after HR verification' });
+    return;
+  }
+
   await prisma.expenseClaim.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: {} });
 });
+
+// Step 1: HR Verification & Approval (Mandatory before Finance processing)
+export const hrVerifyExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const exists = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+    include: { user: { select: { id: true, name: true } } },
+  });
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'TA/DA claim not found' });
+    return;
+  }
+  if (['approved', 'reimbursed'].includes(exists.status)) {
+    res.status(400).json({ success: false, message: 'This claim has already been processed by Finance' });
+    return;
+  }
+
+  const { action, remarks } = req.body;
+  const isReject = action === 'reject' || action === 'rejected';
+  const nextStatus = isReject ? 'hr_rejected' : 'hr_approved';
+
+  const updated = await prisma.expenseClaim.update({
+    where: { id: req.params.id },
+    data: {
+      status: nextStatus as any,
+      hrApprovedBy: req.user.id,
+      hrApprovedAt: new Date(),
+      hrRemarks: remarks ? String(remarks).trim() : (isReject ? 'Rejected during HR verification' : 'Verified by HR'),
+    },
+    include: EXPENSE_INCLUDE,
+  });
+
+  // Notify employee
+  await sendExpenseNotification(
+    req.user.organizationId,
+    [exists.employeeId],
+    isReject ? 'TA/DA Claim Rejected by HR' : 'TA/DA Claim Verified by HR',
+    isReject
+      ? `Your TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')} was rejected by HR (${req.user.name}).${remarks ? ` Remarks: ${remarks}` : ''}`
+      : `Your TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')} has been verified by HR (${req.user.name}) and forwarded to Finance.`,
+    '/my_tada'
+  );
+
+  // If approved by HR, notify Finance team for processing
+  if (!isReject) {
+    const financeUsers = await prisma.user.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        status: 'active',
+        OR: [
+          { role: { in: ['finance_admin', 'finance_sub_admin', 'finance'] } },
+          { department: { type: 'finance' } },
+        ],
+      },
+      select: { id: true },
+    });
+    await sendExpenseNotification(
+      req.user.organizationId,
+      financeUsers.map(u => u.id),
+      'HR-Verified TA/DA Claim Ready for Finance',
+      `HR (${req.user.name}) verified ${exists.user?.name || 'an employee'}'s TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')}. Ready for Finance approval/disbursement.`,
+      '/tada_management'
+    );
+  }
+
+  res.json({ success: true, data: mapExpenseRecord(updated) });
+});
+
+// Step 2: Finance Approval / Rejection (Strictly requires HR Verification first!)
 export const approveExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const expense = await prisma.expenseClaim.update({ where: { id: req.params.id }, data: { status: 'approved' as any, approvedBy: req.user.id, approvedAt: new Date() } });
-  res.json({ success: true, data: expense });
+  const exists = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+    include: { user: { select: { id: true, name: true } } },
+  });
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'TA/DA claim not found' });
+    return;
+  }
+
+  if (exists.status === 'pending' || exists.status === 'hr_rejected') {
+    res.status(400).json({
+      success: false,
+      message: 'TA/DA claims must be verified and approved by HR before Finance can process them.',
+    });
+    return;
+  }
+  if (exists.status === 'reimbursed') {
+    res.status(400).json({ success: false, message: 'This claim has already been reimbursed' });
+    return;
+  }
+
+  const { action, remarks } = req.body;
+  const isReject = action === 'reject' || action === 'rejected';
+  const nextStatus = isReject ? 'rejected' : 'approved';
+
+  const expense = await prisma.expenseClaim.update({
+    where: { id: req.params.id },
+    data: {
+      status: nextStatus as any,
+      approvedBy: req.user.id,
+      approvedAt: new Date(),
+      remarks: remarks !== undefined ? String(remarks).trim() : exists.remarks,
+    },
+    include: EXPENSE_INCLUDE,
+  });
+
+  await sendExpenseNotification(
+    req.user.organizationId,
+    [exists.employeeId],
+    isReject ? 'TA/DA Claim Rejected by Finance' : 'TA/DA Claim Approved by Finance',
+    isReject
+      ? `Your TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')} was rejected by Finance (${req.user.name}).${remarks ? ` Remarks: ${remarks}` : ''}`
+      : `Your TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')} has been approved by Finance (${req.user.name}) for disbursement.`,
+    '/my_tada'
+  );
+
+  res.json({ success: true, data: mapExpenseRecord(expense) });
+});
+
+// Step 3: Finance Reimbursement / Payout Recording (Requires HR Verification or Finance Approval)
+export const reimburseExpense = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const exists = await prisma.expenseClaim.findFirst({
+    where: { id: req.params.id, organizationId: req.user.organizationId },
+  });
+  if (!exists) {
+    res.status(404).json({ success: false, message: 'TA/DA claim not found' });
+    return;
+  }
+
+  if (!['hr_approved', 'approved'].includes(exists.status)) {
+    res.status(400).json({
+      success: false,
+      message: 'Only HR-verified or Finance-approved TA/DA claims can be disbursed.',
+    });
+    return;
+  }
+
+  const { paymentMethod, paymentReference, remarks } = req.body;
+  const now = new Date();
+
+  const updated = await prisma.expenseClaim.update({
+    where: { id: req.params.id },
+    data: {
+      status: 'reimbursed' as any,
+      approvedBy: exists.approvedBy || req.user.id,
+      approvedAt: exists.approvedAt || now,
+      reimbursedAt: now,
+      paymentMethod: paymentMethod ? String(paymentMethod).trim() : 'Bank Transfer',
+      paymentReference: paymentReference ? String(paymentReference).trim() : null,
+      remarks: remarks !== undefined ? String(remarks).trim() : exists.remarks,
+    },
+    include: EXPENSE_INCLUDE,
+  });
+
+  await sendExpenseNotification(
+    req.user.organizationId,
+    [exists.employeeId],
+    'TA/DA Claim Reimbursed',
+    `Your TA/DA claim of ₹${Number(exists.amount).toLocaleString('en-IN')} has been reimbursed via ${updated.paymentMethod || 'Bank Transfer'}${updated.paymentReference ? ` (Ref: ${updated.paymentReference})` : ''}.`,
+    '/my_tada'
+  );
+
+  res.json({ success: true, data: mapExpenseRecord(updated) });
 });
 
 // Targets
+const FINANCE_TARGET_INCLUDE = {
+  employee: { select: { id: true, name: true, email: true, role: true } },
+  department: { select: { id: true, name: true } },
+  center: { select: { id: true, name: true, code: true } },
+  university: { select: { id: true, name: true, code: true } },
+  session: { select: { id: true, name: true } },
+};
+
 export const getTargets = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { status, sessionId, year, month, userId, universityId } = req.query as any;
 
   const targets = await prisma.target.findMany({
     where: { organizationId: req.user.organizationId },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true
-        }
-      },
-      university: {
-        select: {
-          id: true,
-          name: true,
-          code: true
-        }
-      },
-      session: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    },
+    include: FINANCE_TARGET_INCLUDE,
     orderBy: { createdAt: 'desc' }
   });
   const syncedTargets = await calculateAndSyncTargets(targets, req.user.organizationId);
   const filtered = filterTargets(syncedTargets, { status, sessionId, year, month, userId, universityId });
   const mapped = filtered.map(t => ({
     ...t,
-    employeeId: t.employee || t.employeeId
+    employeeId: t.employee || t.employeeId,
+    departmentId: t.department || t.departmentId,
   }));
   res.json({ success: true, count: mapped.length, data: mapped });
 });
 export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
   const target = await prisma.target.findUnique({
     where: { id: req.params.id },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true
-        }
-      },
-      university: {
-        select: {
-          id: true,
-          name: true,
-          code: true
-        }
-      },
-      session: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
+    include: FINANCE_TARGET_INCLUDE
   });
   if (!target) {
     res.status(404).json({ success: false, message: 'Target not found' });
@@ -318,13 +675,16 @@ export const getTarget = asyncHandler(async (req: AuthRequest, res: Response) =>
   const [synced] = await calculateAndSyncTargets([target], req.user.organizationId);
   const mapped = {
     ...synced,
-    employeeId: synced.employee || synced.employeeId
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId,
   };
   res.json({ success: true, data: mapped });
 });
 export const createTarget = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { employeeId, type, period, target, achieved, incentive, deadline, universityId, sessionId } = req.body;
+  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline, universityId, sessionId } = req.body;
   const cleanEmpId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  const cleanDeptId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
+  const cleanCenterId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
   const cleanUniId = (universityId && universityId !== 'none' && universityId !== 'null' && universityId !== 'all') ? universityId : null;
   const cleanSessionId = (sessionId && sessionId !== 'none' && sessionId !== 'null' && sessionId !== 'all') ? sessionId : null;
   const cleanTarget = parseFloat(target) || 0;
@@ -335,6 +695,8 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
     data: {
       organizationId: req.user.organizationId,
       employeeId: cleanEmpId,
+      departmentId: cleanDeptId,
+      centerId: cleanCenterId,
       universityId: cleanUniId,
       sessionId: cleanSessionId,
       type,
@@ -343,36 +705,15 @@ export const createTarget = asyncHandler(async (req: AuthRequest, res: Response)
       achieved: cleanAchieved,
       incentive: cleanIncentive,
       deadline: deadline ? new Date(deadline) : null,
-      status: cleanAchieved >= cleanTarget && cleanTarget > 0 ? 'completed' : 'pending'
+      status: cleanAchieved >= cleanTarget && cleanTarget > 0 ? 'completed' : 'active'
     },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true
-        }
-      },
-      university: {
-        select: {
-          id: true,
-          name: true,
-          code: true
-        }
-      },
-      session: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
+    include: FINANCE_TARGET_INCLUDE
   });
   const [synced] = await calculateAndSyncTargets([newTarget], req.user.organizationId);
   const mapped = {
     ...synced,
-    employeeId: synced.employee || synced.employeeId
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId,
   };
   res.status(201).json({ success: true, data: mapped });
 });
@@ -384,10 +725,16 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
     res.status(404).json({ success: false, message: 'Target not found' });
     return;
   }
-  const { employeeId, type, period, target, achieved, incentive, deadline, status, universityId, sessionId } = req.body;
+  const { employeeId, departmentId, centerId, type, period, target, achieved, incentive, deadline, status, universityId, sessionId } = req.body;
   const data: any = {};
   if (employeeId !== undefined) {
     data.employeeId = (employeeId && employeeId !== 'none' && employeeId !== 'null') ? employeeId : null;
+  }
+  if (departmentId !== undefined) {
+    data.departmentId = (departmentId && departmentId !== 'none' && departmentId !== 'null') ? departmentId : null;
+  }
+  if (centerId !== undefined) {
+    data.centerId = (centerId && centerId !== 'none' && centerId !== 'null') ? centerId : null;
   }
   if (universityId !== undefined) {
     data.universityId = (universityId && universityId !== 'none' && universityId !== 'null' && universityId !== 'all') ? universityId : null;
@@ -412,40 +759,19 @@ export const updateTarget = asyncHandler(async (req: AuthRequest, res: Response)
   } else if (data.target !== undefined || data.achieved !== undefined) {
     const finalTarget = data.target !== undefined ? data.target : exists.target;
     const finalAchieved = data.achieved !== undefined ? data.achieved : exists.achieved;
-    data.status = finalAchieved >= finalTarget && finalTarget > 0 ? 'completed' : 'pending';
+    data.status = finalAchieved >= finalTarget && finalTarget > 0 ? 'completed' : 'active';
   }
 
   const updated = await prisma.target.update({
     where: { id: req.params.id },
     data,
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true
-        }
-      },
-      university: {
-        select: {
-          id: true,
-          name: true,
-          code: true
-        }
-      },
-      session: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
+    include: FINANCE_TARGET_INCLUDE
   });
   const [synced] = await calculateAndSyncTargets([updated], req.user.organizationId);
   const mapped = {
     ...synced,
-    employeeId: synced.employee || synced.employeeId
+    employeeId: synced.employee || synced.employeeId,
+    departmentId: synced.department || synced.departmentId,
   };
   res.json({ success: true, data: mapped });
 });
@@ -2397,16 +2723,21 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
     orderBy: { createdAt: 'desc' }
   });
 
-  // 5. Fetch targets
-  const targets = await prisma.target.findMany({
+  // 5. Fetch & sync targets (filtered by selected year/month if applicable)
+  const rawTargets = await prisma.target.findMany({
     where: {
       organizationId: orgId,
       employeeId: { in: allSalesUserIds }
     }
   });
+  const syncedTargetsAll = await calculateAndSyncTargets(rawTargets, orgId);
+  const periodFilteredTargets = filterTargets(syncedTargetsAll, {
+    year: year && year !== 'all' ? String(year) : undefined,
+    month: month && month !== 'all' ? String(month) : undefined,
+  });
 
   const targetsByUserId: Record<string, any[]> = {};
-  for (const t of targets) {
+  for (const t of periodFilteredTargets) {
     if (t.employeeId) {
       if (!targetsByUserId[t.employeeId]) targetsByUserId[t.employeeId] = [];
       targetsByUserId[t.employeeId].push(t);
@@ -2572,14 +2903,16 @@ export const getFinanceSalesUsersReport = asyncHandler(async (req: AuthRequest, 
       };
     });
 
-    // Targets breakdown
-    const revenueTargetObj = userTargets.find((t: any) => t.type === 'revenue');
-    const studentsTargetObj = userTargets.find((t: any) => t.type === 'students');
-    const centersTargetObj = userTargets.find((t: any) => t.type === 'centers');
-
-    const revTargetVal = revenueTargetObj ? Number(revenueTargetObj.target ?? revenueTargetObj.targetAmount ?? 0) : 0;
-    const stuTargetVal = studentsTargetObj ? Number(studentsTargetObj.target ?? studentsTargetObj.targetAmount ?? 0) : 0;
-    const cenTargetVal = centersTargetObj ? Number(centersTargetObj.target ?? centersTargetObj.targetAmount ?? 0) : 0;
+    // Targets breakdown (sum all matching targets by type for the selected period)
+    const revTargetVal = userTargets
+      .filter((t: any) => /revenue|fee|amount|sales/i.test(t.type || ''))
+      .reduce((s: number, t: any) => s + Number(t.target ?? t.targetAmount ?? 0), 0);
+    const stuTargetVal = userTargets
+      .filter((t: any) => /student|admission/i.test(t.type || ''))
+      .reduce((s: number, t: any) => s + Number(t.target ?? t.targetAmount ?? 0), 0);
+    const cenTargetVal = userTargets
+      .filter((t: any) => /center/i.test(t.type || ''))
+      .reduce((s: number, t: any) => s + Number(t.target ?? t.targetAmount ?? 0), 0);
 
     const targetStats = {
       revenueTarget: revTargetVal,
@@ -2842,7 +3175,7 @@ export const getFinanceOverviewStats = asyncHandler(async (req: AuthRequest, res
   });
   const approvedExpenses = expenses.filter((e: any) => ['approved', 'reimbursed'].includes(e.status));
   const totalExpenses = approvedExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-  const pendingExpensesCount = expenses.filter((e: any) => e.status === 'pending').length;
+  const pendingExpensesCount = expenses.filter((e: any) => e.status === 'hr_approved').length;
 
   // 6. University Fee Payments
   const uniFees = await prisma.universityFeePayment.findMany({

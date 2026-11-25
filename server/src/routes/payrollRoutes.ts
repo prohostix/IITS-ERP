@@ -5,6 +5,7 @@ import {
   getPayroll,
   createPayroll,
   updatePayroll,
+  processSalaryArrears,
   processPayroll,
   markPayrollPaid,
   deletePayroll,
@@ -19,32 +20,33 @@ import {
   markBatchPaymentInProgress,
   completeBatchPayment,
 } from '../controllers/payrollController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, requirePayrollAccess } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(protect);
 
-// Payroll batch routes (for finance / hr / admins)
-router.get('/batches', authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), getPayrollBatches);
-router.get('/batches/:id', authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), getPayrollBatch);
-router.post('/batches/:id/approve', authorize('finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'), financeApprovePayrollBatch);
-router.post('/batches/:id/reject', authorize('finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'), financeRejectPayrollBatch);
-router.put('/batches/:id/payment-in-progress', authorize('finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'), markBatchPaymentInProgress);
-router.put('/batches/:id/complete-payment', authorize('finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'), completeBatchPayment);
+// All Payroll management & batch operations restricted exclusively to Shaju Sir & Pramod Sir
+router.get('/batches', requirePayrollAccess, getPayrollBatches);
+router.get('/batches/:id', requirePayrollAccess, getPayrollBatch);
+router.post('/batches/:id/approve', requirePayrollAccess, financeApprovePayrollBatch);
+router.post('/batches/:id/reject', requirePayrollAccess, financeRejectPayrollBatch);
+router.put('/batches/:id/payment-in-progress', requirePayrollAccess, markBatchPaymentInProgress);
+router.put('/batches/:id/complete-payment', requirePayrollAccess, completeBatchPayment);
 
-// Payroll actions (must be before /:id to avoid param conflicts)
-router.post('/generate', authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), generateMonthlyPayroll);
-router.post('/generate-smart', authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), generateSmartPayroll);
-router.post('/transfer-to-finance', authorize('hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin'), transferToFinance);
+// Payroll actions (must come before /:id)
+router.post('/generate', requirePayrollAccess, generateMonthlyPayroll);
+router.post('/generate-smart', requirePayrollAccess, generateSmartPayroll);
+router.post('/arrears', requirePayrollAccess, processSalaryArrears);
+router.post('/transfer-to-finance', requirePayrollAccess, transferToFinance);
 
-// Payroll CRUD
-router.route('/').get(getPayrolls).post(authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), createPayroll);
-router.route('/:id').get(getPayroll).put(authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), updatePayroll).delete(authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), deletePayroll);
+// Payroll CRUD (GET allows personal payslip when ?employeeId=<self>, enforced inside controller)
+router.route('/').get(getPayrolls).post(requirePayrollAccess, createPayroll);
+router.route('/:id').get(getPayroll).put(requirePayrollAccess, updatePayroll).delete(requirePayrollAccess, deletePayroll);
 
 // Payroll instance actions
-router.put('/:id/process', authorize('hr_admin', 'hr_sub_admin', 'finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'ceo', 'superadmin'), processPayroll);
-router.put('/:id/confirm', authorize('hr_admin', 'hr_sub_admin', 'org_admin', 'superadmin'), confirmPayroll);
-router.put('/:id/pay', authorize('finance_admin', 'finance_sub_admin', 'finance', 'org_admin', 'superadmin'), markPayrollPaid);
+router.put('/:id/process', requirePayrollAccess, processPayroll);
+router.put('/:id/confirm', requirePayrollAccess, confirmPayroll);
+router.put('/:id/pay', requirePayrollAccess, markPayrollPaid);
 
 export default router;

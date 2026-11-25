@@ -47,9 +47,14 @@ import { ShiftPanel } from '@/components/panels/hr/ShiftPanel';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { AttendanceCalendarPanel } from '@/components/panels/hr/AttendanceCalendarPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
+import { useAuth } from '@/hooks/useAuth';
+import { canAccessPayroll } from '@/lib/payrollAccess';
 
 
 export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { initialTab?: string, onNavigate?: (tab: string) => void }) {
+  const { user } = useAuth();
+  const hasPayrollAccess = canAccessPayroll(user);
   const [metrics, setMetrics] = useState<any>({});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview');
 
@@ -74,7 +79,7 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
     switch (activeTab) {
       case 'overview': return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={handleTabChange} /></div>
+          <div className="lg:col-span-3"><OverviewContent metrics={metrics} onNavigate={handleTabChange} hasPayrollAccess={hasPayrollAccess} /></div>
         </div>
       );
       case 'users': return <HRUsersPanel key="users" />;
@@ -90,9 +95,22 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'holidays': return <HolidaysPanel key="holidays" />;
       case 'complaints': return <ComplaintsPanel key="complaints" />;
       case 'tasks': return <TasksPanel key="tasks" />;
-      case 'payroll': return <PayrollPanel key="payroll" />;
-      case 'payroll-batches': return <PayrollBatchesPanel key="payroll-batches" />;
-      case 'salary-config': return <SalaryConfigPanel key="salary-config" />;
+      case 'payroll':
+      case 'payroll-batches':
+      case 'salary-config':
+      case 'salary_config':
+        if (!hasPayrollAccess) {
+          return (
+            <Card className="border-border/70">
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Payroll module access is restricted exclusively to authorized Finance leadership (Shaju Sir &amp; Pramod Sir).
+              </CardContent>
+            </Card>
+          );
+        }
+        if (activeTab === 'payroll') return <PayrollPanel key="payroll" />;
+        if (activeTab === 'payroll-batches') return <PayrollBatchesPanel key="payroll-batches" />;
+        return <SalaryConfigPanel key="salary-config" />;
       case 'leave-alloc': return <LeaveAllocationPanel key="leave-alloc" />;
       case 'announcements': return <AnnouncementsPanel key="announcements" />;
       case 'polls': return <PollsPanel key="polls" />;
@@ -106,6 +124,10 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
       case 'payslips':
       case 'my_payslips': return <PayrollPanel key="my_payslips" isEmployeeView />;
       case 'my_documents': return <MyDocumentsPanel key="my_documents" />;
+      case 'tada-approvals':
+      case 'tada_approvals': return <TADAClaimsPanel key="tada-approvals" mode="hr" />;
+      case 'my_tada':
+      case 'my-tada': return <TADAClaimsPanel key="my_tada" mode="employee" />;
       case 'subdepartments': return <SubDepartmentsPanel key="subdepartments" />;
       case 'notice-board': return <NoticeBoardPanel key="notice-board" />;
       default: return <div className="p-8 text-center text-red-500 font-bold">Unknown tab: {activeTab} (initialTab: {initialTab})</div>;
@@ -119,7 +141,8 @@ export function ModernHRDashboard({ initialTab, onNavigate: _onNavigate }: { ini
   );
 }
 
-export function getHRNavItems() {
+export function getHRNavItems(user?: any) {
+  const showPayroll = canAccessPayroll(user);
   return [
     { id: '__hr_section', label: 'HR Management', isSection: true },
     { id: 'overview', label: 'Overview' },
@@ -135,16 +158,19 @@ export function getHRNavItems() {
     { id: 'leaves', label: 'Leave Requests' },
     { id: 'leave-approvals', label: 'Leave Approvals' },
     { id: 'leave-alloc', label: 'Leave Allocation' },
+    { id: 'att-settings', label: 'Att. Settings' },
+    { id: 'shift-settings', label: 'Shift Settings' },
     { id: '__recruitment_section', label: 'Recruitment', isSection: true },
     { id: 'hiring', label: 'Hiring & Recruitment' },
     { id: 'vacancies', label: 'Vacancies' },
-    { id: '__payroll_comp_section', label: 'Payroll & Config', isSection: true },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'payroll-batches', label: 'Payroll Batches' },
-    { id: 'salary-config', label: 'Salary Config' },
-    { id: 'att-settings', label: 'Att. Settings' },
-    { id: 'shift-settings', label: 'Shift Settings' },
+    ...(showPayroll ? [
+      { id: '__payroll_comp_section', label: 'Payroll & Config', isSection: true },
+      { id: 'payroll', label: 'Payroll' },
+      { id: 'payroll-batches', label: 'Payroll Batches' },
+      { id: 'salary-config', label: 'Salary Config' },
+    ] : []),
     { id: '__hr_operations_section', label: 'HR Operations', isSection: true },
+    { id: 'tada-approvals', label: 'TA/DA Verification' },
     { id: 'holidays', label: 'Holidays' },
     { id: 'complaints', label: 'Complaints' },
     { id: 'tasks', label: 'Tasks' },
@@ -154,6 +180,7 @@ export function getHRNavItems() {
     { id: '__portal_section', label: 'My Portal', isSection: true },
     { id: 'my_leaves', label: 'My Leaves' },
     { id: 'my_attendance', label: 'My Attendance' },
+    { id: 'my_tada', label: 'My TA/DA Claims' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },
     { id: 'notice-board', label: 'Notice Board' },
@@ -161,7 +188,7 @@ export function getHRNavItems() {
   ];
 }
 
-function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (tab: string) => void }) {
+function OverviewContent({ metrics, onNavigate, hasPayrollAccess }: { metrics: any; onNavigate: (tab: string) => void; hasPayrollAccess?: boolean }) {
   const [vacancies, setVacancies] = useState<any[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
 
@@ -260,7 +287,9 @@ function OverviewContent({ metrics, onNavigate }: { metrics: any; onNavigate: (t
             { id: 'users', label: 'HR Users', icon: Users, desc: 'Roles & Codes', color: 'hover:border-indigo-500/40 hover:bg-indigo-500/5 hover:text-indigo-600' },
             { id: 'attendance', label: 'Attendance', icon: Clock, desc: 'Punches & Export', color: 'hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600' },
             { id: 'attendance-calendar', label: 'Calendar', icon: CalendarDays, desc: 'SalaryBox View', color: 'hover:border-teal-500/40 hover:bg-teal-500/5 hover:text-teal-600' },
-            { id: 'salary-config', label: 'Salary Config', icon: DollarSign, desc: 'Statutory & Late', color: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600' },
+            hasPayrollAccess
+              ? { id: 'salary-config', label: 'Salary Config', icon: DollarSign, desc: 'Statutory & Late', color: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600' }
+              : { id: 'shift-settings', label: 'Shifts & Grace', icon: Clock, desc: 'Shift & Late Rules', color: 'hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-600' },
             { id: 'leaves', label: 'Leaves', icon: Calendar, desc: 'Requests & Docs', color: 'hover:border-rose-500/40 hover:bg-rose-500/5 hover:text-rose-600' },
             { id: 'vacancies', label: 'Vacancies', icon: Briefcase, desc: 'Hiring & Openings', color: 'hover:border-purple-500/40 hover:bg-purple-500/5 hover:text-purple-600' },
             { id: 'org-chart', label: 'Org Chart', icon: GitBranch, desc: 'Full Hierarchy', color: 'hover:border-sky-500/40 hover:bg-sky-500/5 hover:text-sky-600' },

@@ -52,6 +52,7 @@ import { ManagerHiringPanel } from '@/components/panels/hr/ManagerHiringPanel';
 import { LeaveApprovalsPanel } from '@/components/panels/hr/LeaveApprovalsPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { MyDocumentsPanel } from '@/components/panels/hr/MyDocumentsPanel';
+import { TADAClaimsPanel } from '@/components/panels/TADAClaimsPanel';
 import { FinanceCenterLedgerPanel } from '@/components/panels/FinanceCenterLedgerPanel';
 import { FinanceStudentLedgerPanel } from '@/components/panels/FinanceStudentLedgerPanel';
 import { FinanceUniversityFeeReportPanel } from '@/components/panels/FinanceUniversityFeeReportPanel';
@@ -122,6 +123,8 @@ export function ModernOpsDashboard({ initialTab, onNavigate: _onNavigate }: { in
       case 'my_attendance': return <AttendancePanel isPersonalView />;
       case 'payslips':
       case 'my_payslips': return <PayrollPanel isEmployeeView />;
+      case 'my_tada':
+      case 'my-tada': return <TADAClaimsPanel mode="employee" />;
       case 'my_documents': return <MyDocumentsPanel />;
       case 'manager_hiring': return <ManagerHiringPanel />;
       case 'holidays': return <HolidaysPanel />;
@@ -171,6 +174,7 @@ export function getOpsNavItems(isSubDeptManager: boolean, isManager: boolean = t
     { id: 'my_leaves', label: 'My Leaves' },
     ...((isManager || isSubDeptManager) ? [{ id: 'leave_approvals', label: 'Leave Approvals' }] : []),
     { id: 'my_attendance', label: 'Attendance' },
+    { id: 'my_tada', label: 'My TA/DA Claims' },
     { id: 'my_payslips', label: 'Pay Slips' },
     { id: 'my_documents', label: 'My Documents' },
     { id: 'manager_hiring', label: 'My Hiring Requests' },
