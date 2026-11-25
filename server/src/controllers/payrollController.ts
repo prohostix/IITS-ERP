@@ -994,12 +994,20 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
             });
           }
         } else if (att.status === 'absent') {
-          absentDays += 1;
-          dayMeta.push({
-            day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
-            isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: false, explicitAbsent: true,
-          });
+          if (isHoliday || isWeeklyOff) {
+            dayMeta.push({
+              day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
+              isHoliday, isWeeklyOff, isScheduledWorkDay: false,
+              workedOrPaidLeave: false, explicitAbsent: false,
+            });
+          } else {
+            absentDays += 1;
+            dayMeta.push({
+              day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
+              isHoliday, isWeeklyOff, isScheduledWorkDay,
+              workedOrPaidLeave: false, explicitAbsent: true,
+            });
+          }
         }
         continue;
       }
@@ -1169,6 +1177,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       if (halfDays > 0) pList.push(`${halfDays}HD`);
       if (paidLeaveDays > 0) pList.push(`${paidLeaveDays}L`);
       if (unpaidLeaveDays > 0) pList.push(`${unpaidLeaveDays}UL`);
+      if (paidWeeklyOffDays > 0) pList.push(`${paidWeeklyOffDays}WO`);
       if (paidHolidayDays > 0) pList.push(`${paidHolidayDays}H`);
       if (lateDays > 0) pList.push(`${lateDays}Late (${totalLateMinutes}m)`);
 
