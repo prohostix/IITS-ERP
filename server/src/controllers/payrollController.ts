@@ -528,6 +528,24 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
   let deductMode: 'beyond_grace' | 'from_start' = 'beyond_grace';
   let lateCountForHalfDay = 0;
   let lateSlabRules: any[] = [];
+  let carryForwardRules: any[] = [
+    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
+    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
+    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
+    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
+  ];
+
+  if (hrSettings?.leaveCarryForwardRules) {
+    const parsedCf = typeof hrSettings.leaveCarryForwardRules === 'string'
+      ? JSON.parse(hrSettings.leaveCarryForwardRules)
+      : hrSettings.leaveCarryForwardRules;
+    if (Array.isArray(parsedCf) && parsedCf.length > 0) {
+      carryForwardRules = carryForwardRules.map((def) => {
+        const found = parsedCf.find((r: any) => r?.leaveType === def.leaveType);
+        return found ? { ...def, ...found } : def;
+      });
+    }
+  }
 
   if (hrSettings?.officeHours) {
     const oh: any = typeof hrSettings.officeHours === 'string'
@@ -573,7 +591,10 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
   });
 
   const userIds = users.map((u) => u.id);
-  const [allAttendances, allLeaves] = await Promise.all([
+  const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+  const priorMonthEnd = m > 1 ? new Date(Date.UTC(year, m - 1, 0, 23, 59, 59, 999)) : null;
+
+  const [allAttendances, allLeaves, allYearLeaves, allLeaveAllocations, allYearHolidays] = await Promise.all([
     prisma.attendance.findMany({
       where: {
         organizationId: req.user.organizationId,
@@ -590,7 +611,70 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         endDate: { gte: queryStart },
       },
     }),
+    priorMonthEnd
+      ? prisma.leaveRequest.findMany({
+          where: {
+            organizationId: req.user.organizationId,
+            userId: { in: userIds },
+            status: 'approved',
+            startDate: { lte: priorMonthEnd },
+            endDate: { gte: yearStart },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.leaveAllocation.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        userId: { in: userIds },
+        year,
+      },
+    }),
+    prisma.holiday.findMany({
+      where: {
+        organizationId: req.user.organizationId,
+        date: { gte: yearStart, lte: queryEnd },
+      },
+      select: { date: true },
+    }),
   ]);
+
+  const yearHolidaySet = new Set<string>(holidayDateSet);
+  allYearHolidays.forEach((h) => {
+    const dStr = toLocalDateStr(h.date);
+    if (dStr) yearHolidaySet.add(dStr);
+  });
+
+  const leaveAllocationMap = new Map<string, any>();
+  for (const alloc of allLeaveAllocations) {
+    leaveAllocationMap.set(alloc.userId, alloc);
+  }
+
+  const priorLeavesByUserMap = new Map<string, any[]>();
+  for (const lv of allYearLeaves) {
+    if (!priorLeavesByUserMap.has(lv.userId)) priorLeavesByUserMap.set(lv.userId, []);
+    priorLeavesByUserMap.get(lv.userId)!.push(lv);
+  }
+
+  const countPriorWorkingLeaveDays = (lr: any): number => {
+    if (!priorMonthEnd) return 0;
+    const s = new Date(Math.max(new Date(lr.startDate).getTime(), yearStart.getTime()));
+    const e = new Date(Math.min(new Date(lr.endDate).getTime(), priorMonthEnd.getTime()));
+    const sDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+    const eDay = Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate());
+    if (eDay < sDay) return 0;
+    if (lr.isHalfDay) return 0.5;
+    let count = 0;
+    const cur = new Date(sDay);
+    while (cur.getTime() <= eDay) {
+      const k = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
+      const dow = cur.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      if (workingDays.includes(dow) && !yearHolidaySet.has(k)) {
+        count += 1;
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return count;
+  };
 
   const userAttendancesMap = new Map<string, Map<string, any>>();
   for (const att of allAttendances) {
@@ -683,6 +767,59 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
     const userAttMap = userAttendancesMap.get(user.id) || new Map<string, any>();
     const userLeaves = userLeavesMap.get(user.id) || [];
 
+    // Compute remaining paid leave quota for each leave type entering this payroll month
+    const userAlloc = leaveAllocationMap.get(user.id);
+    const priorLeaves = priorLeavesByUserMap.get(user.id) || [];
+    let accrualStartMonth = 0;
+    if (joinDateStr) {
+      const [jy, jm] = joinDateStr.split('-').map(Number);
+      if (jy === year && jm >= 1) accrualStartMonth = jm - 1;
+      else if (jy > year) accrualStartMonth = 12;
+    }
+    const buildPaidQuotaForType = (typeKey: string, defaultAnnual: number, rawAlloc?: number | null): number => {
+      const allocatedVal = rawAlloc !== undefined && rawAlloc !== null ? Number(rawAlloc) : defaultAnnual;
+      if (allocatedVal <= 0) return 0;
+      const usedPrior = priorLeaves
+        .filter((l) => l.type === typeKey)
+        .reduce((sum, l) => sum + countPriorWorkingLeaveDays(l), 0);
+      const isMonthlyQuota = allocatedVal > 0 && allocatedVal <= 4;
+      if (isMonthlyQuota) {
+        const rule = carryForwardRules.find((r: any) => r.leaveType === typeKey);
+        const curMonthIdx = m - 1;
+        let carried = 0;
+        if (rule?.monthlyCarryForward !== false && curMonthIdx > accrualStartMonth) {
+          const priorElapsed = Math.max(0, curMonthIdx - accrualStartMonth);
+          const rawCarried = Math.max(0, priorElapsed * allocatedVal - usedPrior);
+          const maxCap = rule?.maxDays !== undefined && Number(rule.maxDays) > 0 ? Number(rule.maxDays) : rawCarried;
+          carried = Math.min(rawCarried, maxCap);
+        }
+        return Number((allocatedVal + carried).toFixed(1));
+      }
+      return Math.max(0, Number((allocatedVal - usedPrior).toFixed(1)));
+    };
+
+    const paidQuotaRemaining: Record<string, number> = {
+      sick: buildPaidQuotaForType('sick', 12, userAlloc?.sickLeave),
+      casual: buildPaidQuotaForType('casual', 12, userAlloc?.casualLeave),
+      earned: buildPaidQuotaForType('earned', 15, userAlloc?.earnedLeave),
+      compensatory: buildPaidQuotaForType('compensatory', 0, userAlloc?.complementaryLeave),
+      unpaid: 0,
+    };
+
+    const consumePaidLeaveQuota = (leaveType: string | null | undefined, requestedDays: number) => {
+      const key = String(leaveType || 'casual').toLowerCase();
+      if (key === 'unpaid') return { paid: 0, unpaid: requestedDays };
+      if (!(key in paidQuotaRemaining)) {
+        // Statutory leaves (maternity / paternity / other approved paid types)
+        return { paid: requestedDays, unpaid: 0 };
+      }
+      const rem = Math.max(0, paidQuotaRemaining[key] || 0);
+      const paid = Math.min(requestedDays, rem);
+      const unpaid = Number(Math.max(0, requestedDays - paid).toFixed(2));
+      paidQuotaRemaining[key] = Number(Math.max(0, rem - paid).toFixed(2));
+      return { paid, unpaid };
+    };
+
     let presentDays = 0;
     let absentDays = 0;
     let halfDays = 0;
@@ -752,7 +889,15 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         if (att.status === 'half_day' || att.isHalfDay) {
           halfDays += 1;
           presentDays += 0.5;
-          absentDays += 0.5;
+          // If employee also has an approved leave on this day, pair the other 0.5 day against paid quota
+          if (matchingLeave && !isHoliday && !isWeeklyOff) {
+            const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave.type, 0.5);
+            paidLeaveDays += paid;
+            unpaidLeaveDays += unpaid;
+            absentDays += unpaid;
+          } else {
+            absentDays += 0.5;
+          }
           dayMeta.push({
             day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
             isHoliday, isWeeklyOff, isScheduledWorkDay,
@@ -808,20 +953,27 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
             workedOrPaidLeave: true, explicitAbsent: false,
           });
         } else if (att.status === 'leave') {
-          if (matchingLeave && matchingLeave.type === 'unpaid') {
-            unpaidLeaveDays += 1;
-            absentDays += 1;
+          if (isHoliday || isWeeklyOff) {
             dayMeta.push({
               day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
-              isHoliday, isWeeklyOff, isScheduledWorkDay,
-              workedOrPaidLeave: false, explicitAbsent: true,
+              isHoliday, isWeeklyOff, isScheduledWorkDay: false,
+              workedOrPaidLeave: false, explicitAbsent: false,
             });
           } else {
-            paidLeaveDays += 1;
+            const reqDays = matchingLeave?.isHalfDay ? 0.5 : 1;
+            const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave?.type || 'casual', reqDays);
+            paidLeaveDays += paid;
+            unpaidLeaveDays += unpaid;
+            if (reqDays === 0.5) {
+              halfDays += 1;
+              absentDays += 0.5 + unpaid;
+            } else {
+              absentDays += unpaid;
+            }
             dayMeta.push({
               day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
               isHoliday, isWeeklyOff, isScheduledWorkDay,
-              workedOrPaidLeave: true, explicitAbsent: false,
+              workedOrPaidLeave: paid > 0, explicitAbsent: paid === 0,
             });
           }
         } else if (att.status === 'absent') {
@@ -847,42 +999,32 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
         continue;
       }
 
-      // 4. Approved leave
-      if (matchingLeave && dayStr <= todayStr) {
-        if (matchingLeave.type === 'unpaid') {
-          unpaidLeaveDays += 1;
-          absentDays += 1;
-          dayMeta.push({
-            day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
-            isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: false, explicitAbsent: true,
-          });
-        } else if (matchingLeave.isHalfDay) {
-          halfDays += 1;
-          paidLeaveDays += 0.5;
-          absentDays += 0.5;
-          dayMeta.push({
-            day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
-            isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: true, explicitAbsent: false,
-          });
-        } else {
-          paidLeaveDays += 1;
-          dayMeta.push({
-            day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
-            isHoliday, isWeeklyOff, isScheduledWorkDay,
-            workedOrPaidLeave: true, explicitAbsent: false,
-          });
-        }
-        continue;
-      }
-
-      // 5. Company Holiday or Weekly Off
+      // 4. Company Holiday or Weekly Off (evaluated before leave so leaves spanning Sundays/holidays do not consume quota or trigger LOP)
       if (isHoliday || isWeeklyOff) {
         dayMeta.push({
           day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
           isHoliday, isWeeklyOff, isScheduledWorkDay: false,
           workedOrPaidLeave: false, explicitAbsent: false,
+        });
+        continue;
+      }
+
+      // 5. Approved leave (honors full payroll month including future approved days, enforcing LeaveAllocation quota)
+      if (matchingLeave) {
+        const reqDays = matchingLeave.isHalfDay ? 0.5 : 1;
+        const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave.type, reqDays);
+        paidLeaveDays += paid;
+        unpaidLeaveDays += unpaid;
+        if (reqDays === 0.5) {
+          halfDays += 1;
+          absentDays += 0.5 + unpaid;
+        } else {
+          absentDays += unpaid;
+        }
+        dayMeta.push({
+          day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
+          isHoliday, isWeeklyOff, isScheduledWorkDay,
+          workedOrPaidLeave: paid > 0, explicitAbsent: paid === 0,
         });
         continue;
       }
@@ -1001,6 +1143,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       const pList = [`Att: ${presentDays}P, ${absentDays}A`];
       if (halfDays > 0) pList.push(`${halfDays}HD`);
       if (paidLeaveDays > 0) pList.push(`${paidLeaveDays}L`);
+      if (unpaidLeaveDays > 0) pList.push(`${unpaidLeaveDays}UL`);
       if (paidHolidayDays > 0) pList.push(`${paidHolidayDays}H`);
       if (lateDays > 0) pList.push(`${lateDays}Late (${totalLateMinutes}m)`);
 
