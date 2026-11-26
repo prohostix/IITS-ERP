@@ -443,30 +443,35 @@ export const carryForwardLeaveAllocations = asyncHandler(async (req: AuthRequest
     return res.status(400).json({ success: false, message: 'Source year must be earlier than target year.' });
   }
 
-  // Persist custom carry-forward rules if submitted
+  // Persist custom carry-forward rules if submitted (preserving expiryMonths from HR Settings)
   let hrSettings = await prisma.hRSettings.findUnique({ where: { organizationId: orgId } });
-  let rules: any[] = [
-    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
-    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
-  ];
+  const existingRules = parseCarryForwardRules(hrSettings?.leaveCarryForwardRules);
+  let rules = existingRules;
 
   if (Array.isArray(req.body.rules) && req.body.rules.length > 0) {
-    rules = req.body.rules;
+    rules = existingRules.map((ex) => {
+      const submitted = req.body.rules.find((r: any) => r?.leaveType === ex.leaveType);
+      if (!submitted) return ex;
+      return {
+        ...ex,
+        ...submitted,
+        expiryMonths:
+          submitted.expiryMonths !== undefined
+            ? Math.max(0, Number(submitted.expiryMonths) || 0)
+            : ex.expiryMonths,
+      };
+    });
     if (hrSettings) {
       hrSettings = await prisma.hRSettings.update({
         where: { organizationId: orgId },
         data: { leaveCarryForwardRules: rules },
       });
     }
-  } else if (hrSettings?.leaveCarryForwardRules && Array.isArray(hrSettings.leaveCarryForwardRules) && (hrSettings.leaveCarryForwardRules as any[]).length > 0) {
-    rules = hrSettings.leaveCarryForwardRules as any[];
   }
 
-  const baseSick = Math.max(0, Math.round(Number(req.body.baseSickLeave ?? 12)));
-  const baseCasual = Math.max(0, Math.round(Number(req.body.baseCasualLeave ?? 12)));
-  const baseEarned = Math.max(0, Math.round(Number(req.body.baseEarnedLeave ?? 15)));
+  const baseSick = Math.max(0, Math.round(Number(req.body.baseSickLeave ?? 1)));
+  const baseCasual = Math.max(0, Math.round(Number(req.body.baseCasualLeave ?? 1)));
+  const baseEarned = Math.max(0, Math.round(Number(req.body.baseEarnedLeave ?? 1)));
   const baseComp = Math.max(0, Math.round(Number(req.body.baseComplementaryLeave ?? 0)));
 
   const fromStart = new Date(Date.UTC(fromYear, 0, 1, 0, 0, 0, 0));
@@ -545,9 +550,10 @@ export const carryForwardLeaveAllocations = asyncHandler(async (req: AuthRequest
     const targetBaseEarned = curr ? (curr.earnedLeave <= baseEarned ? curr.earnedLeave : baseEarned) : baseEarned;
     const targetBaseComp = curr ? (curr.complementaryLeave <= baseComp ? curr.complementaryLeave : baseComp) : baseComp;
 
-    const newSick = targetBaseSick + cfSick;
-    const newCasual = targetBaseCasual + cfCasual;
-    const newEarned = targetBaseEarned + cfEarned;
+    // For monthly-basis quotas (1..4/month), preserve the monthly rate instead of adding yearly CF onto it
+    const newSick = targetBaseSick > 0 && targetBaseSick <= 4 ? targetBaseSick : targetBaseSick + cfSick;
+    const newCasual = targetBaseCasual > 0 && targetBaseCasual <= 4 ? targetBaseCasual : targetBaseCasual + cfCasual;
+    const newEarned = targetBaseEarned > 0 && targetBaseEarned <= 4 ? targetBaseEarned : targetBaseEarned + cfEarned;
     const newComp = targetBaseComp + cfComp;
 
     await prisma.leaveAllocation.upsert({
