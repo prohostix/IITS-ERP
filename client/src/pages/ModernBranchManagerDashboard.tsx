@@ -529,7 +529,7 @@ function BranchOverview({
             value: loading ? '...' : `${overallTargetProgress}%`,
             change:
               totalTargetsCount > 0
-                ? `${totalTargetAchieved}/${totalTargetGoal} (${completedTargetsCount}/${totalTargetsCount} met)`
+                ? `${completedTargetsCount}/${totalTargetsCount} quotas met`
                 : 'No quotas assigned',
             isPositive: overallTargetProgress >= 50 || completedTargetsCount > 0,
           },
@@ -709,7 +709,7 @@ function BranchOverview({
           title="Quota Achievement"
           value={loading ? '...' : `${overallTargetProgress}%`}
           sub={`${completedTargetsCount}/${totalTargetsCount} targets met`}
-          footer={`${totalTargetAchieved} achieved of ${totalTargetGoal} target units`}
+          footer={`${completedTargetsCount} of ${totalTargetsCount} quotas met`}
           icon={<Target className="w-5 h-5" />}
           color="rose"
           onClick={() => onNavigate('targets')}
