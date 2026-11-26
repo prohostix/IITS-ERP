@@ -294,7 +294,7 @@ export function FinanceUniversityFeeReportPanel() {
           </div>
           <div class="meta-area">
             <div><strong>Date of Issue:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            <div><strong>Filter Scope:</strong> ${selectedUniversity === 'all' ? 'All Partner Universities' : 'Filtered University'} | Status: ${selectedStatus.toUpperCase()}</div>
+            <div><strong>Filter Scope:</strong> ${!filters.universities || filters.universities.length === 0 ? 'All Partner Universities' : `${filters.universities.length} Selected University(s)`} | Status: ${!filters.statuses || filters.statuses.length === 0 ? 'ALL' : filters.statuses.join(', ').toUpperCase()}</div>
           </div>
         </div>
 
