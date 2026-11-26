@@ -31,10 +31,10 @@ const DEFAULT_HR_SETTINGS = {
   },
   lateDeductionRules: [],
   leaveCarryForwardRules: [
-    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
-    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
+    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true, expiryMonths: 0 },
+    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true, expiryMonths: 0 },
   ],
   location: {
     officeLatitude: 28.6139,

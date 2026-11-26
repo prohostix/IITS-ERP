@@ -4,6 +4,11 @@ import { AuthRequest, isPayrollAuthorizedUser } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendEmail } from '../utils/mailer.js';
+import {
+  parseCarryForwardRules,
+  buildMonthlyUsageMap,
+  computeMonthlyFifoCarryForward,
+} from '../utils/leaveBalanceHelper.js';
 
 function sumAllowances(allowances: any): number {
   if (!allowances) return 0;
@@ -539,24 +544,7 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
   let earlyLeaveDeductMode: 'beyond_grace' | 'from_start' = 'beyond_grace';
   let maxEarlyLeaveMinutesPerMonth = 0;
   let lateSlabRules: any[] = [];
-  let carryForwardRules: any[] = [
-    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
-    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
-  ];
-
-  if (hrSettings?.leaveCarryForwardRules) {
-    const parsedCf = typeof hrSettings.leaveCarryForwardRules === 'string'
-      ? JSON.parse(hrSettings.leaveCarryForwardRules)
-      : hrSettings.leaveCarryForwardRules;
-    if (Array.isArray(parsedCf) && parsedCf.length > 0) {
-      carryForwardRules = carryForwardRules.map((def) => {
-        const found = parsedCf.find((r: any) => r?.leaveType === def.leaveType);
-        return found ? { ...def, ...found } : def;
-      });
-    }
-  }
+  const carryForwardRules = parseCarryForwardRules(hrSettings?.leaveCarryForwardRules);
 
   if (hrSettings?.officeHours) {
     const oh: any = typeof hrSettings.officeHours === 'string'
@@ -806,32 +794,32 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
       if (jy === year && jm >= 1) accrualStartMonth = jm - 1;
       else if (jy > year) accrualStartMonth = 12;
     }
-    const buildPaidQuotaForType = (typeKey: string, defaultAnnual: number, rawAlloc?: number | null): number => {
-      const allocatedVal = rawAlloc !== undefined && rawAlloc !== null ? Number(rawAlloc) : defaultAnnual;
+    const buildPaidQuotaForType = (typeKey: string, defaultMonthly: number, rawAlloc?: number | null): number => {
+      const allocatedVal = rawAlloc !== undefined && rawAlloc !== null ? Number(rawAlloc) : defaultMonthly;
       if (allocatedVal <= 0) return 0;
-      const usedPrior = priorLeaves
-        .filter((l) => l.type === typeKey)
-        .reduce((sum, l) => sum + countPriorWorkingLeaveDays(l), 0);
       const isMonthlyQuota = allocatedVal > 0 && allocatedVal <= 4;
       if (isMonthlyQuota) {
         const rule = carryForwardRules.find((r: any) => r.leaveType === typeKey);
-        const curMonthIdx = m - 1;
-        let carried = 0;
-        if (rule?.monthlyCarryForward !== false && curMonthIdx > accrualStartMonth) {
-          const priorElapsed = Math.max(0, curMonthIdx - accrualStartMonth);
-          const rawCarried = Math.max(0, priorElapsed * allocatedVal - usedPrior);
-          const maxCap = rule?.maxDays !== undefined && Number(rule.maxDays) > 0 ? Number(rule.maxDays) : rawCarried;
-          carried = Math.min(rawCarried, maxCap);
-        }
-        return Number((allocatedVal + carried).toFixed(1));
+        const usedByMonth = buildMonthlyUsageMap(priorLeaves, year, typeKey, workingDays, yearHolidaySet, true);
+        const fifo = computeMonthlyFifoCarryForward({
+          monthlyQuota: allocatedVal,
+          targetMonthIdx: m - 1,
+          accrualStartMonth,
+          usedByMonth,
+          rule,
+        });
+        return fifo.effectiveAllocated;
       }
+      const usedPrior = priorLeaves
+        .filter((l) => l.type === typeKey)
+        .reduce((sum, l) => sum + countPriorWorkingLeaveDays(l), 0);
       return Math.max(0, Number((allocatedVal - usedPrior).toFixed(1)));
     };
 
     const paidQuotaRemaining: Record<string, number> = {
-      sick: buildPaidQuotaForType('sick', 12, userAlloc?.sickLeave),
-      casual: buildPaidQuotaForType('casual', 12, userAlloc?.casualLeave),
-      earned: buildPaidQuotaForType('earned', 15, userAlloc?.earnedLeave),
+      sick: buildPaidQuotaForType('sick', 1, userAlloc?.sickLeave),
+      casual: buildPaidQuotaForType('casual', 1, userAlloc?.casualLeave),
+      earned: buildPaidQuotaForType('earned', 1, userAlloc?.earnedLeave),
       compensatory: buildPaidQuotaForType('compensatory', 0, userAlloc?.complementaryLeave),
       unpaid: 0,
     };
@@ -1053,6 +1041,23 @@ async function generatePayrollCore(req: AuthRequest, month: string, isSmart: boo
               day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
               isHoliday, isWeeklyOff, isScheduledWorkDay: false,
               workedOrPaidLeave: false, explicitAbsent: false,
+            });
+          } else if (matchingLeave) {
+            // Approved leave request takes precedence over a stale 'absent' attendance row
+            const reqDays = matchingLeave.isHalfDay ? 0.5 : 1;
+            const { paid, unpaid } = consumePaidLeaveQuota(matchingLeave.type, reqDays);
+            paidLeaveDays += paid;
+            unpaidLeaveDays += unpaid;
+            if (reqDays === 0.5) {
+              halfDays += 1;
+              absentDays += 0.5 + unpaid;
+            } else {
+              absentDays += unpaid;
+            }
+            dayMeta.push({
+              day, dayStr, dayOfWeek, isPreJoining, isPostResignation,
+              isHoliday, isWeeklyOff, isScheduledWorkDay,
+              workedOrPaidLeave: paid > 0, explicitAbsent: paid === 0,
             });
           } else {
             absentDays += 1;

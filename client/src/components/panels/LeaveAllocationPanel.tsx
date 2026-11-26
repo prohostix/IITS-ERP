@@ -34,11 +34,16 @@ interface User {
   status?: string;
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 const DEFAULT_CF_RULES = [
-  { leaveType: 'casual', label: 'Casual Leave', enabled: true, maxDays: 6, monthlyCarryForward: true },
-  { leaveType: 'sick', label: 'Sick Leave', enabled: true, maxDays: 6, monthlyCarryForward: true },
-  { leaveType: 'earned', label: 'Earned Leave', enabled: true, maxDays: 15, monthlyCarryForward: true },
-  { leaveType: 'compensatory', label: 'Compensatory Leave', enabled: true, maxDays: 5, monthlyCarryForward: true },
+  { leaveType: 'casual', label: 'Casual Leave', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'sick', label: 'Sick Leave', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'earned', label: 'Earned Leave', enabled: true, maxDays: 15, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'compensatory', label: 'Compensatory Leave', enabled: true, maxDays: 5, monthlyCarryForward: true, expiryMonths: 0 },
 ];
 
 export function LeaveAllocationPanel() {
@@ -46,6 +51,7 @@ export function LeaveAllocationPanel() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [carryDialogOpen, setCarryDialogOpen] = useState(false);
@@ -54,18 +60,18 @@ export function LeaveAllocationPanel() {
   const [search, setSearch] = useState('');
 
   const [form, setForm] = useState({
-    sickLeave: 12, casualLeave: 12, earnedLeave: 15, complementaryLeave: 0,
+    sickLeave: 1, casualLeave: 1, earnedLeave: 1, complementaryLeave: 0,
   });
   const [bulkForm, setBulkForm] = useState({
-    sickLeave: 12, casualLeave: 12, earnedLeave: 15, complementaryLeave: 0, overwrite: false,
+    sickLeave: 1, casualLeave: 1, earnedLeave: 1, complementaryLeave: 0, overwrite: false,
   });
   const [cfRules, setCfRules] = useState<any[]>(DEFAULT_CF_RULES);
   const [cfBaseForm, setCfBaseForm] = useState({
     fromYear: new Date().getFullYear() - 1,
     toYear: new Date().getFullYear(),
-    baseSickLeave: 12,
-    baseCasualLeave: 12,
-    baseEarnedLeave: 15,
+    baseSickLeave: 1,
+    baseCasualLeave: 1,
+    baseEarnedLeave: 1,
     baseComplementaryLeave: 0,
   });
 
@@ -73,13 +79,13 @@ export function LeaveAllocationPanel() {
   useEffect(() => {
     setCfBaseForm(prev => ({ ...prev, fromYear: year - 1, toYear: year }));
     fetchAll();
-  }, [year]);
+  }, [year, month]);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
       const [allocRes, usersRes] = await Promise.all([
-        api.get(`/hr/leave-allocations?year=${year}`),
+        api.get(`/hr/leave-allocations?year=${year}&month=${month}`),
         api.get('/users?status=active'),
       ]);
       setAllocations(allocRes.data?.data || []);
@@ -113,7 +119,7 @@ export function LeaveAllocationPanel() {
       });
     } else {
       setEditingUserId(userId || '');
-      setForm({ sickLeave: 12, casualLeave: 12, earnedLeave: 15, complementaryLeave: 0 });
+      setForm({ sickLeave: 1, casualLeave: 1, earnedLeave: 1, complementaryLeave: 0 });
     }
     setDialogOpen(true);
   };
@@ -186,12 +192,21 @@ export function LeaveAllocationPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Leave Allocations & Carry-Forward</h2>
+          <h2 className="text-2xl font-bold">Leave Allocations & Carry-Forward (Monthly Basis)</h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage sick, casual, earned & compensatory leave balances and year-to-year / monthly carry-forward
+            Manage monthly leave quotas (1–4 days/month) with automatic monthly rollover & configurable expiry in HR Settings
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <select
+            className="border rounded-md px-3 py-1.5 text-sm bg-background"
+            value={month}
+            onChange={e => setMonth(Number(e.target.value))}
+          >
+            {MONTH_NAMES.map((name, idx) => (
+              <option key={name} value={idx + 1}>{name}</option>
+            ))}
+          </select>
           <select
             className="border rounded-md px-3 py-1.5 text-sm bg-background"
             value={year}
@@ -213,6 +228,20 @@ export function LeaveAllocationPanel() {
           </Button>
         </div>
       </div>
+
+      {allocations.some(a => a.sickLeave > 4 || a.casualLeave > 4 || a.earnedLeave > 4) && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-800 dark:text-amber-300">
+          <span>
+            Some employees still have legacy yearly quotas (&gt; 4 days). Click <strong>Bulk Init</strong> with <strong>Overwrite</strong> enabled to switch them to monthly quotas (e.g., 1–2 days/month).
+          </span>
+          <Button size="sm" variant="outline" className="shrink-0 h-7 text-xs" onClick={() => {
+            setBulkForm(f => ({ ...f, overwrite: true }));
+            setBulkDialogOpen(true);
+          }}>
+            Convert to Monthly
+          </Button>
+        </div>
+      )}
 
       <Input placeholder="Search employee..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" />
 
@@ -243,19 +272,37 @@ export function LeaveAllocationPanel() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                         {[
-                          { label: 'Sick', total: alloc.sickLeave, used: alloc.usedSick || 0, color: 'text-red-500' },
-                          { label: 'Casual', total: alloc.casualLeave, used: alloc.usedCasual || 0, color: 'text-blue-500' },
-                          { label: 'Earned', total: alloc.earnedLeave, used: alloc.usedEarned || 0, color: 'text-green-500' },
-                          { label: 'Comp.', total: alloc.complementaryLeave, used: alloc.usedComplementary || 0, color: 'text-purple-500' },
-                        ].map(({ label, total, used, color }) => (
-                          <div key={label}>
-                            <p className="text-xs text-muted-foreground">{label} (Rem / Total)</p>
-                            <p className={`font-semibold ${color}`}>
-                              {remaining(total, used)}
-                              <span className="text-muted-foreground font-normal text-xs"> / {total} (Used: {used})</span>
-                            </p>
-                          </div>
-                        ))}
+                          { label: 'Sick', base: alloc.sickLeave, info: (alloc as any).monthlyBreakdown?.sick, usedFallback: alloc.usedSick || 0, color: 'text-red-500' },
+                          { label: 'Casual', base: alloc.casualLeave, info: (alloc as any).monthlyBreakdown?.casual, usedFallback: alloc.usedCasual || 0, color: 'text-blue-500' },
+                          { label: 'Earned', base: alloc.earnedLeave, info: (alloc as any).monthlyBreakdown?.earned, usedFallback: alloc.usedEarned || 0, color: 'text-green-500' },
+                          { label: 'Comp.', base: alloc.complementaryLeave, info: (alloc as any).monthlyBreakdown?.compensatory, usedFallback: alloc.usedComplementary || 0, color: 'text-purple-500' },
+                        ].map(({ label, base, info, usedFallback, color }) => {
+                          const total = info ? info.effectiveTotal : base;
+                          const used = info ? info.used : usedFallback;
+                          const cf = info?.carriedForward || 0;
+                          const expired = info?.expired || 0;
+                          const isMonthly = info ? info.isMonthly : (base > 0 && base <= 4);
+                          return (
+                            <div key={label}>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                                <span>{label}</span>
+                                <span className="text-[10px] opacity-75">({isMonthly ? `${base}/mo` : 'Yearly'})</span>
+                                {cf > 0 && (
+                                  <span className="text-[10px] px-1 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-semibold">
+                                    +{cf} CF
+                                  </span>
+                                )}
+                              </p>
+                              <p className={`font-semibold ${color}`}>
+                                {remaining(total, used)}
+                                <span className="text-muted-foreground font-normal text-xs"> / {total} (Used: {used})</span>
+                              </p>
+                              {expired > 0 && (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-400">Expired: {expired}d</p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => openEdit(alloc)}>
@@ -273,9 +320,12 @@ export function LeaveAllocationPanel() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Leave Allocation — {year}</DialogTitle>
+            <DialogTitle>Monthly Leave Allocation — {year}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Enter <strong>monthly</strong> entitlement (1–4 days/month). Unused days automatically roll over month-to-month per HR Settings.
+            </p>
             {!allocatedUserIds.has(editingUserId) && (
               <div className="space-y-2">
                 <Label>Employee</Label>
@@ -291,10 +341,10 @@ export function LeaveAllocationPanel() {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
-                { key: 'sickLeave', label: 'Sick Leave (days)' },
-                { key: 'casualLeave', label: 'Casual Leave (days)' },
-                { key: 'earnedLeave', label: 'Earned Leave (days)' },
-                { key: 'complementaryLeave', label: 'Compensatory Leave (days)' },
+                { key: 'sickLeave', label: 'Sick Leave (days / month)' },
+                { key: 'casualLeave', label: 'Casual Leave (days / month)' },
+                { key: 'earnedLeave', label: 'Earned Leave (days / month)' },
+                { key: 'complementaryLeave', label: 'Compensatory (days / month)' },
               ] as const).map(({ key, label }) => (
                 <div key={key} className="space-y-1">
                   <Label>{label}</Label>
@@ -317,17 +367,17 @@ export function LeaveAllocationPanel() {
       <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Bulk Initialize Leave — {year}</DialogTitle>
+            <DialogTitle>Bulk Initialize Monthly Leave — {year}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Sets default leave balances for active employees for {year}.
+            Sets default <strong>monthly</strong> leave quotas (days/month) for active employees in {year}.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             {([
-              { key: 'sickLeave', label: 'Sick Leave' },
-              { key: 'casualLeave', label: 'Casual Leave' },
-              { key: 'earnedLeave', label: 'Earned Leave' },
-              { key: 'complementaryLeave', label: 'Compensatory Leave' },
+              { key: 'sickLeave', label: 'Sick Leave (days/mo)' },
+              { key: 'casualLeave', label: 'Casual Leave (days/mo)' },
+              { key: 'earnedLeave', label: 'Earned Leave (days/mo)' },
+              { key: 'complementaryLeave', label: 'Compensatory (days/mo)' },
             ] as const).map(({ key, label }) => (
               <div key={key} className="space-y-1">
                 <Label>{label}</Label>

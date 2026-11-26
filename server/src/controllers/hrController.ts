@@ -5,28 +5,11 @@ import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ensureOpenPositionInHierarchy } from './orgAdminController.js';
 import { emitToUser } from '../config/socket.js';
-
-function parseCarryForwardRules(raw: any) {
-  const defaults = [
-    { leaveType: 'casual', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'sick', enabled: true, maxDays: 6, monthlyCarryForward: true },
-    { leaveType: 'earned', enabled: true, maxDays: 15, monthlyCarryForward: true },
-    { leaveType: 'compensatory', enabled: true, maxDays: 5, monthlyCarryForward: true },
-  ];
-  let parsed = raw;
-  if (typeof raw === 'string') {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = null;
-    }
-  }
-  if (!Array.isArray(parsed) || parsed.length === 0) return defaults;
-  return defaults.map((def) => {
-    const found = parsed.find((r: any) => r?.leaveType === def.leaveType);
-    return found ? { ...def, ...found } : def;
-  });
-}
+import {
+  parseCarryForwardRules,
+  buildMonthlyUsageMap,
+  computeMonthlyFifoCarryForward,
+} from '../utils/leaveBalanceHelper.js';
 
 async function resolveLeaveStakeholders(organizationId: string, employeeUserId: string) {
   const employee = await prisma.user.findUnique({
@@ -285,9 +268,9 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
       where: { userId_year: { userId, year: prevYear } },
     });
 
-    let initSick = 12;
-    let initCasual = 12;
-    let initEarned = 15;
+    let initSick = 1;
+    let initCasual = 1;
+    let initEarned = 1;
     let initComp = 0;
 
     if (prevAllocation) {
@@ -440,13 +423,22 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
     const isMonthlyQuota = allocatedVal > 0 && allocatedVal <= 4;
     let effectiveAllocated = allocatedVal;
     let carriedForward = 0;
+    let expiredDays = 0;
+    let expiringEndOfMonth = 0;
 
-    if (isMonthlyQuota && rule?.monthlyCarryForward !== false && month > accrualStartMonth) {
-      const priorElapsedMonths = Math.max(0, month - accrualStartMonth);
-      const rawCarried = Math.max(0, priorElapsedMonths * allocatedVal - usedPriorMonths);
-      const maxCap = rule?.maxDays !== undefined && Number(rule.maxDays) > 0 ? Number(rule.maxDays) : rawCarried;
-      carriedForward = Number(Math.min(rawCarried, maxCap).toFixed(1));
-      effectiveAllocated = Number((allocatedVal + carriedForward).toFixed(1));
+    if (isMonthlyQuota) {
+      const usedByMonth = buildMonthlyUsageMap(leaves, year, typeKey, orgWorkingDays, holidayKeySet, true);
+      const fifo = computeMonthlyFifoCarryForward({
+        monthlyQuota: allocatedVal,
+        targetMonthIdx: month,
+        accrualStartMonth,
+        usedByMonth,
+        rule,
+      });
+      carriedForward = fifo.carriedForward;
+      expiredDays = fifo.expiredTotal;
+      expiringEndOfMonth = fifo.expiringEndOfMonth;
+      effectiveAllocated = fifo.effectiveAllocated;
     }
 
     const effectiveUsed = isMonthlyQuota ? usedThisMonth : usedThisYear;
@@ -458,6 +450,8 @@ export async function computeUserLeaveBalance(userId: string, organizationId: st
       allocated: effectiveAllocated,
       baseAllocated: allocatedVal,
       carriedForward,
+      expiredDays,
+      expiringEndOfMonth,
       isMonthlyQuota,
       usedThisMonth,
       pendingThisMonth,

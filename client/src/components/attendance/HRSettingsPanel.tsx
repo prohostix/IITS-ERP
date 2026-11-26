@@ -23,10 +23,10 @@ L.Icon.Default.mergeOptions({
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const DEFAULT_CARRY_FORWARD_RULES = [
-  { leaveType: 'casual', label: 'Casual Leave', enabled: true, maxDays: 6, monthlyCarryForward: true },
-  { leaveType: 'sick', label: 'Sick Leave', enabled: true, maxDays: 6, monthlyCarryForward: true },
-  { leaveType: 'earned', label: 'Earned / Privilege Leave', enabled: true, maxDays: 15, monthlyCarryForward: true },
-  { leaveType: 'compensatory', label: 'Compensatory Off', enabled: true, maxDays: 5, monthlyCarryForward: true },
+  { leaveType: 'casual', label: 'Casual Leave', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'sick', label: 'Sick Leave', enabled: true, maxDays: 6, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'earned', label: 'Earned / Privilege Leave', enabled: true, maxDays: 15, monthlyCarryForward: true, expiryMonths: 0 },
+  { leaveType: 'compensatory', label: 'Compensatory Off', enabled: true, maxDays: 5, monthlyCarryForward: true, expiryMonths: 0 },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -777,12 +777,12 @@ export function HRSettingsPanel() {
             <CardHeader>
               <CardTitle className="text-base">Leave Carry-Forward Rules</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Configure whether unused leaves carry forward month-to-month (for monthly quotas) and year-to-year (up to the specified maximum days).
+                Configure whether unused leaves carry forward month-to-month (for monthly quotas) and year-to-year, maximum rollover days, and optional rollover expiry in months (<code>0</code> = never expires within the year).
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
               {(settings.leaveCarryForwardRules || DEFAULT_CARRY_FORWARD_RULES).map((rule: any) => (
-                <div key={rule.leaveType} className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 items-center p-3.5 rounded-xl border bg-card">
+                <div key={rule.leaveType} className="grid grid-cols-1 sm:grid-cols-[1.4fr_0.9fr_0.9fr_0.9fr_1fr] gap-3 items-center p-3.5 rounded-xl border bg-card">
                   <div>
                     <p className="font-semibold text-sm capitalize">{rule.label || `${rule.leaveType} Leave`}</p>
                     <p className="text-xs text-muted-foreground">Carry forward unused {rule.leaveType} leave balance</p>
@@ -802,15 +802,29 @@ export function HRSettingsPanel() {
                     <span className="text-xs">Yearly Carry-Forward</span>
                   </div>
                   <div>
-                    <Label className="text-xs">Max Carry-Forward Days</Label>
+                    <Label className="text-xs">Max CF Days</Label>
                     <Input
                       type="number"
                       min="0"
                       max="60"
-                      disabled={rule.enabled === false}
+                      disabled={rule.enabled === false && rule.monthlyCarryForward === false}
                       value={rule.maxDays ?? 0}
                       onChange={e => updateCfRule(rule.leaveType, { maxDays: Math.max(0, Number(e.target.value)) })}
                     />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Rollover Expiry (mo)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="12"
+                      disabled={rule.monthlyCarryForward === false}
+                      value={rule.expiryMonths ?? 0}
+                      onChange={e => updateCfRule(rule.leaveType, { expiryMonths: Math.max(0, Math.min(12, Number(e.target.value))) })}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {Number(rule.expiryMonths || 0) === 0 ? 'No expiry' : `Expires after ${rule.expiryMonths} mo`}
+                    </p>
                   </div>
                 </div>
               ))}

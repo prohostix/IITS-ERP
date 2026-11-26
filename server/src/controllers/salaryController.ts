@@ -3,6 +3,12 @@ import { Response } from 'express';
 import { AuthRequest, isPayrollAuthorizedUser } from '../middleware/auth.js';
 import prisma from '../lib/prisma.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import {
+  parseCarryForwardRules,
+  buildMonthlyUsageMap,
+  computeMonthlyFifoCarryForward,
+  countWorkingLeaveDaysInRange,
+} from '../utils/leaveBalanceHelper.js';
 
 export const getSalaryConfigs = asyncHandler(async (req: AuthRequest, res: Response) => {
   const includeResigned = req.query.includeResigned === 'true';
@@ -184,7 +190,11 @@ function countWorkingLeaveDaysInYear(lr: any, yearStart: Date, yearEnd: Date, ho
 }
 
 export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const year = Number(req.query.year) || new Date().getFullYear();
+  const now = new Date();
+  const year = Number(req.query.year) || now.getFullYear();
+  const rawMonth = req.query.month !== undefined ? Number(req.query.month) : now.getMonth() + 1;
+  const month = Number.isFinite(rawMonth) && rawMonth >= 1 && rawMonth <= 12 ? rawMonth : now.getMonth() + 1;
+  const monthIdx = month - 1;
   const orgId = req.user.organizationId;
 
   const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
@@ -193,15 +203,28 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
   const [allocations, leaveRequests, holidays, hrSettings] = await Promise.all([
     prisma.leaveAllocation.findMany({
       where: { organizationId: orgId, year, user: { status: { not: 'resigned' } } },
-      include: { user: { select: { id: true, name: true, email: true, role: true, designation: true, status: true } } }
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            designation: true,
+            status: true,
+            employeeProfile: { select: { joinDate: true } },
+            employeeProfileDetail: { select: { joinDate: true } },
+          },
+        },
+      },
     }),
     prisma.leaveRequest.findMany({
       where: {
         organizationId: orgId,
         status: 'approved',
         startDate: { lte: yearEnd },
-        endDate: { gte: yearStart }
-      }
+        endDate: { gte: yearStart },
+      },
     }),
     prisma.holiday.findMany({
       where: { organizationId: orgId, date: { gte: yearStart, lte: yearEnd } },
@@ -211,37 +234,101 @@ export const getLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Re
   ]);
 
   const holidayKeySet = new Set(
-    holidays.map(h => {
+    holidays.map((h) => {
       const hd = new Date(h.date);
       return `${hd.getUTCFullYear()}-${String(hd.getUTCMonth() + 1).padStart(2, '0')}-${String(hd.getUTCDate()).padStart(2, '0')}`;
     })
   );
 
-  const data = allocations.map(alloc => {
-    const userLeaves = leaveRequests.filter(lr => lr.userId === alloc.userId);
-    let usedSick = 0, usedCasual = 0, usedEarned = 0, usedComplementary = 0;
-
-    for (const lr of userLeaves) {
-      const days = countWorkingLeaveDaysInYear(lr, yearStart, yearEnd, holidayKeySet);
-      if (lr.type === 'sick') usedSick += days;
-      else if (lr.type === 'casual') usedCasual += days;
-      else if (lr.type === 'earned') usedEarned += days;
-      else if (lr.type === 'compensatory') usedComplementary += days;
+  let workingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  if (hrSettings?.officeHours) {
+    const oh: any = typeof hrSettings.officeHours === 'string'
+      ? JSON.parse(hrSettings.officeHours)
+      : hrSettings.officeHours;
+    if (Array.isArray(oh?.workingDays) && oh.workingDays.length > 0) {
+      workingDays = oh.workingDays;
     }
+  }
+  const cfRules = parseCarryForwardRules(hrSettings?.leaveCarryForwardRules);
+
+  const data = allocations.map((alloc) => {
+    const userLeaves = leaveRequests.filter((lr) => lr.userId === alloc.userId);
+    const rawJoin = alloc.user?.employeeProfileDetail?.joinDate || alloc.user?.employeeProfile?.joinDate;
+    let accrualStartMonth = 0;
+    if (rawJoin) {
+      const jd = new Date(rawJoin);
+      if (!isNaN(jd.getTime())) {
+        if (jd.getUTCFullYear() === year) accrualStartMonth = jd.getUTCMonth();
+        else if (jd.getUTCFullYear() > year) accrualStartMonth = 12;
+      }
+    }
+
+    const computeType = (typeKey: string, baseVal: number) => {
+      const isMonthly = baseVal > 0 && baseVal <= 4;
+      const usedByMonth = buildMonthlyUsageMap(userLeaves, year, typeKey, workingDays, holidayKeySet, true);
+      const usedInMonth = usedByMonth[monthIdx] || 0;
+      const usedInYear = userLeaves
+        .filter((lr) => lr.type === typeKey)
+        .reduce((s, lr) => s + countWorkingLeaveDaysInRange(lr, yearStart, yearEnd, workingDays, holidayKeySet), 0);
+
+      if (isMonthly) {
+        const rule = cfRules.find((r) => r.leaveType === typeKey);
+        const fifo = computeMonthlyFifoCarryForward({
+          monthlyQuota: baseVal,
+          targetMonthIdx: monthIdx,
+          accrualStartMonth,
+          usedByMonth,
+          rule,
+        });
+        return {
+          isMonthly: true,
+          effectiveTotal: fifo.effectiveAllocated,
+          carriedForward: fifo.carriedForward,
+          expired: fifo.expiredTotal,
+          expiringEndOfMonth: fifo.expiringEndOfMonth,
+          used: usedInMonth,
+          usedYear: usedInYear,
+        };
+      }
+
+      return {
+        isMonthly: false,
+        effectiveTotal: baseVal,
+        carriedForward: 0,
+        expired: 0,
+        expiringEndOfMonth: 0,
+        used: usedInYear,
+        usedYear: usedInYear,
+      };
+    };
+
+    const sick = computeType('sick', alloc.sickLeave);
+    const casual = computeType('casual', alloc.casualLeave);
+    const earned = computeType('earned', alloc.earnedLeave);
+    const comp = computeType('compensatory', alloc.complementaryLeave);
 
     return {
       ...alloc,
-      usedSick,
-      usedCasual,
-      usedEarned,
-      usedComplementary,
+      month,
+      usedSick: sick.used,
+      usedCasual: casual.used,
+      usedEarned: earned.used,
+      usedComplementary: comp.used,
+      monthlyBreakdown: {
+        sick,
+        casual,
+        earned,
+        compensatory: comp,
+      },
     };
   });
 
   res.json({
     success: true,
     count: data.length,
-    carryForwardRules: hrSettings?.leaveCarryForwardRules || [],
+    year,
+    month,
+    carryForwardRules: cfRules,
     data,
   });
 });
@@ -260,9 +347,9 @@ export const upsertLeaveAllocation = asyncHandler(async (req: AuthRequest, res: 
   const orgId = targetUser?.organizationId || req.user.organizationId;
 
   const cleanData = {
-    sickLeave: Math.max(0, Math.round(Number(req.body.sickLeave ?? 12))),
-    casualLeave: Math.max(0, Math.round(Number(req.body.casualLeave ?? 12))),
-    earnedLeave: Math.max(0, Math.round(Number(req.body.earnedLeave ?? 15))),
+    sickLeave: Math.max(0, Math.round(Number(req.body.sickLeave ?? 1))),
+    casualLeave: Math.max(0, Math.round(Number(req.body.casualLeave ?? 1))),
+    earnedLeave: Math.max(0, Math.round(Number(req.body.earnedLeave ?? 1))),
     complementaryLeave: Math.max(0, Math.round(Number(req.body.complementaryLeave ?? 0))),
   };
 
@@ -283,9 +370,9 @@ export const upsertLeaveAllocation = asyncHandler(async (req: AuthRequest, res: 
 export const bulkInitLeaveAllocations = asyncHandler(async (req: AuthRequest, res: Response) => {
   const {
     year = new Date().getFullYear(),
-    casualLeave = 12,
-    sickLeave = 12,
-    earnedLeave = 15,
+    casualLeave = 1,
+    sickLeave = 1,
+    earnedLeave = 1,
     complementaryLeave = 0,
     overwrite = false,
   } = req.body;
