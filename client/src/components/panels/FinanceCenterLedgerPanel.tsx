@@ -322,6 +322,27 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
     printWindow.document.close();
   };
 
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.branches || []).forEach((bid: string) => {
+      const match = branches.find(b => String(b.id) === String(bid));
+      items.push({
+        category: 'Branch',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = sessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    return items;
+  }, [filters, branches, sessions]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // DETAIL VIEW (Statement of Account for Selected Center)
   // ══════════════════════════════════════════════════════════════════════════
@@ -592,27 +613,6 @@ export function FinanceCenterLedgerPanel({ initialCenterId }: { initialCenterId?
       </div>
     );
   }
-
-  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
-    const items: ActiveFilterItem[] = [];
-    (filters.branches || []).forEach((bid: string) => {
-      const match = branches.find(b => String(b.id) === String(bid));
-      items.push({
-        category: 'Branch',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
-        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
-      });
-    });
-    (filters.sessions || []).forEach((sid: string) => {
-      const match = sessions.find(s => String(s.id) === String(sid));
-      items.push({
-        category: 'Session',
-        label: match?.name || sid,
-        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
-      });
-    });
-    return items;
-  }, [filters, branches, sessions]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DIRECTORY VIEW (Searchable List of All Study Centers)

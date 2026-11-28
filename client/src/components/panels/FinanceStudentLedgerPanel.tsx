@@ -447,6 +447,59 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
     printWindow.document.close();
   };
 
+  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
+    const items: ActiveFilterItem[] = [];
+    (filters.branches || []).forEach((bid: string) => {
+      const match = branches.find(b => String(b.id) === String(bid));
+      items.push({
+        category: 'Branch',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
+        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
+      });
+    });
+    (filters.sessions || []).forEach((sid: string) => {
+      const match = sessions.find(s => String(s.id) === String(sid));
+      items.push({
+        category: 'Session',
+        label: match?.name || sid,
+        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
+      });
+    });
+    (filters.universities || []).forEach((uid: string) => {
+      const match = universities.find(u => String(u.id) === String(uid));
+      items.push({
+        category: 'University',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || uid),
+        onRemove: () => setField('universities', (filters.universities || []).filter((id: string) => id !== uid))
+      });
+    });
+    (filters.programs || []).forEach((pid: string) => {
+      const match = programs.find(p => String(p.id) === String(pid));
+      items.push({
+        category: 'Program',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || pid),
+        onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
+      });
+    });
+    (filters.centers || []).forEach((cid: string) => {
+      const match = centers.find(c => String(c.id) === String(cid));
+      items.push({
+        category: 'Center',
+        label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
+        onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
+      });
+    });
+    (filters.statuses || []).forEach((st: string) => {
+      const labelMap: Record<string, string> = { paid: 'Paid in Full', partial: 'Partially Paid', pending: 'Pending', advance: 'Advance Paid' };
+      items.push({
+        category: 'Status',
+        label: labelMap[st] || st,
+        onRemove: () => setField('statuses', (filters.statuses || []).filter((id: string) => id !== st))
+      });
+    });
+    return items;
+  }, [filters, branches, sessions, universities, programs, centers]);
+
   // ══════════════════════════════════════════════════════════════════════════
   // DETAIL VIEW (Statement of Account for Selected Student)
   // ══════════════════════════════════════════════════════════════════════════
@@ -944,59 +997,6 @@ export function FinanceStudentLedgerPanel({ initialStudentId }: { initialStudent
       </div>
     );
   }
-
-  const activeFilterItems: ActiveFilterItem[] = useMemo(() => {
-    const items: ActiveFilterItem[] = [];
-    (filters.branches || []).forEach((bid: string) => {
-      const match = branches.find(b => String(b.id) === String(bid));
-      items.push({
-        category: 'Branch',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || bid),
-        onRemove: () => setField('branches', (filters.branches || []).filter((id: string) => id !== bid))
-      });
-    });
-    (filters.sessions || []).forEach((sid: string) => {
-      const match = sessions.find(s => String(s.id) === String(sid));
-      items.push({
-        category: 'Session',
-        label: match?.name || sid,
-        onRemove: () => setField('sessions', (filters.sessions || []).filter((id: string) => id !== sid))
-      });
-    });
-    (filters.universities || []).forEach((uid: string) => {
-      const match = universities.find(u => String(u.id) === String(uid));
-      items.push({
-        category: 'University',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || uid),
-        onRemove: () => setField('universities', (filters.universities || []).filter((id: string) => id !== uid))
-      });
-    });
-    (filters.programs || []).forEach((pid: string) => {
-      const match = programs.find(p => String(p.id) === String(pid));
-      items.push({
-        category: 'Program',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || pid),
-        onRemove: () => setField('programs', (filters.programs || []).filter((id: string) => id !== pid))
-      });
-    });
-    (filters.centers || []).forEach((cid: string) => {
-      const match = centers.find(c => String(c.id) === String(cid));
-      items.push({
-        category: 'Center',
-        label: match?.code ? `${match.name} (${match.code})` : (match?.name || cid),
-        onRemove: () => setField('centers', (filters.centers || []).filter((id: string) => id !== cid))
-      });
-    });
-    (filters.statuses || []).forEach((st: string) => {
-      const labelMap: Record<string, string> = { paid: 'Paid in Full', partial: 'Partially Paid', pending: 'Pending', advance: 'Advance Paid' };
-      items.push({
-        category: 'Status',
-        label: labelMap[st] || st,
-        onRemove: () => setField('statuses', (filters.statuses || []).filter((id: string) => id !== st))
-      });
-    });
-    return items;
-  }, [filters, branches, sessions, universities, programs, centers]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // DIRECTORY VIEW (Searchable List of All Students with Ledger Summaries)
